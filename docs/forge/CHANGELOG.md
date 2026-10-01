@@ -5,6 +5,8 @@
 - Added a documentation index, architecture and developer guides.
 - Added prominent navigation and current Forge status to the repository README.
 - Clarified tracked source versus generated test artifacts and verification limits.
+- Expanded the root README with the project/build summary, full candidate feature
+  inventory, controls/defaults, usage commands and explicitly unimplemented scope.
 - No firmware behavior or candidate binary changed.
 
 ## 0.2 software candidate — 2026-10-02
