@@ -1,6 +1,6 @@
 # Forge project brief
 
-Status: foundation implementation, 2026-10-01. Community firmware for CHOMPI;
+Status: software candidate 0.2, 2026-10-02; physical acceptance pending. Community firmware for CHOMPI;
 not an official CHOMPI Club release.
 
 ## Goal
@@ -25,14 +25,15 @@ was previously agreed.
   polled and applied in that callback after queued MIDI commands.
 - Real-time boundary: no allocation, storage operations, network, or AI calls
   in the Forge audio core. Fixed-size buffers and bounded command consumption.
-- Future AI: translates intent into supported parameters/presets on an external
-  host. It is not currently implemented, and arbitrary generated DSP cannot be
-  loaded by this foundation.
+- Optional AI adapter: the Python host asks a configured Ollama model for a
+  schema-constrained preset, validates it, and saves it for explicit sending.
+  Model integration is mock-tested; no live model session has been performed.
+  Arbitrary generated DSP is unsupported.
 
 “No recompile” applies to controls exposed by the installed engine. New DSP
 algorithms, routing capabilities, or hardware drivers still require builds.
-Patch files and graph changes will need a separately designed schema, validation,
-and atomic application mechanism; none exist in M0.
+Versioned host JSON presets and atomic application now exist in candidate 0.2.
+Device-side SD storage and graph changes remain outside this candidate.
 
 ## Milestones and acceptance
 
@@ -68,8 +69,8 @@ delay-time changes glide in pitch. Buffers are initialized before audio starts.
 Aux input is the only active source; microphone, sampler, looper, SD presets,
 sequencer, and stock performance UI are outside this first milestone.
 
-No additional hardware is required by this architecture. Tab5, Wi-Fi, and AI
-integration remain later work. This is not a replacement for the stock sampler's
+No additional controller hardware is required by this architecture. Tab5 and
+Wi-Fi remain later work; optional AI authoring now runs on an external host. This is not a replacement for the stock sampler's
 complete feature set.
 
 ## Source baseline

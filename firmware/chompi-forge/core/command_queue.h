@@ -6,11 +6,15 @@
 namespace forge {
 // Exactly one producer (main loop) and one consumer (audio callback).
 // Full queue rejects the newest command, never overwrites unread data.
-template<unsigned Capacity> class CommandQueue {
+template<typename T, unsigned Capacity> class SpscQueue {
     static_assert(Capacity >= 2, "Queue needs a spare slot");
     static_assert(ATOMIC_INT_LOCK_FREE == 2, "Audio requires lock-free indices");
 public:
-    bool Push(Command command) {
+    bool HasSpace() const {
+        return (head_.load(std::memory_order_relaxed) + 1) % Capacity
+            != tail_.load(std::memory_order_acquire);
+    }
+    bool Push(const T& command) {
         const unsigned head = head_.load(std::memory_order_relaxed);
         const unsigned next = (head + 1) % Capacity;
         if(next == tail_.load(std::memory_order_acquire)) return false;
@@ -18,7 +22,7 @@ public:
         head_.store(next, std::memory_order_release);
         return true;
     }
-    bool Pop(Command& command) {
+    bool Pop(T& command) {
         const unsigned tail = tail_.load(std::memory_order_relaxed);
         if(tail == head_.load(std::memory_order_acquire)) return false;
         command = entries_[tail];
@@ -26,7 +30,8 @@ public:
         return true;
     }
 private:
-    Command entries_[Capacity]{};
+    T entries_[Capacity]{};
     std::atomic<unsigned> head_{0}, tail_{0};
 };
+template<unsigned Capacity> using CommandQueue = SpscQueue<Command, Capacity>;
 } // namespace forge

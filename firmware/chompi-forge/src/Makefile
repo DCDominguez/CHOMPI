@@ -8,6 +8,7 @@ LIBDIR = -L../build/libdaisy
 LDSCRIPT = $(WAVE)/src/chompi_sram.lds
 CPP_SOURCES = forge_main.cpp $(WAVE)/src/encoder.cpp
 C_INCLUDES += -I$(WAVE)/src -I../core
+C_INCLUDES += -I$(LIBDAISY_DIR)/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc
 SYSTEM_FILES_DIR = $(LIBDAISY_DIR)/core
 # Keep the foundation build-only without modifying the vendored Makefile.
 ifneq ($(filter program% flash%,$(MAKECMDGOALS)),)

@@ -1,9 +1,11 @@
-# Forge — foundation
+# Forge 0.2 — consolidated test candidate
 
 Experimental community firmware for CHOMPI. A standalone stereo delay and
-live-control foundation, not a continuation of TAPE's sampler UI.
+live patch control, host-managed presets, and diagnostics; not a continuation of TAPE's sampler UI.
 See the [project brief](../../docs/forge/PROJECT.md) and
-[current handoff](../../docs/forge/HANDOFF.md).
+[current handoff](../../docs/forge/HANDOFF.md),
+[host controller](host/README.md), [protocol](../../docs/forge/PROTOCOL.md), and
+[single test session](../../docs/forge/TEST_SESSION.md).
 
 ## Build and test
 
@@ -52,7 +54,8 @@ Aux L/R (`in[2]`/`in[3]`) feed the effect; stereo output is copied to headphone
 Encoder IDs follow `hardware.h`; confirm printed-panel correspondence during
 bring-up. SW5 and keybed actions are unassigned. CC values use `value / 127`.
 The same mapping is accepted over USB and TRS MIDI; other channels and unknown
-CCs are ignored. No MIDI output, clock, note processing, or parameter feedback.
+CCs are ignored. SysEx patch/status requests receive replies on the same transport.
+No clock output, note processing, or unsolicited parameter streaming.
 
 Bypass fades the wet mix to zero while retaining output level and the delay
 state. It is software wet bypass, not a hardware relay or unity-gain bypass.
@@ -68,16 +71,19 @@ Battery warning/shutdown handling is inherited from WAVE and needs bench testing
 
 `core/` is hardware-independent and allocation-free. Main-loop MIDI processing
 feeds a single-producer/single-consumer queue with 63 usable entries; at most
-16 commands are consumed per audio block. Overflow drops the newest command and
-increments `dropped_commands`, visible in a debugger. This prevents an unbounded
-Forge control loop but is not a transport acknowledgement protocol.
+16 requests are consumed per audio block. Full patches are validated before
+queueing and applied atomically by the audio owner. Responses include the active
+targets and average/peak callback load; TX stays in the main loop. Overflow is
+counted; a host timeout must not be interpreted as proof that a patch was not
+applied. See the protocol document for backpressure and recovery details.
 
 DSP and parameter state belong to the audio callback after initialization;
-physical encoder changes apply after MIDI changes in each block. SD, JSON,
-runtime graph loading, persistent patches, AI, and networking are not implemented.
-The stock bootloader is needed to load the app, but the app itself performs no
-SD access. Building alone cannot establish CPU headroom, USB enumeration,
-audio routing, electrical levels, or recovery on a physical unit.
+physical encoder changes apply after MIDI changes in each block. JSON files,
+validation, saving/capture, and optional Ollama authoring live on the host.
+The device stores one volatile patch and resets to defaults on reboot. It does
+not access SD files, run AI/networking, or load new DSP/graphs. The stock
+bootloader is still needed to load the app. Building alone cannot establish
+CPU headroom, USB enumeration, routing, electrical levels, or device recovery.
 
 ## First hardware session
 

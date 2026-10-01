@@ -19,6 +19,13 @@ struct Parameters {
     float level = 0.25f;
     bool bypass = false;
 
+    bool Valid() const {
+        return std::isfinite(mix) && mix >= 0.f && mix <= 1.f
+            && std::isfinite(time) && time >= 0.f && time <= 1.f
+            && std::isfinite(feedback) && feedback >= 0.f && feedback <= 1.f
+            && std::isfinite(level) && level >= 0.f && level <= 1.f;
+    }
+
     bool Apply(Command command) {
         if(!std::isfinite(command.value)) return false;
         const float value = Clamp(command.value, 0.f, 1.f);
@@ -34,7 +41,7 @@ struct Parameters {
     }
 };
 
-// MIDI channel 1 (zero-based channel 0). No SysEx or patch parser yet.
+// MIDI channel 1 (zero-based channel 0); full patches use protocol.h.
 inline bool DecodeCC(uint8_t channel, uint8_t cc, uint8_t value, Command& out) {
     if(channel != 0 || value > 127) return false;
     Parameter parameter;

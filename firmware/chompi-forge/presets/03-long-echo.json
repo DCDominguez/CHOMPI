@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "name": "Long echoes",
+  "engine": "stereo_delay",
+  "parameters": {"mix": 0.4, "time_ms": 650, "feedback": 0.55, "level": 0.25, "bypass": false}
+}

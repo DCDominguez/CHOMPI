@@ -30,6 +30,13 @@ public:
         return true;
     }
     bool Apply(Command command) { return parameters_.Apply(command); }
+    // Called only by the audio owner, between blocks. Validate before mutation;
+    // smoothing and delay state continue uninterrupted across a patch change.
+    bool ApplyPatch(const Parameters& patch) {
+        if(!patch.Valid()) return false;
+        parameters_ = patch;
+        return true;
+    }
     const Parameters& GetParameters() const { return parameters_; }
 
     void Process(float left, float right, float& out_left, float& out_right) {

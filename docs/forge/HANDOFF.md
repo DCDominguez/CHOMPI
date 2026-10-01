@@ -1,69 +1,94 @@
-# Forge handoff
+# Forge handoff — candidate 0.2
 
-Updated: 2026-10-01. Branch: `forge/foundation`.
+Updated: 2026-10-02 (Asia/Manila). Remote branch: `forge/foundation`, draft PR #1.
 
 ## Start here
 
-Read [PROJECT.md](PROJECT.md) and the
-[firmware README](../../firmware/chompi-forge/README.md).
-The first code lives in `firmware/chompi-forge/`.
+Read [PROJECT.md](PROJECT.md), [PROTOCOL.md](PROTOCOL.md), the
+[host instructions](../../firmware/chompi-forge/host/README.md), and the
+[one-session checklist](TEST_SESSION.md).
+
+DC wants one consolidated hardware test. Do not request a separate M0 flash
+or a physical test after each feature. The software candidate is now assembled;
+physical acceptance remains outstanding. A defect may still require a retest.
 
 ## Implemented
 
-- A separate BOOT_SRAM application reusing WAVE hardware and linker definitions.
-- Stereo aux input to a 10–1000 ms delay, copied to headphone and main outputs.
-- Mix/time/feedback/level/bypass with bounded values and smoothing.
-- USB/TRS MIDI CC controls on channel 1 and physical encoder controls.
-- Fixed-capacity control queue; audio owns DSP state; no allocation in the core.
-- Explicit SDRAM buffer clearing before audio; inherited battery protection.
-- Host tests and a source build of the vendored libDaisy into Forge's build tree.
+- BOOT_SRAM app using WAVE's hardware, encoder and linker definitions.
+- Stereo aux input through a 10–1000 ms delay to headphone/main outputs.
+- Smoothed mix/time/feedback/level/wet bypass, local encoders and MIDI CC.
+- Versioned host JSON presets, validation, exclusive file saving, capture of
+  current device targets, and atomic full-patch recall at an audio block boundary.
+- USB/TRS SysEx apply/status/reject replies with sequences and checksums.
+- A dedicated MIDI framer tolerating interleaved real-time bytes, overflow and
+  resynchronization; complete USB SysEx packetization and persistent TX buffers.
+- Bounded queues and callback control work, response backpressure, drop/reject
+  counts, and average/peak callback CPU reporting. No TX in the audio callback.
+- Host Python CLI, three presets, offline renderer sharing the actual DSP core,
+  and an optional Ollama structured-output adapter. AI generation validates and
+  saves a preset; sending remains a separate explicit command.
+- A bundle-generation script with source identity, firmware/file checksums,
+  synthetic audio references, licensing and the consolidated test checklist.
 
-## Verification
+## Verification and limits
 
-- `make test`: passes with host GCC, C++14, warnings treated as errors.
-- ASan/UBSan: passes with `ASAN_OPTIONS=detect_leaks=0`; this environment cannot
-  run LeakSanitizer's `/proc` inspection. Leak checking was not performed.
-- Tests exercise invalid controls/CC filtering, queue full/wrap/FIFO behavior,
-  100,000 concurrently transferred commands, initialization, dry stereo
-  separation, timed impulse response, wet bypass, output gain smoothing,
-  ten seconds of full-feedback/time-change stress, and non-finite input.
-- ARM application and the vendored libDaisy both compile from source and link
-  successfully with GNU Arm Embedded 10.3-2021.10. The link map confirms use
-  of Forge's freshly built `build/libdaisy/libdaisy.a`.
-- Final link usage: SRAM_EXEC 91,192 / 237,568 bytes (38.39%); SRAM
-  111,708 / 286,720 (38.96%); RAM_D2 22,304 / 32,768 (68.07%); SDRAM
-  384,016 / 67,108,864 (0.57%). These are linker allocations, not CPU load
-  or measured worst-case stack usage.
-- No device attached: no flash, audio audition, USB/TRS hardware check,
-  callback CPU measurement, or stock restore test has been performed.
+- Host DSP/queue tests pass with C++14 and warnings as errors.
+- Protocol tests pass: atomic rejection, corrupt/truncated messages, unsupported
+  versions, MIDI running status and clock interruption, resynchronization,
+  100,000 fuzz bytes, and USB final-packet sizes.
+- Twelve Python integration tests pass. They include 250 seeded random patch
+  round trips through the real C++ protocol/runtime, malformed-patch state
+  preservation, persistence, strict JSON, mock AI responses, acknowledgement
+  mismatch/timeout handling, explicit port selection, and offline WAV output.
+- ASan/UBSan pass for the DSP/queue and protocol suites. LeakSanitizer is disabled
+  because this execution environment cannot perform its `/proc` inspection.
+- GNU Arm Embedded 10.3-2021.10 builds libDaisy and Forge from source and links
+  the application. FORGE.bin is 100,592 bytes. Link allocation: SRAM_EXEC 42.34%,
+  SRAM 15.55%, RAM_D2 68.07%, SDRAM 0.57%. These are not CPU/stack measurements.
+- Pinned Mido 1.3.3 and python-rtmidi 1.5.8 downloads/imports and MIDI message
+  construction checked on the execution host; no physical MIDI port tested.
+- No device attached: no flash, audio audition, USB enumeration, TRS I/O,
+  callback-load measurement, battery validation or stock restore performed.
+- No running Ollama model used: adapter requests/responses are mock-tested.
+  Actual model compatibility, response time and musical interpretation are pending.
 
-## Environment note
+## Deliberate limits
 
-The official compiler archive hash matches the README. Its compiler subprocess
-crashed even on trivial C when run from the workspace mount. Extracting it to
-`/tmp/forge-toolchain/` with `tar --no-same-owner` resolved the crash. This is an
-environment workaround, not a firmware code change.
+One compiled stereo-delay engine. Host-managed preset files; device targets are
+volatile and reset on reboot. No sampler, looper, on-device preset files,
+patch graph, generated DSP, Tab5 UI, Wi-Fi, or onboard AI. Bypass fades only the
+wet contribution and retains level. Time changes glide in pitch. Hard clipping
+bounds numeric output but is not a mastering limiter.
 
-## Next work
+Only one host and one outstanding acknowledged request at a time. Timeout can
+mean the patch applied but its reply was lost; query status before retrying.
+Read PROTOCOL.md for counter meanings, overload and transport limits.
 
-DC requested **one consolidated hardware test session** on 2026-10-01.
-Do not ask for an M0-only flash now or interrupt each software milestone for
-physical testing. Continue automated host tests and ARM builds throughout.
+## Build and package
 
-1. Add on-device CPU/load and control-overflow reporting for the eventual test.
-2. Define and implement versioned patch data and atomic apply, including
-   rejection/failure behavior; verify offline before building the minimal host.
-3. Assemble the bounded first candidate and minimal external-authoring/control
-   host, with offline integration tests. Dedicated Tab5/Wi-Fi work remains later.
-4. Prepare one firmware candidate, controller/test harness, restoration steps,
-   and one sequenced checklist covering boot/audio, controls, patch recall,
-   host control, stress/load, and power behavior. Then run one guided hardware
-   session and record exact board/card/bootloader and results.
+From `firmware/chompi-forge`:
 
-Keep hardware assumptions explicit while those checks are deferred. If the
-session exposes a hardware-dependent defect, a targeted retest may be necessary;
-do not promise that exactly one flash will be sufficient.
+```sh
+make test
+ASAN_OPTIONS=detect_leaks=0 make sanitize
+make firmware GCC_PATH=/path/to/gcc-arm-none-eabi-10.3-2021.10/bin
+# Commit tested source first; outputs must be outside the tracked source tree.
+python host/package_candidate.py /absolute/path/Forge_0.2_Test_Candidate.zip
+```
 
-Avoid expanding into Wi-Fi, arbitrary scripts, or multiple new effects before
-the basic audio/control path is measured. Do not describe M0 as a tested
-replacement for the stock sampler or as an AI patch loader.
+The bundle's manifest identifies its exact source commit/tree and binary hash.
+Generated binaries and bundles are not committed to the source repository.
+The bundle is experimental and does not constitute a hardware-approved release.
+
+The compiler initially crashed from the workspace mount but worked after
+extracting the verified official archive to `/tmp/forge-toolchain/` with
+`tar --no-same-owner`. Temporary compiler files may need restoring after an
+idle session. Do not trust a partial archive; verify the README's SHA-256.
+
+## Next action
+
+Run the single consolidated session using TEST_SESSION.md when DC has the unit
+and computer ready. Record passes, failures and explicitly skipped sections in
+`docs/forge/TEST_RESULTS.md`. Do not mark hardware or actual-model acceptance as
+complete based on software tests. Use the measured result to decide further DSP
+or controller work; keep expansion outside this first candidate.
