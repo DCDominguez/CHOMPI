@@ -46,11 +46,23 @@ environment workaround, not a firmware code change.
 
 ## Next work
 
-1. Review the provisional M0 control mapping and bring up the physical unit
-   using the README's checklist. Log exact board/card/bootloader and results.
-2. Add on-device CPU/load and control-overflow reporting to guide expansion.
-3. After hardware acceptance, define versioned patch data and atomic apply,
-   including failure behavior, before implementing an AI host or Tab5 UI.
+DC requested **one consolidated hardware test session** on 2026-10-01.
+Do not ask for an M0-only flash now or interrupt each software milestone for
+physical testing. Continue automated host tests and ARM builds throughout.
+
+1. Add on-device CPU/load and control-overflow reporting for the eventual test.
+2. Define and implement versioned patch data and atomic apply, including
+   rejection/failure behavior; verify offline before building the minimal host.
+3. Assemble the bounded first candidate and minimal external-authoring/control
+   host, with offline integration tests. Dedicated Tab5/Wi-Fi work remains later.
+4. Prepare one firmware candidate, controller/test harness, restoration steps,
+   and one sequenced checklist covering boot/audio, controls, patch recall,
+   host control, stress/load, and power behavior. Then run one guided hardware
+   session and record exact board/card/bootloader and results.
+
+Keep hardware assumptions explicit while those checks are deferred. If the
+session exposes a hardware-dependent defect, a targeted retest may be necessary;
+do not promise that exactly one flash will be sufficient.
 
 Avoid expanding into Wi-Fi, arbitrary scripts, or multiple new effects before
 the basic audio/control path is measured. Do not describe M0 as a tested

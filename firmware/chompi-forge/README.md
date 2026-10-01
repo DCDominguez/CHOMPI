@@ -81,6 +81,11 @@ audio routing, electrical levels, or recovery on a physical unit.
 
 ## First hardware session
 
+Per DC's 2026-10-01 preference, defer this to one consolidated acceptance
+session for the assembled first candidate. M0 does not require a separate
+user test now. Keep building and testing software in the meantime, and extend
+the checklist below with patch/host integration checks as those are implemented.
+
 This build has not been flashed or tested on DC's CHOMPI. Before first boot,
 back up the working card and confirm the existing stock firmware/restore path;
 use a separate test card and the installed CHOMPI bootloader. Do not install

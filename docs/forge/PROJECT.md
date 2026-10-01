@@ -36,13 +36,25 @@ and atomic application mechanism; none exist in M0.
 
 ## Milestones and acceptance
 
+**DC's test preference (2026-10-01): one consolidated hardware test session.**
+Continue source builds, host tests, and offline integration during development.
+Do not stop after each feature to request a flash or bench test. Assemble the
+bounded first candidate, its controller/test harness, diagnostics, and one
+end-to-end checklist before asking DC to test. Hardware-dependent claims stay
+unverified until that session. A defect found there may require a focused retest;
+one planned session is a workflow target, not a guarantee of one lifetime flash.
+
+M1's physical checks are deferred to the consolidated session, allowing M2 and
+the minimal M3 host work to proceed with software validation first. This changes
+test sequencing, not the scope to include Wi-Fi, Tab5, or arbitrary generated DSP.
+
 | Milestone | Deliverable | Acceptance |
 | --- | --- | --- |
 | M0 foundation | Stereo delay, live parameters, source build, host tests | Build and host tests pass; physical bring-up still required |
-| M1 hardware validation | Confirm routing, encoders, USB/TRS MIDI, battery behavior | Logged tests on DC's hardware, CPU load measurement, stock restore verified |
+| M1 consolidated hardware acceptance | Exercise the assembled first candidate in one session | Routing, encoders, USB/TRS MIDI, patches/host control, CPU load, battery behavior, and stock restore checked together |
 | M2 patch model | Versioned validated presets and atomic recall | Bad patches leave the active patch intact; audible transition testing |
 | M3 external authoring | Text-to-supported-patch host prototype | Host edits parameters live, device rejects unsupported values |
-| Later | More DSP blocks, controller or network expansion | Choose after M1/M2 evidence |
+| Later | More DSP blocks, dedicated controller or network expansion | Choose after consolidated acceptance evidence |
 
 ## M0 choices
 
