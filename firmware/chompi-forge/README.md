@@ -1,7 +1,8 @@
 # Forge 0.2 — consolidated test candidate
 
-Experimental community firmware for CHOMPI. A standalone stereo delay and
-live patch control, host-managed presets, and diagnostics; not a continuation of TAPE's sampler UI.
+Experimental community firmware for CHOMPI: a standalone stereo delay with
+live patch control, host-managed presets, and diagnostics. TAPE's sampler UI
+is not included. Start with the [documentation index](../../docs/forge/README.md).
 See the [project brief](../../docs/forge/PROJECT.md) and
 [current handoff](../../docs/forge/HANDOFF.md),
 [host controller](host/README.md), [protocol](../../docs/forge/PROTOCOL.md), and

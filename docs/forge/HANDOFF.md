@@ -4,7 +4,9 @@ Updated: 2026-10-02 (Asia/Manila). Remote branch: `forge/foundation`, draft PR #
 
 ## Start here
 
-Read [PROJECT.md](PROJECT.md), [PROTOCOL.md](PROTOCOL.md), the
+Start with the [documentation index](README.md), then read
+[ARCHITECTURE.md](ARCHITECTURE.md), [DEVELOPMENT.md](DEVELOPMENT.md),
+[PROJECT.md](PROJECT.md), [PROTOCOL.md](PROTOCOL.md), the
 [host instructions](../../firmware/chompi-forge/host/README.md), and the
 [one-session checklist](TEST_SESSION.md).
 
@@ -29,6 +31,9 @@ physical acceptance remains outstanding. A defect may still require a retest.
   saves a preset; sending remains a separate explicit command.
 - A bundle-generation script with source identity, firmware/file checksums,
   synthetic audio references, licensing and the consolidated test checklist.
+- A repository documentation hub, architecture/developer guides and changelog.
+  This documentation follow-up does not change the candidate 0.2 binary or the
+  already-generated test bundle's source identity.
 
 ## Verification and limits
 

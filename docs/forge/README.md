@@ -1,0 +1,63 @@
+# Forge documentation
+
+Forge is a community firmware project for CHOMPI, built on its Daisy Seed audio
+hardware. Candidate **0.2** implements stereo delay, live controls, atomic patch
+recall, host-managed JSON presets, and diagnostics. The computer can optionally
+ask an Ollama model to author presets for those existing controls.
+
+**Software-tested; not yet hardware-verified.** The candidate has not been
+flashed or auditioned on DC's CHOMPI. Actual model use also remains unverified;
+the adapter has been tested using mock responses. The next acceptance step is
+one consolidated hardware session.
+
+## Documentation map
+
+| Document | Purpose |
+| --- | --- |
+| [Project brief](PROJECT.md) | Goals, scope, decisions and milestones |
+| [Firmware guide](../../firmware/chompi-forge/README.md) | Build commands, audio routing, parameter/CC mapping and defaults |
+| [Host guide](../../firmware/chompi-forge/host/README.md) | Validate, send, capture and save presets; optional model authoring |
+| [Architecture](ARCHITECTURE.md) | Processing boundaries, ownership, queues, patch lifecycle and source map |
+| [Developer guide](DEVELOPMENT.md) | Checkout, dependencies, software validation, packaging and troubleshooting |
+| [Protocol](PROTOCOL.md) | Exact SysEx framing, requests, replies, errors and overload semantics |
+| [Test session](TEST_SESSION.md) | One physical acceptance checklist and results template |
+| [Handoff](HANDOFF.md) | Latest implementation, evidence, limitations and next action |
+| [Changelog](CHANGELOG.md) | Changes by candidate version |
+
+## Choose a starting point
+
+**To try the candidate:** start with the test-session checklist. Prepare the
+computer with the host guide before scheduling the single physical session.
+
+**To contribute code:** read the architecture and developer guide, then consult
+the handoff for unfinished work. Keep the first candidate bounded until physical
+results justify expansion.
+
+**To author a patch:** use a preset in
+[`firmware/chompi-forge/presets/`](../../firmware/chompi-forge/presets/) as an
+example, and run the host's `validate` command. JSON describes settings for the
+compiled stereo-delay engine; it does not contain executable DSP.
+
+## What is implemented and what is pending
+
+| Area | Implemented | Remaining evidence or scope |
+| --- | --- | --- |
+| Audio | Stereo delay with smoothed parameters and bounded output | Physical routing, listening and CPU headroom |
+| Controls | Encoders, MIDI CC, USB/TRS patch and status protocol | Actual encoder mapping, USB enumeration and TRS I/O |
+| Presets | Host JSON save/capture and atomic recall | Audible transitions and capture/recall on the unit |
+| Diagnostics | Callback CPU average/peak, drop/reject counters | Measured device performance under normal use |
+| AI authoring | Optional Ollama request, strict validation and saved JSON | Live model availability, latency and musical interpretation |
+| Persistence | Files saved on the computer | Device-side SD preset storage is outside this candidate |
+| Expansion | Stable starting interfaces for later work | New effects, sampler/looper, graphs, Tab5 and Wi-Fi are not implemented |
+
+The repository contains source and documentation. Generated test bundles remain
+separate; their manifests identify the exact source commit/tree and file hashes.
+Later documentation changes do not silently update an already-generated bundle.
+
+## Maintaining these docs
+
+When behavior changes, update the firmware/host guide and changelog. When wire
+formats change, update the protocol and its version rules alongside both ends
+and their tests. Put new verification results and the next task in the handoff.
+Use the results template after the hardware session; never turn an unrun test
+into a pass. Avoid duplicating exact parameter mappings across multiple guides.
