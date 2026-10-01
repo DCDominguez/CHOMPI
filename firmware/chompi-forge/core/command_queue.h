@@ -1,0 +1,32 @@
+#pragma once
+#include <atomic>
+#include <cstddef>
+#include "parameters.h"
+
+namespace forge {
+// Exactly one producer (main loop) and one consumer (audio callback).
+// Full queue rejects the newest command, never overwrites unread data.
+template<unsigned Capacity> class CommandQueue {
+    static_assert(Capacity >= 2, "Queue needs a spare slot");
+    static_assert(ATOMIC_INT_LOCK_FREE == 2, "Audio requires lock-free indices");
+public:
+    bool Push(Command command) {
+        const unsigned head = head_.load(std::memory_order_relaxed);
+        const unsigned next = (head + 1) % Capacity;
+        if(next == tail_.load(std::memory_order_acquire)) return false;
+        entries_[head] = command;
+        head_.store(next, std::memory_order_release);
+        return true;
+    }
+    bool Pop(Command& command) {
+        const unsigned tail = tail_.load(std::memory_order_relaxed);
+        if(tail == head_.load(std::memory_order_acquire)) return false;
+        command = entries_[tail];
+        tail_.store((tail + 1) % Capacity, std::memory_order_release);
+        return true;
+    }
+private:
+    Command entries_[Capacity]{};
+    std::atomic<unsigned> head_{0}, tail_{0};
+};
+} // namespace forge

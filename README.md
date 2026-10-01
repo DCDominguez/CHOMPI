@@ -9,6 +9,10 @@ This repo contains all of the production files, both hardware and firmware, that
 
 ## What's here
 
+**Forge development:** [Project brief](docs/forge/PROJECT.md),
+[handoff](docs/forge/HANDOFF.md), and
+[experimental firmware](firmware/chompi-forge/README.md).
+
 | | |
 |---|---|
 | [**Firmware — Start Here**](firmware/README.md) | Quick instructions for setting up your development environment, building the firmware, and loading it onto your CHOMPI. |
@@ -43,4 +47,3 @@ not covered by the license — see [`TRADEMARKS.md`](TRADEMARKS.md).
 ## HAPPY CHOMPIN'
 
 ---
-
