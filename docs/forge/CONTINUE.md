@@ -135,11 +135,12 @@ Any 0.3 bundle made before this commit is stale.
 ## Next actions (priority order)
 
 1. Done: checkpoint confirmed on the remote; sound fixes committed.
-2. Bundle: the firmware changed, so regenerate it from the current clean tree
-   (`python3 host/package_candidate.py /abs/path/Forge_0.3_Test_Candidate.zip`).
-   Preferred: pinned Arm 10.3-2021.10 (`GCC_PATH=<toolchain>/bin`), which needs
-   developer.arm.com reachable; otherwise xPack, labelled
-   `built_with_pinned_compiler: false`.
+2. Bundle: done with xPack. `Forge_0.3_Test_Candidate.zip` from source commit
+   `0a605f6` (tree `0f819ecd`), FORGE.bin sha256 `ff9f3386…c299`,
+   `built_with_pinned_compiler: false`; its verify_bundle.py prints OK (33
+   files). Given to DC in chat; not committed. A clean rebuild reproduced the
+   same binary hash. Optional: regenerate with the pinned Arm 10.3-2021.10
+   (`GCC_PATH=<toolchain>/bin`) once developer.arm.com is reachable.
 3. DC: run LIVE_AI_TEST.md (CLI preflight, then webapp). Record provider/model.
    If OpenAI/Gemini rejects the schema, relax only the offending keyword.
 4. DC: run TEST_SESSION.md once with the new bundle; record in TEST_RESULTS.md.
