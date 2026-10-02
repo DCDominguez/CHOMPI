@@ -13,7 +13,7 @@ python -m pip install -r host/requirements.txt
 python host/forge_web.py
 ```
 
-Open **http://127.0.0.1:8765** in that computer's browser. The server binds only
+Open **http://127.0.0.1:8765** (or **http://localhost:8765**) in that computer's browser. The server binds only
 to this computer; it is not a hosted site or a phone-accessible LAN service.
 Use `--port 8766` if the default port is occupied, and open the printed URL.
 Stop with Ctrl+C. AI authoring, preset editing and downloads also work without
@@ -153,6 +153,26 @@ There is no fallback pretending that a deterministic preset was model-generated.
 
 The adapter has been tested with mocked responses; model availability, latency,
 and musical interpretation still need a real local-model test.
+
+## Test traffic: CC and notes
+
+For the hardware session or without a MIDI keyboard (channel 1, no reply exists):
+
+```sh
+python host/forge_host.py cc 24 127 --output "EXACT OUTPUT NAME"      # wet bypass on
+python host/forge_host.py cc 123 0 --output "EXACT OUTPUT NAME"       # panic
+python host/forge_host.py note 60 64 67 71 74 --hold 3 --output "EXACT OUTPUT NAME"
+python host/forge_host.py note 60 --velocity 30 --zero-velocity-off --output "EXACT OUTPUT NAME"
+```
+
+`note` plays the notes together, holds, then always releases them, even after
+Ctrl+C.
+
+## Live provider check
+
+`python host/forge_ai_check.py --provider openai|gemini --model ID` makes one
+real request with a hidden key prompt and appends a key-free result record. See
+[LIVE_AI_TEST.md](../../../docs/forge/LIVE_AI_TEST.md).
 
 ## Offline DSP reference
 

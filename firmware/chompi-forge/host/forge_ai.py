@@ -24,6 +24,22 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         raise ProviderError("Provider redirect refused. Check the API documentation.")
 
 
+UNITS = {"time_ms": "milliseconds", "attack_ms": "milliseconds", "decay_ms": "milliseconds",
+         "release_ms": "milliseconds", "cutoff_hz": "hertz, low-pass cutoff", "mix": "wet fraction",
+         "feedback": "echo feedback fraction", "level": "output gain fraction", "sustain": "envelope level fraction"}
+
+
+def describe(node, key=None):
+    """Mirror numeric ranges into descriptions. Providers whose strict mode ignores or
+    limits range keywords still see them; local validation remains the authority."""
+    if isinstance(node, dict):
+        if node.get("type") == "number" and "minimum" in node and "maximum" in node:
+            node["description"] = f"{UNITS.get(key, 'value')}; must be between {node['minimum']} and {node['maximum']}"
+        for name, child in node.get("properties", {}).items():
+            describe(child, name)
+    return node
+
+
 def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay"):
     if provider not in ("openai", "gemini"):
         raise ValueError("Choose OpenAI or Gemini")
@@ -43,6 +59,7 @@ def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay"):
         "Use synth>delay>output for playable sounds, aux>delay>output for external audio. "
         "All module settings are required. No sampler, FM, reverb, custom code or other routing exists. "
         "Approximate the request only using available modules. Default output level 0.25. Return JSON only.")
+    describe(schema)
     # Explicit types and enums work across both providers' JSON Schema subsets.
     schema["properties"]["version"] = {"type": "integer", "enum": [2 if kind == "instrument" else 1]}
     schema["properties"]["engine"] = {"type": "string", "enum": ["instrument" if kind == "instrument" else "stereo_delay"]}

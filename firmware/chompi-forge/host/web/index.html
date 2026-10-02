@@ -31,7 +31,8 @@
       <label for="preset">Start from a preset</label><select id="preset"><option value="">Choose a starting point</option></select>
       <fieldset id="editor" disabled>
         <label for="patch-name">Patch name</label><input id="patch-name" maxlength="80" required>
-        <div id="controls"></div><fieldset id="synth-editor"><label for="routing">Signal path</label><select id="routing"><option value="synth>delay>output">Synth → Delay → Output</option><option value="aux>delay>output">Aux input → Delay → Output</option></select><label for="waveform">Oscillator</label><select id="waveform"><option>sine</option><option>triangle</option><option>saw</option><option>square</option></select><div id="synth-controls"></div></fieldset>
+        <fieldset id="synth-editor"><legend class="group">Source · four-voice synth</legend><label for="routing">Signal path</label><select id="routing"><option value="synth>delay>output">Synth → Delay → Output</option><option value="aux>delay>output">Aux input → Delay → Output</option></select><label for="waveform">Oscillator</label><select id="waveform"><option>sine</option><option>triangle</option><option>saw</option><option>square</option></select><div id="synth-controls"></div></fieldset>
+        <p class="group">Stereo delay · output</p><div id="controls"></div>
         <label class="check"><input id="bypass" type="checkbox"> Bypass wet signal</label>
       </fieldset>
       <div class="button-row"><button id="download" disabled>Save JSON</button><label class="file-button" for="import">Import JSON<input id="import" type="file" accept=".json,application/json"></label></div>

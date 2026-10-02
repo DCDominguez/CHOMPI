@@ -1,91 +1,96 @@
-# Forge 0.3 — one consolidated hardware test
+# Forge 0.3 — the one consolidated hardware test
 
-Candidate status: software-tested, hardware-unverified. This is the planned
-single session, not a demand for separate tests at each milestone. Stop and log
-a failing stage; fix it before proceeding. A hardware-dependent defect may
-require a focused retest. Expected scope is a four-voice synth plus stereo delay with live
-control, host-managed presets, diagnostics and optional model authoring.
+Status of the candidate: **software-tested, hardware-unverified.** This is the
+single planned physical session. Work top to bottom. If a stage fails, record
+it, stop that stage, and continue only where later stages do not depend on it.
+Never mark a stage passed that you did not run. Expect roughly 90 minutes.
 
-## Prepare once
+## 0. Before you start (no CHOMPI needed)
 
-Record board/CHOMPI variant, installed bootloader if known, current stock
-firmware, operating system, sample source, and connections. Back up the working
-SD card. Have the matching known-good stock firmware/card available and confirm
-the existing restoration procedure. Do not install the repository's beta
-bootloader for this test. Use a separate test card and stable power.
+1. Unzip the bundle. In its folder run `python3 verify_bundle.py`.
+   It must print `OK`. It also prints the firmware SHA-256 and the compiler that
+   built it — copy both into your results.
+2. `python3 -m pip install -r host/requirements.txt`
+3. Optional, recommended: the live AI preflight in `docs/LIVE_AI_TEST.md`.
+   It needs no hardware.
+4. Back up your normal SD card and keep it aside. Use a separate test card.
+   Have the stock firmware and the known restore procedure at hand. Do **not**
+   install the repository's beta bootloader.
 
-The bundle contains `firmware/FORGE.bin`, host tools, six presets, simulated
-audio references, and a manifest with hashes. Verify the file hash matches the
-manifest (`Get-FileHash` on PowerShell; `shasum -a 256` on macOS;
-`sha256sum` on Linux). Keep your original card intact.
+Shorthand below: `H = python3 host/forge_host.py`, with
+`--input "IN" --output "OUT"` set to your exact CHOMPI port names from `H ports`.
+Keep monitoring volume low. Avoid audio feedback loops. The mic is unused.
 
-On the TEST card, place FORGE.bin in the root and remove other firmware `.bin`
-files from that test card. Follow the installed CHOMPI bootloader's normal SD
-update procedure, as described in the upstream firmware README. Do not interrupt
-the update. If your bootloader procedure differs, resolve that before flashing.
+## 1. Flash and identity
 
-Start with low external monitoring level. Connect a known stereo line source
-to aux input and USB MIDI to the computer. Do not form an audio feedback loop.
-The microphone is unused by Forge. Install the host dependencies once and run
-`ports` as described in `host/README.md`.
-
-## Run this sequence in one session
-
-| Stage | Action | Pass evidence |
+| # | Do | Pass when |
 | --- | --- | --- |
-| Boot and identity | Power up, watch initialization LED, query status | Initialization completes; status says firmware 0.3; no unexpected output burst |
-| Dry routing | Play left-only then right-only signals; send `01-dry.json` | Correct stereo separation on both headphones and main outputs |
-| Local controls | Turn SW1/SW2/SW3/SW4 and physical volume SW6; query status | Mix/time/feedback/level targets move as documented; level can mute |
-| Patch recall | Send `02-slap.json`, then `03-long-echo.json` during audio | Matching acknowledgements; expected echo changes, no crash/dropout; time glides in pitch |
-| Save and recall | Capture knob-adjusted settings, change patch, resend captured file | Captured targets return within 14-bit quantization |
-| Bypass | Send CC24 values 127 then 0 on MIDI channel 1 | Wet sound fades out/in; dry path still obeys output level |
-| Transport | Check CC20–23 and patch send/status on USB; repeat on bidirectional TRS if available | Both paths control the engine and return replies; no unverified path marked passed |
-| Rejection | Attempt a host JSON with feedback >0.85; validate it | Host rejects it before MIDI transmission; current sound remains unchanged |
-| Webapp | Start the local bridge; load/edit/import/export a preset; select ports; capture targets and send | Browser controls work, downloaded JSON validates, matching device acknowledgement |
-| Optional cloud AI | Generate with your OpenAI or Gemini API key; review, edit, then send. Repeat with the other provider if available | Actual output validates; record provider/model and elapsed time, never keys; generation alone leaves device unchanged |
-| Optional local AI | Generate using an installed Ollama model, inspect JSON, then send | Actual output validates and is acknowledged; record model/time or skipped |
-| Synth keys | Send Glass Keys; unplug aux source; play all 25 keys | Chromatic MIDI 48–72 mapping, audible notes, release on key-up, no stuck keys |
-| MIDI notes | Play USB/TRS channel-1 notes, zero-velocity note-on and note-off | Correct pitch/velocity and release; other channels ignored |
-| Polyphony and ownership | Play five notes, repeated notes, and same pitch from keybed plus MIDI | Four voices maximum, oldest stolen; one source's release does not kill another |
-| Articulation and tone | Compare three synth presets; edit ADSR, waveform and cutoff | Changes audible, sustained/released notes behave as documented; assess clicks/aliasing |
-| Route and panic | Switch synth/aux, press SW5, use web panic and CC120/123 | Voices and old tails stop; retrigger works; aux remains stereo |
-| Instrument persistence | Capture edited v2 targets, save JSON, switch to v1, resend v2 | Settings return within quantization; old delay presets remain usable |
-| Instrument AI | Generate a playable instrument with a real provider, inspect modules, send and play | Valid v2 output; no unsupported module claims; record provider/model without key |
-| Sustained run | Play 10 minutes with four synth voices and delay, while recalling presets and using knobs, with normal MIDI clock traffic | No hangs, dropout or non-finite audio; record final average/peak load and counters |
-| Power/recovery | Reboot, resend saved patch, verify normal power behavior, then restore stock if desired | Defaults on reboot, host recall works, known-good stock restoration confirmed |
+| 1.1 | Put `firmware/FORGE.bin` alone on the test card root; use the installed bootloader's normal SD update | Update completes uninterrupted |
+| 1.2 | Power up; watch LED | Initialization completes; no output burst |
+| 1.3 | `H status ...` | Firmware 0.3, version 1 aux patch, counters 0 |
 
-Do not intentionally deep-discharge the battery to force a shutdown. Existing
-battery protection is inherited; record low-battery behavior as untested unless
-it naturally occurs and can be checked responsibly. Do not mark optional AI,
-TRS, battery shutdown, or stock restoration as passed if you did not run them.
+## 2. External audio path (v1 compatibility)
 
-For the sustained run, investigate any audible dropout regardless of the load
-number. Treat peak callback load at or above 100% as a timing failure. A peak
-below 70% is a provisional headroom target, not a proof of worst-case safety.
-Record whether drop/rejection counters increase under ordinary use. Deliberate
-overload may drop controls; audio must continue and a later status request must
-recover. Do not flood the device merely to satisfy this first session.
+| # | Do | Pass when |
+| --- | --- | --- |
+| 2.1 | Aux source in; `H send presets/01-dry.json ...`; play left-only then right-only | Correct L/R on headphones and main outs |
+| 2.2 | `H send presets/02-slap.json`, then `03-long-echo.json`, while audio plays | Acknowledged; echoes change; no crash; time change glides in pitch |
+| 2.3 | Turn SW1–SW4 and volume SW6; `H status` | Mix/time/feedback/level move as documented; level can mute |
+| 2.4 | `H cc 24 127 --output "OUT"`, then `H cc 24 0` | Wet fades out then back; dry still follows level |
+| 2.5 | `H capture saved-aux.json ...`; send another preset; `H send saved-aux.json` | Returns within 14-bit quantization |
 
-## Results record
+## 3. Instrument
 
-Copy and fill this into `docs/forge/TEST_RESULTS.md` when the session occurs:
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.1 | Unplug aux source. `H send presets/04-glass-keys.json ...`; play all 25 keys | Chromatic low→high (MIDI 48–72); sound on press, release on key-up, nothing stuck |
+| 3.2 | `H note 60 --output "OUT"`; `H note 60 --velocity 30` | Correct pitch; second clearly quieter |
+| 3.3 | `H note 60 64 67 --zero-velocity-off` | Chord sounds and releases (velocity-0 note-on = note-off) |
+| 3.4 | `H note 60 64 67 71 74 --hold 3` | Four voices max; oldest note (60) stolen; all release |
+| 3.5 | Hold a key on CHOMPI; `H note` the same pitch; release the key | MIDI note keeps sounding until its own release |
+| 3.6 | Send `05-soft-pad.json`, `06-saw-bass.json`; turn SW5 | Audibly different; SW5 sweeps tone. **Listen for clicks on voice steal/retrigger and aliasing on high saw/square notes — record, don't fix during session** |
+| 3.7 | In the webapp, change waveform, ADSR, cutoff; Send | Each change audible as described |
+
+## 4. Panic and recovery
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 4.1 | Hold a long-release chord with echo; press SW5 | Voices and old echo tail stop at once |
+| 4.2 | Repeat with `H cc 123 0`, `H cc 120 0`, `H panic ...`, webapp Panic | Same each time; notes retrigger normally afterwards |
+| 4.3 | Switch route aux↔synth (webapp Signal path, Send) while notes ring | Sound stops cleanly; next keypress plays; aux stays stereo |
+
+## 5. Webapp end to end
+
+`python3 host/forge_web.py`, open `http://localhost:8765`.
+Load preset → edit → Save JSON → Import JSON → Refresh ports → select both →
+Send → Read device status → Capture to editor → Panic.
+Pass: every step works; saved file re-imports; capture matches what was sent.
+If you have keys: Generate an instrument with each provider, review, Send, play.
+Record provider/model/seconds, never the key.
+
+## 6. Sustained run and power
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 6.1 | 10 minutes: four-voice playing with delay, recalling presets, turning knobs, normal MIDI clock if you have it | No hang, dropout, stuck note or noise burst |
+| 6.2 | `H status` at the end | Peak CPU < 100% (fail at ≥100%; < 70% is the comfort target). Record average, peak, dropped, rejected |
+| 6.3 | Reboot; `H status`; resend a saved patch | Boots to dry aux defaults; recall works |
+| 6.4 | Optional: restore stock firmware with your normal card | Stock works again |
+
+Do not deep-discharge the battery to test shutdown; record it as not run.
+
+## Results — copy into docs/forge/TEST_RESULTS.md
 
 ```text
 Date / tester:
-Firmware SHA-256:
-Board / variant / bootloader / stock firmware:
-Computer OS / Python / MIDI interface:
-Audio source / output connections:
-Boot / dry routing / encoders / recall / capture / bypass:
-USB / TRS / notes / velocity / source ownership:
-Synth keys / four voices / ADSR / cutoff / route / panic:
-Clicks / high-note aliasing / voice-steal behavior:
-Webapp browser / edit / import-export / capture-send results:
-AI provider / model and result, or not run (never record keys):
-Duration / average CPU / peak CPU / dropped / rejected:
-Audible glitches or unexpected behavior:
-Power behavior / low-battery check, or not run:
-Stock restore result, or not run:
-Overall: pass / blocked / partial
-Follow-up:
+Bundle source commit / firmware SHA-256 / compiler (from verify_bundle.py):
+Board / bootloader / stock firmware / OS / Python / MIDI connection:
+1 Flash & identity:
+2 Aux path 2.1–2.5:
+3 Instrument 3.1–3.7 (note clicks/aliasing here):
+4 Panic & recovery 4.1–4.3:
+5 Webapp (+ AI provider/model/seconds or "not run"):
+6 Sustained: minutes / avg CPU / peak CPU / dropped / rejected; reboot; restore:
+Unexpected behavior:
+Overall: pass / partial / blocked
 ```

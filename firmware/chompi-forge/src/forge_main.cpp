@@ -60,12 +60,12 @@ uint32_t dropped_commands = 0, rejected_messages = 0; // main-loop owned
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size) {
     cpu.OnBlockStart();
     forge::Request request;
-    static bool recovering = false; // audio-owner only
-    if(emergency_silence.exchange(false, std::memory_order_relaxed)) { engine.Panic(); recovering = true; }
+    static forge::RecoveryGate recovery; // audio-owner only
+    if(emergency_silence.exchange(false, std::memory_order_relaxed)) recovery.Begin(engine);
     // Backpressure instead of applying a patch whose acknowledgement cannot
     // be queued. Only this audio callback produces responses.
     for(unsigned i = 0; i < 16 && responses.HasSpace() && requests.Pop(request); ++i) {
-        if(recovering && request.kind == forge::RequestKind::Note) continue;
+        if(recovery.Skip(request)) continue;
         forge::Response response;
         if(forge::ExecuteRequest(request, engine, response)) {
             response.cpu_average = cpu.GetAvgCpuLoad();
@@ -73,7 +73,7 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
             responses.Push(response);
         }
     }
-    if(recovering && requests.Empty()) recovering = false;
+    recovery.EndIfDrained(requests.Empty());
 
     hw.ProcessAllControls();
     // Matches upstream NormalPage::key_map: 25 chromatic keys, MIDI 48..72.

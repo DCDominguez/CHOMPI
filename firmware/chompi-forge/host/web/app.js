@@ -3,7 +3,18 @@ const $ = id => document.getElementById(id);
 const fields = {mix: [0, 1, .01, "Wet / dry", "0–1"], time_ms: [10, 1000, 1, "Delay time", "ms"],
   feedback: [0, .85, .01, "Feedback", "0–0.85"], level: [0, 1, .01, "Output level", "0–1"]};
 const synthFields = {attack_ms: [1,2000,1,"Attack","ms"], decay_ms: [1,2000,1,"Decay","ms"],
-  sustain: [0,1,.01,"Sustain","0–1"], release_ms: [5,5000,1,"Release","ms"], cutoff_hz: [40,16000,10,"Tone cutoff","Hz"]};
+  sustain: [0,1,.01,"Sustain","0–1"], release_ms: [5,5000,1,"Release","ms"], cutoff_hz: [40,16000,1,"Tone cutoff","Hz · log"]};
+// Sliders for logarithmic controls run 0–1000 and map to the same curve the firmware uses.
+const logFields = new Set(["cutoff_hz"]);
+function toSlider(key, value) {
+  const [min, max] = synthFields[key] || fields[key];
+  if (value === null || value === undefined || value === "") return logFields.has(key) ? 500 : min;
+  return logFields.has(key) ? Math.round(1000 * Math.log(value / min) / Math.log(max / min)) : value;
+}
+function fromSlider(key, raw) {
+  const [min, max] = synthFields[key] || fields[key];
+  return logFields.has(key) ? Math.round(min * (max / min) ** (Number(raw) / 1000)) : Number(raw);
+}
 function params() { return patch.version === 1 ? patch.parameters : {...patch.modules.delay, ...patch.modules.output, ...patch.modules.synth}; }
 function setParam(key, value) {
   if (patch.version === 1) patch.parameters[key] = value;
@@ -37,7 +48,7 @@ function loadPatch(value) {
   patch = structuredClone(value); $("patch-name").value = patch.name;
   const values = params();
   for (const key of Object.keys({...fields, ...synthFields})) {
-    $(key).value = values[key] ?? ""; $(`${key}-range`).value = values[key] ?? synthFields[key]?.[0] ?? 0;
+    $(key).value = values[key] ?? ""; $(`${key}-range`).value = toSlider(key, values[key]);
   }
   $("routing").value = patch.routing || "aux>delay>output";
   $("waveform").value = patch.modules?.synth.waveform || "sine";
@@ -46,10 +57,11 @@ function loadPatch(value) {
 for (const [key, [min, max, step, label, unit]] of Object.entries({...fields, ...synthFields})) {
   const row = document.createElement("div"); row.className = "control";
   // All interpolated values in this template are fixed local constants.
-  row.innerHTML = `<label for="${key}">${label}<span class="unit">${unit}</span></label><input id="${key}-range" type="range" min="${min}" max="${max}" step="${step}" aria-label="${label} slider"><input id="${key}" type="number" min="${min}" max="${max}" step="any" required>`;
+  const [sliderMin, sliderMax, sliderStep] = logFields.has(key) ? [0, 1000, 1] : [min, max, step];
+  row.innerHTML = `<label for="${key}">${label}<span class="unit">${unit}</span></label><input id="${key}-range" type="range" min="${sliderMin}" max="${sliderMax}" step="${sliderStep}" aria-label="${label} slider"><input id="${key}" type="number" min="${min}" max="${max}" step="any" required>`;
   $(key in synthFields ? "synth-controls" : "controls").append(row);
-  $(key).addEventListener("input", () => { if (!patch) return; setParam(key, $(key).value === "" ? null : Number($(key).value)); $(`${key}-range`).value = params()[key]; showJSON(); });
-  $(`${key}-range`).addEventListener("input", () => { $(key).value = $(`${key}-range`).value; $(key).dispatchEvent(new Event("input")); });
+  $(key).addEventListener("input", () => { if (!patch) return; setParam(key, $(key).value === "" ? null : Number($(key).value)); $(`${key}-range`).value = toSlider(key, params()[key]); showJSON(); });
+  $(`${key}-range`).addEventListener("input", () => { $(key).value = fromSlider(key, $(`${key}-range`).value); $(key).dispatchEvent(new Event("input")); });
 }
 $("patch-name").addEventListener("input", () => { if (patch) { patch.name = $("patch-name").value; showJSON(); } });
 $("bypass").addEventListener("change", () => { if (patch) { setParam("bypass", $("bypass").checked); showJSON(); } });

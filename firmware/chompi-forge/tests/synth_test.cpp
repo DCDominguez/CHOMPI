@@ -88,5 +88,32 @@ void RoutingPanicAndBounds() {
     for(unsigned i = 0; i < 48000; ++i) engine.Process(.2f,-.3f,left,right);
     assert(std::fabs(left-.2f) < .0001f && std::fabs(right+.3f) < .0001f);
 }
-int main() { VoicesAndPitch(); EnvelopeVelocityAndFilter(); RoutingPanicAndBounds();
-    std::cout << "PASS: synth pitch, ADSR, velocity, filter, source ownership, voices, routing, panic, bounds\n"; }
+// Mirrors the firmware audio-callback loop: queued notes before an emergency are
+// dropped, control requests still run, and fresh notes after the drain sound.
+void RecoveryAfterLostNotes() {
+    std::vector<float> l(48002), r(48002); Engine engine;
+    assert(engine.Init(48000, l.data(), r.data(), l.size()));
+    Parameters p = Instrument(); assert(engine.ApplyPatch(p));
+    std::vector<Request> queue;
+    auto note = [](uint8_t n, uint8_t v) { Request q; q.kind = RequestKind::Note; q.note = n; q.velocity = v; q.source = 1; return q; };
+    engine.Note(60, 100, 1); assert(engine.ActiveVoices() == 1); // note-off for this was "lost"
+    queue.push_back(note(62, 100)); queue.push_back(note(64, 100));
+    Request status; status.kind = RequestKind::Status; queue.push_back(status);
+    RecoveryGate gate; gate.Begin(engine);
+    assert(engine.ActiveVoices() == 0 && gate.Recovering());
+    unsigned replies = 0;
+    for(const auto& request : queue) {
+        if(gate.Skip(request)) continue;
+        Response response; if(ExecuteRequest(request, engine, response)) ++replies;
+    }
+    gate.EndIfDrained(true);
+    assert(replies == 1 && engine.ActiveVoices() == 0 && !gate.Recovering());
+    Response ignored; ExecuteRequest(note(67, 100), engine, ignored);
+    assert(engine.ActiveVoices() == 1);                      // playable again
+    ExecuteRequest(note(67, 0), engine, ignored);
+    float left, right; for(unsigned i = 0; i < 48000; ++i) engine.Process(0, 0, left, right);
+    assert(engine.ActiveVoices() == 0);                      // and releases normally
+    gate.EndIfDrained(false); assert(!gate.Recovering());    // drain flag only ends recovery
+}
+int main() { VoicesAndPitch(); EnvelopeVelocityAndFilter(); RoutingPanicAndBounds(); RecoveryAfterLostNotes();
+    std::cout << "PASS: synth pitch, ADSR, velocity, filter, source ownership, voices, routing, panic, bounds, recovery gate\n"; }

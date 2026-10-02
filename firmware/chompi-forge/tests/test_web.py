@@ -149,6 +149,26 @@ class WebTests(unittest.TestCase):
             self.assertEqual(self.request("/api/send", {}, headers)[0], 403)
         self.assertEqual(self.request("/api/session", headers={"Host": "evil.example"})[0], 403)
 
+    def test_localhost_spelling_is_accepted_but_origins_must_match(self):
+        local = f"localhost:{self.server.server_port}"
+        self.assertEqual(self.request("/api/session", headers={"Host": local, "Origin": "http://" + local})[0], 200)
+        self.assertEqual(self.request("/api/validate", {"patch": PRESET},
+                                      {"Host": local, "Origin": "http://" + local})[0], 200)
+        for headers in ({"Host": local, "Origin": self.server.origin},
+                        {"Host": "localhost:1", "Origin": "http://localhost:1"},
+                        {"Host": "127.0.0.1.evil.example", "Origin": "http://127.0.0.1.evil.example"}):
+            self.assertEqual(self.request("/api/validate", {"patch": PRESET}, headers)[0], 403)
+
+    def test_validation_errors_name_the_field_and_device_rejections_are_reported(self):
+        bad = copy.deepcopy(PRESET); bad["parameters"]["time_ms"] = 5
+        status, _, data = self.request("/api/validate", {"patch": bad})
+        self.assertEqual(status, 400)
+        self.assertIn("time_ms", json.loads(data)["error"])
+        with patch.object(forge_host, "exchange", side_effect=RuntimeError("Device rejected request: device queue busy")):
+            status, _, data = self.request("/api/status", {"input": "in", "output": "out"})
+            self.assertEqual(status, 502)
+            self.assertIn("queue busy", json.loads(data)["error"])
+
     def test_validation_and_malformed_request_bodies(self):
         self.assertEqual(self.request("/api/validate", {"patch": PRESET})[0], 200)
         for raw in (b'{"patch":{},"patch":{}}', b"[]", b'{"patch":NaN}', b"x" * 65537):

@@ -43,7 +43,11 @@ make -C firmware/chompi-forge sanitize
 ```
 
 `test` builds the DSP/queue suite, protocol suite and offline harness, then runs
-Python integration tests. `sanitize` runs the C++ suites with ASan/UBSan.
+Python integration tests. `make -C firmware/chompi-forge browser-test` drives the
+real webapp in Chromium (Playwright) against `tests/sim_device.py`, a stateful
+stand-in that routes SysEx through the same C++ runtime; screenshots land in
+`build/browser/`. It needs `pip install playwright` plus a Chromium install. It
+proves browser behaviour and layout, not hardware, audio or live providers. `sanitize` runs the C++ suites with ASan/UBSan.
 If a container prevents LeakSanitizer from inspecting `/proc`, rerun with
 `ASAN_OPTIONS=detect_leaks=0` and explicitly record that leak checking was
 disabled. A pass in that mode is not a leak-test result.
@@ -67,6 +71,13 @@ links the application using WAVE's BOOT_SRAM layout. Outputs are
 Keep the map for memory allocation review; it does not measure runtime CPU or
 worst-case stack headroom. Forge's Makefile rejects flashing targets.
 
+If the pinned Arm archive cannot be downloaded (it was blocked in the
+2026-10-03 agent environment), the checksum-verified xPack build of the same GCC
+release, `xpack-arm-none-eabi-gcc-10.3.1-2.3`, from
+github.com/xpack-dev-tools/arm-none-eabi-gcc-xpack works with the same
+`GCC_PATH` usage. It is not byte-identical; the packager records the real
+compiler from `FORGE.elf` and flags `built_with_pinned_compiler`.
+
 ## Create a test bundle
 
 Commit the tested source first and choose an output path outside the repository:
@@ -74,6 +85,7 @@ Commit the tested source first and choose an output path outside the repository:
 ```sh
 cd firmware/chompi-forge
 python3 host/package_candidate.py /absolute/output/Forge_0.3_Test_Candidate.zip
+unzip Forge_0.3_Test_Candidate.zip && python3 Forge-0.3-test-*/verify_bundle.py
 ```
 
 Run `make test` and the firmware build before packaging. The script requires a

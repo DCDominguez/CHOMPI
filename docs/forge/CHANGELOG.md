@@ -1,5 +1,19 @@
 # Forge changelog
 
+## 0.3 integration review and browser testing — 2026-10-03
+
+- First real browser run (Chromium 141): 8 end-to-end tests against a stateful
+  simulated device using the C++ runtime; mocked providers; phone/tablet layout.
+- Fixed: localhost URL refused; field/device errors hidden behind generic text;
+  status banner out of view; linear cutoff slider; 14-bit wrap on float rounding.
+- Stuck-note recovery factored into host-tested `RecoveryGate`; firmware logic
+  unchanged. PROTOCOL recovery description corrected.
+- Added `cc`/`note` test commands, `forge_ai_check.py` live preflight, provider
+  range descriptions, bundle `verify_bundle.py`, compiler identity in manifest.
+- Rewrote the consolidated hardware checklist with exact commands.
+- 35 Python, 3 native, 3 sanitizer, 8 browser tests and ARM build pass.
+  Hardware and live providers still unverified.
+
 ## 0.3 instrument software candidate — 2026-10-02
 
 - Corrected project scope to AI-programmable instrument, not effects-only.

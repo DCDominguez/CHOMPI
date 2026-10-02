@@ -1,118 +1,86 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-02, instrument milestone software checkpoint. Read this before older 0.2 docs.
+Updated 2026-10-03, candidate 0.3 integration/browser checkpoint. Read this first.
 
-## Authoritative scope correction
+## Scope (unchanged, authoritative)
 
-DC wants an **AI-programmable instrument**, not an effects-only device. The prior
-stereo-delay-only milestone was too narrow. Current authorized work: playable
-synth using CHOMPI keybed and MIDI, modules/routing patch format, existing delay,
-AI authoring and web editing. Sampling/looping and arbitrary DSP graphs are later
-work. Keep physical validation in **one consolidated session**. No hardware or
-live provider claims without actual evidence. Update this file as work progresses.
+DC wants an **AI-programmable playable instrument**, not effects-only: describe a
+sound → AI configures installed modules → play keys/MIDI → adjust → save/recall.
+Patch changes need no recompile; new DSP algorithms need firmware work; AI never
+generates executable effects. Sampling, looping, sequencing, more engines/effects,
+flexible routing and SD presets are future work. ONE consolidated hardware session.
+No main merge, flashing or real-key API calls by agents.
 
-## Baseline and branches
+## Branch and publishing
 
-Repository DCDominguez/CHOMPI; remote development branch forge/foundation, draft
-PR #1. Do not merge or overwrite upstream main. Baseline 0.2 webapp commit:
-c0093d8934260677e490e46e5a33a7c8715f0854. Local commit hashes can differ from remote
-because the GitHub connector creates commits; compare tree hashes.
-First instrument checkpoint saved remotely: 0aec0c737b5fe6d46fdcf6cd6823c4f0a055b4e2.
-Use the latest forge/foundation head for the completed software checkpoint. Generated
-artifacts are ignored and not committed. The older test ZIP predates the webapp.
+Repo DCDominguez/CHOMPI, branch `forge/foundation`, draft PR #1. Previous remote
+head `2b30b1c`. This checkpoint was committed locally on top of it by an agent
+WITHOUT push access; DC applied it (patch/bundle) — compare `git log` with the
+commit message "Integration review, real browser tests, live-AI prep, 0.3 bundle
+tooling". If the remote head is still `2b30b1c`, this work has not been applied.
 
-## Current changes
+## Claim levels
 
-- New allocation-free four-voice synth: sine/triangle/polyBLEP saw/square,
-  ADSR amplitude envelope, smoothed one-pole low-pass tone, velocity, voice steal.
-- Source IDs separate UART, USB and keybed notes. Key map follows upstream
-  NormalPage key_map, MIDI 48–72; fixed keybed velocity 100.
-- SW5 turn: cutoff; SW5 press and CC120/123: panic. CC25: cutoff.
-- Engine supports aux→delay→output or synth→delay→output. No arbitrary graph.
-- JSON v1 delay presets retained; v2 instrument has routing and synth/delay/output
-  modules. New host serialization, response decoding, validation and AI schema.
-- Wire protocol remains version 1. Patch v2 payload adds routing/waveform and
-  five normalized 14-bit values (attack/decay/sustain/release/cutoff). Requests
-  are 30 bytes and success responses 42 bytes excluding F0/F7. Panic opcode 3.
-- Firmware minor version set to 3. Three instrument presets added.
-- Web editor now supports v2 route/waveform/ADSR/cutoff, instrument-vs-delay AI selection and panic, while retaining v1 import/export. JS syntax passes. Browser interaction is still unverified.
+| Level | What |
+| --- | --- |
+| Implemented | Everything in README feature table, plus the items below |
+| Software-tested | 3 native C++ suites, 35 Python tests, 3 ASan/UBSan suites, 8 real-Chromium browser tests, ARM build (xPack GCC 10.3.1) — all pass 2026-10-03 |
+| Hardware-verified | **Nothing.** No flash, audio, keybed, MIDI transport, CPU or battery test |
+| Live AI | **Not run.** Formats checked against provider docs 2026-10-03; mocks only |
 
-## Latest verification / immediate work
+## Done in this checkpoint
 
-- Existing DSP and protocol C++ suites pass, plus new synth tests covering A4
-  pitch, ADSR, velocity scaling, filtering, source isolation, four-voice bound,
-  stealing, aux/synth routing, invalid patch atomicity, panic/tail removal and
-  finite bounded output across all 128 notes and four waves.
-- All 28 Python tests pass, including 200 seeded v2 round trips plus the earlier
-  250 v1 cases, malformed v2 atomic rejection, v1 recall and both cloud v2 mocks.
-- JS syntax passes. Real browser interaction and real API requests remain untested.
-- ARM final build and all three ASan/UBSan suites pass. Binary 113,408 bytes;
-  SHA-256 02ecbbb6eed11a20bcfe6774376d95cf8b6188482ab3d15ed17a1c4a22228bff.
-  SRAM_EXEC 47.74%, SRAM 17.01%, RAM_D2 68.07%, SDRAM 0.57%.
-- Current-version README, PROJECT, PROTOCOL, HANDOFF, host/firmware guides and
-  consolidated checklist updated. Package generator targets 0.3, six presets
-  and both schemas. No new downloadable ZIP generated yet.
-- No hardware flash/test has happened.
-- Overrun recovery mutes voices, discards stale ingress/queued notes and requires
-  retrigger. Physical concurrency, voice-steal clicks, aliasing at high notes and
-  callback CPU headroom still need observation; no click-free guarantee.
+Integration defects found and fixed:
+- Webapp refused `http://localhost:8765` (403). Now both loopback spellings are
+  accepted; Origin must equal the Host; other hosts still 403 (DNS rebinding).
+- Validation errors were a generic message; device rejections (queue busy, ack
+  mismatch) were masked as "operation failed". Now 400 names the field; 502 shows
+  the device/dependency reason. Messages never contain keys.
+- Status banner scrolled out of view next to device buttons (desktop and phone):
+  now sticky.
+- Cutoff slider was linear (unusable range): now log, same curve as firmware.
+- Editor reordered: source/synth group, then delay/output group.
+- Host encoding clamps normalized values so float rounding cannot wrap 16384→0.
+- Stuck-note recovery moved from `forge_main.cpp` into `RecoveryGate`
+  (core/runtime.h) and host-tested; firmware behaviour unchanged.
+- PROTOCOL corrected: any dropped ingress frame (not only notes) triggers silence.
 
-## Build environment
+Reviewed, no defect found: voice ownership/steal, note-off after steal, panic
+O(1) tail flush, route/waveform panic, v1 patch → aux + dormant synth defaults,
+v2 decode/encode bounds, capture of edge values, sequence/ack checking.
+Known, documented, not changed: post-recovery notes arriving before the request
+queue drains are dropped (safe, rare); retrigger/steal clicks; triangle/high-note
+aliasing; held keys must be retriggered after route change.
 
-From firmware/chompi-forge: `make test`; `ASAN_OPTIONS=detect_leaks=0 make sanitize`.
-Compiler archive freshly downloaded to /tmp/forge-arm-toolchain.tar.bz2 and hash
-verified: 97dbb4f019ad1650b732faffcc881689cedc14e2b7ee863d390e0a41ef16c9a3.
-Extract with tar --no-same-owner into /tmp/forge-toolchain, then:
-`make firmware -j2 GCC_PATH=/tmp/forge-toolchain/gcc-arm-none-eabi-10.3-2021.10/bin`.
-Do not trust workspace archive (truncated); workspace-extracted compiler previously
-crashed. /tmp can disappear between sessions. Prior browser install returned
-truncated Chromium archives; real browser testing remains unverified.
+New tooling:
+- `tests/sim_device.py` stateful simulated device (persistent `forge_probe`,
+  which now flushes per reply) and `tests/browser_e2e.py` (`make browser-test`).
+- `forge_host.py cc` / `note` for the hardware session; notes always released.
+- `host/forge_ai_check.py` one real provider request, hidden key prompt,
+  key-free JSONL record. Doc: LIVE_AI_TEST.md.
+- Provider schemas mirror ranges into descriptions.
+- Packager: records actual compiler from FORGE.elf `.comment`, flags
+  `built_with_pinned_compiler`, refuses binaries older than firmware sources,
+  includes `verify_bundle.py`, LIVE_AI_TEST.md and forge_ai_check.py.
+- TEST_SESSION.md rewritten as one ordered session with exact commands.
 
-## Important implementation boundaries
+## Build environment notes
 
-Audio callback owns engine/voices. Main loop sends validated queued requests.
-No locks, allocation, AI/network/storage or MIDI TX in audio callback. Preserve
-bounded per-block work and buffer lifetime for asynchronous USB TX. v2 reply
-44 bytes with delimiters requires expanded output/USB buffers and UART timeout.
-Keys remain ephemeral in webapp/request memory, never committed or logged.
-Only implemented controls can be generated by AI; no fabricated sampler/FM/reverb.
-No API keys supplied; test providers with mocks until DC uses his own keys.
+Chromium 141 via Playwright at /opt/pw-browsers worked in the agent sandbox.
+Playwright `evaluate`/`wait_for_function` are blocked by the app's CSP; tests use
+locator expectations and a separate `bypass_csp` context only for layout
+measurement. developer.arm.com was blocked (403); xPack
+`xpack-arm-none-eabi-gcc-10.3.1-2.3-linux-x64.tar.gz` (sha256 559dcf1c…8719,
+matches published .sha) built firmware: FORGE.bin 117,432 bytes, SRAM_EXEC
+49.43%, SRAM 17.01%, RAM_D2 68.07%, SDRAM 0.57%. Only vendored-libDaisy warnings.
 
-## Prioritized next-agent actions
+## Next actions (priority order)
 
-1. Read AGENTS.md and this checkpoint; inspect clean status and current branch.
-   Do not restart from the delay-only brief or assume the old ZIP is current.
-2. Run the webapp in a real browser. Verify instrument/default preset rendering,
-   waveform/routing/ADSR edits, v1/v2 import/export, generation errors and key
-   clearing, explicit ports/send/status/capture/panic, mobile-width layout.
-   No browser pass has been recorded; only JS syntax and server endpoint tests.
-3. When DC is ready, use his keys in the local UI for a real OpenAI/Gemini call.
-   Record provider/model and results, never keys. APIs may evolve; inspect official
-   docs if requests fail. Existing adapter tests are mocks, not live compatibility.
-4. Generate a fresh bundle from a clean committed tree; verify manifest/file hashes
-   and archive layout. Firmware remains hardware-unverified. Do not distribute
-   an old binary under the new manifest/version.
-5. Run the one consolidated physical checklist: flash through installed bootloader,
-   all 25 keys, MIDI notes/velocity/source overlap, four voices/stealing/release,
-   aux routing, v1/v2 recall, panic and tail reset, knobs, four-voice CPU stress,
-   artifact listening, power/recovery. Do not claim a bench result from a unit test.
-6. If hardware overload recovery or clicks fail, fix and record focused retest needs.
-   Then ask DC which next engine matters: sampling/looping or more synthesis/FX.
-
-## Known musical/UI limits
-
-Four oscillator voices, not FM/sample playback. Synth is mono duplicated to
-stereo. Fixed two-route topology; controls are not freely assignable. No pedal,
-bend, octave control, tempo sync, note output, on-device persistence or Tab5.
-Voice stealing/retrigger can click; triangle/high notes can alias. Firmware boot
-is dry aux; instrument preset must be sent. Panic also clears old delay, and
-route/waveform recall silences voices, requiring key retrigger. No automatic
-MIDI retry. Use matching 0.3 host for v2 responses; old host will reject them.
-
-## Publishing source when Git push lacks credentials
-
-Git fetch works. Git push previously failed for missing HTTPS username. Use
-GitHub connector create_tree (base remote tree + changed UTF-8 files), then
-create_commit(parent=remote HEAD), update_ref(force=false, forge/foundation).
-Compare resulting tree SHA against local HEAD tree. Do not force over external
-changes. Update checkpoints before committing. Never put keys in tool logs.
+1. If DC's remote does not contain this checkpoint, get it applied first.
+2. DC: run LIVE_AI_TEST.md (CLI preflight, then webapp). Record provider/model.
+   If OpenAI/Gemini rejects the schema, relax only the offending keyword.
+3. DC (optional): rebuild firmware with the pinned Arm 10.3-2021.10 archive and
+   regenerate the bundle; otherwise test the xPack-built bundle as labelled.
+4. DC: run TEST_SESSION.md once; record in TEST_RESULTS.md.
+5. Agent: fix only what the session finds; then ask DC to choose the next engine
+   (sampling/looping vs more synthesis/FX).

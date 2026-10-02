@@ -22,6 +22,8 @@ class ForgeServer(ThreadingHTTPServer):
         super().__init__(("127.0.0.1", port), Handler)
         self.authority = f"127.0.0.1:{self.server_port}"
         self.origin = "http://" + self.authority
+        # Both loopback spellings are accepted; any other Host (DNS rebinding) is refused.
+        self.authorities = (self.authority, f"localhost:{self.server_port}")
         self.token = secrets.token_urlsafe(32)
         self.midi_lock = threading.Lock()
         self.ai_lock = threading.Lock()
@@ -56,8 +58,9 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def allowed(self):
-        return (self.headers.get("Host") == self.server.authority
-                and self.headers.get("Origin", self.server.origin) == self.server.origin
+        host = self.headers.get("Host")
+        return (host in self.server.authorities
+                and self.headers.get("Origin", "http://" + host) == "http://" + host
                 and self.headers.get("Sec-Fetch-Site", "same-origin") in ("same-origin", "none"))
 
     def do_GET(self):
@@ -119,8 +122,14 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(502, {"error": str(error)})
         except TimeoutError:
             return self.reply(504, {"error": "No acknowledgement. The patch may have applied; read device status before retrying."})
-        except (ValueError, UnicodeError):
-            return self.reply(400, {"error": "Invalid request or patch. Check fields, parameter ranges and JSON format."})
+        except UnicodeError:
+            return self.reply(400, {"error": "Invalid request: send UTF-8 JSON."})
+        except ValueError as error:
+            # Validation messages are fixed host strings or JSON positions; they never contain keys.
+            return self.reply(400, {"error": f"Invalid request or patch: {error}"})
+        except RuntimeError as error:
+            # Device rejections/acknowledgement mismatches and missing MIDI dependencies.
+            return self.reply(502, {"error": str(error)})
         except Exception:
             return self.reply(503, {"error": "Operation failed. For MIDI, check dependencies, ports and the device; close other MIDI hosts."})
 

@@ -111,8 +111,10 @@ its previously calculated release slope. Delay-time changes glide in pitch.
 
 Panic logically clears delay history with an O(1) reset marker; no full SDRAM
 clear in the callback. Invalid patches never partially change targets or voices.
-Queue overflow drops/counts controls; loss of note-related data triggers global
-silence and discards queued notes/ingress to avoid stuck notes. Retrigger after
+Queue overflow drops/counts controls. A full request queue on a note, or any
+dropped ingress frame (the main loop cannot tell whether it was a note), triggers
+global silence and discards queued notes/ingress to avoid stuck notes
+(`RecoveryGate` in core/runtime.h, host-tested). Retrigger after
 recovery. This logic is implemented; actual interrupt/transport behavior is
 still hardware-unverified. Use SW5 press or host panic if an audible note hangs.
 

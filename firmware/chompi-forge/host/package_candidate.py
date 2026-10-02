@@ -25,16 +25,27 @@ def main():
     commit = args.source_commit or subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip()
     if len(commit) != 40 or any(c not in "0123456789abcdef" for c in commit):
         raise SystemExit("Invalid source commit")
+    elf, binary = ROOT / "src/build/FORGE.elf", ROOT / "src/build/FORGE.bin"
+    sources = [*(ROOT / "core").glob("*.h"), ROOT / "src/forge_main.cpp", ROOT / "src/Makefile"]
+    if not binary.is_file() or binary.stat().st_mtime < max(p.stat().st_mtime for p in sources):
+        raise SystemExit("FORGE.bin is missing or older than firmware sources; run make firmware first")
+    # Record the compiler that actually built this binary (GCC writes it into .comment).
+    marker = elf.read_bytes().find(b"GCC: (")
+    if marker < 0:
+        raise SystemExit("Cannot identify the compiler in FORGE.elf")
+    compiler = elf.read_bytes()[marker:marker + 120].split(b"\0")[0].decode("ascii", "replace")
     files = {
         "README.md": (REPO / "docs/forge/TEST_SESSION.md").read_bytes(),
-        "firmware/FORGE.bin": (ROOT / "src/build/FORGE.bin").read_bytes(),
+        "firmware/FORGE.bin": binary.read_bytes(),
+        "verify_bundle.py": (ROOT / "host/verify_bundle.py").read_bytes(),
+        "docs/LIVE_AI_TEST.md": (REPO / "docs/forge/LIVE_AI_TEST.md").read_bytes(),
         "docs/PROTOCOL.md": (REPO / "docs/forge/PROTOCOL.md").read_bytes(),
         "docs/HANDOFF.md": (REPO / "docs/forge/HANDOFF.md").read_bytes(),
         "LICENSE": (REPO / "LICENSE").read_bytes(),
         "THIRD_PARTY.md": (REPO / "THIRD_PARTY.md").read_bytes(),
         "TRADEMARKS.md": (REPO / "TRADEMARKS.md").read_bytes(),
     }
-    for name in ("forge_host.py", "forge_ai.py", "forge_web.py", "requirements.txt", "README.md"):
+    for name in ("forge_host.py", "forge_ai.py", "forge_ai_check.py", "forge_web.py", "requirements.txt", "README.md"):
         files["host/" + name] = (ROOT / "host" / name).read_bytes()
     for path in sorted((ROOT / "host/web").iterdir()):
         if path.is_file():
@@ -53,14 +64,16 @@ def main():
     manifest = {"candidate": "Forge 0.3", "hardware_verified": False,
                 "source_commit": commit, "source_tree": source_tree,
                 "source_url": f"https://github.com/DCDominguez/CHOMPI/tree/{commit}",
-                "compiler": "GNU Arm Embedded 10.3-2021.10",
+                "compiler": compiler,
+                "pinned_compiler": "GNU Arm Embedded 10.3-2021.10 (Arm archive)",
+                "built_with_pinned_compiler": "GNU Arm Embedded Toolchain 10.3-2021.10" in compiler,
                 "audio_reference": "Simulated aux plucks and synth chords; not CHOMPI recordings",
                 "files": {name: {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
                           for name, data in sorted(files.items())}}
     files["manifest.json"] = (json.dumps(manifest, indent=2) + "\n").encode()
     with zipfile.ZipFile(args.output, "x", compression=zipfile.ZIP_DEFLATED) as archive:
         for name, data in sorted(files.items()):
-            info = zipfile.ZipInfo("Forge-0.3-test/" + name, date_time=(2026, 10, 2, 0, 0, 0))
+            info = zipfile.ZipInfo(f"Forge-0.3-test-{commit[:7]}/" + name, date_time=(2026, 10, 2, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o100644 << 16
             archive.writestr(info, data)

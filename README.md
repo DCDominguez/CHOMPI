@@ -4,8 +4,8 @@
 Forge runs audio on CHOMPI's Daisy Seed and uses a computer webapp for AI patch
 authoring, editing and MIDI control. OpenAI and Gemini use your own API key.
 
-**Candidate 0.3 is software-tested and builds for ARM.** Real CHOMPI operation,
-live provider requests and browser interaction/layout remain unverified. This
+**Candidate 0.3 is software-tested, browser-tested and builds for ARM.** Real
+CHOMPI operation and live provider requests remain unverified. This
 is experimental community firmware, not an official or hardware-approved release.
 
 [Developer resume checkpoint](docs/forge/CONTINUE.md) · [Documentation](docs/forge/README.md)
@@ -105,15 +105,15 @@ verified archive hash. No upstream sources or bootloader were changed.
 | Check | Recorded evidence |
 | --- | --- |
 | Native suites | DSP/queue, MIDI/protocol and synth suites pass |
-| Python | 28 tests pass; includes 250 v1 plus 200 v2 randomized protocol round trips and mocked providers |
+| Python | 35 tests pass; includes 250 v1 plus 200 v2 randomized protocol round trips and mocked providers |
 | Sanitizers | Three C++ suites pass ASan/UBSan; LeakSanitizer disabled for environment limitations |
-| Web | JavaScript syntax and HTTP/session/assets checked; actual browser smoke test pending |
-| ARM | BOOT_SRAM build succeeds; FORGE.bin 113,408 bytes |
-| Link allocations | SRAM_EXEC 47.74%; SRAM 17.01%; RAM_D2 68.07%; SDRAM 0.57% |
+| Web | 8 real-Chromium tests (`make browser-test`): editing, import/export, mocked AI, send/capture/panic via simulated device, phone/tablet layout |
+| ARM | BOOT_SRAM build succeeds with xPack GCC 10.3.1 (pinned Arm archive unreachable in agent environment); FORGE.bin 117,432 bytes |
+| Link allocations | SRAM_EXEC 49.43%; SRAM 17.01%; RAM_D2 68.07%; SDRAM 0.57% |
 | Hardware / AI | No flash, listening, physical I/O, actual CPU measurement, or live provider request performed |
 
-Firmware SHA-256:
-`02ecbbb6eed11a20bcfe6774376d95cf8b6188482ab3d15ed17a1c4a22228bff`.
+Firmware SHA-256 depends on the compiler; use the value printed by the test
+bundle's `verify_bundle.py`, which also names the compiler that built it.
 Memory allocation is not a worst-case stack or CPU measurement.
 
 ## Package and consolidated test

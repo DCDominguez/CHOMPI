@@ -55,7 +55,7 @@ int main(int argc, char** argv) {
             size = forge::EncodeResponse(response, 0, 0, reply);
         }
         for(size_t i = 0; i < size; ++i) std::cout << std::hex << std::setw(2) << std::setfill('0') << unsigned(reply[i]) << ' ';
-        std::cout << '\n'; ++replies;
+        std::cout << std::endl; ++replies; // flush: lets a host keep one stateful probe open
     }
     if(!std::cin.eof() || !replies) return 2;
     try { if(argc == 3) Render(engine, argv[2]); }

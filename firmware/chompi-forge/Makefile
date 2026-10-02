@@ -1,7 +1,7 @@
 CXX ?= c++
 HOST_FLAGS = -std=c++14 -Wall -Wextra -Werror -pedantic -pthread
 HEADERS = $(wildcard core/*.h)
-.PHONY: test sanitize firmware libdaisy
+.PHONY: test sanitize firmware libdaisy browser-test
 test: build/core_test build/protocol_test build/synth_test build/forge_probe
 	./build/core_test
 	./build/protocol_test
@@ -32,3 +32,8 @@ libdaisy:
 	$(MAKE) -C ../chompi-wave/code/libs/libDaisy BUILD_DIR=$(abspath build/libdaisy)
 firmware: libdaisy
 	$(MAKE) -C src
+
+# Real Chromium end-to-end test of the webapp against the simulated device.
+# Needs: pip install playwright && python3 -m playwright install chromium
+browser-test: build/forge_probe
+	python3 tests/browser_e2e.py

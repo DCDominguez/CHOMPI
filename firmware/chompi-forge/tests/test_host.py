@@ -170,3 +170,48 @@ class TransportTests(unittest.TestCase):
 
 
 if __name__ == "__main__": unittest.main()
+
+
+class FakeMido:
+    """Records channel messages; enough of mido for play()."""
+    def __init__(self): self.sent = []
+    def get_output_names(self): return ["out"]
+    def Message(self, kind, **fields): return (kind, fields)
+    def open_output(self, name):
+        fake = self
+        class Port:
+            def __enter__(self): return self
+            def __exit__(self, *exc): return False
+            def send(self, message): fake.sent.append(message)
+        return Port()
+
+
+class TestTrafficCommands(unittest.TestCase):
+    def test_cc_and_chord_with_both_release_styles(self):
+        midi = FakeMido()
+        host.play("out", cc=(24, 127), midi=midi)
+        self.assertEqual(midi.sent, [("control_change", {"channel": 0, "control": 24, "value": 127})])
+        for zero, kind in ((False, "note_off"), (True, "note_on")):
+            midi = FakeMido()
+            host.play("out", notes=[60, 64, 67, 71, 74], hold=0, zero_velocity_off=zero, midi=midi, sleep=lambda s: None)
+            self.assertEqual([m[1]["note"] for m in midi.sent[:5]], [60, 64, 67, 71, 74])
+            self.assertTrue(all(m[0] == "note_on" and m[1]["velocity"] == 100 for m in midi.sent[:5]))
+            self.assertTrue(all(m[0] == kind and m[1]["velocity"] == 0 for m in midi.sent[5:]))
+            self.assertEqual(len(midi.sent), 10)
+
+    def test_notes_are_released_even_when_interrupted(self):
+        midi = FakeMido()
+        def interrupt(seconds): raise KeyboardInterrupt
+        with self.assertRaises(KeyboardInterrupt):
+            host.play("out", notes=[60, 62], midi=midi, sleep=interrupt)
+        self.assertEqual([m[0] for m in midi.sent], ["note_on", "note_on", "note_off", "note_off"])
+
+    def test_invalid_traffic_sends_nothing(self):
+        for kwargs in ({"cc": (128, 0)}, {"cc": (24, -1)}, {"notes": [128]}, {"notes": [60], "velocity": 0},
+                       {"notes": [60], "hold": float("nan")}, {"notes": [60], "hold": 31}, {"notes": [True]}):
+            midi = FakeMido()
+            with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
+                host.play("out", midi=midi, **kwargs)
+            self.assertEqual(midi.sent, [])
+        with self.assertRaises(ValueError):
+            host.play("missing", cc=(24, 0), midi=FakeMido())

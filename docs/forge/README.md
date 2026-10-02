@@ -63,3 +63,5 @@ formats change, update the protocol and its version rules alongside both ends
 and their tests. Put new verification results and the next task in the handoff.
 Use the results template after the hardware session; never turn an unrun test
 into a pass. Avoid duplicating exact parameter mappings across multiple guides.
+
+Live provider procedure: [LIVE_AI_TEST.md](LIVE_AI_TEST.md).

@@ -155,7 +155,8 @@ def encode_patch(patch, sequence):
     values = [p["mix"], (p["time_ms"] - 10) / 990, p["feedback"] / 0.85, p["level"]]
     data = [1]
     for value in values:
-        data.extend(word14(int(value * 16383 + 0.5)))
+        # Clamp guards float rounding at range ends; 16384 would wrap to 0 in 14 bits.
+        data.extend(word14(int(min(max(value, 0.0), 1.0) * 16383 + 0.5)))
     data.append(int(p["bypass"]))
     if patch["version"] == 2:
         data[0] = 2
@@ -164,7 +165,7 @@ def encode_patch(patch, sequence):
         for key, (low, high) in SYNTH_LIMITS.items():
             value = (math.log(synth[key] / low) / math.log(high / low) if key == "cutoff_hz"
                      else (synth[key] - low) / (high - low))
-            data.extend(word14(int(value * 16383 + 0.5)))
+            data.extend(word14(int(min(max(value, 0.0), 1.0) * 16383 + 0.5)))
     return message(1, sequence, data)
 
 
@@ -243,6 +244,33 @@ def exchange(payload, input_name, output_name, timeout=2.0, midi=None):
     raise TimeoutError("No matching acknowledgement. The device may have applied the patch; query status before retrying.")
 
 
+def play(output_name, cc=None, notes=(), velocity=100, hold=1.0, zero_velocity_off=False, midi=None, sleep=time.sleep):
+    """Send channel-1 test traffic (no acknowledgement exists for CC/notes).
+    Note-offs are always sent, even if interrupted, so tests cannot leave stuck notes."""
+    midi = midi or midi_module()
+    values = [*(cc or ()), *notes, velocity]
+    if any(type(v) is not int or not 0 <= v <= 127 for v in values):
+        raise ValueError("CC numbers/values, notes and velocity must be integers 0–127")
+    if notes and velocity == 0:
+        raise ValueError("Use velocity 1–127; note-off is sent automatically")
+    if not math.isfinite(hold) or not 0 <= hold <= 30:
+        raise ValueError("Hold must be 0–30 seconds")
+    if output_name not in midi.get_output_names():
+        raise ValueError("Port not found; run ports and copy the exact output name")
+    with midi.open_output(output_name) as destination:
+        if cc:
+            destination.send(midi.Message("control_change", channel=0, control=cc[0], value=cc[1]))
+        try:
+            for note in notes:
+                destination.send(midi.Message("note_on", channel=0, note=note, velocity=velocity))
+            if notes:
+                sleep(hold)
+        finally:
+            for note in notes:
+                destination.send(midi.Message("note_on", channel=0, note=note, velocity=0) if zero_velocity_off
+                                 else midi.Message("note_off", channel=0, note=note, velocity=0))
+
+
 def generate_patch(prompt, model, endpoint="http://127.0.0.1:11434/api/chat", opener=None):
     if not prompt.strip() or len(prompt) > 4000 or not model.strip():
         raise ValueError("Provide a model and a prompt of 1–4000 characters")
@@ -288,6 +316,12 @@ def cli(argv=None):
         if name == "capture": command.add_argument("file")
         command.add_argument("--input", required=True); command.add_argument("--output", required=True)
         command.add_argument("--timeout", type=float, default=2.0)
+    cc = commands.add_parser("cc", help="Send one channel-1 control change (e.g. 24 127 = wet bypass on, 123 0 = panic)")
+    cc.add_argument("number", type=int); cc.add_argument("value", type=int); cc.add_argument("--output", required=True)
+    note = commands.add_parser("note", help="Play channel-1 notes together, hold, then release them")
+    note.add_argument("notes", type=int, nargs="+"); note.add_argument("--output", required=True)
+    note.add_argument("--velocity", type=int, default=100); note.add_argument("--hold", type=float, default=1.0)
+    note.add_argument("--zero-velocity-off", action="store_true", help="Release with note-on velocity 0 instead of note-off")
     ai = commands.add_parser("ai", help="Ask a local Ollama model for a validated patch; does not send MIDI")
     ai.add_argument("prompt"); ai.add_argument("--model", required=True)
     ai.add_argument("--endpoint", default="http://127.0.0.1:11434/api/chat")
@@ -300,6 +334,11 @@ def cli(argv=None):
     elif args.command == "validate": print(json.dumps(load_patch(args.patch), indent=2))
     elif args.command == "encode":
         print(bytes([0xF0, *encode_patch(load_patch(args.patch), args.sequence), 0xF7]).hex(" "))
+    elif args.command == "cc":
+        play(args.output, cc=(args.number, args.value)); print("sent")
+    elif args.command == "note":
+        play(args.output, notes=args.notes, velocity=args.velocity, hold=args.hold,
+             zero_velocity_off=args.zero_velocity_off); print("sent and released")
     elif args.command == "ai":
         patch = generate_patch(args.prompt, args.model, args.endpoint)
         save_patch(patch, args.out)
