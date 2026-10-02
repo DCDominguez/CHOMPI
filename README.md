@@ -21,8 +21,8 @@ The original upstream TAPE/WAVE/TEMPO and bootloader sources remain separate.
 
 | Area | Implemented in 0.3 |
 | --- | --- |
-| Synth | Four fixed voices; sine, triangle, polyBLEP saw and square oscillators |
-| Articulation | Attack/decay/sustain/release envelope, MIDI velocity, oldest-voice stealing |
+| Synth | Four fixed voices; sine, polyBLAMP triangle, polyBLEP saw and square oscillators |
+| Articulation | Attack/decay/sustain/release envelope, MIDI velocity; stealing prefers a releasing voice, then the oldest, and continues from the current level and phase |
 | Tone | One-pole low-pass, 40–16000 Hz, smoothed cutoff coefficient |
 | Playing | CHOMPI's 25 keys mapped to MIDI 48–72, fixed velocity 100; incoming channel-1 notes 0–127 |
 | Note ownership | Keybed, USB and UART tracked separately; velocity-zero note-on releases |
@@ -67,7 +67,8 @@ mode on reboot. Load an instrument preset to enable synthesis.
 Encoder IDs follow hardware source; printed-panel mapping is unverified. Boot
 uses dry aux with time 257.5 ms, feedback 21.25%, level fading toward 0.25. Route
 or waveform changes silence current voices/tails; release/retrigger held keys.
-Voice stealing may click and high notes may alias; musical quality needs listening.
+Steal clicks and triangle aliasing were reduced in simulation; saw/square can still
+alias on high notes. Musical quality needs listening on hardware.
 The fixed two-route format is not a general patch graph or generated executable DSP.
 
 ## Run the webapp
@@ -104,12 +105,12 @@ verified archive hash. No upstream sources or bootloader were changed.
 
 | Check | Recorded evidence |
 | --- | --- |
-| Native suites | DSP/queue, MIDI/protocol and synth suites pass |
+| Native suites | DSP/queue, MIDI/protocol and synth suites pass (synth suite includes steal-click, triangle-alias and recovery-epoch tests) |
 | Python | 35 tests pass; includes 250 v1 plus 200 v2 randomized protocol round trips and mocked providers |
 | Sanitizers | Three C++ suites pass ASan/UBSan; LeakSanitizer disabled for environment limitations |
 | Web | 8 real-Chromium tests (`make browser-test`): editing, import/export, mocked AI, send/capture/panic via simulated device, phone/tablet layout |
-| ARM | BOOT_SRAM build succeeds with xPack GCC 10.3.1 (pinned Arm archive unreachable in agent environment); FORGE.bin 117,432 bytes |
-| Link allocations | SRAM_EXEC 49.43%; SRAM 17.01%; RAM_D2 68.07%; SDRAM 0.57% |
+| ARM | BOOT_SRAM build succeeds with xPack GCC 10.3.1 (pinned Arm archive unreachable in agent environment); FORGE.bin 118,320 bytes at commit 0a605f6 |
+| Link allocations | SRAM_EXEC 49.80%; SRAM 17.02%; RAM_D2 68.07%; SDRAM 0.57% |
 | Hardware / AI | No flash, listening, physical I/O, actual CPU measurement, or live provider request performed |
 
 Firmware SHA-256 depends on the compiler; use the value printed by the test

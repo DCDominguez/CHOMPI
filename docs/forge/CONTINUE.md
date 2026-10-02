@@ -20,8 +20,10 @@ tests, live-AI prep, 0.3 bundle tooling"), parent `2b30b1c`, tree
 `cf807ad0bcfd0d107cc853294d6eec6ad060fe02`. The SHA differs from the
 locally made `558810e` because DC's connector re-created the commit; the tree
 SHA is identical, so the content is exactly that checkpoint. Verified by an
-agent on 2026-10-02 (UTC). Later handoff commits sit on top of it; use
-`git log` for the current head.
+agent on 2026-10-02 (UTC). Later commits on top: `716c6bc` (SHA record),
+`e24015c` (mitigation proposal), `0a605f6` (sound fixes, the bundle source),
+`3ea7529` (bundle record), then a documentation audit. Use `git log` for the
+current head.
 
 ### Independent reproduction, 2026-10-02 (UTC), fresh container
 
@@ -45,7 +47,7 @@ All rerun from tree `cf807ad0…`, not copied from earlier notes:
 | Hardware-verified | **Nothing.** No flash, audio, keybed, MIDI transport, CPU or battery test |
 | Live AI | **Not run.** Formats checked against provider docs 2026-10-03; mocks only |
 
-## Done in this checkpoint
+## Done in the integration checkpoint (`15681b8`)
 
 Integration defects found and fixed:
 - Webapp refused `http://localhost:8765` (403). Now both loopback spellings are
@@ -92,7 +94,8 @@ the sandbox's `/opt/pw-browsers/chromium-1194` install `playwright==1.56.0`
 instead of running `playwright install`. developer.arm.com was blocked (403); xPack
 `xpack-arm-none-eabi-gcc-10.3.1-2.3-linux-x64.tar.gz` (sha256 559dcf1c…8719,
 matches published .sha) built firmware: FORGE.bin 117,432 bytes, SRAM_EXEC
-49.43%, SRAM 17.01%, RAM_D2 68.07%, SDRAM 0.57%. Only vendored-libDaisy warnings.
+49.43%, SRAM 17.01%, RAM_D2 68.07%, SDRAM 0.57% (before the sound fixes; see
+that section for current figures). Only vendored-libDaisy warnings.
 
 ## Sound fixes (implemented 2026-10-02 UTC; software-tested only)
 

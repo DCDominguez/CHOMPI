@@ -29,8 +29,11 @@ Linux x86-64 distribution:
 
 https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.10/gcc-arm-none-eabi-10.3-2021.10-x86_64-linux.tar.bz2
 
-Archive SHA-256 verified for this build:
+Expected archive SHA-256 (recorded at an earlier checkpoint; agent sandboxes
+could not download the archive, so no current build used it):
 `97dbb4f019ad1650b732faffcc881689cedc14e2b7ee863d390e0a41ef16c9a3`.
+Current agent builds use the xPack fallback described in
+[DEVELOPMENT.md](../../docs/forge/DEVELOPMENT.md); bundles record which compiler was used.
 
 The firmware target builds the vendored WAVE libDaisy source into
 `build/libdaisy/`, then links the Forge app. It does not rewrite the upstream
@@ -77,7 +80,7 @@ Battery warning/shutdown handling is inherited from WAVE and needs bench testing
 Version-2 patches contain synth, delay and output modules plus a route selector.
 Synth→delay→output generates sound with no aux source; aux→delay→output retains
 stereo external effects. The synth is four-voice mono, duplicated to L/R before
-delay. Waveforms: sine, triangle, polyBLEP saw/square. ADSR and a one-pole low-pass
+delay. Waveforms: sine, polyBLAMP triangle, polyBLEP saw/square. ADSR and a one-pole low-pass
 provide articulation/tone. See host guide for physical ranges and JSON examples.
 
 Voice allocation uses idle, then the quietest releasing, then the oldest voice.

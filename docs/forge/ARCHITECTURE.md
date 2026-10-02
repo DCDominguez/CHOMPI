@@ -62,6 +62,14 @@ unavailable. Local encoders apply after queued requests in that block. Overload
 can drop new control/reply items; it never waits for a queue inside the audio
 callback. The protocol documents counter and timeout behavior.
 
+Stuck-note recovery: main is the only writer of an atomic emergency count,
+raised on a dropped note/ingress frame or CC120/123, and stamps every queued
+`Request.epoch` with it (host-side only, not on the wire). Audio's
+`RecoveryGate` panics once per newer count, drops notes stamped older, and
+executes everything else, so notes sent after an emergency are never lost
+waiting for the queue to drain. Keybed notes and SW5 act directly in the
+callback and bypass the gate.
+
 ## Patch lifecycle
 
 1. A user edits JSON or an optional model returns it. The host strictly validates
@@ -103,12 +111,12 @@ Paths below are relative to `firmware/chompi-forge/`.
 | `src/forge_main.cpp` | CHOMPI wiring, boot sequence, audio callback, transport adapters, replies and CPU meter |
 | `core/engine.h` | Allocation-free stereo-delay DSP and whole-patch application |
 | `core/parameters.h` | Normalized parameter state, validation and CC mapping |
-| `core/runtime.h` | Audio-owner request execution shared with offline tests |
+| `core/runtime.h` | Audio-owner request execution and epoch-based `RecoveryGate`, shared with offline tests |
 | `core/command_queue.h` | Generic bounded single-producer/single-consumer queue |
 | `core/midi_framer.h` | Byte framing, running status, overflow and resynchronization |
 | `core/protocol.h` | Request validation, patch encoding fields, status/error replies |
 | `core/usb_packets.h` | Complete-SysEx USB-MIDI packetization |
-| `core/synth.h` | Fixed four-voice oscillators, ADSR, velocity, voice ownership and low-pass tone |
+| `core/synth.h` | Fixed four-voice oscillators (polyBLEP/polyBLAMP), ADSR, velocity, click-free voice reuse, voice ownership and low-pass tone |
 | `host/forge_host.py` | Python CLI, JSON schema, preset files, MIDI exchange, optional Ollama adapter |
 | `host/forge_ai.py` | OpenAI/Gemini HTTPS adapters, structured output and independent validation |
 | `host/forge_web.py` | Loopback server, session/origin checks, request bounds and serialized MIDI access |

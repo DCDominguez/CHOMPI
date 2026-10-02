@@ -46,7 +46,10 @@ make -C firmware/chompi-forge sanitize
 Python integration tests. `make -C firmware/chompi-forge browser-test` drives the
 real webapp in Chromium (Playwright) against `tests/sim_device.py`, a stateful
 stand-in that routes SysEx through the same C++ runtime; screenshots land in
-`build/browser/`. It needs `pip install playwright` plus a Chromium install. It
+`build/browser/`. It needs `pip install playwright` plus a Chromium install
+matching that Playwright version. Where Chromium is preinstalled (e.g.
+`/opt/pw-browsers/chromium-1194` in agent sandboxes), install the matching
+release (`pip install playwright==1.56.0`) instead of `playwright install`. It
 proves browser behaviour and layout, not hardware, audio or live providers. `sanitize` runs the C++ suites with ASan/UBSan.
 If a container prevents LeakSanitizer from inspecting `/proc`, rerun with
 `ASAN_OPTIONS=detect_leaks=0` and explicitly record that leak checking was
@@ -71,8 +74,8 @@ links the application using WAVE's BOOT_SRAM layout. Outputs are
 Keep the map for memory allocation review; it does not measure runtime CPU or
 worst-case stack headroom. Forge's Makefile rejects flashing targets.
 
-If the pinned Arm archive cannot be downloaded (it was blocked in the
-2026-10-03 agent environment), the checksum-verified xPack build of the same GCC
+If the pinned Arm archive cannot be downloaded (blocked in the agent sandboxes
+on 2026-10-02/03), the checksum-verified xPack build of the same GCC
 release, `xpack-arm-none-eabi-gcc-10.3.1-2.3`, from
 github.com/xpack-dev-tools/arm-none-eabi-gcc-xpack works with the same
 `GCC_PATH` usage. It is not byte-identical; the packager records the real
