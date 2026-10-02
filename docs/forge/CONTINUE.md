@@ -94,6 +94,52 @@ instead of running `playwright install`. developer.arm.com was blocked (403); xP
 matches published .sha) built firmware: FORGE.bin 117,432 bytes, SRAM_EXEC
 49.43%, SRAM 17.01%, RAM_D2 68.07%, SDRAM 0.57%. Only vendored-libDaisy warnings.
 
+## Proposed software-only mitigations (not implemented; awaiting DC's go)
+
+Measured 2026-10-02 with a scratch harness around `core/synth.h` (48 kHz,
+sustain 1, cutoff max, Blackman-Harris 4096-point DFT; alias = non-harmonic /
+harmonic energy; floor measured on sine: -88 dB). Simulation only; nothing
+here is a listening or hardware result. No engine change is proposed.
+
+1. **Steal/retrigger clicks.** Cause: `Note()` does `*selected = Voice{}`,
+   which zeroes envelope and phase of a sounding voice. Sine, 4 held notes +
+   a 5th: worst sample step at the steal = 4.98x the steady-state worst step.
+   Fix A (≈3 lines): keep the stolen/retriggered voice's `envelope` and
+   `phase`; attack resumes from the current level. Prototype: 1.12x.
+   Fix B (optional): steal a releasing voice (lowest envelope) before the
+   oldest held one. Behaviour change: PROTOCOL "oldest is stolen" becomes
+   "releasing voices first, then oldest"; TEST_SESSION 3.4 still holds.
+   Tests: synth_test asserts steal and same-note retrigger worst step <= 1.5x
+   steady (sine), and that the envelope never drops at a steal.
+2. **Triangle aliasing.** Add 2-point polyBLAMP at both corners:
+   `sample += 4*dt*(Blamp(t,dt) - Blamp(t±0.5,dt))` (4·dt matches this code's
+   polyBLEP convention; empirically optimal 4–4.5). Alias below 12 kHz:
+   C5 -64.1 → -86.8 dB, C7 -46.9 → -78.9, C8 -36.2 → -62.5 dB. Cost: two
+   branches per triangle voice. Test: DFT alias at note 96 <= -70 dB (<12 kHz).
+   Saw/square (existing 2-point polyBLEP) on the keybed range measure about
+   -54 to -60 dB below 12 kHz, -44 dB at C8. Further reduction (2x
+   oversampling or 4-point BLEP) costs CPU that is unmeasured on hardware;
+   defer until the session gives a real CPU figure.
+3. **Post-recovery dropped notes.** Cause: `RecoveryGate` skips *every* MIDI
+   note until the request queue is empty once, so under sustained traffic
+   notes sent after the emergency are lost too. (Keybed notes bypass the gate.)
+   Fix: epoch stamps. Main loop keeps a `uint8_t epoch`, increments it where
+   it now sets `emergency_silence`, and stamps each queued Request. Audio:
+   a request newer than the gate's epoch → `Begin` (panic) first, adopt it,
+   then execute; an older note → skip; equal → play. Use wrap-safe
+   `int8_t(a-b)` comparison. Drops exactly the notes queued before the
+   emergency; no drain condition. Tests: RecoveryGate unit tests (old notes
+   skipped, new notes play with queue non-empty, wraparound, patch/status
+   still reply) plus a forge_probe/sim_device flood test.
+4. Optional: panic/route change hard-zeroes voices and the filter, so a
+   click is possible. A ~2 ms output ramp would remove it, but panic is
+   an emergency action, so keep it immediate unless the session hears a
+   problem.
+
+Fixes 1A, 2 and 3 are one firmware change for the same consolidated session
+(they alter what TEST_SESSION 3.4/3.6 should sound like). DSP change → run
+`make test`, `make sanitize`, ARM build, and rebuild the bundle.
+
 ## Next actions (priority order)
 
 1. Done: checkpoint confirmed on the remote (see Branch and publishing).
