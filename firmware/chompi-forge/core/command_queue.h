@@ -10,6 +10,9 @@ template<typename T, unsigned Capacity> class SpscQueue {
     static_assert(Capacity >= 2, "Queue needs a spare slot");
     static_assert(ATOMIC_INT_LOCK_FREE == 2, "Audio requires lock-free indices");
 public:
+    bool Empty() const {
+        return tail_.load(std::memory_order_acquire) == head_.load(std::memory_order_acquire);
+    }
     bool HasSpace() const {
         return (head_.load(std::memory_order_relaxed) + 1) % Capacity
             != tail_.load(std::memory_order_acquire);

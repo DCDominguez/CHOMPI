@@ -40,7 +40,7 @@ void ParametersAndMidi() {
         assert(static_cast<unsigned>(command.parameter) == cc - 20u);
     }
     assert(!DecodeCC(1, 20, 127, command));
-    assert(!DecodeCC(0, 25, 127, command));
+    assert(!DecodeCC(0, 26, 127, command));
     assert(!DecodeCC(0, 20, 128, command));
     assert(DecodeCC(0, 24, 63, command) && p.Apply(command) && !p.bypass);
     assert(DecodeCC(0, 24, 64, command) && p.Apply(command) && p.bypass);

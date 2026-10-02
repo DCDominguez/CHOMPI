@@ -24,7 +24,9 @@ void Render(forge::Engine& engine, const char* path) {
     float left, right;
     // Settle parameter ramps before the test signal.
     for(unsigned i = 0; i < rate; ++i) engine.Process(0, 0, left, right);
+    if(engine.GetParameters().synth) { engine.Note(60, 100, 2); engine.Note(64, 90, 2); engine.Note(67, 90, 2); }
     for(unsigned i = 0; i < frames; ++i) {
+        if(i == rate) { engine.Note(60, 0, 2); engine.Note(64, 0, 2); engine.Note(67, 0, 2); }
         const float t = float(i) / rate;
         const float envelope = i < rate / 2 ? std::exp(-t * 12.f) : 0.f;
         const float l = 0.6f * envelope * std::sin(6.2831853f * 220.f * t);
@@ -45,7 +47,7 @@ int main(int argc, char** argv) {
         if(byte > 255) return 2;
         if(!parser.Feed(static_cast<uint8_t>(byte), frame)) continue;
         if(frame.kind != forge::MidiFrame::Kind::SysEx || !forge::IsRequest(frame.data, frame.size)) continue;
-        forge::Request request; uint8_t reply[30]; size_t size;
+        forge::Request request; uint8_t reply[42]; size_t size;
         auto error = forge::DecodeRequest(frame.data, frame.size, request);
         if(error != forge::Error::None) size = forge::EncodeError(forge::Read14(frame.data + 5), error, reply);
         else {

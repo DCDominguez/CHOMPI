@@ -4,7 +4,7 @@
 
 namespace forge {
 struct MidiFrame {
-    enum class Kind : uint8_t { CC, SysEx };
+    enum class Kind : uint8_t { CC, SysEx, NoteOn, NoteOff };
     Kind kind = Kind::CC;
     uint8_t data[48]{};
     uint8_t size = 0;
@@ -31,7 +31,7 @@ public:
         }
         if(byte & 0x80) {
             Reset();
-            if((byte & 0xf0) == 0xb0) status_ = byte;
+            if((byte & 0xf0) == 0xb0 || (byte & 0xf0) == 0x90 || (byte & 0xf0) == 0x80) status_ = byte;
             return false;
         }
         if(sysex_) {
@@ -42,7 +42,9 @@ public:
         if(status_) {
             cc_[cc_used_++] = byte;
             if(cc_used_ == 2) {
-                out.kind = MidiFrame::Kind::CC; out.size = 3;
+                out.kind = (status_ & 0xf0) == 0xb0 ? MidiFrame::Kind::CC :
+                    ((status_ & 0xf0) == 0x90 ? MidiFrame::Kind::NoteOn : MidiFrame::Kind::NoteOff);
+                out.size = 3;
                 out.data[0] = status_ & 0x0f;
                 out.data[1] = cc_[0]; out.data[2] = cc_[1];
                 cc_used_ = 0; return true;

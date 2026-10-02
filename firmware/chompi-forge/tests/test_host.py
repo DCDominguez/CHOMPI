@@ -36,11 +36,11 @@ class PatchTests(unittest.TestCase):
             patch = host.load_patch(path)
             packet = host.encode_patch(patch, 129)
             response = probe(packet)[0]
-            self.assertEqual(response[8:18], packet[7:17])
+            self.assertEqual(response[8:len(packet)], packet[7:-1])
             result = host.decode_response(response, 129)
-            self.assertEqual(result["firmware"], "0.2")
-            self.assertAlmostEqual(result["patch"]["parameters"]["time_ms"],
-                                   patch["parameters"]["time_ms"], delta=990 / 16383)
+            self.assertEqual(result["firmware"], "0.3")
+            self.assertAlmostEqual(host.effect_patch(result["patch"])["parameters"]["time_ms"],
+                                   host.effect_patch(patch)["parameters"]["time_ms"], delta=990 / 16383)
 
     def test_random_patch_round_trips(self):
         rng = random.Random(481)
@@ -53,7 +53,7 @@ class PatchTests(unittest.TestCase):
         responses = probe(*packets)
         self.assertEqual(len(responses), len(packets))
         for packet, response in zip(packets, responses):
-            self.assertEqual(response[8:18], packet[7:17])
+            self.assertEqual(response[8:len(packet)], packet[7:-1])
 
     def test_invalid_patch_does_not_replace_active_state(self):
         valid = host.encode_patch(self.patch, 1)

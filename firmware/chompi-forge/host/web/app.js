@@ -2,6 +2,15 @@
 const $ = id => document.getElementById(id);
 const fields = {mix: [0, 1, .01, "Wet / dry", "0–1"], time_ms: [10, 1000, 1, "Delay time", "ms"],
   feedback: [0, .85, .01, "Feedback", "0–0.85"], level: [0, 1, .01, "Output level", "0–1"]};
+const synthFields = {attack_ms: [1,2000,1,"Attack","ms"], decay_ms: [1,2000,1,"Decay","ms"],
+  sustain: [0,1,.01,"Sustain","0–1"], release_ms: [5,5000,1,"Release","ms"], cutoff_hz: [40,16000,10,"Tone cutoff","Hz"]};
+function params() { return patch.version === 1 ? patch.parameters : {...patch.modules.delay, ...patch.modules.output, ...patch.modules.synth}; }
+function setParam(key, value) {
+  if (patch.version === 1) patch.parameters[key] = value;
+  else if (key === "level") patch.modules.output[key] = value;
+  else if (key in synthFields || key === "waveform") patch.modules.synth[key] = value;
+  else patch.modules.delay[key] = value;
+}
 let token = "", patch = null, presets = [], busy = false;
 function notice(message, error = false) { $("notice").textContent = message; $("notice").classList.toggle("error", error); }
 async function api(path, body) {
@@ -14,7 +23,8 @@ function updateButtons() {
   document.querySelectorAll("button").forEach(button => { button.disabled = busy; });
   for (const id of ["download", "send"]) $(id).disabled = busy || !patch;
   $("editor").disabled = busy || !patch;
-  for (const id of ["provider", "model", "api-key", "prompt", "preset", "import", "input-port", "output-port"]) $(id).disabled = busy;
+  $("synth-editor").disabled = busy || !patch || patch.version !== 2;
+  for (const id of ["kind", "provider", "model", "api-key", "prompt", "preset", "import", "input-port", "output-port"]) $(id).disabled = busy;
 }
 async function run(message, action) {
   if (busy) return;
@@ -25,26 +35,33 @@ async function run(message, action) {
 function showJSON() { $("json").textContent = JSON.stringify(patch, null, 2); }
 function loadPatch(value) {
   patch = structuredClone(value); $("patch-name").value = patch.name;
-  for (const key of Object.keys(fields)) { $(key).value = patch.parameters[key]; $(`${key}-range`).value = patch.parameters[key]; }
-  $("bypass").checked = patch.parameters.bypass; showJSON(); updateButtons();
+  const values = params();
+  for (const key of Object.keys({...fields, ...synthFields})) {
+    $(key).value = values[key] ?? ""; $(`${key}-range`).value = values[key] ?? synthFields[key]?.[0] ?? 0;
+  }
+  $("routing").value = patch.routing || "aux>delay>output";
+  $("waveform").value = patch.modules?.synth.waveform || "sine";
+  $("bypass").checked = params().bypass; showJSON(); updateButtons();
 }
-for (const [key, [min, max, step, label, unit]] of Object.entries(fields)) {
+for (const [key, [min, max, step, label, unit]] of Object.entries({...fields, ...synthFields})) {
   const row = document.createElement("div"); row.className = "control";
   // All interpolated values in this template are fixed local constants.
   row.innerHTML = `<label for="${key}">${label}<span class="unit">${unit}</span></label><input id="${key}-range" type="range" min="${min}" max="${max}" step="${step}" aria-label="${label} slider"><input id="${key}" type="number" min="${min}" max="${max}" step="any" required>`;
-  $("controls").append(row);
-  $(key).addEventListener("input", () => { if (!patch) return; patch.parameters[key] = $(key).value === "" ? null : Number($(key).value); $(`${key}-range`).value = patch.parameters[key]; showJSON(); });
+  $(key in synthFields ? "synth-controls" : "controls").append(row);
+  $(key).addEventListener("input", () => { if (!patch) return; setParam(key, $(key).value === "" ? null : Number($(key).value)); $(`${key}-range`).value = params()[key]; showJSON(); });
   $(`${key}-range`).addEventListener("input", () => { $(key).value = $(`${key}-range`).value; $(key).dispatchEvent(new Event("input")); });
 }
 $("patch-name").addEventListener("input", () => { if (patch) { patch.name = $("patch-name").value; showJSON(); } });
-$("bypass").addEventListener("change", () => { if (patch) { patch.parameters.bypass = $("bypass").checked; showJSON(); } });
+$("bypass").addEventListener("change", () => { if (patch) { setParam("bypass", $("bypass").checked); showJSON(); } });
+$("routing").addEventListener("change", () => { if (patch?.version === 2) { patch.routing = $("routing").value; showJSON(); } });
+$("waveform").addEventListener("change", () => { if (patch?.version === 2) { setParam("waveform", $("waveform").value); showJSON(); } });
 $("clear-key").addEventListener("click", () => { $("api-key").value = ""; notice("API key cleared from the form."); });
 $("provider").addEventListener("change", () => { $("api-key").value = ""; $("model").value = ""; notice("Provider changed. Enter its model ID and API key."); });
 window.addEventListener("pagehide", () => { $("api-key").value = ""; });
 $("generate-form").addEventListener("submit", event => {
   event.preventDefault();
   run("Generating with your selected provider…", async () => {
-    const result = await api("generate", {provider: $("provider").value, api_key: $("api-key").value.trim(), model: $("model").value.trim(), prompt: $("prompt").value});
+    const result = await api("generate", {kind: $("kind").value, provider: $("provider").value, api_key: $("api-key").value.trim(), model: $("model").value.trim(), prompt: $("prompt").value});
     loadPatch(result.patch); $("preset").value = ""; notice("Patch generated and validated. Review it before sending to CHOMPI.");
   });
 });
@@ -86,13 +103,16 @@ $("send").addEventListener("click", () => run("Sending patch and waiting for ack
   const result = await api("send", {...ports(), patch}); deviceStatus(result);
   notice("CHOMPI acknowledged the requested patch. Device values use 14-bit precision.");
 }));
+$("panic").addEventListener("click", () => run("Silencing CHOMPI…", async () => {
+  const result = await api("panic", ports()); deviceStatus(result); notice("Panic acknowledged. Voices and delay tail stopped; retrigger notes to play.");
+}));
 async function start() {
   busy = true; updateButtons();
   try {
     const response = await fetch("/api/session"); if (!response.ok) throw new Error("Could not start a local session. Reload the URL printed by Forge.");
     const session = await response.json(); token = session.token; presets = session.presets;
     presets.forEach((item, index) => $("preset").add(new Option(item.name, String(index))));
-    if (presets.length) { loadPatch(presets[0]); $("preset").value = "0"; }
+    if (presets.length) { const initial = Math.max(0, presets.findIndex(item => item.version === 2)); loadPatch(presets[initial]); $("preset").value = String(initial); }
     notice("Ready. Start with AI, a preset, or an imported patch.");
   } catch (error) { notice(error.message, true); }
   finally { busy = false; updateButtons(); }

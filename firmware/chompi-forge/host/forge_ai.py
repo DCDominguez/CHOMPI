@@ -5,7 +5,7 @@ import re
 import urllib.error
 import urllib.request
 
-from forge_host import SCHEMA, parse_json, validate_patch
+from forge_host import SCHEMA, SCHEMA2, parse_json, validate_patch
 
 SYSTEM = (
     "Author a Forge v1 stereo_delay JSON preset matching the schema. Only mix, "
@@ -24,7 +24,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         raise ProviderError("Provider redirect refused. Check the API documentation.")
 
 
-def generate_patch(provider, api_key, model, prompt, opener=None):
+def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay"):
     if provider not in ("openai", "gemini"):
         raise ValueError("Choose OpenAI or Gemini")
     if not isinstance(api_key, str) or not 1 <= len(api_key) <= 512 or not all(
@@ -34,23 +34,30 @@ def generate_patch(provider, api_key, model, prompt, opener=None):
         raise ValueError("Enter a model ID using letters, numbers, dots, dashes or underscores")
     if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 4000:
         raise ValueError("Describe your sound in 1–4000 characters")
-    schema = copy.deepcopy(SCHEMA)
-    schema.pop("$schema")
+    if kind not in ("delay", "instrument"): raise ValueError("Unknown authoring mode")
+    schema = copy.deepcopy(SCHEMA2 if kind == "instrument" else SCHEMA)
+    schema.pop("$schema", None)
+    system = SYSTEM if kind == "delay" else (
+        "Author a Forge v2 instrument patch. Modules: four-voice synth with sine, triangle, saw or square, "
+        "ADSR amplitude envelope, one-pole lowpass cutoff; stereo delay; output gain. "
+        "Use synth>delay>output for playable sounds, aux>delay>output for external audio. "
+        "All module settings are required. No sampler, FM, reverb, custom code or other routing exists. "
+        "Approximate the request only using available modules. Default output level 0.25. Return JSON only.")
     # Explicit types and enums work across both providers' JSON Schema subsets.
-    schema["properties"]["version"] = {"type": "integer", "enum": [1]}
-    schema["properties"]["engine"] = {"type": "string", "enum": ["stereo_delay"]}
+    schema["properties"]["version"] = {"type": "integer", "enum": [2 if kind == "instrument" else 1]}
+    schema["properties"]["engine"] = {"type": "string", "enum": ["instrument" if kind == "instrument" else "stereo_delay"]}
     headers = {"Content-Type": "application/json"}
     if provider == "openai":
         url = "https://api.openai.com/v1/responses"
         headers["Authorization"] = "Bearer " + api_key
-        body = {"model": model, "store": False, "instructions": SYSTEM, "input": prompt,
+        body = {"model": model, "store": False, "instructions": system, "input": prompt,
                 "max_output_tokens": 4096,
                 "text": {"format": {"type": "json_schema", "name": "forge_patch",
                                     "strict": True, "schema": schema}}}
     else:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
         headers["x-goog-api-key"] = api_key
-        body = {"systemInstruction": {"parts": [{"text": SYSTEM}]},
+        body = {"systemInstruction": {"parts": [{"text": system}]},
                 "contents": [{"role": "user", "parts": [{"text": prompt}]}],
                 "generationConfig": {"maxOutputTokens": 4096,
                     "responseFormat": {"text": {"mimeType": "application/json", "schema": schema}}}}

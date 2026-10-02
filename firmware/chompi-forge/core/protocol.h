@@ -5,11 +5,12 @@
 
 namespace forge {
 constexpr uint8_t kProtocolVersion = 1, kPatchVersion = 1;
-constexpr uint8_t kFirmwareMinor = 2;
+constexpr uint8_t kFirmwareMinor = 3;
 enum class Error : uint8_t { None, Length, Version, Checksum, Patch, Opcode, Busy };
-enum class RequestKind : uint8_t { Parameter, Patch, Status };
+enum class RequestKind : uint8_t { Parameter, Patch, Status, Note, Panic };
 struct Request {
     RequestKind kind = RequestKind::Status;
+    uint8_t note = 0, velocity = 0;
     Command command{Parameter::Mix, 0.f};
     Parameters patch{};
     uint16_t sequence = 0;
@@ -43,8 +44,9 @@ inline Error DecodeRequest(const uint8_t* bytes, size_t size, Request& out) {
     Request candidate;
     candidate.sequence = Read14(bytes + 5);
     if(bytes[4] == 1) {
-        if(size != 18) return Error::Length;
-        if(bytes[7] != kPatchVersion) return Error::Version;
+        if(bytes[7] != 1 && bytes[7] != 2) return Error::Version;
+        if(size != (bytes[7] == 1 ? 18u : 30u)) return Error::Length;
+        candidate.patch.version = bytes[7];
         if(bytes[16] > 1) return Error::Patch;
         candidate.kind = RequestKind::Patch;
         candidate.patch.mix = Read14(bytes + 8) / 16383.f;
@@ -52,9 +54,21 @@ inline Error DecodeRequest(const uint8_t* bytes, size_t size, Request& out) {
         candidate.patch.feedback = Read14(bytes + 12) / 16383.f;
         candidate.patch.level = Read14(bytes + 14) / 16383.f;
         candidate.patch.bypass = bytes[16] != 0;
+        if(bytes[7] == 2) {
+            if(bytes[17] > 1 || bytes[18] > 3) return Error::Patch;
+            candidate.patch.synth = bytes[17] != 0; candidate.patch.waveform = bytes[18];
+            candidate.patch.attack = Read14(bytes + 19) / 16383.f;
+            candidate.patch.decay = Read14(bytes + 21) / 16383.f;
+            candidate.patch.sustain = Read14(bytes + 23) / 16383.f;
+            candidate.patch.release = Read14(bytes + 25) / 16383.f;
+            candidate.patch.cutoff = Read14(bytes + 27) / 16383.f;
+        }
     } else if(bytes[4] == 2) {
         if(size != 8) return Error::Length;
         candidate.kind = RequestKind::Status;
+    } else if(bytes[4] == 3) {
+        if(size != 8) return Error::Length;
+        candidate.kind = RequestKind::Panic;
     } else return Error::Opcode;
     out = candidate;
     return Error::None;
@@ -76,12 +90,12 @@ inline size_t EncodeError(uint16_t sequence, Error error, uint8_t* bytes) {
     bytes[7] = static_cast<uint8_t>(error); bytes[8] = Checksum(bytes, 8);
     return 9;
 }
-// All sizes here exclude MIDI's F0/F7 envelope. Caller supplies >= 30 bytes.
+// All sizes here exclude MIDI's F0/F7 envelope. Caller supplies >= 42 bytes.
 inline size_t EncodeResponse(const Response& response, uint32_t dropped,
                              uint32_t rejected, uint8_t* bytes) {
     if(response.error != Error::None) return EncodeError(response.sequence, response.error, bytes);
     Header(bytes, 0x40, response.sequence);
-    bytes[7] = 0; bytes[8] = kPatchVersion;
+    bytes[7] = 0; bytes[8] = response.patch.version;
     WriteNormalized(bytes + 9, response.patch.mix);
     WriteNormalized(bytes + 11, response.patch.time);
     WriteNormalized(bytes + 13, response.patch.feedback);
@@ -90,11 +104,21 @@ inline size_t EncodeResponse(const Response& response, uint32_t dropped,
     const auto cpu = [](float value) -> unsigned {
         return std::isfinite(value) ? static_cast<unsigned>(Clamp(value * 1000.f, 0.f, 16383.f)) : 0;
     };
-    Write14(bytes + 18, cpu(response.cpu_average));
-    Write14(bytes + 20, cpu(response.cpu_max));
-    Write21(bytes + 22, dropped); Write21(bytes + 25, rejected);
-    bytes[28] = kFirmwareMinor;
-    bytes[29] = Checksum(bytes, 29);
-    return 30;
+    size_t offset = 18;
+    if(response.patch.version == 2) {
+        bytes[18] = response.patch.synth ? 1 : 0; bytes[19] = response.patch.waveform;
+        WriteNormalized(bytes + 20, response.patch.attack);
+        WriteNormalized(bytes + 22, response.patch.decay);
+        WriteNormalized(bytes + 24, response.patch.sustain);
+        WriteNormalized(bytes + 26, response.patch.release);
+        WriteNormalized(bytes + 28, response.patch.cutoff);
+        offset = 30;
+    }
+    Write14(bytes + offset, cpu(response.cpu_average));
+    Write14(bytes + offset + 2, cpu(response.cpu_max));
+    Write21(bytes + offset + 4, dropped); Write21(bytes + offset + 7, rejected);
+    bytes[offset + 10] = kFirmwareMinor;
+    bytes[offset + 11] = Checksum(bytes, offset + 11);
+    return offset + 12;
 }
 } // namespace forge

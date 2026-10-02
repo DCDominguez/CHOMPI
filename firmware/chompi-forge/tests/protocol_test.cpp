@@ -37,7 +37,7 @@ void ProtocolAndAtomicity() {
         assert(DecodeRequest(packet.data(), size, request) != Error::None);
     packet[16] = 2; packet[17] = Checksum(packet.data(), 17);
     assert(DecodeRequest(packet.data(), packet.size(), request) == Error::Patch);
-    packet = Patch(); packet[7] = 2; packet[17] = Checksum(packet.data(), 17);
+    packet = Patch(); packet[7] = 3; packet[17] = Checksum(packet.data(), 17);
     assert(DecodeRequest(packet.data(), packet.size(), request) == Error::Version);
     uint8_t reply[30]; response.error = Error::None;
     response.cpu_average = 0.254f; response.cpu_max = 1.1f;
@@ -64,7 +64,7 @@ void Framing() {
     parser.Feed(21, frame); // running status
     assert(parser.Feed(64, frame) && frame.data[1] == 21 && frame.data[2] == 64);
     parser.Feed(0x90, frame); parser.Feed(60, frame);
-    assert(!parser.Feed(127, frame));
+    assert(parser.Feed(127, frame) && frame.kind == MidiFrame::Kind::NoteOn);
     uint32_t random = 123;
     for(unsigned i = 0; i < 100000; ++i) {
         random = random * 1664525u + 1013904223u;

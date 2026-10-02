@@ -26,7 +26,57 @@ SCHEMA = {
                    for key, (low, high) in LIMITS.items()}, "bypass": {"type": "boolean"}}}}}
 
 
+WAVEFORMS = ("sine", "triangle", "saw", "square")
+SYNTH_LIMITS = {"attack_ms": (1, 2000), "decay_ms": (1, 2000), "sustain": (0, 1),
+                "release_ms": (5, 5000), "cutoff_hz": (40, 16000)}
+ROUTES = ("aux>delay>output", "synth>delay>output")
+def object_schema(properties):
+    return {"type": "object", "additionalProperties": False,
+            "required": list(properties), "properties": properties}
+SCHEMA2 = object_schema({
+    "version": {"type": "integer", "enum": [2]},
+    "name": {"type": "string", "minLength": 1, "maxLength": 80},
+    "engine": {"type": "string", "enum": ["instrument"]},
+    "routing": {"type": "string", "enum": list(ROUTES)},
+    "modules": object_schema({
+        "synth": object_schema({"waveform": {"type": "string", "enum": list(WAVEFORMS)},
+            **{key: {"type": "number", "minimum": low, "maximum": high}
+               for key, (low, high) in SYNTH_LIMITS.items()}}),
+        "delay": object_schema({key: value for key, value in SCHEMA["properties"]["parameters"]["properties"].items() if key != "level"}),
+        "output": object_schema({"level": {"type": "number", "minimum": 0, "maximum": 1}})})})
+
+
+def effect_patch(patch):
+    if patch["version"] == 1: return patch
+    return {"version": 1, "name": patch["name"], "engine": "stereo_delay",
+            "parameters": {**patch["modules"]["delay"], **patch["modules"]["output"]}}
+
+
+def validate_instrument(patch):
+    if set(patch) != {"version", "name", "engine", "routing", "modules"} or type(patch["version"]) is not int:
+        raise ValueError("Invalid instrument fields")
+    if patch["engine"] != "instrument" or patch["routing"] not in ROUTES:
+        raise ValueError("Unsupported engine or routing")
+    modules = patch["modules"]
+    if not isinstance(modules, dict) or set(modules) != {"synth", "delay", "output"}:
+        raise ValueError("Expected synth, delay and output modules")
+    for key in modules:
+        if not isinstance(modules[key], dict): raise ValueError("Module must be an object")
+    synth = modules["synth"]
+    if set(synth) != {"waveform", *SYNTH_LIMITS} or synth["waveform"] not in WAVEFORMS:
+        raise ValueError("Invalid synth module")
+    if set(modules["delay"]) != {"mix", "time_ms", "feedback", "bypass"} or set(modules["output"]) != {"level"}:
+        raise ValueError("Invalid delay/output module")
+    for key, (low, high) in SYNTH_LIMITS.items():
+        if type(synth[key]) not in (float, int) or not math.isfinite(synth[key]) or not low <= synth[key] <= high:
+            raise ValueError(f"{key} must be in [{low}, {high}]")
+    validate_patch(effect_patch(patch))
+    return patch
+
+
 def validate_patch(patch):
+    if isinstance(patch, dict) and patch.get("version") == 2:
+        return validate_instrument(patch)
     if not isinstance(patch, dict) or set(patch) != {"version", "name", "engine", "parameters"}:
         raise ValueError("Patch requires exactly version, name, engine and parameters")
     if type(patch["version"]) is not int or patch["version"] != 1:
@@ -100,12 +150,21 @@ def message(opcode, sequence, data=()):
 
 
 def encode_patch(patch, sequence):
-    p = validate_patch(patch)["parameters"]
+    validate_patch(patch)
+    p = effect_patch(patch)["parameters"]
     values = [p["mix"], (p["time_ms"] - 10) / 990, p["feedback"] / 0.85, p["level"]]
     data = [1]
     for value in values:
         data.extend(word14(int(value * 16383 + 0.5)))
     data.append(int(p["bypass"]))
+    if patch["version"] == 2:
+        data[0] = 2
+        synth = patch["modules"]["synth"]
+        data.extend([ROUTES.index(patch["routing"]), WAVEFORMS.index(synth["waveform"])])
+        for key, (low, high) in SYNTH_LIMITS.items():
+            value = (math.log(synth[key] / low) / math.log(high / low) if key == "cutoff_hz"
+                     else (synth[key] - low) / (high - low))
+            data.extend(word14(int(value * 16383 + 0.5)))
     return message(1, sequence, data)
 
 
@@ -119,18 +178,32 @@ def decode_response(data, sequence):
         raise ValueError("Invalid reply checksum")
     if data[4] == 0x41 and len(data) == 9:
         raise RuntimeError("Device rejected request: " + ERRORS.get(data[7], "unknown error"))
-    if len(data) != 30 or data[4] != 0x40 or data[7] != 0 or data[8] != 1 or data[17] > 1:
+    if len(data) not in (30, 42) or data[4] != 0x40 or data[7] != 0 or data[8] not in (1, 2) or data[17] > 1:
         raise ValueError("Invalid Forge status payload")
     patch = {"version": 1, "name": "Captured from Forge", "engine": "stereo_delay", "parameters": {
         "mix": read14(data, 9) / 16383,
         "time_ms": 10 + 990 * read14(data, 11) / 16383,
         "feedback": 0.85 * read14(data, 13) / 16383,
         "level": read14(data, 15) / 16383, "bypass": bool(data[17])}}
-    return {"sequence": sequence, "firmware": f"0.{data[28]}", "patch": validate_patch(patch),
-            "cpu_average_percent": read14(data, 18) / 10,
-            "cpu_max_percent": read14(data, 20) / 10,
-            "dropped": read14(data, 22) | data[24] << 14,
-            "rejected": read14(data, 25) | data[27] << 14}
+    offset = 18
+    if data[8] == 2:
+        if len(data) != 42 or data[18] > 1 or data[19] > 3:
+            raise ValueError("Invalid instrument status")
+        synth = {"waveform": WAVEFORMS[data[19]]}
+        for index, (key, (low, high)) in enumerate(SYNTH_LIMITS.items()):
+            value = read14(data, 20 + 2 * index) / 16383
+            synth[key] = low * (high / low) ** value if key == "cutoff_hz" else low + (high - low) * value
+        params = patch["parameters"]
+        patch = {"version": 2, "name": patch["name"], "engine": "instrument", "routing": ROUTES[data[18]],
+                 "modules": {"synth": synth, "delay": {k: v for k, v in params.items() if k != "level"},
+                             "output": {"level": params["level"]}}}
+        offset = 30
+    elif len(data) != 30: raise ValueError("Invalid v1 status length")
+    return {"sequence": sequence, "firmware": f"0.{data[offset + 10]}", "patch": validate_patch(patch),
+            "cpu_average_percent": read14(data, offset) / 10,
+            "cpu_max_percent": read14(data, offset + 2) / 10,
+            "dropped": read14(data, offset + 4) | data[offset + 6] << 14,
+            "rejected": read14(data, offset + 7) | data[offset + 9] << 14}
 
 
 def midi_module():
@@ -163,7 +236,7 @@ def exchange(payload, input_name, output_name, timeout=2.0, midi=None):
                 if len(data) < 7 or data[:3] != PREFIX[:3] or read14(data, 5) != sequence:
                     continue
                 result = decode_response(data, sequence)
-                if payload[4] == 1 and data[8:18] != list(payload[7:17]):
+                if payload[4] == 1 and data[8:len(payload)] != list(payload[7:-1]):
                     raise RuntimeError("Acknowledgement does not match the requested patch; query status")
                 return result
             time.sleep(0.002)
@@ -209,7 +282,7 @@ def cli(argv=None):
     validate = commands.add_parser("validate"); validate.add_argument("patch")
     encode = commands.add_parser("encode", help="Print SysEx bytes without using MIDI")
     encode.add_argument("patch"); encode.add_argument("--sequence", type=int, default=1)
-    for name in ("send", "status", "capture"):
+    for name in ("send", "status", "capture", "panic"):
         command = commands.add_parser(name)
         if name == "send": command.add_argument("patch")
         if name == "capture": command.add_argument("file")
@@ -233,7 +306,7 @@ def cli(argv=None):
         print(json.dumps(patch, indent=2))
     else:
         sequence = secrets.randbelow(16384)
-        payload = encode_patch(load_patch(args.patch), sequence) if args.command == "send" else message(2, sequence)
+        payload = encode_patch(load_patch(args.patch), sequence) if args.command == "send" else message(3 if args.command == "panic" else 2, sequence)
         result = exchange(payload, args.input, args.output, args.timeout)
         if args.command == "capture": save_patch(result["patch"], args.file)
         print(json.dumps(result, indent=2))

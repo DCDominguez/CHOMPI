@@ -1,5 +1,10 @@
 # Forge for CHOMPI
 
+> **Instrument milestone in progress:** the current work extends Forge beyond effects
+> with a playable synth. See [developer resume checkpoint](docs/forge/CONTINUE.md)
+> for current changes, test results and outstanding work. The 0.2 inventory below
+> describes the previous completed software milestone.
+
 **Forge turns CHOMPI into a programmable, externally controlled audio-effects
 instrument.** The firmware handles real-time audio on the Daisy Seed; a computer
 handles preset files, live patch control, and optional AI-assisted sound authoring.

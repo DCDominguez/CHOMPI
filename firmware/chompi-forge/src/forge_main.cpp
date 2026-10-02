@@ -40,13 +40,15 @@ CpuLoadMeter cpu;
 UsbHandle usb_sender;
 // libDaisy exposes the configured device and CDC state used by its MIDI mode.
 // Keep TX memory alive until USB completion, and never rewrite it while busy.
-uint8_t usb_tx_packets[48];
-struct Outgoing { uint8_t source = 0; uint8_t bytes[32]{}; size_t size = 0; };
+uint8_t usb_tx_packets[64];
+struct Outgoing { uint8_t source = 0; uint8_t bytes[44]{}; size_t size = 0; };
 forge::SpscQueue<Outgoing, 32> outgoing; // producer and consumer both main loop
 Outgoing pending;
 bool has_pending = false;
 uint32_t pending_since = 0;
 forge::Engine engine;
+std::atomic<bool> emergency_silence{false};
+bool discard_ingress = false; // main-loop owned
 forge::SpscQueue<forge::Request, 64> requests;
 forge::SpscQueue<forge::Response, 64> responses;
 // The bootloader does not zero SDRAM; Engine::Init clears these before audio.
@@ -58,9 +60,12 @@ uint32_t dropped_commands = 0, rejected_messages = 0; // main-loop owned
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size) {
     cpu.OnBlockStart();
     forge::Request request;
+    static bool recovering = false; // audio-owner only
+    if(emergency_silence.exchange(false, std::memory_order_relaxed)) { engine.Panic(); recovering = true; }
     // Backpressure instead of applying a patch whose acknowledgement cannot
     // be queued. Only this audio callback produces responses.
     for(unsigned i = 0; i < 16 && responses.HasSpace() && requests.Pop(request); ++i) {
+        if(recovering && request.kind == forge::RequestKind::Note) continue;
         forge::Response response;
         if(forge::ExecuteRequest(request, engine, response)) {
             response.cpu_average = cpu.GetAvgCpuLoad();
@@ -68,8 +73,20 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
             responses.Push(response);
         }
     }
+    if(recovering && requests.Empty()) recovering = false;
 
     hw.ProcessAllControls();
+    // Matches upstream NormalPage::key_map: 25 chromatic keys, MIDI 48..72.
+    static constexpr uint8_t notes[40] = {0,0,0,0,0,0,0,49,50,52,53,55,51,54,56,48,
+        57,59,60,62,64,58,61,63,65,67,69,71,72,66,68,70,0,0,0,0,0,0,0,0};
+    for(unsigned key = 0; key < 40; ++key) if(notes[key]) {
+        if(hw.button_sr.RisingEdge(key)) engine.Note(notes[key], 100, 2);
+        if(hw.button_sr.FallingEdge(key)) engine.Note(notes[key], 0, 2);
+    }
+    // Dedicated local recovery; SW5 turn controls synth tone, press silences.
+    if(hw.enc[4].RisingEdge()) engine.Panic();
+    const int tone = hw.enc[4].Increment();
+    if(tone) engine.Apply({forge::Parameter::Cutoff, engine.GetParameters().cutoff + tone / 127.f});
     // Hardware encoder IDs, not assumptions about printed panel labels.
     const auto p = engine.GetParameters();
     const float values[] = {p.mix, p.time, p.feedback, p.level};
@@ -106,7 +123,7 @@ void TransmitPending() {
     }
     bool sent = false;
     if(pending.source == 0) {
-        // A 32-byte status reply takes 10.24 ms at 31250 baud; the upstream
+        // A 44-byte v2 status reply takes 14.08 ms at 31250 baud; the upstream
         // PollTx wrapper's 10 ms timeout is too short. Audio remains interrupt-driven.
         sent = uart_midi.transport.GetUartHandle().BlockingTransmit(pending.bytes, pending.size, 25)
             == UartHandler::Result::OK;
@@ -133,7 +150,18 @@ template<typename Midi> void PollMidi(Midi& midi, uint8_t source) {
     forge::MidiFrame frame;
     for(unsigned i = 0; i < 8 && midi.frames.Pop(frame); ++i) {
         forge::Request request;
+        request.source = source;
+        if(frame.kind == forge::MidiFrame::Kind::NoteOn || frame.kind == forge::MidiFrame::Kind::NoteOff) {
+            if(frame.data[0] != 0) continue;
+            request.kind = forge::RequestKind::Note; request.note = frame.data[1];
+            request.velocity = frame.kind == forge::MidiFrame::Kind::NoteOff ? 0 : frame.data[2];
+            if(!requests.Push(request)) { ++dropped_commands; discard_ingress = true; emergency_silence.store(true, std::memory_order_relaxed); }
+            continue;
+        }
         if(frame.kind == forge::MidiFrame::Kind::CC) {
+            if(frame.data[0] == 0 && (frame.data[1] == 120 || frame.data[1] == 123)) {
+                emergency_silence.store(true, std::memory_order_relaxed); continue;
+            }
             if(!forge::DecodeCC(frame.data[0], frame.data[1], frame.data[2], request.command)) continue;
             request.kind = forge::RequestKind::Parameter;
             if(!requests.Push(request)) ++dropped_commands;
@@ -147,7 +175,7 @@ template<typename Midi> void PollMidi(Midi& midi, uint8_t source) {
         }
         if(error != forge::Error::None) {
             ++rejected_messages;
-            uint8_t envelope[32];
+            uint8_t envelope[44];
             const size_t size = forge::EncodeError(forge::Read14(frame.data + 5), error, envelope + 1);
             Send(source, envelope, size);
         }
@@ -159,7 +187,7 @@ void SendResponses() {
     for(unsigned i = 0; i < 4 && outgoing.HasSpace() && responses.Pop(response); ++i) {
         const uint32_t dropped = dropped_commands + uart_midi.dropped.load(std::memory_order_relaxed)
             + usb_midi.dropped.load(std::memory_order_relaxed);
-        uint8_t envelope[32];
+        uint8_t envelope[44];
         const size_t size = forge::EncodeResponse(response, dropped, rejected_messages, envelope + 1);
         Send(response.source, envelope, size);
     }
@@ -203,6 +231,16 @@ int main() {
     while(true) {
         TransmitPending();
         SendResponses();
+        static uint32_t seen_drops = 0;
+        const uint32_t ingress_drops = uart_midi.dropped.load(std::memory_order_relaxed) + usb_midi.dropped.load(std::memory_order_relaxed);
+        if(ingress_drops != seen_drops || discard_ingress) {
+            ScopedIrqBlocker guard;
+            forge::MidiFrame ignored;
+            for(unsigned i = 0; i < 16; ++i) { uart_midi.frames.Pop(ignored); usb_midi.frames.Pop(ignored); }
+            uart_midi.framer.Reset(); usb_midi.framer.Reset();
+            emergency_silence.store(true, std::memory_order_relaxed);
+            seen_drops = ingress_drops; discard_ingress = false;
+        }
         PollMidi(uart_midi, 0);
         PollMidi(usb_midi, 1);
         const uint32_t now = System::GetNow();

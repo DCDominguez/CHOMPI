@@ -9,11 +9,15 @@ inline bool ExecuteRequest(const Request& request, Engine& engine, Response& res
     if(request.kind == RequestKind::Parameter) {
         engine.Apply(request.command); return false;
     }
+    if(request.kind == RequestKind::Note) {
+        engine.Note(request.note, request.velocity, request.source); return false;
+    }
     response = Response{};
     response.sequence = request.sequence; response.source = request.source;
     if(request.kind == RequestKind::Patch) {
         if(!engine.ApplyPatch(request.patch)) response.error = Error::Patch;
-    } else if(request.kind != RequestKind::Status) response.error = Error::Opcode;
+    } else if(request.kind == RequestKind::Panic) engine.Panic();
+    else if(request.kind != RequestKind::Status) response.error = Error::Opcode;
     response.patch = engine.GetParameters();
     return true;
 }

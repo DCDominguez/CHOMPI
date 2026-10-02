@@ -91,11 +91,11 @@ class Handler(BaseHTTPRequestHandler):
                     return self.reply(409, {"error": "A generation is already in progress"})
                 try:
                     result = {"patch": forge_ai.generate_patch(body.get("provider"), body.get("api_key"),
-                                body.get("model"), body.get("prompt"))}
+                                body.get("model"), body.get("prompt"), kind=body.get("kind", "delay"))}
                 finally:
                     body.pop("api_key", None)
                     self.server.ai_lock.release()
-            elif self.path in ("/api/ports", "/api/status", "/api/send"):
+            elif self.path in ("/api/ports", "/api/status", "/api/send", "/api/panic"):
                 if not self.server.midi_lock.acquire(blocking=False):
                     return self.reply(409, {"error": "A MIDI request is already in progress"})
                 try:
@@ -108,7 +108,7 @@ class Handler(BaseHTTPRequestHandler):
                                 raise ValueError("Select both MIDI input and output ports")
                         seq = secrets.randbelow(16384)
                         payload = (host.encode_patch(body.get("patch"), seq) if self.path == "/api/send"
-                                   else host.message(2, seq))
+                                   else host.message(3 if self.path == "/api/panic" else 2, seq))
                         result = host.exchange(payload, body["input"], body["output"])
                 finally:
                     self.server.midi_lock.release()

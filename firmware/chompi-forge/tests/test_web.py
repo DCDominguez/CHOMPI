@@ -139,7 +139,7 @@ class WebTests(unittest.TestCase):
             self.assertEqual(status, 200)
             self.assertEqual(headers["Cache-Control"], "no-store")
             self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
-        self.assertEqual(len(json.loads(data)["presets"]), 3)
+        self.assertEqual(len(json.loads(data)["presets"]), 6)
         for path in ("/../forge_ai.py", "/forge_web.py", "/?api_key=secret"):
             self.assertEqual(self.request(path)[0], 404)
 
@@ -162,7 +162,7 @@ class WebTests(unittest.TestCase):
             self.assertEqual(status, 200)
             self.assertEqual(json.loads(data)["patch"], PRESET)
             self.assertNotIn(b"test-secret", data)
-            generate.assert_called_once_with("gemini", "test-secret", "model", "echo")
+            generate.assert_called_once_with("gemini", "test-secret", "model", "echo", kind="delay")
             exchange.assert_not_called()
 
     def test_send_uses_existing_validated_protocol_and_explicit_ports(self):
