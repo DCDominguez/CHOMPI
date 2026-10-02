@@ -56,8 +56,8 @@ patch resend occurs after a timeout. Read status before deciding to retry.
 
 The provider adapters and MIDI path have automated mock coverage. Live API-key
 requests and physical CHOMPI operation still need the consolidated test session.
-JavaScript syntax and static asset serving are checked; actual browser interaction
-and visual checks remain pending because the development browser download failed.
+Real-Chromium interaction tests (`make browser-test`) drive the webapp against a
+simulated device; they are not hardware or live-provider tests.
 
 Provider references:
 [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs),

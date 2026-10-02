@@ -13,11 +13,28 @@ No main merge, flashing or real-key API calls by agents.
 
 ## Branch and publishing
 
-Repo DCDominguez/CHOMPI, branch `forge/foundation`, draft PR #1. Previous remote
-head `2b30b1c`. This checkpoint was committed locally on top of it by an agent
-WITHOUT push access; DC applied it (patch/bundle) — compare `git log` with the
-commit message "Integration review, real browser tests, live-AI prep, 0.3 bundle
-tooling". If the remote head is still `2b30b1c`, this work has not been applied.
+Repo DCDominguez/CHOMPI, branch `forge/foundation`, draft PR #1 (still draft;
+`main` untouched). The integration checkpoint is on the remote as commit
+`15681b8cc10dd76bdff4a6d39e62cc96bc75c7b2` ("Integration review, real browser
+tests, live-AI prep, 0.3 bundle tooling"), parent `2b30b1c`, tree
+`cf807ad0bcfd0d107cc853294d6eec6ad060fe02`. The SHA differs from the
+locally made `558810e` because DC's connector re-created the commit; the tree
+SHA is identical, so the content is exactly that checkpoint. Verified by an
+agent on 2026-10-02 (UTC). Later handoff commits sit on top of it; use
+`git log` for the current head.
+
+### Independent reproduction, 2026-10-02 (UTC), fresh container
+
+All rerun from tree `cf807ad0…`, not copied from earlier notes:
+- `make test`: 3 native suites PASS, 35 Python tests OK.
+- `ASAN_OPTIONS=detect_leaks=0 make sanitize`: 3 suites PASS.
+- `make browser-test`: 8/8 OK (Chromium 141 headless, Playwright 1.56.0).
+- ARM: developer.arm.com still 403 from the sandbox, so the pinned Arm
+  10.3-2021.10 compiler was not used. xPack 10.3.1-2.3 (sha256 matched the
+  published `.sha`) built FORGE.bin 117,432 bytes,
+  sha256 `f0cd4efd86f9ef2c30e95d5622ada8562d6b1b259b03810b8789a39ce8b1e415`;
+  memory use identical to the figures below. 3 warnings, all vendored libDaisy
+  `tim_channel.cpp`. No bundle regenerated (pinned compiler unavailable).
 
 ## Claim levels
 
@@ -69,14 +86,17 @@ New tooling:
 Chromium 141 via Playwright at /opt/pw-browsers worked in the agent sandbox.
 Playwright `evaluate`/`wait_for_function` are blocked by the app's CSP; tests use
 locator expectations and a separate `bypass_csp` context only for layout
-measurement. developer.arm.com was blocked (403); xPack
+measurement. Playwright from pip must match the installed browser build:
+current pip Playwright (1.63) looks for chromium build 1243 and fails; with
+the sandbox's `/opt/pw-browsers/chromium-1194` install `playwright==1.56.0`
+instead of running `playwright install`. developer.arm.com was blocked (403); xPack
 `xpack-arm-none-eabi-gcc-10.3.1-2.3-linux-x64.tar.gz` (sha256 559dcf1c…8719,
 matches published .sha) built firmware: FORGE.bin 117,432 bytes, SRAM_EXEC
 49.43%, SRAM 17.01%, RAM_D2 68.07%, SDRAM 0.57%. Only vendored-libDaisy warnings.
 
 ## Next actions (priority order)
 
-1. If DC's remote does not contain this checkpoint, get it applied first.
+1. Done: checkpoint confirmed on the remote (see Branch and publishing).
 2. DC: run LIVE_AI_TEST.md (CLI preflight, then webapp). Record provider/model.
    If OpenAI/Gemini rejects the schema, relax only the offending keyword.
 3. DC (optional): rebuild firmware with the pinned Arm 10.3-2021.10 archive and
