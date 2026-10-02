@@ -39,6 +39,8 @@ def main():
     for path in sorted((ROOT / "host/web").iterdir()):
         if path.is_file():
             files["host/web/" + path.name] = path.read_bytes()
+    files["host/instrument.schema.json"] = (json.dumps(forge_host.SCHEMA2, indent=2) + "\n").encode()
+    files["docs/CONTINUE.md"] = (REPO / "docs/forge/CONTINUE.md").read_bytes()
     files["host/patch.schema.json"] = (json.dumps(forge_host.SCHEMA, indent=2) + "\n").encode()
     for path in sorted((ROOT / "presets").glob("*.json")):
         patch = forge_host.load_patch(path)
@@ -48,17 +50,17 @@ def main():
         subprocess.run([str(ROOT / "build/forge_probe"), "--render", str(render)],
                        input=midi, text=True, check=True, capture_output=True, timeout=10)
         files["audio-reference/" + render.name] = render.read_bytes()
-    manifest = {"candidate": "Forge 0.2", "hardware_verified": False,
+    manifest = {"candidate": "Forge 0.3", "hardware_verified": False,
                 "source_commit": commit, "source_tree": source_tree,
                 "source_url": f"https://github.com/DCDominguez/CHOMPI/tree/{commit}",
                 "compiler": "GNU Arm Embedded 10.3-2021.10",
-                "audio_reference": "Simulated synthetic plucks; not CHOMPI recordings",
+                "audio_reference": "Simulated aux plucks and synth chords; not CHOMPI recordings",
                 "files": {name: {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
                           for name, data in sorted(files.items())}}
     files["manifest.json"] = (json.dumps(manifest, indent=2) + "\n").encode()
     with zipfile.ZipFile(args.output, "x", compression=zipfile.ZIP_DEFLATED) as archive:
         for name, data in sorted(files.items()):
-            info = zipfile.ZipInfo("Forge-0.2-test/" + name, date_time=(2026, 10, 2, 0, 0, 0))
+            info = zipfile.ZipInfo("Forge-0.3-test/" + name, date_time=(2026, 10, 2, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o100644 << 16
             archive.writestr(info, data)

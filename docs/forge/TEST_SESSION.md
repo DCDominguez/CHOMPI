@@ -1,9 +1,9 @@
-# Forge 0.2 — one consolidated hardware test
+# Forge 0.3 — one consolidated hardware test
 
 Candidate status: software-tested, hardware-unverified. This is the planned
 single session, not a demand for separate tests at each milestone. Stop and log
 a failing stage; fix it before proceeding. A hardware-dependent defect may
-require a focused retest. Expected scope is one stereo-delay engine with live
+require a focused retest. Expected scope is a four-voice synth plus stereo delay with live
 control, host-managed presets, diagnostics and optional model authoring.
 
 ## Prepare once
@@ -14,7 +14,7 @@ SD card. Have the matching known-good stock firmware/card available and confirm
 the existing restoration procedure. Do not install the repository's beta
 bootloader for this test. Use a separate test card and stable power.
 
-The bundle contains `firmware/FORGE.bin`, host tools, three presets, simulated
+The bundle contains `firmware/FORGE.bin`, host tools, six presets, simulated
 audio references, and a manifest with hashes. Verify the file hash matches the
 manifest (`Get-FileHash` on PowerShell; `shasum -a 256` on macOS;
 `sha256sum` on Linux). Keep your original card intact.
@@ -33,7 +33,7 @@ The microphone is unused by Forge. Install the host dependencies once and run
 
 | Stage | Action | Pass evidence |
 | --- | --- | --- |
-| Boot and identity | Power up, watch initialization LED, query status | Initialization completes; status says firmware 0.2; no unexpected output burst |
+| Boot and identity | Power up, watch initialization LED, query status | Initialization completes; status says firmware 0.3; no unexpected output burst |
 | Dry routing | Play left-only then right-only signals; send `01-dry.json` | Correct stereo separation on both headphones and main outputs |
 | Local controls | Turn SW1/SW2/SW3/SW4 and physical volume SW6; query status | Mix/time/feedback/level targets move as documented; level can mute |
 | Patch recall | Send `02-slap.json`, then `03-long-echo.json` during audio | Matching acknowledgements; expected echo changes, no crash/dropout; time glides in pitch |
@@ -44,7 +44,14 @@ The microphone is unused by Forge. Install the host dependencies once and run
 | Webapp | Start the local bridge; load/edit/import/export a preset; select ports; capture targets and send | Browser controls work, downloaded JSON validates, matching device acknowledgement |
 | Optional cloud AI | Generate with your OpenAI or Gemini API key; review, edit, then send. Repeat with the other provider if available | Actual output validates; record provider/model and elapsed time, never keys; generation alone leaves device unchanged |
 | Optional local AI | Generate using an installed Ollama model, inspect JSON, then send | Actual output validates and is acknowledged; record model/time or skipped |
-| Sustained run | Play 10 minutes while recalling presets and using knobs, with normal MIDI clock traffic | No hangs, dropout or non-finite audio; record final average/peak load and counters |
+| Synth keys | Send Glass Keys; unplug aux source; play all 25 keys | Chromatic MIDI 48–72 mapping, audible notes, release on key-up, no stuck keys |
+| MIDI notes | Play USB/TRS channel-1 notes, zero-velocity note-on and note-off | Correct pitch/velocity and release; other channels ignored |
+| Polyphony and ownership | Play five notes, repeated notes, and same pitch from keybed plus MIDI | Four voices maximum, oldest stolen; one source's release does not kill another |
+| Articulation and tone | Compare three synth presets; edit ADSR, waveform and cutoff | Changes audible, sustained/released notes behave as documented; assess clicks/aliasing |
+| Route and panic | Switch synth/aux, press SW5, use web panic and CC120/123 | Voices and old tails stop; retrigger works; aux remains stereo |
+| Instrument persistence | Capture edited v2 targets, save JSON, switch to v1, resend v2 | Settings return within quantization; old delay presets remain usable |
+| Instrument AI | Generate a playable instrument with a real provider, inspect modules, send and play | Valid v2 output; no unsupported module claims; record provider/model without key |
+| Sustained run | Play 10 minutes with four synth voices and delay, while recalling presets and using knobs, with normal MIDI clock traffic | No hangs, dropout or non-finite audio; record final average/peak load and counters |
 | Power/recovery | Reboot, resend saved patch, verify normal power behavior, then restore stock if desired | Defaults on reboot, host recall works, known-good stock restoration confirmed |
 
 Do not intentionally deep-discharge the battery to force a shutdown. Existing
@@ -70,7 +77,9 @@ Board / variant / bootloader / stock firmware:
 Computer OS / Python / MIDI interface:
 Audio source / output connections:
 Boot / dry routing / encoders / recall / capture / bypass:
-USB / TRS:
+USB / TRS / notes / velocity / source ownership:
+Synth keys / four voices / ADSR / cutoff / route / panic:
+Clicks / high-note aliasing / voice-steal behavior:
 Webapp browser / edit / import-export / capture-send results:
 AI provider / model and result, or not run (never record keys):
 Duration / average CPU / peak CPU / dropped / rejected:

@@ -1,6 +1,6 @@
-# Forge 0.2 — consolidated test candidate
+# Forge 0.3 — consolidated test candidate
 
-Experimental community firmware for CHOMPI: a standalone stereo delay with
+Experimental community firmware for CHOMPI: a playable four-voice synth and stereo delay with
 live patch control, host-managed presets, and diagnostics. TAPE's sampler UI
 is not included. Start with the [documentation index](../../docs/forge/README.md).
 See the [project brief](../../docs/forge/PROJECT.md) and
@@ -51,12 +51,16 @@ Aux L/R (`in[2]`/`in[3]`) feed the effect; stereo output is copied to headphone
 | Feedback | 22 | SW3 | 0–85%; starts 21.25% |
 | Output level | 23 | SW4 and SW6 | 0–1 gain; fades up to 0.25 |
 | Wet bypass | 24 | MIDI only | 0–63 off, 64–127 on |
+| Synth cutoff | 25 | SW5 turn | Logarithmic 40–16000 Hz; v2 patches |
+| Panic | 120/123 | SW5 press | Silence all voices and old delay tail |
 
 Encoder IDs follow `hardware.h`; confirm printed-panel correspondence during
-bring-up. SW5 and keybed actions are unassigned. CC values use `value / 127`.
+bring-up. SW5 turns synth cutoff and its press panics. Keybed notes 48–72
+play v2 synth patches at velocity 100. CC values use `value / 127`.
 The same mapping is accepted over USB and TRS MIDI; other channels and unknown
 CCs are ignored. SysEx patch/status requests receive replies on the same transport.
-No clock output, note processing, or unsolicited parameter streaming.
+Channel-1 notes play the synth; CC120/123 globally panic. No clock output,
+sustain pedal, pitch bend or unsolicited parameter streaming.
 
 Bypass fades the wet mix to zero while retaining output level and the delay
 state. It is software wet bypass, not a hardware relay or unity-gain bypass.
@@ -67,6 +71,23 @@ numeric bound, not a transparent mastering limiter. Feedback is limited to
 0.85. Controls are smoothed with a 20 ms time constant. A dim cyan panel LED
 indicates initialization completed; red indicates failed engine initialization.
 Battery warning/shutdown handling is inherited from WAVE and needs bench testing.
+
+## Synth and module patches
+
+Version-2 patches contain synth, delay and output modules plus a route selector.
+Synth→delay→output generates sound with no aux source; aux→delay→output retains
+stereo external effects. The synth is four-voice mono, duplicated to L/R before
+delay. Waveforms: sine, triangle, polyBLEP saw/square. ADSR and a one-pole low-pass
+provide articulation/tone. See host guide for physical ranges and JSON examples.
+
+Voice allocation uses idle then oldest voices. Note ownership distinguishes keybed,
+USB and UART. Note-on velocity zero is note-off. Route/waveform switching and
+panic stop voices/tails; held notes must be retriggered. Voice stealing can click;
+triangle is not band-limited and high-note aliasing remains possible. No claim
+of click-free changes or hardware CPU headroom before the listening session.
+
+Startup remains dry aux v1 for compatibility. Send an instrument preset to play.
+No automatic mode detection. Knobs 1–4 still control delay/output, not ADSR.
 
 ## Implementation boundaries
 

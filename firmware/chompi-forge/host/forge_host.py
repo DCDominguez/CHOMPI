@@ -68,7 +68,7 @@ def validate_instrument(patch):
     if set(modules["delay"]) != {"mix", "time_ms", "feedback", "bypass"} or set(modules["output"]) != {"level"}:
         raise ValueError("Invalid delay/output module")
     for key, (low, high) in SYNTH_LIMITS.items():
-        if type(synth[key]) not in (float, int) or not math.isfinite(synth[key]) or not low <= synth[key] <= high:
+        if type(synth[key]) not in (float, int) or not low <= synth[key] <= high or not math.isfinite(synth[key]):
             raise ValueError(f"{key} must be in [{low}, {high}]")
     validate_patch(effect_patch(patch))
     return patch

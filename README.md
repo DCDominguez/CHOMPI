@@ -1,270 +1,162 @@
 # Forge for CHOMPI
 
-> **Instrument milestone in progress:** the current work extends Forge beyond effects
-> with a playable synth. See [developer resume checkpoint](docs/forge/CONTINUE.md)
-> for current changes, test results and outstanding work. The 0.2 inventory below
-> describes the previous completed software milestone.
+**An AI-programmable instrument: describe a sound, play it, shape it, save it.**
+Forge runs audio on CHOMPI's Daisy Seed and uses a computer webapp for AI patch
+authoring, editing and MIDI control. OpenAI and Gemini use your own API key.
 
-**Forge turns CHOMPI into a programmable, externally controlled audio-effects
-instrument.** The firmware handles real-time audio on the Daisy Seed; a computer
-handles preset files, live patch control, and optional AI-assisted sound authoring.
+**Candidate 0.3 is software-tested and builds for ARM.** Real CHOMPI operation,
+live provider requests and browser interaction/layout remain unverified. This
+is experimental community firmware, not an official or hardware-approved release.
 
-This fork preserves the original CHOMPI hardware/firmware release and adds Forge
-as a separate application. **Candidate 0.2 currently implements one stereo-delay
-engine.** Broader multi-effects capabilities are a future direction.
+[Developer resume checkpoint](docs/forge/CONTINUE.md) · [Documentation](docs/forge/README.md)
+· [Project scope](docs/forge/PROJECT.md) · [Draft PR #1](https://github.com/DCDominguez/CHOMPI/pull/1)
+· [Development branch](https://github.com/DCDominguez/CHOMPI/tree/forge/foundation)
 
-**Status:** software tests and the ARM build pass. Physical CHOMPI acceptance and
-actual model sessions remain pending. This is experimental community
-firmware, not an official CHOMPI Club release or a hardware-approved release.
+## Project and implemented features
 
-Development: [`forge/foundation`](https://github.com/DCDominguez/CHOMPI/tree/forge/foundation)
-· [Draft PR #1](https://github.com/DCDominguez/CHOMPI/pull/1)
-· [Documentation index](docs/forge/README.md)
-· [Current handoff](docs/forge/HANDOFF.md)
+The goal includes sound generation and manipulation, not only external effects.
+AI chooses settings and supported connections among installed modules. New
+patches require no recompile; new DSP algorithms still require firmware work.
+The original upstream TAPE/WAVE/TEMPO and bootloader sources remain separate.
 
-## Project summary
-
-The goal is to install a stable audio engine once, then change supported sounds
-through knobs, MIDI or complete presets without recompiling each time. An
-optional external model can translate a description into a validated preset.
-New DSP algorithms, hardware drivers or routing graphs still require development
-and a firmware build; Forge does not execute model-generated code.
-
-The first candidate is deliberately bounded: stereo audio, one usable effect,
-reliable control, preset recall and diagnostics. Hardware validation is grouped
-into **one consolidated test session**, with a focused retest only if a defect
-requires one.
-
-## Implemented features
-
-### Audio and physical controls
-
-| Feature | Behavior in candidate 0.2 |
+| Area | Implemented in 0.3 |
 | --- | --- |
-| Stereo input | Auxiliary left/right input; microphone is not mixed in |
-| Stereo output | Effect output mirrored to headphone and main stereo outputs |
-| Audio configuration | 48 kHz, 24-frame blocks using CHOMPI's existing hardware support |
-| Stereo delay | Separate channel buffers; 10–1000 ms delay time |
-| Wet/dry mix | Continuous blend from dry input to delayed signal |
-| Feedback | Adjustable repeats, capped at 85% |
-| Output level | 0–1 gain; starts with a fade from silence toward 25% |
-| Wet bypass | Smoothly removes the wet contribution while preserving output level and delay state |
-| Parameter smoothing | 20 ms one-pole smoothing; delay-time changes glide in pitch |
-| Numeric bounds | Non-finite input is silenced; input/output clipped to [-1, 1]. This is not a mastering limiter |
-| Encoders | Local mix, time, feedback and level control; the physical volume encoder also controls level |
-| Startup handling | Delay memory cleared before audio; cyan initialization indicator, red engine-init failure indicator |
-| Battery handling | Reuses WAVE's battery checks and low-battery behavior; physical validation pending |
+| Synth | Four fixed voices; sine, triangle, polyBLEP saw and square oscillators |
+| Articulation | Attack/decay/sustain/release envelope, MIDI velocity, oldest-voice stealing |
+| Tone | One-pole low-pass, 40–16000 Hz, smoothed cutoff coefficient |
+| Playing | CHOMPI's 25 keys mapped to MIDI 48–72, fixed velocity 100; incoming channel-1 notes 0–127 |
+| Note ownership | Keybed, USB and UART tracked separately; velocity-zero note-on releases |
+| Audio routes | Synth→delay→output or stereo aux→delay→output; mono synth duplicated to stereo |
+| Delay | Stereo buffers, 10–1000 ms, mix, feedback capped at 85%, output level, wet bypass |
+| Audio configuration | 48 kHz, 24-frame blocks; headphone/main output mirroring; microphone unused |
+| Parameter handling | Delay/output smoothing; pitch glide when delay time changes; finite bounded output |
+| Live controls | Encoders, MIDI CC20–25 and atomic whole-patch changes between blocks |
+| Recovery | SW5 press, CC120/123, host panic; silence voices/old tail; note-overflow recovery |
+| Patch format | v2 named synth/delay/output modules with two supported routes; v1 delay files retained |
+| Presets | Six examples: Dry, Slap, Long Echo, Glass Keys, Soft Pad, Saw Bass |
+| Computer persistence | Save/import/export JSON, capture device targets and recall; no SD-card writes |
+| Webapp | Instrument/effect authoring selector, provider/model/key input, parameter editor, route/waveform/ADSR/tone controls |
+| AI providers | OpenAI and Gemini structured output plus independent validation; Ollama CLI for v1 delay only |
+| Key handling | Ephemeral page/request memory; no keys in presets, browser storage, source or logs |
+| Device bridge | Explicit MIDI port selection, status/capture/send/panic with sequence/checksum/value verification |
+| Diagnostics | Average/peak audio callback load, drop/rejection counters; hardware measurements pending |
+| Real-time boundaries | Fixed memory, bounded queues and per-block requests; no network/storage/MIDI TX in audio callback |
+| Developer tools | Shared C++ runtime/probe, simulated WAV renderer, test/sanitizer targets, checksummed bundle generator |
+| Continuity | AGENTS.md plus live handoff, architecture, wire protocol, build guide and one consolidated test checklist |
 
-### MIDI and live patch control
+Generation and editing **never send automatically**. Review a patch, explicitly
+send it, then play. The device holds one volatile patch and resets to dry aux
+mode on reboot. Load an instrument preset to enable synthesis.
 
-| Feature | Behavior in candidate 0.2 |
-| --- | --- |
-| USB and TRS MIDI | Both transports accept individual controls and whole-patch requests |
-| MIDI CC | Channel 1, CC20–24 for mix, time, feedback, level and bypass |
-| Complete patch transfer | Versioned SysEx messages with a sequence number and checksum |
-| Atomic recall | A valid patch updates all parameter targets together between audio blocks |
-| Patch rejection | Invalid versions, lengths, checksums or values are rejected without partial application |
-| Acknowledgements | Replies confirm the accepted target values; host checks sequence and returned patch |
-| Status queries | Read current targets, firmware minor version and diagnostic counters |
-| MIDI framing | Handles CC running status and interleaved real-time bytes; discards oversized SysEx |
-| Bounded work | Fixed-capacity queues, response backpressure and at most 16 requests consumed per audio block |
-| Transport handling | Replies sent from the main loop; USB buffers retained until completion; UART reply timeout accounts for wire duration |
+## Controls and ranges
 
-### Host tools, presets and optional AI
+| Control | Hardware / MIDI channel 1 | Range |
+| --- | --- | --- |
+| Delay mix | SW1 / CC20 | 0–100% |
+| Delay time | SW2 / CC21 | 10–1000 ms |
+| Feedback | SW3 / CC22 | 0–85% |
+| Output level | SW4 and SW6 / CC23 | 0–1 |
+| Wet bypass | CC24 | >=64 on; dry still obeys output level |
+| Synth cutoff | SW5 turn / CC25 | 40–16000 Hz, logarithmic |
+| Panic | SW5 press / CC120 or CC123 / webapp | Stop all sources and old delay tail |
+| Synth waveform | v2 preset or web editor | Sine / triangle / saw / square |
+| Attack / decay | v2 preset or web editor | 1–2000 ms each |
+| Sustain | v2 preset or web editor | 0–1 |
+| Release | v2 preset or web editor | 5–5000 ms |
 
-| Feature | Behavior in candidate 0.2 |
-| --- | --- |
-| Python command-line controller | List ports, validate/encode/send patches, query status and capture targets |
-| Human-readable presets | Versioned JSON using physical units and a patch name |
-| Strict validation | Checks keys, types, supported engine/version, finite numbers and ranges; rejects duplicate JSON keys |
-| Save and capture | Capture knob-adjusted device targets to a new computer file; existing files are not overwritten by default |
-| Preset recall | Send any validated saved patch without recompiling firmware |
-| Included presets | Dry routing check, short slap and long echoes |
-| Local webapp | Browser-based authoring with OpenAI or Gemini, using your own API key and model ID |
-| Patch editor | Five editable controls, three presets, JSON import/export and device capture |
-| Temporary credentials | Keys remain in page/request memory; not saved in presets, browser storage or logs |
-| Explicit device actions | Select MIDI ports, read status, capture or send with acknowledgement |
-| Optional Ollama adapter | Ask a configured local model for schema-constrained delay settings |
-| Validated model output | Generated JSON must pass host validation before saving; sending is a separate explicit action |
-| Offline use | JSON validation, schema output and SysEx encoding require no hardware or MIDI dependencies |
+Encoder IDs follow hardware source; printed-panel mapping is unverified. Boot
+uses dry aux with time 257.5 ms, feedback 21.25%, level fading toward 0.25. Route
+or waveform changes silence current voices/tails; release/retrigger held keys.
+Voice stealing may click and high notes may alias; musical quality needs listening.
+The fixed two-route format is not a general patch graph or generated executable DSP.
 
-Presets are saved **on the computer**. CHOMPI holds one volatile active patch and
-returns to defaults after reboot. Patch names remain on the host. There are no
-on-device SD preset writes in this candidate.
+## Run the webapp
 
-### Diagnostics and developer tooling
-
-| Feature | Behavior in candidate 0.2 |
-| --- | --- |
-| CPU reporting | Smoothed average and peak audio-callback load since boot; actual hardware readings pending |
-| Control diagnostics | Dropped ingress/control/reply counts and rejected recognized-request counts |
-| Shared offline harness | Exercises the same patch decoder, runtime and DSP used by firmware |
-| Audio simulations | Renders synthetic stereo plucks through presets; these are not recordings from CHOMPI |
-| Automated checks | DSP, queue/concurrency, protocol, framing, USB packetization and Python integration tests |
-| Sanitizer checks | AddressSanitizer and UndefinedBehaviorSanitizer targets |
-| Source build | Rebuilds vendored libDaisy into Forge's own build directory and links a BOOT_SRAM application |
-| Test bundle generation | Packages firmware, controller, presets, audio references, docs and licenses with source identity and file hashes |
-| Project continuity | Architecture, protocol, development guide, changelog, handoff and one hardware-test checklist |
-
-## Controls and startup defaults
-
-| Parameter | MIDI CC, channel 1 | Hardware encoder ID | Range | Startup target |
-| --- | --- | --- | --- | --- |
-| Wet/dry mix | 20 | SW1 | 0–100% | 0% / dry |
-| Delay time | 21 | SW2 | 10–1000 ms | 257.5 ms |
-| Feedback | 22 | SW3 | 0–85% | 21.25% |
-| Output level | 23 | SW4 and SW6 | 0–1 gain | 0.25, faded in |
-| Wet bypass | 24 | MIDI only | 0–63 off; 64–127 on | Off |
-
-Encoder IDs follow the hardware source; printed-panel correspondence still needs
-checking on the unit. SW5 and keybed actions are unassigned. CC changes use
-7-bit values; complete patches use 14-bit normalized parameter words. SysEx is
-channel-independent. There is no MIDI clock output or note processing.
-
-Bypass preserves output gain and circulating delay state. Acknowledgement means
-targets were accepted; it does not certify the audible result. If a request times
-out, the patch may already be active—query status before retrying.
-
-## Build summary and verification
-
-Candidate 0.2 uses the Daisy Seed / STM32H750 and WAVE's hardware abstraction,
-encoder driver, SRAM linker script and modified libDaisy. Upstream TAPE, TEMPO,
-WAVE and bootloader source files are preserved separately.
-
-| Build item | Recorded result |
-| --- | --- |
-| Toolchain | GNU Arm Embedded 10.3-2021.10 |
-| Application type | BOOT_SRAM, loaded using the installed CHOMPI bootloader |
-| Firmware binary | `FORGE.bin`, 100,592 bytes for the tested candidate |
-| Link allocations | SRAM_EXEC 42.34%; SRAM 15.55%; RAM_D2 68.07%; SDRAM 0.57% |
-| C++ verification | DSP/queue and protocol suites pass, including 100,000 concurrent transfers and 100,000 fuzz bytes |
-| Python integration | 24 tests pass, including 250 random patch round trips through the actual C++ runtime |
-| Sanitizers | ASan/UBSan pass; LeakSanitizer disabled due to the execution environment's `/proc` restriction |
-| Host MIDI dependencies | Pinned dependency imports and message construction checked; physical ports untested |
-| Model adapter | Request/response behavior tested with mocks; no actual model session yet |
-
-Memory figures are linker allocations, not CPU measurements or worst-case stack
-usage. No device flash, audio audition, USB enumeration, TRS I/O, measured load,
-battery validation or stock restoration has been performed for this candidate.
-See the [handoff](docs/forge/HANDOFF.md) for detailed evidence and limitations.
-
-## Build from source
-
-Required: Git, GNU Make, a C++14 compiler with pthreads, Python 3.10+, and GNU Arm
-Embedded **10.3-2021.10**. Vendored libraries are already included. The native
-build/tests were exercised on Linux; consult the [developer guide](docs/forge/DEVELOPMENT.md)
-for platform notes and the [firmware guide](firmware/chompi-forge/README.md) for
-compiler setup/checksum information.
-
-```sh
-git clone --branch forge/foundation https://github.com/DCDominguez/CHOMPI.git
-cd CHOMPI
-make -C firmware/chompi-forge test
-make -C firmware/chompi-forge sanitize
-make -C firmware/chompi-forge firmware GCC_PATH=/absolute/toolchain/path/bin
-```
-
-If the correct ARM toolchain is already on PATH, omit `GCC_PATH`. In containers
-that prevent LeakSanitizer inspection, use
-`ASAN_OPTIONS=detect_leaks=0 make -C firmware/chompi-forge sanitize` and record
-that leak checking was disabled.
-
-Outputs are in `firmware/chompi-forge/src/build/`: `FORGE.bin`, `FORGE.elf`,
-`FORGE.hex` and `FORGE.map`. Forge's Makefile does not flash the unit; it rejects
-`program*` and `flash*` targets at this development stage.
-
-## Use the host controller
-
-For the webapp, run this from the repository root:
+Python 3.10+ on the computer connected to CHOMPI:
 
 ```sh
 python3 -m pip install -r firmware/chompi-forge/host/requirements.txt
 python3 firmware/chompi-forge/host/forge_web.py
 ```
 
-Open **http://127.0.0.1:8765** on the same computer. Choose OpenAI or Gemini,
-enter your provider API key and a model ID that supports structured JSON, then
-generate and review your patch. You can edit controls, import/export presets,
-select MIDI ports, capture settings, and explicitly send to CHOMPI. Keys are
-not saved by Forge. The Python bridge runs locally; no Node build is required.
-Live provider and hardware tests are still pending.
+Open **http://127.0.0.1:8765** on that computer. Choose an instrument preset or
+select an AI provider, enter your key and a structured-output-capable model ID,
+then generate. Edit and save without hardware, or select MIDI ports and send to
+CHOMPI. Play its keys or a MIDI keyboard. No Node build is required. The local
+Python bridge is required; this is not a publicly hosted or phone/LAN app.
 
-The command-line controller remains available:
+CLI remains available for ports, validate, encode, send, status, capture, panic
+and Ollama authoring. See [host guide](firmware/chompi-forge/host/README.md) for
+commands, credentials, compatibility, privacy and provider references.
 
-Run these commands from the repository root:
-
-```sh
-python3 -m pip install -r firmware/chompi-forge/host/requirements.txt
-python3 firmware/chompi-forge/host/forge_host.py ports
-python3 firmware/chompi-forge/host/forge_host.py validate firmware/chompi-forge/presets/03-long-echo.json
-python3 firmware/chompi-forge/host/forge_host.py status --input "EXACT INPUT NAME" --output "EXACT OUTPUT NAME"
-python3 firmware/chompi-forge/host/forge_host.py send firmware/chompi-forge/presets/03-long-echo.json --input "EXACT INPUT NAME" --output "EXACT OUTPUT NAME"
-python3 firmware/chompi-forge/host/forge_host.py capture my-patch.json --input "EXACT INPUT NAME" --output "EXACT OUTPUT NAME"
-```
-
-Replace the port placeholders with the exact names from `ports`. USB supports
-both directions; TRS requires a bidirectional connection through a MIDI interface
-for acknowledgements. Use one host with one outstanding request at a time.
-JSON-only commands do not require installing the MIDI packages.
-
-The optional CLI authoring path uses a running Ollama server and an installed model:
+## Build and verification
 
 ```sh
-python3 firmware/chompi-forge/host/forge_host.py ai "Long echoes with gentle repeats, output at 25 percent" --model YOUR_INSTALLED_MODEL --out my-ai-patch.json
+make -C firmware/chompi-forge test
+ASAN_OPTIONS=detect_leaks=0 make -C firmware/chompi-forge sanitize
+make -C firmware/chompi-forge firmware GCC_PATH=/path/to/gcc-arm-none-eabi-10.3-2021.10/bin
 ```
 
-Inspect the generated preset, then send it using the `send` command. The model
-runs on the external host; it authors settings for the existing delay. The host
-never installs models or automatically sends generated patches. See the
-[host guide](firmware/chompi-forge/host/README.md) for all commands and configuration.
+Native tests need GNU Make, a C++14 compiler, pthreads and Python. Firmware uses
+GNU Arm Embedded **10.3-2021.10** and vendored WAVE hardware/libDaisy. See the
+[firmware guide](firmware/chompi-forge/README.md) for the toolchain download and
+verified archive hash. No upstream sources or bootloader were changed.
 
-## Package and test the candidate
+| Check | Recorded evidence |
+| --- | --- |
+| Native suites | DSP/queue, MIDI/protocol and synth suites pass |
+| Python | 28 tests pass; includes 250 v1 plus 200 v2 randomized protocol round trips and mocked providers |
+| Sanitizers | Three C++ suites pass ASan/UBSan; LeakSanitizer disabled for environment limitations |
+| Web | JavaScript syntax and HTTP/session/assets checked; actual browser smoke test pending |
+| ARM | BOOT_SRAM build succeeds; FORGE.bin 113,408 bytes |
+| Link allocations | SRAM_EXEC 47.74%; SRAM 17.01%; RAM_D2 68.07%; SDRAM 0.57% |
+| Hardware / AI | No flash, listening, physical I/O, actual CPU measurement, or live provider request performed |
 
-After building/testing and committing the source, generate a bundle outside the
-repository from a clean checkout:
+Firmware SHA-256:
+`02ecbbb6eed11a20bcfe6774376d95cf8b6188482ab3d15ed17a1c4a22228bff`.
+Memory allocation is not a worst-case stack or CPU measurement.
+
+## Package and consolidated test
+
+From a clean, committed tree after building firmware and native tests:
 
 ```sh
 cd firmware/chompi-forge
-python3 host/package_candidate.py /absolute/output/Forge_0.2_Test_Candidate.zip
+python3 host/package_candidate.py /absolute/output/Forge_0.3_Test_Candidate.zip
 ```
 
-The ZIP includes firmware, host tools, three presets, simulated reference audio,
-docs and license notices. Its manifest identifies the exact source commit/tree
-and file checksums. The packager requires existing firmware and harness builds;
-it does not rerun the tests or establish hardware readiness.
+The generator includes firmware, webapp/CLI, both JSON schemas, six presets,
+simulated aux/synth references, docs, licenses and hashes/source identity.
+Binaries and ZIPs are generated artifacts, not tracked source. The earlier 0.2
+ZIP is obsolete for the instrument milestone and has not been silently updated.
 
-Source, presets, tests and documentation are tracked in git. Binaries, generated
-WAVs, build directories and test ZIPs are separate generated artifacts.
+DC's workflow is **one consolidated hardware session**; follow
+[TEST_SESSION.md](docs/forge/TEST_SESSION.md). A defect may require a focused
+retest. Do not substitute software passes for actual device acceptance.
 
-Before flashing, use the [single hardware-test checklist](docs/forge/TEST_SESSION.md):
-back up the working card, retain a known-good stock restore path, use a separate
-test card and the installed bootloader, and begin with low monitoring levels.
-The repository's beta bootloader is not part of the Forge test procedure.
+## Not implemented yet
 
-## Not implemented in 0.2
+- Sampling, recording, looping, sequencing or stock TAPE performance functionality.
+- Additional effects such as reverb, FM synthesis or arbitrary routing/modulation graphs.
+- Sustain pedal, pitch bend, aftertouch/MPE, clock sync, arpeggiator, octave controls or note output.
+- Device-side preset banks, SD saves or automatic recall after reboot.
+- Onboard AI, generated DSP code, plugins or runtime executable loading.
+- Tab5 integration, Wi-Fi, public web hosting or phone remote control.
+- Auto MIDI retries, unsolicited parameter streaming or protocol authentication.
 
-- Additional DSP algorithms, multi-effect chains or runtime routing graphs.
-- The stock sampler/looper, sequencer, microphone processing or full performance UI.
-- Device-side preset storage, automatic preset restoration after reboot, or a preset bank.
-- Onboard AI, arbitrary generated DSP, scripts or hot-loaded executable code.
-- Tab5 integration, Wi-Fi, networking on CHOMPI, or public web hosting.
-- Automatic MIDI retries, unsolicited parameter streaming or protocol authentication.
+## Repository map
 
-The next step is the consolidated physical session. Results will guide further
-effects and controller work; the broader roadmap is in the [project brief](docs/forge/PROJECT.md).
-
-## Documentation and repository layout
-
-| Path / guide | Contents |
+| Path | Purpose |
 | --- | --- |
-| [`firmware/chompi-forge/`](firmware/chompi-forge/) | Forge firmware, core DSP/protocol, host tools, presets and tests |
-| [Documentation index](docs/forge/README.md) | All Forge guides and current implementation status |
-| [Architecture](docs/forge/ARCHITECTURE.md) | Audio path, state ownership, queues, patch lifecycle and source map |
-| [Developer guide](docs/forge/DEVELOPMENT.md) | Build/test/package workflow and troubleshooting |
-| [Protocol](docs/forge/PROTOCOL.md) | Exact requests, replies, error codes and overload behavior |
-| [Test session](docs/forge/TEST_SESSION.md) | One-session checklist and results template |
-| [Changelog](docs/forge/CHANGELOG.md) | Development milestones |
-| [Handoff](docs/forge/HANDOFF.md) | Verified state, limitations and next action |
+| [AGENTS.md](AGENTS.md) | Instructions for continuing development |
+| [CONTINUE.md](docs/forge/CONTINUE.md) | Live checkpoint and exact remaining work |
+| [PROJECT.md](docs/forge/PROJECT.md) | Corrected goal, scope and later directions |
+| [ARCHITECTURE.md](docs/forge/ARCHITECTURE.md) | Ownership and processing boundaries |
+| [PROTOCOL.md](docs/forge/PROTOCOL.md) | Exact v1/v2 wire layout and recovery semantics |
+| [DEVELOPMENT.md](docs/forge/DEVELOPMENT.md) | Build, test and packaging workflow |
+| [HANDOFF.md](docs/forge/HANDOFF.md) | Current milestone summary and evidence |
+| [CHANGELOG.md](docs/forge/CHANGELOG.md) | Development history |
+| [firmware/chompi-forge/](firmware/chompi-forge/) | DSP/protocol, hardware entry point, host/webapp, presets and tests |
 
 ## Original CHOMPI release
 

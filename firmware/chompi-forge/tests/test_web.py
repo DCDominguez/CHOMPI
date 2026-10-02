@@ -187,6 +187,9 @@ class WebTests(unittest.TestCase):
             self.assertEqual(status, 504)
             self.assertIn(b"may have applied", data)
             self.assertEqual(exchange.call_args.args[0][4], 2)
+        with patch.object(forge_host, "exchange", return_value={"firmware": "0.3"}) as exchange:
+            self.assertEqual(self.request("/api/panic", {"input": "in", "output": "out"})[0], 200)
+            self.assertEqual(exchange.call_args.args[0][4], 3)
         for lock, route in ((self.server.midi_lock, "ports"), (self.server.ai_lock, "generate")):
             with lock:
                 self.assertEqual(self.request("/api/" + route, {})[0], 409)

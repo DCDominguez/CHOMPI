@@ -1,85 +1,128 @@
-# Forge v1 patch/control protocol
+# Forge control protocol — firmware 0.3
 
-Implemented by firmware candidate 0.2. Transport is USB or TRS MIDI SysEx.
-MIDI channel 1 CC20–24 remains available for individual controls. SysEx is
-channel-independent and uses the non-commercial/development manufacturer ID
-`7D`, followed by ASCII `FG`. This is an experimental private protocol.
+Transport version remains **1**; patch formats **1 and 2** are supported.
+All lengths/indexes below exclude MIDI F0/F7 unless stated. USB and bidirectional
+TRS MIDI use the non-commercial manufacturer ID 7D followed by ASCII FG.
 
-## Envelope
+## Envelope and operations
 
 `F0 7D 46 47 01 OP SEQ_LO SEQ_HI DATA... CHECKSUM F7`
 
-All payload bytes are 7-bit. Words are least-significant 7 bits first. Sequence
-numbers are 0–16383, chosen by the host and echoed by the device. The checksum
-makes the sum of payload bytes (from `7D` through checksum) zero modulo 128.
-It detects accidental corruption; it is not authentication.
+Every payload byte is 7-bit. Words are little-endian base 128. Sequence is
+0–16383, echoed in replies. Sum of payload bytes including checksum is 0 modulo
+128. This detects corruption, not malicious traffic; there is no authentication.
 
-| OP | Payload length, excluding F0/F7 | DATA |
+| OP | Length | Operation |
 | --- | --- | --- |
-| `01` apply patch | 18 | Patch version `01`, four 14-bit words, bypass `00` or `01` |
-| `02` query status | 8 | Empty |
-| `40` accepted/status reply | 30 | Described below |
-| `41` rejected reply | 9 | Error code |
+| 01 | 18 for v1, 30 for v2 | Apply complete patch |
+| 02 | 8 | Read current patch and status |
+| 03 | 8 | Panic: silence all synth voices and clear old delay tail; return status |
+| 40 | 30 for v1, 42 for v2 | Success/current targets plus diagnostics |
+| 41 | 9 | Rejection; error code at index 7, checksum at 8 |
 
-Four words: mix, delay time, feedback, output level, each normalized to
-0–16383. Physical time = `10 + 990 * word / 16383` ms. Physical feedback =
-`0.85 * word / 16383`. Bypass is a separate byte, not a word.
-The host JSON format carries patch version, name, engine, and physical values;
-the name remains on the host. The device has one active volatile patch.
+## Apply request layout
 
-## Status layout
+| Index | v1 and v2 |
+| --- | --- |
+| 0–6 | Header, operation and sequence |
+| 7 | Patch version, 1 or 2 |
+| 8–9 | Mix normalized 14-bit |
+| 10–11 | Time normalized 14-bit |
+| 12–13 | Feedback normalized 14-bit |
+| 14–15 | Output level normalized 14-bit |
+| 16 | Wet bypass, 0 or 1 |
+| 17 | v1 checksum; v2 route: 0 aux→delay→output, 1 synth→delay→output |
+| 18 | v2 waveform: 0 sine, 1 triangle, 2 saw, 3 square |
+| 19–20 | v2 attack normalized 14-bit |
+| 21–22 | v2 decay normalized 14-bit |
+| 23–24 | v2 sustain normalized 14-bit |
+| 25–26 | v2 release normalized 14-bit |
+| 27–28 | v2 cutoff normalized 14-bit |
+| 29 | v2 checksum |
 
-Zero-based indexes refer to payload, excluding F0/F7.
+For normalized value n = word / 16383:
+
+| Control | Physical conversion |
+| --- | --- |
+| Mix, level, sustain | n |
+| Time | 10 + 990 × n milliseconds |
+| Feedback | 0.85 × n |
+| Attack / decay | 1 + 1999 × n milliseconds |
+| Release | 5 + 4995 × n milliseconds |
+| Cutoff | 40 × 400^n Hz (logarithmic, 40–16000 Hz) |
+
+v1 always selects aux input and restores default dormant synth settings. v2
+selects one of two supported paths; all three named module settings are present
+in JSON even on the aux path. No arbitrary edges, feedback routing, plugin code
+or dynamic module creation is accepted. Names remain host-side.
+
+## Success/status response
 
 | Index | Content |
 | --- | --- |
-| 0–6 | Header including reply opcode and sequence |
-| 7 | `00` success |
-| 8 | Patch version `01` |
-| 9–16 | Four 14-bit normalized parameters |
-| 17 | Bypass boolean |
-| 18–19 | Smoothed average callback load, fraction × 1000 |
-| 20–21 | Peak callback load since boot, fraction × 1000 |
-| 22–24 | Dropped ingress/control/reply count, saturated to 21 bits on wire |
-| 25–27 | Rejected recognized request count, saturated to 21 bits on wire |
-| 28 | Firmware minor version (`02` for candidate 0.2) |
-| 29 | Checksum |
+| 0–6 | Header, opcode 40, sequence |
+| 7 | Success, 0 |
+| 8 onward | Exact quantized patch DATA (request indexes 7 through before checksum) |
 
-CPU reporting has 0.1 percentage-point resolution and saturates at 1638.3%.
-CPU readings are from completed callbacks before the snapshot; they do not
-measure all interrupt masking or total wall-clock scheduling delays. Zero at
-startup means no completed sample yet. The offline harness reports synthetic
-zero CPU load and cannot predict device performance.
+After patch DATA, diagnostics begin at offset **18 for v1**, **30 for v2**:
 
-Errors: 1 length, 2 unsupported protocol/patch version, 3 checksum, 4 invalid
-patch, 5 unknown operation, 6 request queue busy. Foreign SysEx and replies are
-ignored. Malformed/truncated/oversized envelopes may be discarded without a
-reply; byte-framing discards are not included in rejected-request counts.
+| Offset from diagnostics | Content |
+| --- | --- |
+| +0,+1 | Average audio callback load ×1000, 14-bit |
+| +2,+3 | Peak audio callback load since boot ×1000, 14-bit |
+| +4..+6 | Dropped ingress/control/reply count, saturated 21-bit |
+| +7..+9 | Rejected recognized requests, saturated 21-bit |
+| +10 | Firmware minor version, 3 |
+| +11 | Checksum |
 
-## Atomicity, acknowledgements, and overload
+CPU resolution is 0.1 percentage point; max 1638.3%. Readings are from completed
+callbacks before the snapshot, not total scheduling/interrupt-mask time. Offline
+harness readings are synthetic zero and say nothing about device headroom.
 
-Main-loop parsing validates a whole patch before queueing it. The audio owner
-assigns the complete parameter set between blocks, then queues the resulting
-snapshot. Delay state and smoothing survive recall. Invalid patch fields never
-partially update the engine. Acknowledgement means the targets were accepted;
-it does not certify audible results. Encoders and later commands may change
-the targets afterwards.
+Errors: 1 length, 2 protocol/patch version, 3 checksum, 4 patch fields, 5 opcode,
+6 queue busy. Foreign SysEx/replies are ignored. Framing discards may be silent
+and are not included in rejected recognized-request counts.
 
-One producer/consumer per ingress stream; one main-to-audio request queue and
-one audio-to-main response queue. Each callback handles at most 16 requests.
-It stops draining requests while response capacity is unavailable. Incoming
-overflow drops the newest item and counts it. Main-loop transmission keeps USB
-buffers alive until completion; UART replies use a timeout longer than their
-wire duration. Pending TX is abandoned after 100 ms if it cannot progress.
-No transport transmission occurs in the audio callback.
+## Notes, controls and recovery
 
-The host matches sequences and checks the acknowledged parameters. A timeout
-does not prove failure: the patch may already be active. Query status before
-retrying. There is no sequence deduplication, authentication, batch transaction,
-automatic retry, parameter subscription, or graph loading in this protocol.
-Use one host and one outstanding acknowledged request at a time.
+Channel 1 (zero-based 0): Note On/Off, including Note On velocity zero. Notes
+0–127 accepted; keybed uses 48–72 at velocity 100. UART, USB and keybed have
+separate source IDs. Matching source/note is retriggered; otherwise idle voices
+are used, then the oldest of four is stolen. An old note-off cannot release a
+replacement with a different note/source. No sustain pedal, pitch bend, octave
+switching, clock sync, MPE, aftertouch, arpeggiator or MIDI note output yet.
 
-MIDI real-time bytes can interrupt SysEx/CC and are ignored by Forge's framing
-layer. Oversized SysEx is discarded in full. USB packetization preserves F7 in
-the final USB-MIDI packet; this avoids the bundled transport's split-ending
-behavior without changing upstream library sources.
+CC20 mix, 21 time, 22 feedback, 23 level, 24 wet bypass (>=64 on), 25 cutoff.
+CC120 and CC123 silence **all** sources/tails as a global recovery action;
+CC123 deliberately uses panic semantics rather than an envelope release.
+Real-time bytes may interrupt all supported frames/running status and are ignored.
+MIDI clock is tolerated, not used for tempo. Unsupported channel messages cancel
+running status; oversized SysEx is discarded in full.
+
+## Atomicity and real-time boundary
+
+Audio owns voices, envelope/filter/delay and parameters. Main loop validates and
+queues patches; callback consumes at most 16 requests per block, stopping when
+reply capacity is unavailable. Accepted patch targets change atomically. Delay
+state survives ordinary parameter changes. Route or waveform changes silence
+voices and clear the old tail; held keys must be released/retriggered. Other
+synth changes affect active voices, except an already-running release retains
+its previously calculated release slope. Delay-time changes glide in pitch.
+
+Panic logically clears delay history with an O(1) reset marker; no full SDRAM
+clear in the callback. Invalid patches never partially change targets or voices.
+Queue overflow drops/counts controls; loss of note-related data triggers global
+silence and discards queued notes/ingress to avoid stuck notes. Retrigger after
+recovery. This logic is implemented; actual interrupt/transport behavior is
+still hardware-unverified. Use SW5 press or host panic if an audible note hangs.
+
+Replies are sent only by main loop. Largest response is 44 bytes with F0/F7:
+14.08 ms at 31250 baud, within the UART 25 ms timeout. USB packet buffer is 64
+bytes (44-byte SysEx uses 60 bytes). TX memory survives completion. Pending TX
+is abandoned/counts a drop after 100 ms without progress.
+
+Host checks full patch DATA, checksum and sequence. Timeout may mean applied
+but reply lost; query status before retrying. No auto retry, deduplication,
+subscriptions, sessions or authentication. One host, one acknowledged exchange
+at a time. Old 0.2 hosts cannot decode v2 status; use the matching 0.3 host.
+Old firmware rejects v2 patches and panic rather than executing them.

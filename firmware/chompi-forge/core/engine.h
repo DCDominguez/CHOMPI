@@ -71,8 +71,9 @@ public:
         const size_t index = static_cast<size_t>(read);
         const size_t next = (index + 1) % capacity_;
         const float fraction = read - static_cast<float>(index);
-        const float delayed_left = flushed_ ? 0.f : left_[index] + fraction * (left_[next] - left_[index]);
-        const float delayed_right = flushed_ ? 0.f : right_[index] + fraction * (right_[next] - right_[index]);
+        const bool unread = flushed_ && static_cast<float>(capacity_ - flushed_) <= time_ + 1.f;
+        const float delayed_left = unread ? 0.f : left_[index] + fraction * (left_[next] - left_[index]);
+        const float delayed_right = unread ? 0.f : right_[index] + fraction * (right_[next] - right_[index]);
         if(flushed_) --flushed_;
         left_[write_] = left + feedback_ * delayed_left;
         right_[write_] = right + feedback_ * delayed_right;

@@ -73,7 +73,7 @@ Commit the tested source first and choose an output path outside the repository:
 
 ```sh
 cd firmware/chompi-forge
-python3 host/package_candidate.py /absolute/output/Forge_0.2_Test_Candidate.zip
+python3 host/package_candidate.py /absolute/output/Forge_0.3_Test_Candidate.zip
 ```
 
 Run `make test` and the firmware build before packaging. The script requires a
@@ -116,3 +116,8 @@ when changing wire semantics. Record results and limitations in the handoff.
 Follow DC's one-session hardware-test plan. New software work can be validated
 offline; physical claims remain pending until recorded in the consolidated
 session. Do not change the bootloader as a routine Forge development step.
+
+Instrument development starts with [CONTINUE.md](CONTINUE.md). `make test` now
+includes synth pitch/envelope/voice/routing tests and v2 host round trips. The
+package generator includes both schemas, six presets, web assets and simulated
+synth chords. Browser and live API acceptance are separate from mocked tests.

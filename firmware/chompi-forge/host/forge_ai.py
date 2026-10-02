@@ -91,6 +91,9 @@ def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay"):
                 raise ValueError("Incomplete or blocked response")
             content = "".join(part["text"] for part in candidate["content"]["parts"]
                               if "text" in part and not part.get("thought"))
-        return validate_patch(parse_json(content))
+        patch = validate_patch(parse_json(content))
+        if patch["version"] != (2 if kind == "instrument" else 1):
+            raise ValueError("Wrong patch format for authoring mode")
+        return patch
     except (ValueError, KeyError, TypeError, IndexError, AttributeError):
         raise ProviderError("Provider returned an incomplete, refused, or invalid patch. Try revising the prompt.") from None

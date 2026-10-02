@@ -1,7 +1,7 @@
 # Forge documentation
 
 Forge is a community firmware project for CHOMPI, built on its Daisy Seed audio
-hardware. Candidate **0.2** implements stereo delay, live controls, atomic patch
+hardware. Candidate **0.3** implements a playable four-voice synth plus stereo delay, live controls, atomic patch
 recall, host-managed JSON presets, and diagnostics. The computer can optionally
 author presets through a local OpenAI/Gemini webapp with a user-supplied API
 key, or through the optional Ollama CLI.
@@ -15,6 +15,7 @@ one consolidated hardware session.
 
 | Document | Purpose |
 | --- | --- |
+| [Agent resume checkpoint](CONTINUE.md) | Current implementation, evidence, known limits and exact next tasks |
 | [Project brief](PROJECT.md) | Goals, scope, decisions and milestones |
 | [Firmware guide](../../firmware/chompi-forge/README.md) | Build commands, audio routing, parameter/CC mapping and defaults |
 | [Host guide](../../firmware/chompi-forge/host/README.md) | Launch the webapp, configure providers, edit/save presets and control MIDI |
@@ -37,19 +38,19 @@ results justify expansion.
 **To author a patch:** use a preset in
 [`firmware/chompi-forge/presets/`](../../firmware/chompi-forge/presets/) as an
 example, and run the host's `validate` command. JSON describes settings for the
-compiled stereo-delay engine; it does not contain executable DSP.
+installed synth/delay modules; it does not contain executable DSP.
 
 ## What is implemented and what is pending
 
 | Area | Implemented | Remaining evidence or scope |
 | --- | --- | --- |
-| Audio | Stereo delay with smoothed parameters and bounded output | Physical routing, listening and CPU headroom |
-| Controls | Encoders, MIDI CC, USB/TRS patch and status protocol | Actual encoder mapping, USB enumeration and TRS I/O |
+| Audio | Four-voice synth, ADSR/tone, two source routes and stereo delay | Physical routing, listening and CPU headroom |
+| Controls | Keybed/MIDI notes, encoders, MIDI CC, panic, USB/TRS patch and status protocol | Actual encoder mapping, USB enumeration and TRS I/O |
 | Presets | Host JSON save/capture and atomic recall | Audible transitions and capture/recall on the unit |
 | Diagnostics | Callback CPU average/peak, drop/reject counters | Measured device performance under normal use |
 | AI authoring | OpenAI/Gemini webapp and Ollama CLI; strict validation and saved JSON | Live model availability, latency and musical interpretation |
 | Persistence | Files saved on the computer | Device-side SD preset storage is outside this candidate |
-| Expansion | Stable starting interfaces for later work | New effects, sampler/looper, graphs, Tab5 and Wi-Fi are not implemented |
+| Expansion | Stable starting interfaces for later work | Additional effects, sampler/looper, general graphs, Tab5 and Wi-Fi are not implemented |
 
 The repository contains source and documentation. Generated test bundles remain
 separate; their manifests identify the exact source commit/tree and file hashes.

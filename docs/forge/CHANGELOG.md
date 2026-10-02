@@ -1,5 +1,18 @@
 # Forge changelog
 
+## 0.3 instrument software candidate — 2026-10-02
+
+- Corrected project scope to AI-programmable instrument, not effects-only.
+- Added four-voice synth, ADSR/tone/velocity, keybed and MIDI notes, source ownership
+  and panic; retained external stereo delay and v1 patch compatibility.
+- Added v2 synth/delay/output modules with two routes, host encoding/capture,
+  OpenAI/Gemini instrument authoring, web controls and three instrument presets.
+- Added synth native/sanitizer coverage and 200 v2 integration round trips.
+  Three C++ suites, 28 Python tests, sanitizers and ARM build pass.
+- Added AGENTS.md and live CONTINUE.md for ongoing agent handoffs; updated docs,
+  wire protocol, package generator and single physical acceptance checklist.
+- Browser, live-provider and actual hardware acceptance remain pending.
+
 ## Local AI webapp — 2026-10-02
 
 - Added a local browser interface with OpenAI and Gemini using user-provided API

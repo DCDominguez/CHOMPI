@@ -1,6 +1,10 @@
+> Updated for candidate 0.3: audio can originate from the four-voice synth or aux.
+> Read [PROTOCOL.md](PROTOCOL.md) for v2 module DATA and [CONTINUE.md](CONTINUE.md)
+> for the current implementation/verification checkpoint.
+
 # Forge architecture
 
-Applies to software candidate 0.2. Exact ranges and defaults live in the
+Applies to software candidate 0.3. Exact ranges and defaults live in the
 [firmware guide](../../firmware/chompi-forge/README.md); byte layouts live in the
 [protocol](PROTOCOL.md).
 
@@ -19,7 +23,8 @@ flowchart TD
     MIDI --> Queue["Validated request queue"]
     Queue --> Audio["Audio owner"]
     Knobs["Physical encoders"] --> Audio
-    Audio --> DSP["Stereo delay DSP"]
+    Keys["Keybed and MIDI notes"] --> Audio
+    Audio --> DSP["Synth or aux → delay → output"]
     Audio --> Reply["Snapshot reply queue"]
     Reply --> Host["Host acknowledgement and status"]
 ```
@@ -27,8 +32,8 @@ flowchart TD
 ## Audio path
 
 The reused hardware class configures 48 kHz audio in 24-frame blocks. The
-callback reads auxiliary channels 2/3, processes the stereo delay, and mirrors
-the result to headphone channels 0/1 and main channels 2/3. Microphone channel 0
+callback selects auxiliary channels 2/3 or the four-voice mono synth, processes
+the stereo delay, and mirrors the result to headphone channels 0/1 and main channels 2/3. Microphone channel 0
 is not mixed into the effect.
 
 Each channel has its own delay buffer in SDRAM. Initialization clears both
@@ -61,8 +66,9 @@ callback. The protocol documents counter and timeout behavior.
 
 1. A user edits JSON or an optional model returns it. The host strictly validates
    the complete object, engine, version, keys, types and ranges.
-2. The host converts physical values to four normalized 14-bit words and a
-   bypass flag, then sends one checksummed SysEx message with a sequence number.
+2. The host converts physical values to normalized 14-bit words, with bypass
+   and v2 route/waveform bytes, then sends one checksummed SysEx message with
+   a sequence number. Cutoff uses a logarithmic mapping.
 3. Firmware validates the entire payload before queueing it. The audio owner
    assigns the full parameter set between blocks; rejected patches leave the
    current state intact.
@@ -78,7 +84,7 @@ status before deciding to resend.
 
 ## Transport details
 
-Forge's small byte framer ignores real-time bytes inside CC/SysEx, handles CC
+Forge's small byte framer ignores real-time bytes inside notes/CC/SysEx, handles note/CC
 running status, and discards oversized SysEx in full. It replaces dependence on
 the upstream event parser without modifying the vendored source.
 
@@ -102,6 +108,7 @@ Paths below are relative to `firmware/chompi-forge/`.
 | `core/midi_framer.h` | Byte framing, running status, overflow and resynchronization |
 | `core/protocol.h` | Request validation, patch encoding fields, status/error replies |
 | `core/usb_packets.h` | Complete-SysEx USB-MIDI packetization |
+| `core/synth.h` | Fixed four-voice oscillators, ADSR, velocity, voice ownership and low-pass tone |
 | `host/forge_host.py` | Python CLI, JSON schema, preset files, MIDI exchange, optional Ollama adapter |
 | `host/forge_ai.py` | OpenAI/Gemini HTTPS adapters, structured output and independent validation |
 | `host/forge_web.py` | Loopback server, session/origin checks, request bounds and serialized MIDI access |

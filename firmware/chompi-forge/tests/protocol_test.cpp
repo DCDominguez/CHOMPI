@@ -65,6 +65,11 @@ void Framing() {
     assert(parser.Feed(64, frame) && frame.data[1] == 21 && frame.data[2] == 64);
     parser.Feed(0x90, frame); parser.Feed(60, frame);
     assert(parser.Feed(127, frame) && frame.kind == MidiFrame::Kind::NoteOn);
+    parser.Feed(61, frame); // note running status and zero-velocity release
+    parser.Feed(0xf8, frame);
+    assert(parser.Feed(0, frame) && frame.kind == MidiFrame::Kind::NoteOn && frame.data[2] == 0);
+    parser.Feed(0x80, frame); parser.Feed(60, frame);
+    assert(parser.Feed(64, frame) && frame.kind == MidiFrame::Kind::NoteOff);
     uint32_t random = 123;
     for(unsigned i = 0; i < 100000; ++i) {
         random = random * 1664525u + 1013904223u;

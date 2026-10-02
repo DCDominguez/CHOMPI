@@ -1,111 +1,50 @@
-# Forge handoff — candidate 0.2
+# Forge handoff — instrument candidate 0.3
 
-Updated: 2026-10-02 (Asia/Manila). Remote branch: `forge/foundation`, draft PR #1.
+Updated 2026-10-02. **Read [CONTINUE.md](CONTINUE.md) first** for the live agent
+checkpoint. Development branch: `forge/foundation`, draft PR #1. No merge or
+hardware flash has occurred. AGENTS.md establishes ongoing documentation rules.
 
-## Start here
+## Goal corrected
 
-Start with the [documentation index](README.md), then read
-[ARCHITECTURE.md](ARCHITECTURE.md), [DEVELOPMENT.md](DEVELOPMENT.md),
-[PROJECT.md](PROJECT.md), [PROTOCOL.md](PROTOCOL.md), the
-[host instructions](../../firmware/chompi-forge/host/README.md), and the
-[one-session checklist](TEST_SESSION.md).
-
-DC wants one consolidated hardware test. Do not request a separate M0 flash
-or a physical test after each feature. The software candidate is now assembled;
-physical acceptance remains outstanding. A defect may still require a retest.
+DC wants an AI-programmable instrument, not an effects-only device. This milestone
+adds playable synthesis to the previous delay/control/web foundation. Sampling,
+looping and general routing are still later work; never describe them as present.
+Physical acceptance remains one consolidated session per DC's instruction.
 
 ## Implemented
 
-- BOOT_SRAM app using WAVE's hardware, encoder and linker definitions.
-- Stereo aux input through a 10–1000 ms delay to headphone/main outputs.
-- Smoothed mix/time/feedback/level/wet bypass, local encoders and MIDI CC.
-- Versioned host JSON presets, validation, exclusive file saving, capture of
-  current device targets, and atomic full-patch recall at an audio block boundary.
-- USB/TRS SysEx apply/status/reject replies with sequences and checksums.
-- A dedicated MIDI framer tolerating interleaved real-time bytes, overflow and
-  resynchronization; complete USB SysEx packetization and persistent TX buffers.
-- Bounded queues and callback control work, response backpressure, drop/reject
-  counts, and average/peak callback CPU reporting. No TX in the audio callback.
-- Local browser webapp with OpenAI/Gemini selection, user-provided API key and
-  model ID, patch editing, JSON import/export, explicit MIDI ports, status,
-  capture and acknowledged send. Generation never sends MIDI automatically.
-- Python CLI, three presets, offline renderer sharing the actual DSP core,
-  and optional Ollama authoring. Keys are never persisted by Forge.
-- Cloud adapters use fixed HTTPS endpoints, reject redirects and validate
-  responses independently. The local server checks origin/Host/session token
-  and serializes MIDI exchanges. Firmware and wire protocol are unchanged.
-- A bundle-generation script with source identity, firmware/file checksums,
-  synthetic audio references, licensing and the consolidated test checklist.
-- A repository documentation hub, architecture/developer guides and changelog.
-  This documentation follow-up does not change the candidate 0.2 binary or the
-  already-generated test bundle's source identity.
+Four-voice synth (four waveforms, ADSR, velocity, one-pole tone), keybed/MIDI notes,
+source ownership, bounded voice stealing, panic and note-overflow recovery.
+v2 named synth/delay/output modules support synth or aux into delay into output.
+v1 delay files still work. Six presets and simulated aux/synth WAV rendering.
 
-## Verification and limits
+Webapp supports instrument/effect generation, OpenAI/Gemini with the user's key,
+editable v2 controls/routing, v1 import/export, explicit MIDI send/capture/status
+and panic. AI never sends automatically. Credentials remain ephemeral; no live
+provider call made. Ollama CLI continues to author v1 delay patches only.
 
-- Host DSP/queue tests pass with C++14 and warnings as errors.
-- Protocol tests pass: atomic rejection, corrupt/truncated messages, unsupported
-  versions, MIDI running status and clock interruption, resynchronization,
-  100,000 fuzz bytes, and USB final-packet sizes.
-- Twenty-four Python integration tests pass. They include 250 seeded random patch
-  round trips through the real C++ protocol/runtime, malformed-patch state
-  preservation, persistence, strict JSON, mock AI responses, acknowledgement
-  mismatch/timeout handling, explicit port selection, and offline WAV output.
-- ASan/UBSan pass for the DSP/queue and protocol suites. LeakSanitizer is disabled
-  because this execution environment cannot perform its `/proc` inspection.
-- GNU Arm Embedded 10.3-2021.10 builds libDaisy and Forge from source and links
-  the application. FORGE.bin is 100,592 bytes. Link allocation: SRAM_EXEC 42.34%,
-  SRAM 15.55%, RAM_D2 68.07%, SDRAM 0.57%. These are not CPU/stack measurements.
-- Pinned Mido 1.3.3 and python-rtmidi 1.5.8 downloads/imports and MIDI message
-  construction checked on the execution host; no physical MIDI port tested.
-- No device attached: no flash, audio audition, USB enumeration, TRS I/O,
-  callback-load measurement, battery validation or stock restore performed.
-- No live OpenAI, Gemini or Ollama requests made: adapters are mock-tested.
-  Actual model compatibility, response time and musical interpretation are pending.
-- Web assets and local HTTP endpoints pass automated serving/session checks;
-  JavaScript passes Node syntax checking. A real browser smoke test could not
-  run because Chromium downloads returned truncated archives. Browser layout
-  and interactive acceptance remain pending in the consolidated checklist.
+## Evidence
 
-## Deliberate limits
+- Three native C++ suites pass (DSP/queue, protocol/framing and synth).
+- 28 Python tests pass, including 250 v1 and 200 v2 seeded round trips through
+  the actual C++ runtime, malformed-patch atomicity and provider mocks.
+- All three C++ suites pass ASan/UBSan; LeakSanitizer disabled due to environment.
+- ARM GNU 10.3-2021.10 build passes: binary 113,408 bytes, SHA-256
+  `02ecbbb6eed11a20bcfe6774376d95cf8b6188482ab3d15ed17a1c4a22228bff`.
+- Link usage: SRAM_EXEC 47.74%, SRAM 17.01%, RAM_D2 68.07%, SDRAM 0.57%.
+- JS syntax and HTTP/session serving checked. Browser smoke test remains pending;
+  prior Chromium downloads returned truncated archives.
 
-One compiled stereo-delay engine. Host-managed preset files; device targets are
-volatile and reset on reboot. No sampler, looper, on-device preset files,
-patch graph, generated DSP, Tab5 UI, Wi-Fi, or onboard AI. Bypass fades only the
-wet contribution and retains level. Time changes glide in pitch. Hard clipping
-bounds numeric output but is not a mastering limiter.
+No physical audio, keybed, MIDI, CPU/stack headroom, battery or restore test.
+No actual model latency/musical quality/provider compatibility test. Synth voice
+stealing may click; triangle is not band-limited; high-note aliasing is possible.
+No unverified feature is a hardware pass. Startup remains dry aux until a v2
+instrument patch is sent. Route/waveform changes stop notes/tails; retrigger keys.
 
-Only one host and one outstanding acknowledged request at a time. Timeout can
-mean the patch applied but its reply was lost; query status before retrying.
-Read PROTOCOL.md for counter meanings, overload and transport limits.
+## Next actions
 
-## Build and package
-
-From `firmware/chompi-forge`:
-
-```sh
-make test
-ASAN_OPTIONS=detect_leaks=0 make sanitize
-make firmware GCC_PATH=/path/to/gcc-arm-none-eabi-10.3-2021.10/bin
-# Commit tested source first; outputs must be outside the tracked source tree.
-python host/package_candidate.py /absolute/path/Forge_0.2_Test_Candidate.zip
-```
-
-The bundle's manifest identifies its exact source commit/tree and binary hash.
-Generated binaries and bundles are not committed to the source repository.
-The bundle is experimental and does not constitute a hardware-approved release.
-
-The compiler initially crashed from the workspace mount but worked after
-extracting the verified official archive to `/tmp/forge-toolchain/` with
-`tar --no-same-owner`. Temporary compiler files may need restoring after an
-idle session. Do not trust a partial archive; verify the README's SHA-256.
-
-## Next action
-
-Run the single consolidated session using TEST_SESSION.md when DC has the unit
-and computer ready, including the webapp in an actual browser and live provider
-calls with DC's own API keys. The previous test ZIP predates the webapp; use the
-current branch or regenerate a bundle from its clean tree. Record passes,
-failures and explicitly skipped sections in
-`docs/forge/TEST_RESULTS.md`. Do not mark hardware or actual-model acceptance as
-complete based on software tests. Use the measured result to decide further DSP
-or controller work; keep expansion outside this first candidate.
+Follow the prioritized continuation list in CONTINUE.md and consolidated
+TEST_SESSION.md. Record actual results in TEST_RESULTS.md only after running
+them. Use source branch or regenerate a 0.3 bundle; previous 0.2 ZIPs are stale.
+Generated binaries/bundles are ignored; their manifest must match their own
+source and file hashes. Keep builds and test evidence current after changes.
