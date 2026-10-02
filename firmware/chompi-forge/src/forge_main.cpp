@@ -47,7 +47,8 @@ Outgoing pending;
 bool has_pending = false;
 uint32_t pending_since = 0;
 forge::Engine engine;
-std::atomic<bool> emergency_silence{false};
+// Emergency count: main loop is the only writer; audio reads it each block.
+std::atomic<uint32_t> emergency_epoch{0};
 bool discard_ingress = false; // main-loop owned
 forge::SpscQueue<forge::Request, 64> requests;
 forge::SpscQueue<forge::Response, 64> responses;
@@ -61,11 +62,11 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     cpu.OnBlockStart();
     forge::Request request;
     static forge::RecoveryGate recovery; // audio-owner only
-    if(emergency_silence.exchange(false, std::memory_order_relaxed)) recovery.Begin(engine);
+    recovery.Observe(static_cast<uint8_t>(emergency_epoch.load(std::memory_order_acquire)), engine);
     // Backpressure instead of applying a patch whose acknowledgement cannot
     // be queued. Only this audio callback produces responses.
     for(unsigned i = 0; i < 16 && responses.HasSpace() && requests.Pop(request); ++i) {
-        if(recovery.Skip(request)) continue;
+        if(!recovery.Admit(request, engine)) continue;
         forge::Response response;
         if(forge::ExecuteRequest(request, engine, response)) {
             response.cpu_average = cpu.GetAvgCpuLoad();
@@ -73,7 +74,6 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
             responses.Push(response);
         }
     }
-    recovery.EndIfDrained(requests.Empty());
 
     hw.ProcessAllControls();
     // Matches upstream NormalPage::key_map: 25 chromatic keys, MIDI 48..72.
@@ -145,6 +145,14 @@ void TransmitPending() {
     }
 }
 
+void RaiseEmergency() {
+    emergency_epoch.store(emergency_epoch.load(std::memory_order_relaxed) + 1, std::memory_order_release);
+}
+bool Queue(forge::Request& request) {
+    request.epoch = static_cast<uint8_t>(emergency_epoch.load(std::memory_order_relaxed));
+    return requests.Push(request);
+}
+
 template<typename Midi> void PollMidi(Midi& midi, uint8_t source) {
     midi.Listen();
     forge::MidiFrame frame;
@@ -155,22 +163,22 @@ template<typename Midi> void PollMidi(Midi& midi, uint8_t source) {
             if(frame.data[0] != 0) continue;
             request.kind = forge::RequestKind::Note; request.note = frame.data[1];
             request.velocity = frame.kind == forge::MidiFrame::Kind::NoteOff ? 0 : frame.data[2];
-            if(!requests.Push(request)) { ++dropped_commands; discard_ingress = true; emergency_silence.store(true, std::memory_order_relaxed); }
+            if(!Queue(request)) { ++dropped_commands; discard_ingress = true; RaiseEmergency(); }
             continue;
         }
         if(frame.kind == forge::MidiFrame::Kind::CC) {
             if(frame.data[0] == 0 && (frame.data[1] == 120 || frame.data[1] == 123)) {
-                emergency_silence.store(true, std::memory_order_relaxed); continue;
+                RaiseEmergency(); continue;
             }
             if(!forge::DecodeCC(frame.data[0], frame.data[1], frame.data[2], request.command)) continue;
             request.kind = forge::RequestKind::Parameter;
-            if(!requests.Push(request)) ++dropped_commands;
+            if(!Queue(request)) ++dropped_commands;
             continue;
         }
         if(!forge::IsRequest(frame.data, frame.size)) continue;
         auto error = forge::DecodeRequest(frame.data, frame.size, request);
         request.source = source;
-        if(error == forge::Error::None && !requests.Push(request)) {
+        if(error == forge::Error::None && !Queue(request)) {
             ++dropped_commands; error = forge::Error::Busy;
         }
         if(error != forge::Error::None) {
@@ -238,7 +246,7 @@ int main() {
             forge::MidiFrame ignored;
             for(unsigned i = 0; i < 16; ++i) { uart_midi.frames.Pop(ignored); usb_midi.frames.Pop(ignored); }
             uart_midi.framer.Reset(); usb_midi.framer.Reset();
-            emergency_silence.store(true, std::memory_order_relaxed);
+            RaiseEmergency();
             seen_drops = ingress_drops; discard_ingress = false;
         }
         PollMidi(uart_midi, 0);

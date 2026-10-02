@@ -88,32 +88,104 @@ void RoutingPanicAndBounds() {
     for(unsigned i = 0; i < 48000; ++i) engine.Process(.2f,-.3f,left,right);
     assert(std::fabs(left-.2f) < .0001f && std::fabs(right+.3f) < .0001f);
 }
-// Mirrors the firmware audio-callback loop: queued notes before an emergency are
-// dropped, control requests still run, and fresh notes after the drain sound.
+// Mirrors the firmware audio-callback loop: notes queued before an emergency are
+// dropped, control requests still run, and notes queued after it play at once,
+// even when the queue never drains.
+struct Callback {
+    Engine& engine; RecoveryGate gate; unsigned replies = 0;
+    void Block(uint8_t epoch, std::vector<Request> queue) {
+        gate.Observe(epoch, engine);
+        for(const auto& request : queue) {
+            if(!gate.Admit(request, engine)) continue;
+            Response response; if(ExecuteRequest(request, engine, response)) ++replies;
+        }
+    }
+};
+Request NoteRequest(uint8_t n, uint8_t v, uint8_t epoch) {
+    Request q; q.kind = RequestKind::Note; q.note = n; q.velocity = v; q.source = 1; q.epoch = epoch; return q;
+}
 void RecoveryAfterLostNotes() {
     std::vector<float> l(48002), r(48002); Engine engine;
     assert(engine.Init(48000, l.data(), r.data(), l.size()));
     Parameters p = Instrument(); assert(engine.ApplyPatch(p));
-    std::vector<Request> queue;
-    auto note = [](uint8_t n, uint8_t v) { Request q; q.kind = RequestKind::Note; q.note = n; q.velocity = v; q.source = 1; return q; };
-    engine.Note(60, 100, 1); assert(engine.ActiveVoices() == 1); // note-off for this was "lost"
-    queue.push_back(note(62, 100)); queue.push_back(note(64, 100));
-    Request status; status.kind = RequestKind::Status; queue.push_back(status);
-    RecoveryGate gate; gate.Begin(engine);
-    assert(engine.ActiveVoices() == 0 && gate.Recovering());
-    unsigned replies = 0;
-    for(const auto& request : queue) {
-        if(gate.Skip(request)) continue;
-        Response response; if(ExecuteRequest(request, engine, response)) ++replies;
-    }
-    gate.EndIfDrained(true);
-    assert(replies == 1 && engine.ActiveVoices() == 0 && !gate.Recovering());
-    Response ignored; ExecuteRequest(note(67, 100), engine, ignored);
-    assert(engine.ActiveVoices() == 1);                      // playable again
-    ExecuteRequest(note(67, 0), engine, ignored);
+    Callback cb{engine, RecoveryGate{}, 0};
+    cb.Block(0, {NoteRequest(60, 100, 0)}); assert(engine.ActiveVoices() == 1); // its note-off is "lost"
+    Request status; status.kind = RequestKind::Status; status.epoch = 0;
+    // Emergency 1 raised: stale epoch-0 notes and a status are still queued,
+    // fresh epoch-1 notes are queued behind them in the same block.
+    cb.Block(1, {NoteRequest(62, 100, 0), status, NoteRequest(64, 100, 0), NoteRequest(67, 100, 1)});
+    assert(cb.replies == 1 && engine.ActiveVoices() == 1);    // only 67 sounds
+    // Request stamped with a newer epoch than the block start (race): silence first, then play.
+    cb.Block(1, {NoteRequest(69, 100, 2)});
+    assert(cb.gate.Epoch() == 2 && engine.ActiveVoices() == 1);
+    cb.Block(2, {NoteRequest(69, 0, 2)});
     float left, right; for(unsigned i = 0; i < 48000; ++i) engine.Process(0, 0, left, right);
-    assert(engine.ActiveVoices() == 0);                      // and releases normally
-    gate.EndIfDrained(false); assert(!gate.Recovering());    // drain flag only ends recovery
+    assert(engine.ActiveVoices() == 0);                       // releases normally
+    // CC120 with nothing queued still silences on the next block.
+    cb.Block(2, {NoteRequest(72, 100, 2)}); assert(engine.ActiveVoices() == 1);
+    cb.Block(3, {}); assert(engine.ActiveVoices() == 0);
+    // Wraparound: 255 -> 0 is newer, 0 -> 255 is older.
+    RecoveryGate gate; for(unsigned e = 1; e <= 255; ++e) gate.Observe(uint8_t(e), engine);
+    assert(gate.Epoch() == 255);
+    engine.Note(60, 100, 1); gate.Observe(0, engine); assert(gate.Epoch() == 0 && engine.ActiveVoices() == 0);
+    assert(!gate.Admit(NoteRequest(60, 100, 255), engine));
+    assert(gate.Admit(NoteRequest(60, 100, 0), engine));
+    Request old_status = status; old_status.epoch = 255; assert(gate.Admit(old_status, engine));
+}
+// Worst sample-to-sample step after reusing a sounding voice, relative to the
+// steady-state worst step of the same chord. Sine makes discontinuities obvious.
+float StepRatio(bool retrigger, uint8_t new_velocity) {
+    Synth s; s.Init(48000); auto p = Instrument(); p.attack = 0.002f; p.sustain = 0.8f; s.Configure(p);
+    for(uint8_t n : {60, 64, 67, 71}) s.Note(n, 127, 0);
+    float prior = 0, steady = 0, jump = 0;
+    for(unsigned i = 0; i < 24000; ++i) { const float y = s.Process(); if(i > 12000) steady = std::max(steady, std::fabs(y - prior)); prior = y; }
+    s.Note(retrigger ? 64 : 74, new_velocity, 0);
+    for(unsigned i = 0; i < 480; ++i) { const float y = s.Process(); jump = std::max(jump, std::fabs(y - prior)); prior = y; }
+    return jump / steady;
+}
+void ClickFreeStealAndRetrigger() {
+    assert(StepRatio(false, 127) < 1.5f);  // steal (was ~5x before level/phase carry-over)
+    assert(StepRatio(true, 127) < 1.5f);   // same-note retrigger
+    assert(StepRatio(false, 20) < 1.5f);   // steal by a much softer note
+    // A releasing voice is stolen before any held voice.
+    Synth s; s.Init(48000); auto p = Instrument(); p.release = 0.5f; s.Configure(p);
+    for(uint8_t n : {60, 62, 64, 65}) s.Note(n, 100, 0);
+    for(unsigned i = 0; i < 480; ++i) s.Process();
+    s.Note(64, 0, 0); for(unsigned i = 0; i < 480; ++i) s.Process();
+    s.Note(70, 100, 0); assert(s.Active() == 4);
+    // Short release from here on: if 70 replaced the releasing 64, every voice
+    // now ends quickly; had it stolen held 60, slow-releasing 64 would remain.
+    p.release = 0; s.Configure(p);
+    for(uint8_t n : {60, 62, 65, 70}) s.Note(n, 0, 0);
+    for(unsigned i = 0; i < 2400; ++i) s.Process();
+    assert(s.Active() == 0);
+}
+// Non-harmonic energy below 12 kHz relative to harmonic energy, in dB.
+double AliasDb(uint8_t waveform, uint8_t note) {
+    Synth s; s.Init(48000); auto p = Instrument(); p.waveform = waveform; s.Configure(p);
+    s.Note(note, 127, 0);
+    const unsigned N = 4096; std::vector<double> x(N);
+    for(unsigned i = 0; i < 12000 - N; ++i) s.Process();
+    for(unsigned i = 0; i < N; ++i) {
+        const double a = 2 * M_PI * i / (N - 1);
+        x[i] = (0.35875 - 0.48829 * std::cos(a) + 0.14128 * std::cos(2 * a) - 0.01168 * std::cos(3 * a)) * s.Process();
+    }
+    const double f0 = 440 * std::pow(2.0, (note - 69) / 12.0), bin = 48000.0 / N;
+    double harmonic = 0, alias = 0;
+    for(unsigned k = 1; k * bin < 12000; ++k) {
+        double re = 0, im = 0, c = 1, sn = 0; const double dc = std::cos(2 * M_PI * k / N), ds = std::sin(2 * M_PI * k / N);
+        for(unsigned i = 0; i < N; ++i) { re += x[i] * c; im -= x[i] * sn; const double t = c * dc - sn * ds; sn = sn * dc + c * ds; c = t; }
+        const double f = k * bin, m = std::round(f / f0), power = re * re + im * im;
+        (m >= 1 && std::fabs(f - m * f0) < 5 * bin ? harmonic : alias) += power;
+    }
+    return 10 * std::log10(alias / harmonic);
+}
+void TriangleAliasing() {
+    // Naive corners measured -46.9 dB (C7) and -36.2 dB (C8); polyBLAMP about -79 and -62.
+    assert(AliasDb(1, 96) < -70);
+    assert(AliasDb(1, 108) < -55);
+    assert(AliasDb(0, 96) < -80);  // sine: measurement floor sanity check
 }
 int main() { VoicesAndPitch(); EnvelopeVelocityAndFilter(); RoutingPanicAndBounds(); RecoveryAfterLostNotes();
-    std::cout << "PASS: synth pitch, ADSR, velocity, filter, source ownership, voices, routing, panic, bounds, recovery gate\n"; }
+    ClickFreeStealAndRetrigger(); TriangleAliasing();
+    std::cout << "PASS: synth pitch, ADSR, velocity, filter, source ownership, voices, routing, panic, bounds, recovery gate, click-free steal, triangle aliasing\n"; }

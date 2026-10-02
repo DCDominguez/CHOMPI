@@ -88,7 +88,9 @@ and are not included in rejected recognized-request counts.
 Channel 1 (zero-based 0): Note On/Off, including Note On velocity zero. Notes
 0–127 accepted; keybed uses 48–72 at velocity 100. UART, USB and keybed have
 separate source IDs. Matching source/note is retriggered; otherwise idle voices
-are used, then the oldest of four is stolen. An old note-off cannot release a
+are used, then the quietest releasing voice, then the oldest held voice of four.
+A reused voice keeps its current level and waveform phase and glides to the new
+velocity over about 2 ms, so retrigger/steal does not jump to silence. An old note-off cannot release a
 replacement with a different note/source. No sustain pedal, pitch bend, octave
 switching, clock sync, MPE, aftertouch, arpeggiator or MIDI note output yet.
 
@@ -113,9 +115,12 @@ Panic logically clears delay history with an O(1) reset marker; no full SDRAM
 clear in the callback. Invalid patches never partially change targets or voices.
 Queue overflow drops/counts controls. A full request queue on a note, or any
 dropped ingress frame (the main loop cannot tell whether it was a note), triggers
-global silence and discards queued notes/ingress to avoid stuck notes
-(`RecoveryGate` in core/runtime.h, host-tested). Retrigger after
-recovery. This logic is implemented; actual interrupt/transport behavior is
+global silence to avoid stuck notes. The main loop counts these emergencies (and
+CC120/123) and stamps every queued request with the count; the audio callback
+silences once per new count and discards only notes queued before it. Notes
+queued after the emergency play immediately, even under continuous traffic.
+Patches, status, panic and controls always execute (`RecoveryGate` in
+core/runtime.h, host-tested). Keys held through a recovery must be retriggered. This logic is implemented; actual interrupt/transport behavior is
 still hardware-unverified. Use SW5 press or host panic if an audible note hangs.
 
 Replies are sent only by main loop. Largest response is 44 bytes with F0/F7:

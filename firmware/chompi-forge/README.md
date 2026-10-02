@@ -80,11 +80,13 @@ stereo external effects. The synth is four-voice mono, duplicated to L/R before
 delay. Waveforms: sine, triangle, polyBLEP saw/square. ADSR and a one-pole low-pass
 provide articulation/tone. See host guide for physical ranges and JSON examples.
 
-Voice allocation uses idle then oldest voices. Note ownership distinguishes keybed,
-USB and UART. Note-on velocity zero is note-off. Route/waveform switching and
-panic stop voices/tails; held notes must be retriggered. Voice stealing can click;
-triangle is not band-limited and high-note aliasing remains possible. No claim
-of click-free changes or hardware CPU headroom before the listening session.
+Voice allocation uses idle, then the quietest releasing, then the oldest voice.
+A reused voice continues from its current level and phase (simulated steal step
+1.1x steady state, was 5x). Note ownership distinguishes keybed, USB and UART.
+Note-on velocity zero is note-off. Route/waveform switching and panic stop
+voices/tails abruptly; held notes must be retriggered. Triangle uses polyBLAMP
+corners; saw/square use 2-point polyBLEP, so some high-note aliasing remains.
+No claim of click-free sound or hardware CPU headroom before the listening session.
 
 Startup remains dry aux v1 for compatibility. Send an instrument preset to play.
 No automatic mode detection. Knobs 1–4 still control delay/output, not ADSR.

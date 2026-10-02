@@ -46,9 +46,9 @@ Keep monitoring volume low. Avoid audio feedback loops. The mic is unused.
 | 3.1 | Unplug aux source. `H send presets/04-glass-keys.json ...`; play all 25 keys | Chromatic low→high (MIDI 48–72); sound on press, release on key-up, nothing stuck |
 | 3.2 | `H note 60 --output "OUT"`; `H note 60 --velocity 30` | Correct pitch; second clearly quieter |
 | 3.3 | `H note 60 64 67 --zero-velocity-off` | Chord sounds and releases (velocity-0 note-on = note-off) |
-| 3.4 | `H note 60 64 67 71 74 --hold 3` | Four voices max; oldest note (60) stolen; all release |
+| 3.4 | `H note 60 64 67 71 74 --hold 3` | Four voices max; oldest note (60) stolen without a click; all release |
 | 3.5 | Hold a key on CHOMPI; `H note` the same pitch; release the key | MIDI note keeps sounding until its own release |
-| 3.6 | Send `05-soft-pad.json`, `06-saw-bass.json`; turn SW5 | Audibly different; SW5 sweeps tone. **Listen for clicks on voice steal/retrigger and aliasing on high saw/square notes — record, don't fix during session** |
+| 3.6 | Send `05-soft-pad.json`, `06-saw-bass.json`; turn SW5 | Audibly different; SW5 sweeps tone. Steal/retrigger should not click and triangle should be clean high up (both fixed in software). **Record any click, or aliasing on high saw/square notes — don't fix during session** |
 | 3.7 | In the webapp, change waveform, ADSR, cutoff; Send | Each change audible as described |
 
 ## 4. Panic and recovery

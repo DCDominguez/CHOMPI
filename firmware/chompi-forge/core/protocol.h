@@ -15,6 +15,7 @@ struct Request {
     Parameters patch{};
     uint16_t sequence = 0;
     uint8_t source = 0;
+    uint8_t epoch = 0; // main-loop emergency count when queued; never on the wire
 };
 struct Response {
     Error error = Error::None;

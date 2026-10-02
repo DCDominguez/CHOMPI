@@ -1,5 +1,16 @@
 # Forge changelog
 
+## 0.3 sound fixes — 2026-10-02
+
+- Voice steal/retrigger keeps level, phase and (slewed) velocity gain; steals a
+  releasing voice before a held one. Simulated steal step 4.98x → 1.12x.
+- Triangle corners band-limited with polyBLAMP: alias below 12 kHz at C7
+  -46.9 → -78.9 dB (simulated).
+- Recovery uses emergency epochs: only notes queued before an emergency are
+  dropped; later notes play even under continuous traffic.
+- New native tests for all three (each fails on the previous code). Firmware
+  binary changed: older 0.3 bundles are stale. Hardware still unverified.
+
 ## 0.3 integration review and browser testing — 2026-10-03
 
 - First real browser run (Chromium 141): 8 end-to-end tests against a stateful

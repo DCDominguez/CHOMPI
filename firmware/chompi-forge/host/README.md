@@ -83,7 +83,7 @@ No arbitrary graph, sampler, looper, FM or reverb can be generated yet.
 **Panic / stop sound** clears all voices and old delay tail; it requires both
 MIDI ports and waits for a reply. SW5 press or channel-1 CC120/123 also panic.
 SW5 turn/CC25 change cutoff. Route or waveform changes stop voices/tails;
-retrigger held notes. Four voices maximum; additional notes steal the oldest.
+retrigger held notes. Four voices maximum; additional notes steal a releasing voice, else the oldest.
 A patch is volatile; save JSON and resend after reboot. v1 delay files still work.
 Older 0.2 firmware cannot accept v2 patches or panic. Use matching 0.3 host tools.
 

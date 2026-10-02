@@ -21,18 +21,27 @@ inline bool ExecuteRequest(const Request& request, Engine& engine, Response& res
     response.patch = engine.GetParameters();
     return true;
 }
-// Stuck-note recovery used by the audio callback (and host tests). After an
-// emergency (lost note data, CC120/123), the engine is silenced and note events
-// already queued are discarded until the request queue has drained once, so a
-// stale note-on can never sound without its note-off. Patches, status and panic
-// requests still execute and reply. Notes received after the drain play normally.
+// Stuck-note recovery used by the audio callback (and host tests). The main
+// loop counts emergencies (lost note data, CC120/123) and stamps every queued
+// request with the count. A newer count silences the engine once; notes queued
+// before it are discarded, so a stale note-on can never sound without its
+// note-off, while notes queued after it play at once even if the queue never
+// drains. Patches, status, panic and controls always execute and reply.
+// Counts are compared modulo 256; the audio owner catches up every block.
 class RecoveryGate {
 public:
-    void Begin(Engine& engine) { engine.Panic(); recovering_ = true; }
-    bool Skip(const Request& request) const { return recovering_ && request.kind == RequestKind::Note; }
-    void EndIfDrained(bool queue_empty) { if(recovering_ && queue_empty) recovering_ = false; }
-    bool Recovering() const { return recovering_; }
+    // Call once per block with the main loop's current count.
+    void Observe(uint8_t epoch, Engine& engine) {
+        if(static_cast<int8_t>(static_cast<uint8_t>(epoch - epoch_)) > 0) { engine.Panic(); epoch_ = epoch; }
+    }
+    // False means drop the request.
+    bool Admit(const Request& request, Engine& engine) {
+        const int8_t age = static_cast<int8_t>(static_cast<uint8_t>(request.epoch - epoch_));
+        if(age > 0) { engine.Panic(); epoch_ = request.epoch; }
+        return !(age < 0 && request.kind == RequestKind::Note);
+    }
+    uint8_t Epoch() const { return epoch_; }
 private:
-    bool recovering_ = false;
+    uint8_t epoch_ = 0;
 };
 } // namespace forge
