@@ -244,10 +244,17 @@ def exchange(payload, input_name, output_name, timeout=2.0, midi=None):
     raise TimeoutError("No matching acknowledgement. The device may have applied the patch; query status before retrying.")
 
 
-def play(output_name, cc=None, notes=(), velocity=100, hold=1.0, zero_velocity_off=False, midi=None, sleep=time.sleep):
+def play(output_name, cc=None, notes=(), velocity=100, hold=1.0, zero_velocity_off=False,
+         bend=None, sustain=False, midi=None, sleep=time.sleep):
     """Send channel-1 test traffic (no acknowledgement exists for CC/notes).
-    Note-offs are always sent, even if interrupted, so tests cannot leave stuck notes."""
+    Note-offs are always sent, even if interrupted, so tests cannot leave stuck notes.
+    bend (-8192..8191, mido convention) applies after note-on and is recentred at the end.
+    sustain holds the pedal (CC64), releases the keys at once, waits, then lifts the pedal."""
     midi = midi or midi_module()
+    if bend is not None and (type(bend) is not int or not -8192 <= bend <= 8191):
+        raise ValueError("Bend must be an integer -8192..8191 (0 = centre)")
+    if (bend is not None or sustain) and not notes:
+        raise ValueError("Bend and sustain need at least one note")
     values = [*(cc or ()), *notes, velocity]
     if any(type(v) is not int or not 0 <= v <= 127 for v in values):
         raise ValueError("CC numbers/values, notes and velocity must be integers 0–127")
@@ -260,15 +267,29 @@ def play(output_name, cc=None, notes=(), velocity=100, hold=1.0, zero_velocity_o
     with midi.open_output(output_name) as destination:
         if cc:
             destination.send(midi.Message("control_change", channel=0, control=cc[0], value=cc[1]))
-        try:
-            for note in notes:
-                destination.send(midi.Message("note_on", channel=0, note=note, velocity=velocity))
-            if notes:
-                sleep(hold)
-        finally:
+        def release():
             for note in notes:
                 destination.send(midi.Message("note_on", channel=0, note=note, velocity=0) if zero_velocity_off
                                  else midi.Message("note_off", channel=0, note=note, velocity=0))
+        released = False
+        try:
+            if sustain:
+                destination.send(midi.Message("control_change", channel=0, control=64, value=127))
+            for note in notes:
+                destination.send(midi.Message("note_on", channel=0, note=note, velocity=velocity))
+            if bend is not None:
+                destination.send(midi.Message("pitchwheel", channel=0, pitch=bend))
+            if sustain:
+                release(); released = True
+            if notes:
+                sleep(hold)
+        finally:
+            if not released:
+                release()
+            if bend is not None:
+                destination.send(midi.Message("pitchwheel", channel=0, pitch=0))
+            if sustain:
+                destination.send(midi.Message("control_change", channel=0, control=64, value=0))
 
 
 def generate_patch(prompt, model, endpoint="http://127.0.0.1:11434/api/chat", opener=None):
@@ -322,6 +343,8 @@ def cli(argv=None):
     note.add_argument("notes", type=int, nargs="+"); note.add_argument("--output", required=True)
     note.add_argument("--velocity", type=int, default=100); note.add_argument("--hold", type=float, default=1.0)
     note.add_argument("--zero-velocity-off", action="store_true", help="Release with note-on velocity 0 instead of note-off")
+    note.add_argument("--bend", type=int, help="Pitch bend -8192..8191 while held (8191 = +2 semitones); recentred afterwards")
+    note.add_argument("--sustain", action="store_true", help="Pedal down, release keys at once, hold, then pedal up")
     ai = commands.add_parser("ai", help="Ask a local Ollama model for a validated patch; does not send MIDI")
     ai.add_argument("prompt"); ai.add_argument("--model", required=True)
     ai.add_argument("--endpoint", default="http://127.0.0.1:11434/api/chat")
@@ -338,7 +361,8 @@ def cli(argv=None):
         play(args.output, cc=(args.number, args.value)); print("sent")
     elif args.command == "note":
         play(args.output, notes=args.notes, velocity=args.velocity, hold=args.hold,
-             zero_velocity_off=args.zero_velocity_off); print("sent and released")
+             zero_velocity_off=args.zero_velocity_off, bend=args.bend, sustain=args.sustain)
+        print("sent and released")
     elif args.command == "ai":
         patch = generate_patch(args.prompt, args.model, args.endpoint)
         save_patch(patch, args.out)

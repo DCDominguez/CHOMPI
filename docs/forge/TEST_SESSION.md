@@ -50,6 +50,8 @@ Keep monitoring volume low. Avoid audio feedback loops. The mic is unused.
 | 3.5 | Hold a key on CHOMPI; `H note` the same pitch; release the key | MIDI note keeps sounding until its own release |
 | 3.6 | Send `05-soft-pad.json`, `06-saw-bass.json`; turn SW5 | Audibly different; SW5 sweeps tone. Steal/retrigger should not click and triangle should be clean high up (both fixed in software). **Record any click, or aliasing on high saw/square notes — don't fix during session** |
 | 3.7 | In the webapp, change waveform, ADSR, cutoff; Send | Each change audible as described |
+| 3.8 | `H note 60 64 67 --sustain --hold 3`; while it sustains, play a CHOMPI key | Chord rings ~3 s after keys release, stops when pedal lifts; keybed note unaffected by the MIDI pedal |
+| 3.9 | `H note 69 --bend 8191 --hold 2`, then `--bend -8192` | Pitch glides up / down two semitones without zipper noise; returns to A afterwards |
 
 ## 4. Panic and recovery
 
@@ -87,7 +89,7 @@ Bundle source commit / firmware SHA-256 / compiler (from verify_bundle.py):
 Board / bootloader / stock firmware / OS / Python / MIDI connection:
 1 Flash & identity:
 2 Aux path 2.1–2.5:
-3 Instrument 3.1–3.7 (note clicks/aliasing here):
+3 Instrument 3.1–3.9 (note clicks/aliasing, sustain, bend here):
 4 Panic & recovery 4.1–4.3:
 5 Webapp (+ AI provider/model/seconds or "not run"):
 6 Sustained: minutes / avg CPU / peak CPU / dropped / rejected; reboot; restore:

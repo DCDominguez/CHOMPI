@@ -24,13 +24,13 @@ The original upstream TAPE/WAVE/TEMPO and bootloader sources remain separate.
 | Synth | Four fixed voices; sine, polyBLAMP triangle, polyBLEP saw and square oscillators |
 | Articulation | Attack/decay/sustain/release envelope, MIDI velocity; stealing prefers a releasing voice, then the oldest, and continues from the current level and phase |
 | Tone | One-pole low-pass, 40–16000 Hz, smoothed cutoff coefficient |
-| Playing | CHOMPI's 25 keys mapped to MIDI 48–72, fixed velocity 100; incoming channel-1 notes 0–127 |
+| Playing | CHOMPI's 25 keys mapped to MIDI 48–72, fixed velocity 100; incoming channel-1 notes 0–127, sustain pedal (CC64) and ±2-semitone pitch bend per MIDI source |
 | Note ownership | Keybed, USB and UART tracked separately; velocity-zero note-on releases |
 | Audio routes | Synth→delay→output or stereo aux→delay→output; mono synth duplicated to stereo |
 | Delay | Stereo buffers, 10–1000 ms, mix, feedback capped at 85%, output level, wet bypass |
 | Audio configuration | 48 kHz, 24-frame blocks; headphone/main output mirroring; microphone unused |
 | Parameter handling | Delay/output smoothing; pitch glide when delay time changes; finite bounded output |
-| Live controls | Encoders, MIDI CC20–25 and atomic whole-patch changes between blocks |
+| Live controls | Encoders, MIDI CC20–25, CC64 sustain, CC121 reset controllers, pitch bend, and atomic whole-patch changes between blocks |
 | Recovery | SW5 press, CC120/123, host panic; silence voices/old tail; note-overflow recovery |
 | Patch format | v2 named synth/delay/output modules with two supported routes; v1 delay files retained |
 | Presets | Six examples: Dry, Slap, Long Echo, Glass Keys, Soft Pad, Saw Bass |
@@ -105,12 +105,12 @@ verified archive hash. No upstream sources or bootloader were changed.
 
 | Check | Recorded evidence |
 | --- | --- |
-| Native suites | DSP/queue, MIDI/protocol and synth suites pass (synth suite includes steal-click, triangle-alias and recovery-epoch tests) |
-| Python | 35 tests pass; includes 250 v1 plus 200 v2 randomized protocol round trips and mocked providers |
+| Native suites | DSP/queue, MIDI/protocol and synth suites pass (synth suite includes steal-click, triangle-alias, recovery-epoch, sustain, bend and channel-translation tests) |
+| Python | 36 tests pass; includes 250 v1 plus 200 v2 randomized protocol round trips and mocked providers |
 | Sanitizers | Three C++ suites pass ASan/UBSan; LeakSanitizer disabled for environment limitations |
 | Web | 8 real-Chromium tests (`make browser-test`): editing, import/export, mocked AI, send/capture/panic via simulated device, phone/tablet layout |
-| ARM | BOOT_SRAM build succeeds with xPack GCC 10.3.1 (pinned Arm archive unreachable in agent environment); FORGE.bin 118,320 bytes at commit 0a605f6 |
-| Link allocations | SRAM_EXEC 49.80%; SRAM 17.02%; RAM_D2 68.07%; SDRAM 0.57% |
+| ARM | BOOT_SRAM build succeeds with xPack GCC 10.3.1 (pinned Arm archive unreachable in agent environment); FORGE.bin 120,296 bytes with sustain/bend |
+| Link allocations | SRAM_EXEC 50.64%; SRAM 17.12%; RAM_D2 68.07%; SDRAM 0.57% |
 | Hardware / AI | No flash, listening, physical I/O, actual CPU measurement, or live provider request performed |
 
 Firmware SHA-256 depends on the compiler; use the value printed by the test
@@ -139,7 +139,7 @@ retest. Do not substitute software passes for actual device acceptance.
 
 - Sampling, recording, looping, sequencing or stock TAPE performance functionality.
 - Additional effects such as reverb, FM synthesis or arbitrary routing/modulation graphs.
-- Sustain pedal, pitch bend, aftertouch/MPE, clock sync, arpeggiator, octave controls or note output.
+- Aftertouch/MPE, mod wheel, clock sync, arpeggiator, octave controls, configurable bend range or note output.
 - Device-side preset banks, SD saves or automatic recall after reboot.
 - Onboard AI, generated DSP code, plugins or runtime executable loading.
 - Tab5 integration, Wi-Fi, public web hosting or phone remote control.

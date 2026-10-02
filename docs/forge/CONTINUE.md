@@ -1,6 +1,6 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-02 (UTC), candidate 0.3 sound-fix checkpoint. Read this first.
+Updated 2026-10-02 (UTC), candidate 0.3 + sustain/bend checkpoint. Read this first.
 
 ## Scope (unchanged, authoritative)
 
@@ -22,7 +22,8 @@ locally made `558810e` because DC's connector re-created the commit; the tree
 SHA is identical, so the content is exactly that checkpoint. Verified by an
 agent on 2026-10-02 (UTC). Later commits on top: `716c6bc` (SHA record),
 `e24015c` (mitigation proposal), `0a605f6` (sound fixes, the bundle source),
-`3ea7529` (bundle record), then a documentation audit. Use `git log` for the
+`3ea7529` (bundle record), `66b72a7` (documentation audit), then the
+sustain/bend feature. Use `git log` for the
 current head.
 
 ### Independent reproduction, 2026-10-02 (UTC), fresh container
@@ -43,7 +44,7 @@ All rerun from tree `cf807ad0…`, not copied from earlier notes:
 | Level | What |
 | --- | --- |
 | Implemented | Everything in README feature table, plus the items below |
-| Software-tested | 3 native C++ suites (now incl. steal-click, triangle-alias, epoch-recovery tests), 35 Python tests, 3 ASan/UBSan suites, 8 real-Chromium browser tests, ARM build (xPack GCC 10.3.1) — all pass 2026-10-02 UTC after the sound fixes |
+| Software-tested | 3 native C++ suites (incl. steal-click, triangle-alias, epoch-recovery, sustain, bend, translation tests), 36 Python tests, 3 ASan/UBSan suites, 8 real-Chromium browser tests, ARM build (xPack GCC 10.3.1) — all pass 2026-10-02 UTC after sustain/bend |
 | Hardware-verified | **Nothing.** No flash, audio, keybed, MIDI transport, CPU or battery test |
 | Live AI | **Not run.** Formats checked against provider docs 2026-10-03; mocks only |
 
@@ -135,18 +136,42 @@ Added per-sample cost: one multiply-add per active voice plus two branches
 per triangle voice. Real CPU cost is unmeasured; session step 6.2 records it.
 Any 0.3 bundle made before this commit is stale.
 
+## Development plan (DC, 2026-10-02): features first, QA per feature later
+
+Roadmap order is in PROJECT.md. Hardware and live-AI QA are deferred until
+features are developed; each feature gets its own commit, tests and
+TEST_SESSION steps so it can be QA'd separately. Do not wait for QA to start
+the next roadmap item, and never claim a hardware result.
+
+### Roadmap item 1: sustain pedal and pitch bend (implemented; software-tested)
+
+- `core/midi_framer.h`: accepts pitch bend (E0) with running status.
+- `core/runtime.h`: `TranslateChannel` (moved out of forge_main) maps
+  channel-1 messages to requests and an `Ingress` class: Critical (note,
+  CC64, CC121: a full queue raises the stuck-note emergency), Control (CC
+  params, bend: drop counted), Emergency (CC120/123). Gate drops stale
+  note/pedal/bend/CC121.
+- `core/synth.h`: per-source pedal and bend (3 sources). Note-off under pedal
+  marks the voice `sustained`; pedal-up releases only those. Bend ±2 semitones,
+  `pow` per message, 5 ms one-pole per source, applied to the increment
+  (clamped 0.45). Steal: idle → quietest releasing → oldest sustained → oldest.
+  `Silence` resets pedal/bend.
+- Host: `note --bend N`, `note --sustain`; both always reset in `finally`.
+- Tests: `SustainPedal`, `PitchBend`, `ChannelTranslation` (synth_test) and
+  `test_bend_and_sustain_are_always_reset` (Python). Mutation check: pedal
+  ignored, no steal preference, Silence keeping the pedal, stale pedal
+  admitted, no bend smoothing, bend applied across sources → all caught.
+- ARM (xPack): FORGE.bin 120,296 bytes, SRAM_EXEC 50.64%, SRAM 17.12%,
+  RAM_D2 68.07%; no Forge warnings. Bundle not regenerated for this commit.
+- QA steps: TEST_SESSION 3.8 (sustain), 3.9 (bend).
+- Wire format: unchanged (SysEx v1/v2). Python sim device unaffected.
+
 ## Next actions (priority order)
 
-1. Done: checkpoint confirmed on the remote; sound fixes committed.
-2. Bundle: done with xPack. `Forge_0.3_Test_Candidate.zip` from source commit
-   `0a605f6` (tree `0f819ecd`), FORGE.bin sha256 `ff9f3386…c299`,
-   `built_with_pinned_compiler: false`; its verify_bundle.py prints OK (33
-   files). Given to DC in chat; not committed. A clean rebuild reproduced the
-   same binary hash. Optional: regenerate with the pinned Arm 10.3-2021.10
-   (`GCC_PATH=<toolchain>/bin`) once developer.arm.com is reachable.
-3. DC: run LIVE_AI_TEST.md (CLI preflight, then webapp). Record provider/model.
-   If OpenAI/Gemini rejects the schema, relax only the offending keyword.
-4. DC: run TEST_SESSION.md once with the new bundle; record in TEST_RESULTS.md.
-   Listen specifically at 3.4/3.6 for steal clicks and high-note aliasing.
-5. Agent: fix only what the session finds; then ask DC to choose the next engine
-   (sampling/looping vs more synthesis/FX).
+1. Agent: roadmap item 2, richer synth palette (v3 patch). Design first: new
+   wire/patch v3 (keep v1/v2 decoding), module list, CPU budget with a
+   quality/voice fallback, AI schema + webapp editor, presets, tests.
+2. Agent: before QA, regenerate the bundle from a clean committed tree
+   (pinned Arm compiler if developer.arm.com becomes reachable, else xPack).
+3. DC (later, per feature): LIVE_AI_TEST.md, then TEST_SESSION.md; record in
+   TEST_RESULTS.md. Agent then fixes only what QA finds.

@@ -91,10 +91,20 @@ separate source IDs. Matching source/note is retriggered; otherwise idle voices
 are used, then the quietest releasing voice, then the oldest held voice of four.
 A reused voice keeps its current level and waveform phase and glides to the new
 velocity over about 2 ms, so retrigger/steal does not jump to silence. An old note-off cannot release a
-replacement with a different note/source. No sustain pedal, pitch bend, octave
-switching, clock sync, MPE, aftertouch, arpeggiator or MIDI note output yet.
+replacement with a different note/source.
 
-CC20 mix, 21 time, 22 feedback, 23 level, 24 wet bypass (>=64 on), 25 cutoff.
+Sustain pedal CC64 (>=64 down) and pitch bend (14-bit, ±2 semitones, smoothed
+over ~5 ms) are tracked **per source**, so a USB pedal or bend does not affect
+UART or keybed notes. Note-off while that source's pedal is down marks the
+voice sustained; pedal-up releases only sustained voices, not keys still held.
+Steal order: idle, quietest releasing, oldest pedal-sustained, oldest held.
+CC121 (reset all controllers) lifts that source's pedal and centres its bend.
+Panic, CC120/123 and route/waveform changes clear pedal and bend for every
+source. The keybed has no pedal or bend input. Not yet: octave switching,
+clock sync, MPE, aftertouch, mod wheel, arpeggiator or MIDI note output.
+
+CC20 mix, 21 time, 22 feedback, 23 level, 24 wet bypass (>=64 on), 25 cutoff,
+64 sustain pedal, 121 reset controllers. Pitch bend (status E0) on channel 1.
 CC120 and CC123 silence **all** sources/tails as a global recovery action;
 CC123 deliberately uses panic semantics rather than an envelope release.
 Real-time bytes may interrupt all supported frames/running status and are ignored.
@@ -113,11 +123,13 @@ its previously calculated release slope. Delay-time changes glide in pitch.
 
 Panic logically clears delay history with an O(1) reset marker; no full SDRAM
 clear in the callback. Invalid patches never partially change targets or voices.
-Queue overflow drops/counts controls. A full request queue on a note, or any
+Queue overflow drops/counts controls and pitch bend (the next bend message
+corrects pitch). A full request queue on a note, pedal or CC121, or any
 dropped ingress frame (the main loop cannot tell whether it was a note), triggers
 global silence to avoid stuck notes. The main loop counts these emergencies (and
 CC120/123) and stamps every queued request with the count; the audio callback
-silences once per new count and discards only notes queued before it. Notes
+silences once per new count and discards only notes, pedal, bend and CC121
+queued before it. Notes
 queued after the emergency play immediately, even under continuous traffic.
 Patches, status, panic and controls always execute (`RecoveryGate` in
 core/runtime.h, host-tested). Keys held through a recovery must be retriggered. This logic is implemented; actual interrupt/transport behavior is

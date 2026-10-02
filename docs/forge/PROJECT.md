@@ -45,13 +45,25 @@ input routing, panic, repeated/overlapping notes, overload recovery and CPU load
 in the same session. Software tests cannot establish musical quality, physical
 mapping, worst-case CPU time or device recovery. Actual model use is unverified.
 
-## Later directions (not implemented or promised in this milestone)
+## Roadmap (priority order agreed 2026-10-02)
 
-1. Sampling/recording and playable sample maps.
-2. Loop capture, overdub and manipulation.
-3. More DSP modules, bounded routing/modulation and assignable controls.
-4. Preset banks/SD persistence and a fuller performance UI.
-5. Optional dedicated/networked controllers.
+DC decided to develop features first and run hardware/live-AI QA afterwards,
+per feature. Each feature lands as its own commit(s) with its own tests and
+TEST_SESSION steps so it can be QA'd separately. Known risk: the 0.3 base has
+not run on hardware yet, so base defects may surface late; device CPU is
+unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
 
-Choose the next engine after instrument acceptance and DC's priorities. Do not
-silently expand hardware dependencies or claim these features already exist.
+1. **Playability basics** — CC64 sustain, pitch bend (done, software-tested).
+   Candidates if wanted: mod wheel (needs the LFO from 2), octave shift for
+   the keybed (needs a control assignment), configurable bend range (wire change).
+2. **Richer synth palette (v3 patch)** — second oscillator/detune, noise,
+   resonant filter with its own envelope, LFO, reverb module; saw/square
+   anti-aliasing improvements fold in here. Widens what AI can configure.
+3. **SD preset banks** — device-side save/recall without a computer.
+4. **Sampling** — recording and playable sample maps (SDRAM + SD).
+5. **Looping** — capture, overdub, manipulation on the sampling buffers.
+6. **Dedicated/networked controllers** (Tab5) — optional, last.
+
+Do not silently expand hardware dependencies or claim these features exist
+before they are implemented and tested. AI still only configures installed
+modules; each new engine is firmware work.

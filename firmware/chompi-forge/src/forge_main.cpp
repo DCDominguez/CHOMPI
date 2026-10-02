@@ -158,21 +158,15 @@ template<typename Midi> void PollMidi(Midi& midi, uint8_t source) {
     forge::MidiFrame frame;
     for(unsigned i = 0; i < 8 && midi.frames.Pop(frame); ++i) {
         forge::Request request;
-        request.source = source;
-        if(frame.kind == forge::MidiFrame::Kind::NoteOn || frame.kind == forge::MidiFrame::Kind::NoteOff) {
-            if(frame.data[0] != 0) continue;
-            request.kind = forge::RequestKind::Note; request.note = frame.data[1];
-            request.velocity = frame.kind == forge::MidiFrame::Kind::NoteOff ? 0 : frame.data[2];
-            if(!Queue(request)) { ++dropped_commands; discard_ingress = true; RaiseEmergency(); }
-            continue;
-        }
-        if(frame.kind == forge::MidiFrame::Kind::CC) {
-            if(frame.data[0] == 0 && (frame.data[1] == 120 || frame.data[1] == 123)) {
-                RaiseEmergency(); continue;
+        if(frame.kind != forge::MidiFrame::Kind::SysEx) {
+            switch(forge::TranslateChannel(frame, source, request)) {
+                case forge::Ingress::Emergency: RaiseEmergency(); break;
+                case forge::Ingress::Critical:
+                    if(!Queue(request)) { ++dropped_commands; discard_ingress = true; RaiseEmergency(); }
+                    break;
+                case forge::Ingress::Control: if(!Queue(request)) ++dropped_commands; break;
+                case forge::Ingress::Ignore: break;
             }
-            if(!forge::DecodeCC(frame.data[0], frame.data[1], frame.data[2], request.command)) continue;
-            request.kind = forge::RequestKind::Parameter;
-            if(!Queue(request)) ++dropped_commands;
             continue;
         }
         if(!forge::IsRequest(frame.data, frame.size)) continue;

@@ -206,9 +206,25 @@ class TestTrafficCommands(unittest.TestCase):
             host.play("out", notes=[60, 62], midi=midi, sleep=interrupt)
         self.assertEqual([m[0] for m in midi.sent], ["note_on", "note_on", "note_off", "note_off"])
 
+    def test_bend_and_sustain_are_always_reset(self):
+        midi = FakeMido()
+        host.play("out", notes=[69], bend=8191, hold=0, midi=midi, sleep=lambda s: None)
+        self.assertEqual([m[0] for m in midi.sent], ["note_on", "pitchwheel", "note_off", "pitchwheel"])
+        self.assertEqual([midi.sent[1][1]["pitch"], midi.sent[3][1]["pitch"]], [8191, 0])
+        midi = FakeMido()
+        def interrupt(seconds): raise KeyboardInterrupt
+        with self.assertRaises(KeyboardInterrupt):
+            host.play("out", notes=[60, 64], sustain=True, midi=midi, sleep=interrupt)
+        self.assertEqual([(m[0], m[1].get("control", m[1].get("note")), m[1].get("value", m[1].get("velocity")))
+                          for m in midi.sent],
+                         [("control_change", 64, 127), ("note_on", 60, 100), ("note_on", 64, 100),
+                          ("note_off", 60, 0), ("note_off", 64, 0), ("control_change", 64, 0)])
+
     def test_invalid_traffic_sends_nothing(self):
         for kwargs in ({"cc": (128, 0)}, {"cc": (24, -1)}, {"notes": [128]}, {"notes": [60], "velocity": 0},
-                       {"notes": [60], "hold": float("nan")}, {"notes": [60], "hold": 31}, {"notes": [True]}):
+                       {"notes": [60], "hold": float("nan")}, {"notes": [60], "hold": 31}, {"notes": [True]},
+                       {"notes": [60], "bend": 8192}, {"notes": [60], "bend": True}, {"bend": 100},
+                       {"sustain": True}):
             midi = FakeMido()
             with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
                 host.play("out", midi=midi, **kwargs)

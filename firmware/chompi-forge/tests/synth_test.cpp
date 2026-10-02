@@ -186,6 +186,119 @@ void TriangleAliasing() {
     assert(AliasDb(1, 108) < -55);
     assert(AliasDb(0, 96) < -80);  // sine: measurement floor sanity check
 }
+// Zero crossings per second of the synth output (pitch measurement).
+unsigned Crossings(Synth& s) {
+    for(unsigned i = 0; i < 2400; ++i) s.Process(); // let bend smoothing settle
+    unsigned n = 0; float prior = 0;
+    for(unsigned i = 0; i < 48000; ++i) { const float x = s.Process(); if(prior <= 0 && x > 0) ++n; prior = x; }
+    return n;
+}
+void SustainPedal() {
+    Synth s; s.Init(48000); auto p = Instrument(); s.Configure(p);
+    s.Pedal(1, true);
+    s.Note(60, 100, 1); s.Note(60, 0, 1);
+    for(unsigned i = 0; i < 4800; ++i) s.Process();
+    assert(s.Active() == 1);                         // released key sustained by pedal
+    s.Pedal(0, false); s.Note(62, 100, 0); s.Note(62, 0, 0);
+    for(unsigned i = 0; i < 4800; ++i) s.Process();
+    assert(s.Active() == 1);                         // other source has no pedal: 62 released
+    s.Note(64, 100, 1);                              // held key while pedal down
+    s.Pedal(1, false);
+    for(unsigned i = 0; i < 4800; ++i) s.Process();
+    assert(s.Active() == 1);                         // pedal up releases 60, held 64 remains
+    s.Note(64, 0, 1); for(unsigned i = 0; i < 4800; ++i) s.Process();
+    assert(s.Active() == 0);
+    // Re-pressing a sustained key retriggers that voice, then its own release counts.
+    s.Pedal(1, true); s.Note(65, 100, 1); s.Note(65, 0, 1); s.Note(65, 100, 1);
+    assert(s.Active() == 1);
+    s.Pedal(1, false); for(unsigned i = 0; i < 4800; ++i) s.Process();
+    assert(s.Active() == 1);                         // key is down again: not released by pedal-up
+    s.Note(65, 0, 1); for(unsigned i = 0; i < 4800; ++i) s.Process(); assert(s.Active() == 0);
+    // Pedal-sustained voices are stolen before held ones.
+    s.Pedal(1, true);
+    for(uint8_t n : {60, 62, 64, 65}) s.Note(n, 100, 1);
+    s.Note(64, 0, 1);                                // 64 now pedal-sustained
+    s.Note(70, 100, 1); s.Pedal(1, false);           // 70 replaced 64; nothing sustained left
+    for(unsigned i = 0; i < 4800; ++i) s.Process();
+    assert(s.Active() == 4);
+    for(uint8_t n : {60, 62, 65, 70}) s.Note(n, 0, 1);
+    for(unsigned i = 0; i < 4800; ++i) s.Process();
+    assert(s.Active() == 0);
+    // Panic (Silence) clears a pedal whose release was lost.
+    s.Pedal(1, true); s.Silence(); s.Note(60, 100, 1); s.Note(60, 0, 1);
+    for(unsigned i = 0; i < 4800; ++i) s.Process();
+    assert(s.Active() == 0);
+    // CC121 semantics: reset controllers releases sustained notes.
+    s.Pedal(1, true); s.Note(60, 100, 1); s.Note(60, 0, 1); s.ResetControllers(1);
+    for(unsigned i = 0; i < 4800; ++i) s.Process();
+    assert(s.Active() == 0);
+}
+void PitchBend() {
+    Synth s; s.Init(48000); auto p = Instrument(); s.Configure(p);
+    s.Note(69, 127, 1);
+    unsigned n = Crossings(s); assert(n >= 439 && n <= 441);
+    s.Bend(1, 16383); n = Crossings(s); assert(n >= 492 && n <= 495);  // +2 semitones = 493.9 Hz
+    s.Bend(1, 0); n = Crossings(s); assert(n >= 391 && n <= 393);      // -2 semitones = 392.0 Hz
+    s.Bend(1, 16384); n = Crossings(s); assert(n >= 391 && n <= 393);  // invalid value ignored
+    s.ResetControllers(1); n = Crossings(s); assert(n >= 439 && n <= 441);
+    s.Bend(1, 16383); s.Silence(); s.Note(69, 127, 1); n = Crossings(s); assert(n >= 439 && n <= 441); // panic recentres
+    // Bend belongs to its source: a source-0 voice follows only source 0's bend.
+    Synth u; u.Init(48000); u.Configure(p); u.Note(69, 127, 0);
+    u.Bend(1, 0); n = Crossings(u); assert(n >= 439 && n <= 441);
+    u.Bend(0, 16383); n = Crossings(u); assert(n >= 492 && n <= 495);
+    // Smoothing: 1 ms after a full bend jump the waveform is still close to an
+    // unbent copy (an instant jump drifts ~0.34 of peak; 5 ms smoothing ~0.03).
+    Synth a, b; a.Init(48000); b.Init(48000); a.Configure(p); b.Configure(p);
+    a.Note(69, 127, 1); b.Note(69, 127, 1);
+    for(unsigned i = 0; i < 4800; ++i) { a.Process(); b.Process(); }
+    a.Bend(1, 16383); float drift = 0;
+    for(unsigned i = 0; i < 48; ++i) drift = std::max(drift, std::fabs(a.Process() - b.Process()));
+    assert(drift < 0.02f);
+    for(unsigned note = 0; note < 128; ++note) {                       // bounds at extreme bend
+        s.Note(note, 127, 1);
+        for(unsigned i = 0; i < 64; ++i) { const float y = s.Process(); assert(std::isfinite(y) && std::fabs(y) <= 1); }
+    }
+}
+void ChannelTranslation() {
+    MidiFramer parser; MidiFrame frame; Request request;
+    auto feed = [&](std::vector<uint8_t> bytes) { bool got = false; for(auto b : bytes) got = parser.Feed(b, frame) || got; return got; };
+    assert(feed({0xe0, 0x00, 0x40}) && TranslateChannel(frame, 1, request) == Ingress::Control
+           && request.kind == RequestKind::Bend && request.value == 8192 && request.source == 1);
+    assert(feed({0x7f, 0xf8, 0x7f}) && request.kind == RequestKind::Bend);  // running status with clock inside
+    assert(TranslateChannel(frame, 0, request) == Ingress::Control && request.value == 16383);
+    assert(feed({0xb0, 64, 127}) && TranslateChannel(frame, 0, request) == Ingress::Critical
+           && request.kind == RequestKind::Pedal && request.value == 1);
+    assert(feed({64, 63}) && TranslateChannel(frame, 0, request) == Ingress::Critical && request.value == 0);
+    assert(feed({121, 0}) && TranslateChannel(frame, 0, request) == Ingress::Critical
+           && request.kind == RequestKind::ResetControllers);
+    assert(feed({123, 0}) && TranslateChannel(frame, 0, request) == Ingress::Emergency);
+    assert(feed({120, 0}) && TranslateChannel(frame, 0, request) == Ingress::Emergency);
+    assert(feed({25, 127}) && TranslateChannel(frame, 0, request) == Ingress::Control
+           && request.kind == RequestKind::Parameter && request.command.parameter == Parameter::Cutoff);
+    assert(feed({1, 64}) && TranslateChannel(frame, 0, request) == Ingress::Ignore);   // mod wheel: not yet
+    assert(feed({0x91, 60, 100}) && TranslateChannel(frame, 0, request) == Ingress::Ignore); // channel 2
+    assert(feed({0xe1, 0, 0}) && TranslateChannel(frame, 0, request) == Ingress::Ignore);
+    assert(feed({0x80, 60, 30}) && TranslateChannel(frame, 2, request) == Ingress::Critical
+           && request.kind == RequestKind::Note && request.velocity == 0);
+    assert(!feed({0xc0, 5}));                                               // program change: dropped
+    // Stale pedal/bend/reset are dropped by the recovery gate like notes.
+    std::vector<float> l(48002), r(48002); Engine engine; assert(engine.Init(48000, l.data(), r.data(), l.size()));
+    RecoveryGate gate; gate.Observe(1, engine);
+    for(auto kind : {RequestKind::Note, RequestKind::Pedal, RequestKind::Bend, RequestKind::ResetControllers}) {
+        Request q; q.kind = kind; q.epoch = 0; assert(!gate.Admit(q, engine));
+    }
+    Request param; param.kind = RequestKind::Parameter; param.epoch = 0; assert(gate.Admit(param, engine));
+    // Engine forwards pedal through ExecuteRequest on the synth route.
+    assert(engine.ApplyPatch(Instrument())); Response ignored;
+    Request pedal; pedal.kind = RequestKind::Pedal; pedal.value = 1; pedal.source = 1;
+    assert(!ExecuteRequest(pedal, engine, ignored));
+    engine.Note(60, 100, 1); engine.Note(60, 0, 1);
+    float left, right; for(unsigned i = 0; i < 4800; ++i) engine.Process(0, 0, left, right);
+    assert(engine.ActiveVoices() == 1);
+    pedal.value = 0; ExecuteRequest(pedal, engine, ignored);
+    for(unsigned i = 0; i < 4800; ++i) engine.Process(0, 0, left, right);
+    assert(engine.ActiveVoices() == 0);
+}
 int main() { VoicesAndPitch(); EnvelopeVelocityAndFilter(); RoutingPanicAndBounds(); RecoveryAfterLostNotes();
-    ClickFreeStealAndRetrigger(); TriangleAliasing();
-    std::cout << "PASS: synth pitch, ADSR, velocity, filter, source ownership, voices, routing, panic, bounds, recovery gate, click-free steal, triangle aliasing\n"; }
+    ClickFreeStealAndRetrigger(); TriangleAliasing(); SustainPedal(); PitchBend(); ChannelTranslation();
+    std::cout << "PASS: synth pitch, ADSR, velocity, filter, source ownership, voices, routing, panic, bounds, recovery gate, click-free steal, triangle aliasing, sustain pedal, pitch bend, channel translation\n"; }

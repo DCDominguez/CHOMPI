@@ -62,8 +62,9 @@ bring-up. SW5 turns synth cutoff and its press panics. Keybed notes 48–72
 play v2 synth patches at velocity 100. CC values use `value / 127`.
 The same mapping is accepted over USB and TRS MIDI; other channels and unknown
 CCs are ignored. SysEx patch/status requests receive replies on the same transport.
-Channel-1 notes play the synth; CC120/123 globally panic. No clock output,
-sustain pedal, pitch bend or unsolicited parameter streaming.
+Channel-1 notes play the synth; CC64 sustain and pitch bend (±2 semitones)
+apply per MIDI source; CC121 resets them; CC120/123 globally panic. No clock
+output, mod wheel or unsolicited parameter streaming.
 
 Bypass fades the wet mix to zero while retaining output level and the delay
 state. It is software wet bypass, not a hardware relay or unity-gain bypass.

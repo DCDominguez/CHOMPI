@@ -7,10 +7,13 @@ namespace forge {
 constexpr uint8_t kProtocolVersion = 1, kPatchVersion = 1;
 constexpr uint8_t kFirmwareMinor = 3;
 enum class Error : uint8_t { None, Length, Version, Checksum, Patch, Opcode, Busy };
-enum class RequestKind : uint8_t { Parameter, Patch, Status, Note, Panic };
+// Note, Pedal (CC64), Bend and ResetControllers (CC121) are channel-1
+// performance events: no reply, and dropped if queued before an emergency.
+enum class RequestKind : uint8_t { Parameter, Patch, Status, Note, Panic, Pedal, Bend, ResetControllers };
 struct Request {
     RequestKind kind = RequestKind::Status;
     uint8_t note = 0, velocity = 0;
+    uint16_t value = 0; // Bend: 14-bit, 8192 = centre. Pedal: 0 up, 1 down.
     Command command{Parameter::Mix, 0.f};
     Parameters patch{};
     uint16_t sequence = 0;

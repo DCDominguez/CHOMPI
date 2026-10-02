@@ -163,10 +163,14 @@ python host/forge_host.py cc 24 127 --output "EXACT OUTPUT NAME"      # wet bypa
 python host/forge_host.py cc 123 0 --output "EXACT OUTPUT NAME"       # panic
 python host/forge_host.py note 60 64 67 71 74 --hold 3 --output "EXACT OUTPUT NAME"
 python host/forge_host.py note 60 --velocity 30 --zero-velocity-off --output "EXACT OUTPUT NAME"
+python host/forge_host.py note 69 --bend 8191 --hold 2 --output "EXACT OUTPUT NAME"   # +2 semitones
+python host/forge_host.py note 60 64 67 --sustain --hold 3 --output "EXACT OUTPUT NAME"
 ```
 
 `note` plays the notes together, holds, then always releases them, even after
-Ctrl+C.
+Ctrl+C. `--bend` (-8192..8191) bends after note-on and recentres at the end.
+`--sustain` presses CC64, releases the keys at once, holds, then lifts the
+pedal; the chord should keep sounding until the pedal lifts.
 
 ## Live provider check
 

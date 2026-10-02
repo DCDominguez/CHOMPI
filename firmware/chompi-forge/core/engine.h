@@ -40,6 +40,10 @@ public:
     void Note(uint8_t note, uint8_t velocity, uint8_t source) {
         if(parameters_.synth) synth_.Note(note, velocity, source);
     }
+    // Controller state is kept on either route; Panic and route changes reset it.
+    void Pedal(uint8_t source, bool down) { synth_.Pedal(source, down); }
+    void Bend(uint8_t source, uint16_t value) { synth_.Bend(source, value); }
+    void ResetControllers(uint8_t source) { synth_.ResetControllers(source); }
     void Panic() {
         synth_.Silence();
         // O(1) tail suppression: old delay cells are not read until overwritten.

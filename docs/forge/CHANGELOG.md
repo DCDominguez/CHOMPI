@@ -1,5 +1,17 @@
 # Forge changelog
 
+## 0.3 playability: sustain pedal and pitch bend — 2026-10-02
+
+- CC64 sustain and 14-bit pitch bend (±2 semitones, 5 ms smoothing), both per
+  MIDI source; CC121 resets them; panic/route change clears them. Steal order
+  adds pedal-sustained voices before held ones.
+- Channel-message decoding moved from forge_main into host-tested
+  `TranslateChannel`; lost pedal/CC121 raises the stuck-note emergency, a lost
+  bend only counts a drop.
+- `forge_host.py note --bend/--sustain` for the hardware session (always reset).
+- Tests: sustain, bend pitch/isolation/smoothing, translation and gate cases;
+  6 code mutations each caught. Hardware still unverified.
+
 ## 0.3 sound fixes — 2026-10-02
 
 - Voice steal/retrigger keeps level, phase and (slewed) velocity gain; steals a
