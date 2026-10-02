@@ -3,11 +3,12 @@
 Forge is a community firmware project for CHOMPI, built on its Daisy Seed audio
 hardware. Candidate **0.2** implements stereo delay, live controls, atomic patch
 recall, host-managed JSON presets, and diagnostics. The computer can optionally
-ask an Ollama model to author presets for those existing controls.
+author presets through a local OpenAI/Gemini webapp with a user-supplied API
+key, or through the optional Ollama CLI.
 
 **Software-tested; not yet hardware-verified.** The candidate has not been
 flashed or auditioned on DC's CHOMPI. Actual model use also remains unverified;
-the adapter has been tested using mock responses. The next acceptance step is
+the adapters have been tested using mock responses. The next acceptance step is
 one consolidated hardware session.
 
 ## Documentation map
@@ -16,7 +17,7 @@ one consolidated hardware session.
 | --- | --- |
 | [Project brief](PROJECT.md) | Goals, scope, decisions and milestones |
 | [Firmware guide](../../firmware/chompi-forge/README.md) | Build commands, audio routing, parameter/CC mapping and defaults |
-| [Host guide](../../firmware/chompi-forge/host/README.md) | Validate, send, capture and save presets; optional model authoring |
+| [Host guide](../../firmware/chompi-forge/host/README.md) | Launch the webapp, configure providers, edit/save presets and control MIDI |
 | [Architecture](ARCHITECTURE.md) | Processing boundaries, ownership, queues, patch lifecycle and source map |
 | [Developer guide](DEVELOPMENT.md) | Checkout, dependencies, software validation, packaging and troubleshooting |
 | [Protocol](PROTOCOL.md) | Exact SysEx framing, requests, replies, errors and overload semantics |
@@ -46,7 +47,7 @@ compiled stereo-delay engine; it does not contain executable DSP.
 | Controls | Encoders, MIDI CC, USB/TRS patch and status protocol | Actual encoder mapping, USB enumeration and TRS I/O |
 | Presets | Host JSON save/capture and atomic recall | Audible transitions and capture/recall on the unit |
 | Diagnostics | Callback CPU average/peak, drop/reject counters | Measured device performance under normal use |
-| AI authoring | Optional Ollama request, strict validation and saved JSON | Live model availability, latency and musical interpretation |
+| AI authoring | OpenAI/Gemini webapp and Ollama CLI; strict validation and saved JSON | Live model availability, latency and musical interpretation |
 | Persistence | Files saved on the computer | Device-side SD preset storage is outside this candidate |
 | Expansion | Stable starting interfaces for later work | New effects, sampler/looper, graphs, Tab5 and Wi-Fi are not implemented |
 

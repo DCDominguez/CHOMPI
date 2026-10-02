@@ -9,7 +9,7 @@ as a separate application. **Candidate 0.2 currently implements one stereo-delay
 engine.** Broader multi-effects capabilities are a future direction.
 
 **Status:** software tests and the ARM build pass. Physical CHOMPI acceptance and
-an actual local-model session remain pending. This is experimental community
+actual model sessions remain pending. This is experimental community
 firmware, not an official CHOMPI Club release or a hardware-approved release.
 
 Development: [`forge/foundation`](https://github.com/DCDominguez/CHOMPI/tree/forge/foundation)
@@ -75,8 +75,12 @@ requires one.
 | Save and capture | Capture knob-adjusted device targets to a new computer file; existing files are not overwritten by default |
 | Preset recall | Send any validated saved patch without recompiling firmware |
 | Included presets | Dry routing check, short slap and long echoes |
+| Local webapp | Browser-based authoring with OpenAI or Gemini, using your own API key and model ID |
+| Patch editor | Five editable controls, three presets, JSON import/export and device capture |
+| Temporary credentials | Keys remain in page/request memory; not saved in presets, browser storage or logs |
+| Explicit device actions | Select MIDI ports, read status, capture or send with acknowledgement |
 | Optional Ollama adapter | Ask a configured local model for schema-constrained delay settings |
-| Validated model output | Generated JSON must pass host validation before saving; sending is a separate explicit command |
+| Validated model output | Generated JSON must pass host validation before saving; sending is a separate explicit action |
 | Offline use | JSON validation, schema output and SysEx encoding require no hardware or MIDI dependencies |
 
 Presets are saved **on the computer**. CHOMPI holds one volatile active patch and
@@ -129,7 +133,7 @@ WAVE and bootloader source files are preserved separately.
 | Firmware binary | `FORGE.bin`, 100,592 bytes for the tested candidate |
 | Link allocations | SRAM_EXEC 42.34%; SRAM 15.55%; RAM_D2 68.07%; SDRAM 0.57% |
 | C++ verification | DSP/queue and protocol suites pass, including 100,000 concurrent transfers and 100,000 fuzz bytes |
-| Python integration | 12 tests pass, including 250 random patch round trips through the actual C++ runtime |
+| Python integration | 24 tests pass, including 250 random patch round trips through the actual C++ runtime |
 | Sanitizers | ASan/UBSan pass; LeakSanitizer disabled due to the execution environment's `/proc` restriction |
 | Host MIDI dependencies | Pinned dependency imports and message construction checked; physical ports untested |
 | Model adapter | Request/response behavior tested with mocks; no actual model session yet |
@@ -166,6 +170,22 @@ Outputs are in `firmware/chompi-forge/src/build/`: `FORGE.bin`, `FORGE.elf`,
 
 ## Use the host controller
 
+For the webapp, run this from the repository root:
+
+```sh
+python3 -m pip install -r firmware/chompi-forge/host/requirements.txt
+python3 firmware/chompi-forge/host/forge_web.py
+```
+
+Open **http://127.0.0.1:8765** on the same computer. Choose OpenAI or Gemini,
+enter your provider API key and a model ID that supports structured JSON, then
+generate and review your patch. You can edit controls, import/export presets,
+select MIDI ports, capture settings, and explicitly send to CHOMPI. Keys are
+not saved by Forge. The Python bridge runs locally; no Node build is required.
+Live provider and hardware tests are still pending.
+
+The command-line controller remains available:
+
 Run these commands from the repository root:
 
 ```sh
@@ -182,7 +202,7 @@ both directions; TRS requires a bidirectional connection through a MIDI interfac
 for acknowledgements. Use one host with one outstanding request at a time.
 JSON-only commands do not require installing the MIDI packages.
 
-Optional model authoring requires a running Ollama server and an installed model:
+The optional CLI authoring path uses a running Ollama server and an installed model:
 
 ```sh
 python3 firmware/chompi-forge/host/forge_host.py ai "Long echoes with gentle repeats, output at 25 percent" --model YOUR_INSTALLED_MODEL --out my-ai-patch.json
@@ -222,7 +242,7 @@ The repository's beta bootloader is not part of the Forge test procedure.
 - The stock sampler/looper, sequencer, microphone processing or full performance UI.
 - Device-side preset storage, automatic preset restoration after reboot, or a preset bank.
 - Onboard AI, arbitrary generated DSP, scripts or hot-loaded executable code.
-- Tab5 integration, Wi-Fi, networking on CHOMPI, a graphical host app or a web editor.
+- Tab5 integration, Wi-Fi, networking on CHOMPI, or public web hosting.
 - Automatic MIDI retries, unsolicited parameter streaming or protocol authentication.
 
 The next step is the consolidated physical session. Results will guide further

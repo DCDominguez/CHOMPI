@@ -6,7 +6,7 @@ not an official CHOMPI Club release.
 ## Goal
 
 Turn CHOMPI into a playable, externally controllable audio-effects instrument.
-Keep its real-time audio engine on the Daisy; allow a future computer, phone,
+Keep its real-time audio engine on the Daisy; allow a computer webapp, and eventually a phone
 or optional Tab5 controller to describe and adjust sounds without rebuilding
 firmware for each parameter change.
 
@@ -25,8 +25,9 @@ was previously agreed.
   polled and applied in that callback after queued MIDI commands.
 - Real-time boundary: no allocation, storage operations, network, or AI calls
   in the Forge audio core. Fixed-size buffers and bounded command consumption.
-- Optional AI adapter: the Python host asks a configured Ollama model for a
-  schema-constrained preset, validates it, and saves it for explicit sending.
+- AI authoring: a local webapp calls OpenAI or Gemini using the user's API key,
+  validates a schema-constrained preset, and opens it for review/editing. Send
+  and JSON export are explicit actions. The optional Ollama CLI remains available.
   Model integration is mock-tested; no live model session has been performed.
   Arbitrary generated DSP is unsupported.
 
@@ -54,7 +55,7 @@ test sequencing, not the scope to include Wi-Fi, Tab5, or arbitrary generated DS
 | M0 foundation | Stereo delay, live parameters, source build, host tests | Build and host tests pass; physical bring-up still required |
 | M1 consolidated hardware acceptance | Exercise the assembled first candidate in one session | Routing, encoders, USB/TRS MIDI, patches/host control, CPU load, battery behavior, and stock restore checked together |
 | M2 patch model | Versioned validated presets and atomic recall | Bad patches leave the active patch intact; audible transition testing |
-| M3 external authoring | Text-to-supported-patch host prototype | Host edits parameters live, device rejects unsupported values |
+| M3 external authoring | OpenAI/Gemini webapp and optional Ollama CLI | Host edits parameters live, device rejects unsupported values |
 | Later | More DSP blocks, dedicated controller or network expansion | Choose after consolidated acceptance evidence |
 
 ## M0 choices

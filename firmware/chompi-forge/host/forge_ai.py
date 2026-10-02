@@ -1,0 +1,89 @@
+"""Cloud patch authoring. Credentials are used for one request, never persisted."""
+import copy
+import json
+import re
+import urllib.error
+import urllib.request
+
+from forge_host import SCHEMA, parse_json, validate_patch
+
+SYSTEM = (
+    "Author a Forge v1 stereo_delay JSON preset matching the schema. Only mix, "
+    "time_ms, feedback, level and bypass exist. Do not invent effects or code. "
+    "Translate descriptions within these delay controls. Default level to 0.25 "
+    "unless explicitly requested. Return only the preset."
+)
+
+
+class ProviderError(RuntimeError):
+    """A safe public error without provider bodies, credentials or request headers."""
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise ProviderError("Provider redirect refused. Check the API documentation.")
+
+
+def generate_patch(provider, api_key, model, prompt, opener=None):
+    if provider not in ("openai", "gemini"):
+        raise ValueError("Choose OpenAI or Gemini")
+    if not isinstance(api_key, str) or not 1 <= len(api_key) <= 512 or not all(
+            33 <= ord(c) <= 126 for c in api_key):
+        raise ValueError("Enter an API key without spaces or control characters")
+    if not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", model):
+        raise ValueError("Enter a model ID using letters, numbers, dots, dashes or underscores")
+    if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 4000:
+        raise ValueError("Describe your sound in 1–4000 characters")
+    schema = copy.deepcopy(SCHEMA)
+    schema.pop("$schema")
+    # Explicit types and enums work across both providers' JSON Schema subsets.
+    schema["properties"]["version"] = {"type": "integer", "enum": [1]}
+    schema["properties"]["engine"] = {"type": "string", "enum": ["stereo_delay"]}
+    headers = {"Content-Type": "application/json"}
+    if provider == "openai":
+        url = "https://api.openai.com/v1/responses"
+        headers["Authorization"] = "Bearer " + api_key
+        body = {"model": model, "store": False, "instructions": SYSTEM, "input": prompt,
+                "max_output_tokens": 4096,
+                "text": {"format": {"type": "json_schema", "name": "forge_patch",
+                                    "strict": True, "schema": schema}}}
+    else:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        headers["x-goog-api-key"] = api_key
+        body = {"systemInstruction": {"parts": [{"text": SYSTEM}]},
+                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                "generationConfig": {"maxOutputTokens": 4096,
+                    "responseFormat": {"text": {"mimeType": "application/json", "schema": schema}}}}
+    request = urllib.request.Request(url, json.dumps(body).encode(), headers, method="POST")
+    try:
+        with (opener or urllib.request.build_opener(NoRedirect()).open)(request, timeout=90) as response:
+            raw = response.read(65537)
+    except urllib.error.HTTPError as error:
+        messages = {400: "Request rejected; check that your model supports structured JSON output.",
+                    401: "API key was not accepted.", 403: "Key or project lacks access to this model.",
+                    404: "Model was not found; check its ID and your account access.",
+                    429: "Provider quota or rate limit reached; check your API account."}
+        raise ProviderError(messages.get(error.code, "Provider unavailable; try again later.")) from None
+    except (urllib.error.URLError, TimeoutError, OSError):
+        raise ProviderError("Could not reach the provider or the request timed out.") from None
+    try:
+        if len(raw) > 65536:
+            raise ValueError("Oversized response")
+        envelope = parse_json(raw.decode("utf-8"))
+        if provider == "openai":
+            if envelope.get("status") != "completed":
+                raise ValueError("Incomplete response")
+            parts = [part for item in envelope["output"] if item.get("type") == "message"
+                     for part in item.get("content", [])]
+            if any(part.get("type") == "refusal" for part in parts):
+                raise ValueError("Refusal")
+            content = "".join(part["text"] for part in parts if part.get("type") == "output_text")
+        else:
+            candidate = envelope["candidates"][0]
+            if candidate.get("finishReason") != "STOP":
+                raise ValueError("Incomplete or blocked response")
+            content = "".join(part["text"] for part in candidate["content"]["parts"]
+                              if "text" in part and not part.get("thought"))
+        return validate_patch(parse_json(content))
+    except (ValueError, KeyError, TypeError, IndexError, AttributeError):
+        raise ProviderError("Provider returned an incomplete, refused, or invalid patch. Try revising the prompt.") from None

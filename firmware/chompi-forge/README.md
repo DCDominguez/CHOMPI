@@ -80,7 +80,8 @@ applied. See the protocol document for backpressure and recovery details.
 
 DSP and parameter state belong to the audio callback after initialization;
 physical encoder changes apply after MIDI changes in each block. JSON files,
-validation, saving/capture, and optional Ollama authoring live on the host.
+validation, saving/capture, an OpenAI/Gemini webapp and optional Ollama CLI
+authoring live on the host. See the host guide for launch and key handling.
 The device stores one volatile patch and resets to defaults on reboot. It does
 not access SD files, run AI/networking, or load new DSP/graphs. The stock
 bootloader is still needed to load the app. Building alone cannot establish

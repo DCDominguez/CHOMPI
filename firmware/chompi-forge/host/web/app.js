@@ -1,0 +1,100 @@
+"use strict";
+const $ = id => document.getElementById(id);
+const fields = {mix: [0, 1, .01, "Wet / dry", "0–1"], time_ms: [10, 1000, 1, "Delay time", "ms"],
+  feedback: [0, .85, .01, "Feedback", "0–0.85"], level: [0, 1, .01, "Output level", "0–1"]};
+let token = "", patch = null, presets = [], busy = false;
+function notice(message, error = false) { $("notice").textContent = message; $("notice").classList.toggle("error", error); }
+async function api(path, body) {
+  const response = await fetch(`/api/${path}`, {method: "POST", headers: {"Content-Type": "application/json", "X-Forge-Token": token}, body: JSON.stringify(body)});
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Request failed");
+  return result;
+}
+function updateButtons() {
+  document.querySelectorAll("button").forEach(button => { button.disabled = busy; });
+  for (const id of ["download", "send"]) $(id).disabled = busy || !patch;
+  $("editor").disabled = busy || !patch;
+  for (const id of ["provider", "model", "api-key", "prompt", "preset", "import", "input-port", "output-port"]) $(id).disabled = busy;
+}
+async function run(message, action) {
+  if (busy) return;
+  busy = true; updateButtons(); notice(message);
+  try { await action(); } catch (error) { notice(error.message || "Operation failed", true); }
+  finally { busy = false; updateButtons(); }
+}
+function showJSON() { $("json").textContent = JSON.stringify(patch, null, 2); }
+function loadPatch(value) {
+  patch = structuredClone(value); $("patch-name").value = patch.name;
+  for (const key of Object.keys(fields)) { $(key).value = patch.parameters[key]; $(`${key}-range`).value = patch.parameters[key]; }
+  $("bypass").checked = patch.parameters.bypass; showJSON(); updateButtons();
+}
+for (const [key, [min, max, step, label, unit]] of Object.entries(fields)) {
+  const row = document.createElement("div"); row.className = "control";
+  // All interpolated values in this template are fixed local constants.
+  row.innerHTML = `<label for="${key}">${label}<span class="unit">${unit}</span></label><input id="${key}-range" type="range" min="${min}" max="${max}" step="${step}" aria-label="${label} slider"><input id="${key}" type="number" min="${min}" max="${max}" step="any" required>`;
+  $("controls").append(row);
+  $(key).addEventListener("input", () => { if (!patch) return; patch.parameters[key] = $(key).value === "" ? null : Number($(key).value); $(`${key}-range`).value = patch.parameters[key]; showJSON(); });
+  $(`${key}-range`).addEventListener("input", () => { $(key).value = $(`${key}-range`).value; $(key).dispatchEvent(new Event("input")); });
+}
+$("patch-name").addEventListener("input", () => { if (patch) { patch.name = $("patch-name").value; showJSON(); } });
+$("bypass").addEventListener("change", () => { if (patch) { patch.parameters.bypass = $("bypass").checked; showJSON(); } });
+$("clear-key").addEventListener("click", () => { $("api-key").value = ""; notice("API key cleared from the form."); });
+$("provider").addEventListener("change", () => { $("api-key").value = ""; $("model").value = ""; notice("Provider changed. Enter its model ID and API key."); });
+window.addEventListener("pagehide", () => { $("api-key").value = ""; });
+$("generate-form").addEventListener("submit", event => {
+  event.preventDefault();
+  run("Generating with your selected provider…", async () => {
+    const result = await api("generate", {provider: $("provider").value, api_key: $("api-key").value.trim(), model: $("model").value.trim(), prompt: $("prompt").value});
+    loadPatch(result.patch); $("preset").value = ""; notice("Patch generated and validated. Review it before sending to CHOMPI.");
+  });
+});
+$("preset").addEventListener("change", () => { if ($("preset").value !== "") { loadPatch(presets[Number($("preset").value)]); notice("Preset loaded for review. Nothing sent to CHOMPI."); } });
+$("download").addEventListener("click", () => run("Validating your preset…", async () => {
+  const result = await api("validate", {patch});
+  const url = URL.createObjectURL(new Blob([JSON.stringify(result.patch, null, 2) + "\n"], {type: "application/json"}));
+  const link = document.createElement("a"); link.href = url; link.download = (patch.name.replace(/[^a-z0-9_-]/gi, "_").slice(0, 60) || "forge-patch") + ".json";
+  link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); notice("Validated preset downloaded. No API key is included.");
+}));
+$("import").addEventListener("change", () => run("Validating imported preset…", async () => {
+  try {
+    const file = $("import").files[0]; if (!file) return;
+    if (file.size > 65536) throw new Error("Preset exceeds 64 KiB.");
+    // Preserve the raw JSON for server parsing so duplicate keys cannot disappear in JSON.parse.
+    const raw = await file.text();
+    const response = await fetch("/api/validate", {method: "POST", headers: {"Content-Type": "application/json", "X-Forge-Token": token}, body: `{"patch":${raw}}`});
+    const result = await response.json(); if (!response.ok) throw new Error(result.error);
+    loadPatch(result.patch); $("preset").value = ""; notice("Preset imported and validated. Nothing sent to CHOMPI.");
+  } finally { $("import").value = ""; }
+}));
+$("ports").addEventListener("click", () => run("Looking for MIDI ports…", async () => {
+  const result = await api("ports", {});
+  for (const [id, names] of [["input-port", result.inputs], ["output-port", result.outputs]]) {
+    const select = $(id), previous = select.value; select.replaceChildren(new Option(names.length ? "Select a port" : "No ports found", ""));
+    for (const name of names) select.add(new Option(name, name));
+    if (names.includes(previous)) select.value = previous;
+  }
+  notice("Port list refreshed. Select both CHOMPI ports explicitly.");
+}));
+function ports() { return {input: $("input-port").value, output: $("output-port").value}; }
+function deviceStatus(result) { $("device-state").textContent = `Firmware ${result.firmware} · CPU average ${result.cpu_average_percent}% / peak ${result.cpu_max_percent}% · Dropped ${result.dropped} · Rejected ${result.rejected}`; }
+for (const id of ["status", "capture"]) $(id).addEventListener("click", () => run("Reading CHOMPI…", async () => {
+  const result = await api("status", ports()); deviceStatus(result);
+  if (id === "capture") { loadPatch(result.patch); $("preset").value = ""; }
+  notice(id === "capture" ? "Device targets captured to the editor. Save JSON to keep them." : "Device status received. Your editor patch is unchanged.");
+}));
+$("send").addEventListener("click", () => run("Sending patch and waiting for acknowledgement…", async () => {
+  const result = await api("send", {...ports(), patch}); deviceStatus(result);
+  notice("CHOMPI acknowledged the requested patch. Device values use 14-bit precision.");
+}));
+async function start() {
+  busy = true; updateButtons();
+  try {
+    const response = await fetch("/api/session"); if (!response.ok) throw new Error("Could not start a local session. Reload the URL printed by Forge.");
+    const session = await response.json(); token = session.token; presets = session.presets;
+    presets.forEach((item, index) => $("preset").add(new Option(item.name, String(index))));
+    if (presets.length) { loadPatch(presets[0]); $("preset").value = "0"; }
+    notice("Ready. Start with AI, a preset, or an imported patch.");
+  } catch (error) { notice(error.message, true); }
+  finally { busy = false; updateButtons(); }
+}
+start();

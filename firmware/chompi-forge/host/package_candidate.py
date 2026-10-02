@@ -34,8 +34,11 @@ def main():
         "THIRD_PARTY.md": (REPO / "THIRD_PARTY.md").read_bytes(),
         "TRADEMARKS.md": (REPO / "TRADEMARKS.md").read_bytes(),
     }
-    for name in ("forge_host.py", "requirements.txt", "README.md"):
+    for name in ("forge_host.py", "forge_ai.py", "forge_web.py", "requirements.txt", "README.md"):
         files["host/" + name] = (ROOT / "host" / name).read_bytes()
+    for path in sorted((ROOT / "host/web").iterdir()):
+        if path.is_file():
+            files["host/web/" + path.name] = path.read_bytes()
     files["host/patch.schema.json"] = (json.dumps(forge_host.SCHEMA, indent=2) + "\n").encode()
     for path in sorted((ROOT / "presets").glob("*.json")):
         patch = forge_host.load_patch(path)

@@ -14,7 +14,7 @@ compilation; a new algorithm or routing graph still requires firmware work.
 ```mermaid
 flowchart TD
     Preset["Host JSON preset"] --> Validate["Strict validation"]
-    Model["Optional Ollama model"] --> Validate
+    Model["OpenAI / Gemini / Ollama"] --> Validate
     Validate --> MIDI["MIDI patch request"]
     MIDI --> Queue["Validated request queue"]
     Queue --> Audio["Audio owner"]
@@ -103,6 +103,9 @@ Paths below are relative to `firmware/chompi-forge/`.
 | `core/protocol.h` | Request validation, patch encoding fields, status/error replies |
 | `core/usb_packets.h` | Complete-SysEx USB-MIDI packetization |
 | `host/forge_host.py` | Python CLI, JSON schema, preset files, MIDI exchange, optional Ollama adapter |
+| `host/forge_ai.py` | OpenAI/Gemini HTTPS adapters, structured output and independent validation |
+| `host/forge_web.py` | Loopback server, session/origin checks, request bounds and serialized MIDI access |
+| `host/web/` | Browser authoring, ephemeral key field, patch editor and explicit device actions |
 | `host/forge_probe.cpp` | Offline request harness and synthetic audio rendering through the same DSP |
 | `host/package_candidate.py` | Versioned test bundle, manifest and file hashes |
 | `tests/` | DSP, queue, framing, protocol and host integration verification |

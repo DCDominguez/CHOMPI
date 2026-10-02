@@ -1,5 +1,19 @@
 # Forge changelog
 
+## Local AI webapp — 2026-10-02
+
+- Added a local browser interface with OpenAI and Gemini using user-provided API
+  keys and configurable model IDs; the Ollama CLI remains available.
+- Added validated patch generation, parameter editing, preset import/export,
+  MIDI port selection, status, capture and explicit acknowledged send.
+- Kept credentials out of disk/browser storage; bounded local requests, checked
+  origin/session, disabled cross-origin access and refused provider redirects.
+- Added twelve provider/server tests; all 24 Python tests and both C++ suites pass.
+- Updated packaging to include the webapp. Existing ZIPs are unchanged.
+- Firmware remains 0.2; live provider and physical hardware tests are pending.
+- Browser smoke testing is pending: the development Chromium download failed;
+  static asset serving and JavaScript syntax checks pass.
+
 ## Documentation follow-up — 2026-10-02
 
 - Added a documentation index, architecture and developer guides.

@@ -4,6 +4,69 @@ Python 3.10+ on the computer connected to CHOMPI. Commands below assume the
 current directory is `firmware/chompi-forge/`, or the extracted test bundle.
 Use `python3` instead of `python` if that is your Python executable.
 
+## Webapp — OpenAI or Gemini with your key
+
+Run this on the computer connected to CHOMPI, using Python 3.10 or newer:
+
+```sh
+python -m pip install -r host/requirements.txt
+python host/forge_web.py
+```
+
+Open **http://127.0.0.1:8765** in that computer's browser. The server binds only
+to this computer; it is not a hosted site or a phone-accessible LAN service.
+Use `--port 8766` if the default port is occupied, and open the printed URL.
+Stop with Ctrl+C. AI authoring, preset editing and downloads also work without
+installing MIDI dependencies; those are needed only for hardware control.
+
+1. Choose **OpenAI** or **Gemini**. Enter an API key from that provider and a
+   model ID available to your API account that supports structured JSON output.
+   Model IDs are editable rather than tied to a particular model's lifecycle.
+2. Describe the delay and choose **Generate a patch**. A validated patch opens
+   in the editor. Provider refusal, truncated output and invalid settings fail
+   without replacing the current patch. There is no automatic retry or fallback.
+3. Adjust mix, delay time, feedback, level and wet bypass. Start from any of the
+   three included presets or import a JSON file. **Save JSON** validates and
+   downloads a preset through your browser; normal browser download rules apply.
+4. Connect CHOMPI, select **Refresh ports**, then explicitly select the MIDI
+   input and output. **Read device status** reports firmware, CPU and counters.
+   **Capture to editor** reads current device targets, including knob changes.
+5. Choose **Send to CHOMPI** when ready. It validates the patch, sends it once,
+   and waits for an acknowledgement matching the requested values. Generation
+   and editing alone never send MIDI. Do not run another MIDI host concurrently.
+
+Only the prompt, fixed authoring instruction and patch schema go to the selected
+provider; no audio is uploaded. API usage may incur charges under your provider
+account. A consumer chat subscription is not used by this integration.
+
+Forge keeps the entered key in the page's memory and the active local request.
+It does not write keys to presets, browser storage, source files or logs. Clear
+the key with **Clear**; switching providers also clears the key and model field.
+Do not paste keys into chat or commit them. The browser calls only the local
+bridge, which sends credentials in HTTPS headers to fixed provider URLs and
+refuses redirects. OpenAI requests set `store: false`; provider data policies
+still apply. There is no persistent login or key vault in this first version.
+
+The local bridge checks Host, Origin, fetch metadata and a session token, serves
+only its three frontend assets, and does not enable cross-origin access. It is
+intended for a trusted local computer, not public deployment or shared hosting.
+One AI request and one MIDI exchange can be active per server; no automatic
+patch resend occurs after a timeout. Read status before deciding to retry.
+
+The provider adapters and MIDI path have automated mock coverage. Live API-key
+requests and physical CHOMPI operation still need the consolidated test session.
+JavaScript syntax and static asset serving are checked; actual browser interaction
+and visual checks remain pending because the development browser download failed.
+
+Provider references:
+[OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs),
+[Gemini structured outputs / Generate Content](https://ai.google.dev/gemini-api/docs/generate-content/structured-output).
+The adapters use OpenAI Responses `text.format` and Gemini Generate Content
+`generationConfig.responseFormat.text` respectively. Both responses also pass
+Forge's independent local validator before reaching the editor.
+
+## Command-line controller
+
 ```sh
 python host/forge_host.py validate presets/03-long-echo.json
 python host/forge_host.py encode presets/03-long-echo.json

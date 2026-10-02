@@ -17,7 +17,8 @@ This guide does not require merging the branch or flashing a unit.
 | --- | --- |
 | Host JSON validation / encoding | Python 3.10+; standard library only |
 | Host MIDI I/O | Python plus `host/requirements.txt`; CHOMPI or a bidirectional MIDI interface |
-| Optional AI authoring | A configured Ollama server and an already-installed model |
+| Webapp / cloud AI | Python standard library, browser, OpenAI or Gemini API key and structured-output model ID |
+| Optional CLI AI | A configured Ollama server and an already-installed model |
 | Native software tests / renderer | GNU Make, a C++14 compiler, pthreads and Python 3.10+ |
 | Firmware build | GNU Make and GNU Arm Embedded 10.3-2021.10 |
 

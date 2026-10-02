@@ -26,9 +26,14 @@ physical acceptance remains outstanding. A defect may still require a retest.
   resynchronization; complete USB SysEx packetization and persistent TX buffers.
 - Bounded queues and callback control work, response backpressure, drop/reject
   counts, and average/peak callback CPU reporting. No TX in the audio callback.
-- Host Python CLI, three presets, offline renderer sharing the actual DSP core,
-  and an optional Ollama structured-output adapter. AI generation validates and
-  saves a preset; sending remains a separate explicit command.
+- Local browser webapp with OpenAI/Gemini selection, user-provided API key and
+  model ID, patch editing, JSON import/export, explicit MIDI ports, status,
+  capture and acknowledged send. Generation never sends MIDI automatically.
+- Python CLI, three presets, offline renderer sharing the actual DSP core,
+  and optional Ollama authoring. Keys are never persisted by Forge.
+- Cloud adapters use fixed HTTPS endpoints, reject redirects and validate
+  responses independently. The local server checks origin/Host/session token
+  and serializes MIDI exchanges. Firmware and wire protocol are unchanged.
 - A bundle-generation script with source identity, firmware/file checksums,
   synthetic audio references, licensing and the consolidated test checklist.
 - A repository documentation hub, architecture/developer guides and changelog.
@@ -41,7 +46,7 @@ physical acceptance remains outstanding. A defect may still require a retest.
 - Protocol tests pass: atomic rejection, corrupt/truncated messages, unsupported
   versions, MIDI running status and clock interruption, resynchronization,
   100,000 fuzz bytes, and USB final-packet sizes.
-- Twelve Python integration tests pass. They include 250 seeded random patch
+- Twenty-four Python integration tests pass. They include 250 seeded random patch
   round trips through the real C++ protocol/runtime, malformed-patch state
   preservation, persistence, strict JSON, mock AI responses, acknowledgement
   mismatch/timeout handling, explicit port selection, and offline WAV output.
@@ -54,8 +59,12 @@ physical acceptance remains outstanding. A defect may still require a retest.
   construction checked on the execution host; no physical MIDI port tested.
 - No device attached: no flash, audio audition, USB enumeration, TRS I/O,
   callback-load measurement, battery validation or stock restore performed.
-- No running Ollama model used: adapter requests/responses are mock-tested.
+- No live OpenAI, Gemini or Ollama requests made: adapters are mock-tested.
   Actual model compatibility, response time and musical interpretation are pending.
+- Web assets and local HTTP endpoints pass automated serving/session checks;
+  JavaScript passes Node syntax checking. A real browser smoke test could not
+  run because Chromium downloads returned truncated archives. Browser layout
+  and interactive acceptance remain pending in the consolidated checklist.
 
 ## Deliberate limits
 
@@ -93,7 +102,10 @@ idle session. Do not trust a partial archive; verify the README's SHA-256.
 ## Next action
 
 Run the single consolidated session using TEST_SESSION.md when DC has the unit
-and computer ready. Record passes, failures and explicitly skipped sections in
+and computer ready, including the webapp in an actual browser and live provider
+calls with DC's own API keys. The previous test ZIP predates the webapp; use the
+current branch or regenerate a bundle from its clean tree. Record passes,
+failures and explicitly skipped sections in
 `docs/forge/TEST_RESULTS.md`. Do not mark hardware or actual-model acceptance as
 complete based on software tests. Use the measured result to decide further DSP
 or controller work; keep expansion outside this first candidate.

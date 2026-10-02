@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Forge · Sound workshop</title>
+  <link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script>
+</head>
+<body>
+<header><a class="brand" href="/">FORGE<span> / CHOMPI</span></a><span class="badge">LOCAL SOUND WORKSHOP</span></header>
+<main>
+  <div class="intro"><p class="eyebrow">WORDS INTO REPEATS</p><h1>Shape your next sound.</h1>
+    <p>Describe an echo. Make it yours. Play it on CHOMPI.</p></div>
+  <div id="notice" role="status" aria-live="polite">Starting the local workshop…</div>
+  <div class="grid">
+    <section class="card" aria-labelledby="author-heading">
+      <p class="eyebrow">01 / AUTHOR</p><h2 id="author-heading">A little direction.</h2>
+      <form id="generate-form">
+        <label for="provider">AI provider</label><select id="provider"><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select>
+        <label for="model">Model ID</label><input id="model" required maxlength="128" placeholder="Enter a model available to your API account" autocomplete="off">
+        <p class="hint">Use a text model with structured JSON output. Model access depends on your API account.</p>
+        <label for="api-key">Your API key</label><div class="key-row"><input id="api-key" type="password" required maxlength="512" autocomplete="off" spellcheck="false"><button id="clear-key" type="button" class="quiet">Clear</button></div>
+        <p class="hint">Kept in this page’s memory. Sent through your local bridge only to the selected provider. Never saved by Forge. Provider API usage may be billed.</p>
+        <label for="prompt">Describe the sound</label><textarea id="prompt" required maxlength="4000" rows="4" placeholder="A short, subtle slap echo for a dry synth. Keep the output at 25%." spellcheck="true"></textarea>
+        <button id="generate" class="primary" type="submit">Generate a patch <span aria-hidden="true">↗</span></button>
+      </form>
+      <p class="footnote">Current engine: stereo delay. AI adjusts its five controls; new effects require firmware development. Generation never sends a patch to the device.</p>
+    </section>
+    <section class="card" aria-labelledby="patch-heading">
+      <p class="eyebrow">02 / REFINE</p><h2 id="patch-heading">Your patch, your call.</h2>
+      <label for="preset">Start from a preset</label><select id="preset"><option value="">Choose a starting point</option></select>
+      <fieldset id="editor" disabled>
+        <label for="patch-name">Patch name</label><input id="patch-name" maxlength="80" required>
+        <div id="controls"></div>
+        <label class="check"><input id="bypass" type="checkbox"> Bypass wet signal</label>
+      </fieldset>
+      <div class="button-row"><button id="download" disabled>Save JSON</button><label class="file-button" for="import">Import JSON<input id="import" type="file" accept=".json,application/json"></label></div>
+      <details><summary>Inspect patch JSON</summary><pre id="json">No patch loaded.</pre></details>
+      <p class="footnote">Edits stay here until you send. Saved presets live on your computer; CHOMPI resets to defaults on reboot.</p>
+    </section>
+    <section class="card device" aria-labelledby="device-heading">
+      <div><p class="eyebrow">03 / PLAY</p><h2 id="device-heading">Connect to CHOMPI.</h2><p class="hint">Choose both MIDI ports. Keep monitoring volume low for the first test.</p></div>
+      <div class="ports"><div><label for="input-port">MIDI input (replies)</label><select id="input-port"><option value="">Refresh ports first</option></select></div><div><label for="output-port">MIDI output (to CHOMPI)</label><select id="output-port"><option value="">Refresh ports first</option></select></div></div>
+      <div class="button-row"><button id="ports">Refresh ports</button><button id="status">Read device status</button><button id="capture">Capture to editor</button><button id="send" class="primary" disabled>Send to CHOMPI</button></div>
+      <p id="device-state" role="status">No device status read. You can author and save patches without hardware.</p>
+    </section>
+  </div>
+  <footer>FORGE / CANDIDATE 0.2 <span>One compiled engine. Endless ways to describe it.</span></footer>
+</main>
+</body></html>

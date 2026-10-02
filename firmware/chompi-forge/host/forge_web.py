@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+"""Forge local webapp. Run on the computer connected to CHOMPI (Python 3.10+)."""
+import argparse
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import json
+from pathlib import Path
+import secrets
+import threading
+
+import forge_ai
+import forge_host as host
+
+ROOT = Path(__file__).resolve().parent
+ASSETS = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"),
+          "/style.css": ("style.css", "text/css")}
+
+
+class ForgeServer(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def __init__(self, port=8765):
+        super().__init__(("127.0.0.1", port), Handler)
+        self.authority = f"127.0.0.1:{self.server_port}"
+        self.origin = "http://" + self.authority
+        self.token = secrets.token_urlsafe(32)
+        self.midi_lock = threading.Lock()
+        self.ai_lock = threading.Lock()
+
+    def handle_error(self, request, client_address):
+        # Never dump request bodies, provider responses or credentials to stderr.
+        pass
+
+
+class Handler(BaseHTTPRequestHandler):
+    server_version = "ForgeLocal"
+
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(100)
+
+    def log_message(self, format, *args):
+        pass
+
+    def reply(self, status, value, mime="application/json"):
+        data = json.dumps(value, allow_nan=False).encode() if mime == "application/json" else value
+        self.send_response(status)
+        self.send_header("Content-Type", mime + "; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; "
+                         "style-src 'self'; connect-src 'self'; img-src 'self' data:; "
+                         "frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+        self.end_headers()
+        self.wfile.write(data)
+
+    def allowed(self):
+        return (self.headers.get("Host") == self.server.authority
+                and self.headers.get("Origin", self.server.origin) == self.server.origin
+                and self.headers.get("Sec-Fetch-Site", "same-origin") in ("same-origin", "none"))
+
+    def do_GET(self):
+        if not self.allowed():
+            return self.reply(403, {"error": "Use the local URL printed by Forge"})
+        if self.path in ASSETS:
+            filename, mime = ASSETS[self.path]
+            return self.reply(200, (ROOT / "web" / filename).read_bytes(), mime)
+        if self.path == "/api/session":
+            return self.reply(200, {"token": self.server.token,
+                "presets": [host.load_patch(p) for p in sorted((ROOT.parent / "presets").glob("*.json"))]})
+        return self.reply(404, {"error": "Not found"})
+
+    def do_POST(self):
+        if not self.allowed() or not secrets.compare_digest(
+                self.headers.get("X-Forge-Token", "").encode(), self.server.token.encode()):
+            return self.reply(403, {"error": "Session expired or request blocked; reload Forge"})
+        try:
+            if self.headers.get("Content-Type") != "application/json" or self.headers.get("Transfer-Encoding"):
+                raise ValueError("Send a JSON request")
+            length = int(self.headers.get("Content-Length", "0"))
+            if not 0 < length <= 65536:
+                raise ValueError("Request must be 1–65536 bytes")
+            body = host.parse_json(self.rfile.read(length).decode("utf-8"))
+            if not isinstance(body, dict):
+                raise ValueError("Request must be an object")
+            if self.path == "/api/validate":
+                result = {"patch": host.validate_patch(body.get("patch"))}
+            elif self.path == "/api/generate":
+                if not self.server.ai_lock.acquire(blocking=False):
+                    return self.reply(409, {"error": "A generation is already in progress"})
+                try:
+                    result = {"patch": forge_ai.generate_patch(body.get("provider"), body.get("api_key"),
+                                body.get("model"), body.get("prompt"))}
+                finally:
+                    body.pop("api_key", None)
+                    self.server.ai_lock.release()
+            elif self.path in ("/api/ports", "/api/status", "/api/send"):
+                if not self.server.midi_lock.acquire(blocking=False):
+                    return self.reply(409, {"error": "A MIDI request is already in progress"})
+                try:
+                    if self.path == "/api/ports":
+                        midi = host.midi_module()
+                        result = {"inputs": midi.get_input_names(), "outputs": midi.get_output_names()}
+                    else:
+                        for key in ("input", "output"):
+                            if not isinstance(body.get(key), str) or not body[key]:
+                                raise ValueError("Select both MIDI input and output ports")
+                        seq = secrets.randbelow(16384)
+                        payload = (host.encode_patch(body.get("patch"), seq) if self.path == "/api/send"
+                                   else host.message(2, seq))
+                        result = host.exchange(payload, body["input"], body["output"])
+                finally:
+                    self.server.midi_lock.release()
+            else:
+                return self.reply(404, {"error": "Not found"})
+            return self.reply(200, result)
+        except forge_ai.ProviderError as error:
+            return self.reply(502, {"error": str(error)})
+        except TimeoutError:
+            return self.reply(504, {"error": "No acknowledgement. The patch may have applied; read device status before retrying."})
+        except (ValueError, UnicodeError):
+            return self.reply(400, {"error": "Invalid request or patch. Check fields, parameter ranges and JSON format."})
+        except Exception:
+            return self.reply(503, {"error": "Operation failed. For MIDI, check dependencies, ports and the device; close other MIDI hosts."})
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--port", type=int, default=8765)
+    args = parser.parse_args()
+    if not 1 <= args.port <= 65535:
+        parser.error("port must be 1–65535")
+    with ForgeServer(args.port) as server:
+        print(f"Forge: {server.origin} (Ctrl+C to stop)", flush=True)
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            pass
+
+
+if __name__ == "__main__":
+    main()

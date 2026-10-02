@@ -41,7 +41,9 @@ The microphone is unused by Forge. Install the host dependencies once and run
 | Bypass | Send CC24 values 127 then 0 on MIDI channel 1 | Wet sound fades out/in; dry path still obeys output level |
 | Transport | Check CC20–23 and patch send/status on USB; repeat on bidirectional TRS if available | Both paths control the engine and return replies; no unverified path marked passed |
 | Rejection | Attempt a host JSON with feedback >0.85; validate it | Host rejects it before MIDI transmission; current sound remains unchanged |
-| Optional AI | Generate a preset using an installed local model, inspect JSON, then send it | Actual model output validates and is acknowledged; record model name and elapsed time |
+| Webapp | Start the local bridge; load/edit/import/export a preset; select ports; capture targets and send | Browser controls work, downloaded JSON validates, matching device acknowledgement |
+| Optional cloud AI | Generate with your OpenAI or Gemini API key; review, edit, then send. Repeat with the other provider if available | Actual output validates; record provider/model and elapsed time, never keys; generation alone leaves device unchanged |
+| Optional local AI | Generate using an installed Ollama model, inspect JSON, then send | Actual output validates and is acknowledged; record model/time or skipped |
 | Sustained run | Play 10 minutes while recalling presets and using knobs, with normal MIDI clock traffic | No hangs, dropout or non-finite audio; record final average/peak load and counters |
 | Power/recovery | Reboot, resend saved patch, verify normal power behavior, then restore stock if desired | Defaults on reboot, host recall works, known-good stock restoration confirmed |
 
@@ -69,7 +71,8 @@ Computer OS / Python / MIDI interface:
 Audio source / output connections:
 Boot / dry routing / encoders / recall / capture / bypass:
 USB / TRS:
-AI model and result, or not run:
+Webapp browser / edit / import-export / capture-send results:
+AI provider / model and result, or not run (never record keys):
 Duration / average CPU / peak CPU / dropped / rejected:
 Audible glitches or unexpected behavior:
 Power behavior / low-battery check, or not run:
