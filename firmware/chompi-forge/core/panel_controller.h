@@ -62,11 +62,32 @@ public:
         }
     }
     bool Overridden() const { return virtual_keys_ || toggle_override_ >= 0 || jack_override_ >= 0; }
+#ifdef FORGE_TEST_HOOKS
+    void SetInspectorEvents(SpscQueue<InspectorEvent,64>* events, std::atomic<uint32_t>* drops, uint32_t now) {
+        events_=events; event_drops_=drops; event_time_=now;
+    }
+#endif
 
     void Block(const PanelInput& hardware, Engine& engine, Recorder& recorder, PanelSink& sink) {
         const uint64_t keys = hardware.keys | virtual_keys_;
         const bool toggle_up = toggle_override_ >= 0 ? toggle_override_ != 0 : hardware.toggle_up;
         const bool jack = jack_override_ >= 0 ? jack_override_ != 0 : hardware.jack;
+#ifdef FORGE_TEST_HOOKS
+        for(unsigned key=0;key<panel::kButtons;++key) {
+            const uint64_t bit=uint64_t(1)<<key;
+            if((keys^event_keys_)&bit) {
+                const bool down=(keys&bit)!=0;
+                const uint64_t physical=down?hardware.keys:physical_keys_;
+                const uint64_t injected=down?virtual_keys_:event_virtual_keys_;
+                LogEdge(down?InspectorEventKind::KeyDown:InspectorEventKind::KeyUp,key,
+                        (physical&bit?1u:0u)|(injected&bit?2u:0u));
+            }
+        }
+        event_keys_=keys; event_virtual_keys_=virtual_keys_;
+        physical_keys_=hardware.keys; logical_keys_=keys;
+        physical_flags_=(hardware.toggle_up?1:0)|(hardware.jack?2:0)|(hardware.tone_press?4:0);
+        logical_flags_=(toggle_up?1:0)|(jack?2:0)|((hardware.tone_press||virtual_press_)?4:0)|(Overridden()?8:0);
+#endif
         const bool chompi = (keys >> panel::kChompiKey) & 1u;
         menu_.Update(toggle_up, chompi);
         // TAPE: jack insertion selects line in, removal the mic.
@@ -102,6 +123,12 @@ public:
         // SW6 = level. Virtual turns are consumed with the hardware ones.
         int16_t turns[panel::kEncoders];
         for(unsigned i = 0; i < panel::kEncoders; ++i) { turns[i] = static_cast<int16_t>(hardware.turns[i] + virtual_turns_[i]); virtual_turns_[i] = 0; }
+#ifdef FORGE_TEST_HOOKS
+        for(unsigned i=0;i<panel::kEncoders;++i) {
+            raw_turns_[i]+=uint32_t(hardware.turns[i]); turns_[i]+=uint32_t(turns[i]);
+            if(turns[i]) LogEdge(InspectorEventKind::Knob, i, uint32_t(turns[i]));
+        }
+#endif
         if(hardware.tone_press || virtual_press_) { engine.Panic(); virtual_press_ = false; }
         if(turns[panel::kToneEncoder])
             engine.Apply({Parameter::Cutoff, engine.GetParameters().cutoff + turns[panel::kToneEncoder] / 127.f});
@@ -119,7 +146,25 @@ public:
     uint32_t MenuPacked() const { return menu_.Packed(); }
     RecordSource Source() const { return source_; }
     const PresetMenu& Menu() const { return menu_; }
+#ifdef FORGE_TEST_HOOKS
+    void Inspect(InspectorAudio& a) const {
+        a.physical_keys=physical_keys_; a.logical_keys=logical_keys_;
+        a.physical_flags=physical_flags_; a.logical_flags=logical_flags_; a.menu=MenuPacked();
+        a.record_source=static_cast<uint8_t>(source_);
+        for(unsigned i=0;i<panel::kEncoders;++i) { a.raw_turns[i]=raw_turns_[i]; a.turns[i]=turns_[i]; }
+    }
+#endif
 private:
+#ifdef FORGE_TEST_HOOKS
+    uint64_t physical_keys_=0, logical_keys_=0;
+    uint32_t raw_turns_[6]{}, turns_[6]{};
+    uint8_t physical_flags_=0, logical_flags_=0;
+    SpscQueue<InspectorEvent,64>* events_=nullptr; std::atomic<uint32_t>* event_drops_=nullptr;
+    uint32_t event_time_=0; uint64_t event_keys_=0, event_virtual_keys_=0;
+    void LogEdge(InspectorEventKind kind, uint8_t id, uint32_t value) {
+        if(events_ && !events_->Push({0,event_time_,value,kind,id})) event_drops_->fetch_add(1,std::memory_order_relaxed);
+    }
+#endif
     FORGE_NOINLINE void RunActions(Engine& engine, Recorder& recorder, PanelSink& sink) {
         for(MenuAction action; menu_.PopAction(action);) {
             using Kind = MenuAction::Kind;

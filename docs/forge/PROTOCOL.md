@@ -313,3 +313,93 @@ the reply comes when the file is written.
 saves, SDRAM cache behaviour of sample reads (device CPU), recording levels,
 monitoring, jack detection, LED colours.
 
+## Development probe and Inspector schema 1
+
+Only `FORGE_TEST_HOOKS` firmware accepts `0A`/`0B`. Release firmware rejects
+both with error 5, including all new pages. Protocol version remains 1,
+firmware remains 0.5 and patch/status v1–v4 layouts are unchanged. This is an
+additive development extension; the Inspector has its own explicit schema byte.
+Unknown pages return error 4. Unknown schemas must be rejected by clients.
+
+`0A` is the existing 11-byte panel injection request: bytes 7 kind, 8 id,
+9 value biased by +64, 10 checksum. Kinds: 0 key (id 0–39, value 0/1), 1 turn
+(id 0–5, −63..63), 2 SW5 press (id 4, value 0), 3 toggle and 4 jack (id 0,
+−1 hardware / 0 off / 1 on), 5 release overrides (id 0, value 0). Reply `47`
+is 9 bytes: byte 7 zero, byte 8 checksum. Ack means queued, not yet applied.
+
+`0B` reads a page. Normal request size is 9 bytes: byte 7 page, 8 checksum.
+Page 6 additionally accepts a 14-byte request with cursor at 8–12 and checksum
+at 13; without the cursor it starts at serial 0. Cursor is unsigned 32-bit in
+five little-endian 7-bit chunks, with the fifth chunk at most 15. All sizes
+exclude F0/F7. Largest reply still fits the existing `kMaxReply = 96` and the
+existing USB/UART buffers. No subscription, background push or new transport.
+
+Existing `46` pages remain byte-for-byte compatible:
+
+- Page 0, 24 bytes: byte 8 page, 9–13 packed menu, 14 flags (recording 1,
+  busy 2, loading 4, sample card 8, preset card 16, overridden 32), 15 voices,
+  16–18 recording ms (saturated 21 bits), 19–20 live PackSelection, 21 flash
+  counter modulo 128, 22 flash result, 23 checksum.
+- Page 1, 88 bytes: byte 8 page, 9–86 LED RGB triples, 87 checksum. Indices
+  0–24 are key LEDs in renderer order, 25 is CHOMPI. Each component 0–127.
+
+New `46` pages 2–7: byte 7 zero, 8 page, 9 schema (1), 10–14 snapshot
+generation (unsigned 32-bit); body starts at 15, checksum is the last byte.
+The notation **U32** below means five 7-bit chunks, unsaturated, wrapping at
+32 bits. **N14** means 0–1 normalized in two 7-bit chunks. All fields are in
+listed order, with no struct padding on the wire.
+
+| Page | Size | Body from byte 15 |
+| --- | --- | --- |
+| 2 SYSTEM | 88 | firmware minor, protocol, simulated flag (3 bytes); uptime ms, audio state timestamp ms, audio block count (3 U32); CPU average and peak ×1000 (2 14-bit words); UART then USB: RX complete accepted frames, TX accepted submissions, TX errors, ingress drops (4 U32 each); aggregate drops and rejections (2 U32) |
+| 3 PANEL | 95 | physical and merged key masks (6 7-bit chunks each, 40 bits); physical then merged flags (2 bytes); packed menu U32; six physical encoder accumulators then six merged accumulators (12 U32, signed two's complement) |
+| 4 ENGINE | 88 | seven voices (7 bytes each: note, source 0 UART/1 USB/2 panel, stage 0 off/1 attack/2 decay/3 sustain/4 release, sample slot 0–14 or 127 none, flags sampled 1/sustained 2/reverse 4, envelope N14); smoothed cutoff normalized, (LFO+1)/2, mod wheel (3 N14); pedal-source bit mask byte; three smoothed bend ratios ×4096 (3 14-bit words); resolved mix, feedback/0.85, level, delay samples/48000, reverb mix (5 N14) |
+| 5 STORAGE | 82 | flags, recording source 0 mic/1 line/2 resample, queued sample-job count, active job 0 save/1 copy/2 erase/127 none, last generic error code, partial-file-slot count (6 bytes); actual loaded file selection, file readable frames, file allocated frames, pool reserved bytes, pool capacity bytes, recording frames, recording capacity frames, storage error count, audio event drops, emergency count, panel queue drops, sample queue drops (12 U32) |
+| 6 EVENTS | 27 + 17 × count, count 0–3 | latest event serial U32, total retention overwrites U32, count byte; records: serial U32, timestamp ms U32, kind byte, id byte, value U32 |
+| 7 PATCH | 26/38/77/92 for v1/v2/v3/v4 | existing patch DATA, exactly as `EncodePatchData` and status use |
+
+Page 3 physical flags: toggle up 1, line jack 2, SW5 press edge 4. Merged flags
+add overridden 8. Masks include menu/control keys; the map in
+`panel::kKeyNotes` identifies musical notes. Raw encoder accumulators are
+debounced hardware increments, not analogue positions or electrical pins.
+Page 4 cutoff uses the existing logarithmic 40×400^n mapping; delay n×1000 ms;
+feedback n×0.85. Resolved values are approximate due to quantization. Patch
+targets carry the existing pitch/window/loop/gate/reverse and modulation settings.
+
+Page 5 flags: card driver ready 1, mount configured 2, busy 4, loading 8,
+recording 16, take locked 32. Actual file selection uses PackSelection; kit
+selection omits slot bits, and `FFFFFFFF` means no completed file selection.
+Wanted selection is separately derived from page 7. Aggregate frame counts
+exclude RAM slot 15; recording frames come from the audio publication. Error 8
+includes unreadable/unsupported WAV headers and file IO failures; no FatFS
+detail is claimed. Queue count includes audio-to-main and loader jobs, not
+synchronous preset operations or host requests still waiting for audio.
+
+Page 2 latches a main-loop snapshot from the latest audio publication (at most
+20 Hz refresh) plus current main-loop storage/counters. Pages 3,4,5,7 then read
+that same generation, without relatching. Before any audio publication, requests
+return error 6. Read page 2 first and compare generations; another client reading
+page 2 can replace the latch. Page 1 is independently live LED shadow; page 6
+is an independently live retained log. Audio timestamp makes stale data visible;
+these pages do not claim simultaneous physical measurements. No callback load
+measurement exists in the offline simulation; clients must label it unavailable.
+
+Event kinds 1–14: key down, key up, knob, voice start, voice stop, patch apply,
+sample selection, recording start, recording stop, card, queue error, storage
+error, sample loaded, sample job done. Key id is physical switch index; value
+bit 1 physical, bit 2 injected. Knob id is hardware encoder index, value is signed
+increment. Voice id is voice index; value has note in bits 0–7, source in 8–15,
+sample slot/127 in 16–23. Patch value is revision, selection/load value is
+PackSelection, record value is frames. Card value bits are present 1/usable
+mount 2. Queue-error value is newly observed loss count; storage-error id 0 is
+a generic error code, id 1 is a newly observed loader-error count. Job id uses
+the storage job enum; value 1 success/0 failure.
+
+The log retains 64 records, read non-destructively after an exclusive cursor.
+Only three records fit a page; continue until cursor equals latest or no records
+remain. A reader falling behind gets the oldest retained records and detects a
+serial gap. Audio observations can also drop from their bounded queue; those
+losses are a separate page-5 counter. Block-level voice/patch/record transitions
+may collapse multiple changes in one block. See [INSPECTOR.md](INSPECTOR.md) for
+ownership, limitations, host use and the exact next physical test.
+

@@ -3,6 +3,11 @@
 Updated 2026-10-03 (UTC). **Read [CONTINUE.md](CONTINUE.md) first**; it is the
 live checkpoint with claim levels, what changed and prioritized next actions.
 
+Latest addition: [Forge Inspector](INSPECTOR.md), development-only shared telemetry
+and read-only host viewer. See CONTINUE's current checkpoint for the 8 native
+passes, 61/62 Windows Python result (baseline-reproduced HTTP-body failure), ARM
+builds, release byte-identity and pending physical tests. No hardware was tested.
+
 - Development branch `forge/foundation`, draft PR #1. No merge, no flash.
 - Scope: AI-programmable playable instrument (synth with up to four voices,
   two oscillators, noise, resonant filter, LFO, glide; TAPE-compatible sampler

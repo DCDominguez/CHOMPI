@@ -4,6 +4,7 @@
 #include <cstdint>
 #include "parameters.h"
 #include "sample_table.h"
+#include "inspector.h"
 
 namespace forge {
 // Up to four voices (seven on v4). All calls belong to the audio owner. Source
@@ -169,6 +170,30 @@ public:
         return false;
     }
     unsigned Active() const { unsigned n = 0; for(const auto& v : voices_) if(v.amp.stage != Stage::Off) ++n; return n; }
+#ifdef FORGE_TEST_HOOKS
+    void ObserveVoiceEdges(SpscQueue<InspectorEvent,64>& events, std::atomic<uint32_t>& drops, uint32_t now) {
+        for(unsigned i=0;i<voices_.size();++i) {
+            const auto& v=voices_[i]; const bool active=v.amp.stage!=Stage::Off;
+            auto emit=[&](InspectorEventKind kind, uint32_t value) {
+                if(!events.Push({0,now,value,kind,static_cast<uint8_t>(i)})) drops.fetch_add(1,std::memory_order_relaxed);
+            };
+            if(event_active_[i] && (!active || event_age_[i]!=v.age)) emit(InspectorEventKind::VoiceStop,event_identity_[i]);
+            const uint32_t identity=v.note|(uint32_t(v.source)<<8)|(uint32_t(v.sampled?v.slot:127)<<16);
+            if(active && (!event_active_[i] || event_age_[i]!=v.age)) emit(InspectorEventKind::VoiceStart,identity);
+            event_active_[i]=active; event_age_[i]=v.age; event_identity_[i]=identity;
+        }
+    }
+    void Inspect(InspectorAudio& a) const {
+        for(unsigned i=0;i<voices_.size();++i) {
+            const auto& v=voices_[i]; auto& d=a.voices[i];
+            d.note=v.note; d.source=v.source; d.stage=static_cast<uint8_t>(v.amp.stage);
+            d.slot=v.sampled?v.slot:127; d.flags=(v.sampled?1:0)|(v.sustained?2:0)|(v.reverse?4:0);
+            d.envelope=v.amp.value; d.age=v.age;
+        }
+        a.cutoff=cutoff_; a.lfo=lfo_value_; a.wheel=wheel_; a.pedals=0;
+        for(unsigned i=0;i<kSources;++i) { a.bend[i]=bend_[i]; if(pedal_[i]) a.pedals |= 1u<<i; }
+    }
+#endif
     // Mono patches (v1-v3, oscillators) return the same value on both sides.
     void Process(float& left, float& right) {
         if(sampler_) { ProcessSampler(left, right); return; }
@@ -225,6 +250,9 @@ public:
         return filter_;
     }
 private:
+#ifdef FORGE_TEST_HOOKS
+    bool event_active_[7]{}; uint32_t event_age_[7]{}, event_identity_[7]{};
+#endif
     static constexpr unsigned kSources = 3; // UART, USB, keybed
     static constexpr int32_t kMinLoop = 1024;   // frames (TAPE: 4096 at its 2x files)
     // Bend smoothing and the shared LFO. Depth scale 1, or the mod wheel when gated.

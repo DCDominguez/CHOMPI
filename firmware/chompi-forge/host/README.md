@@ -4,6 +4,17 @@ Python 3.10+ on the computer connected to CHOMPI. Commands below assume the
 current directory is `firmware/chompi-forge/`, or the extracted test bundle.
 Use `python3` instead of `python` if that is your Python executable.
 
+## Development Forge Inspector
+
+For the physical hardware test, build `firmware-dev` and run
+`python host/forge_inspector.py --input "IN" --output "OUT" --watch --record session.jsonl`.
+This read-only viewer shows SYSTEM, PANEL, ENGINE, STORAGE and a retained event
+log through the existing development SysEx probe. `--json` exposes the same
+model to bridge/desktop clients; `--offline build/forge_probe` uses simulation.
+Full usage, field availability, realtime ownership and the next physical test:
+[INSPECTOR.md](../../../docs/forge/INSPECTOR.md). Release firmware rejects it.
+Stop the viewer while another Forge tool exchanges acknowledged requests.
+
 ## Webapp — OpenAI or Gemini with your key
 
 Run this on the computer connected to CHOMPI, using Python 3.10 or newer:

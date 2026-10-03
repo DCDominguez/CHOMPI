@@ -11,6 +11,9 @@
 class FatFsStorage : public forge::Storage {
 public:
     void SetMounted(bool mounted) { mounted_ = mounted; }
+#ifdef FORGE_TEST_HOOKS
+    bool Mounted() const { return mounted_; }
+#endif
     bool Ready() override { return mounted_ && disk_status(0) == RES_OK; }
     bool Read(const char* path, uint8_t* buffer, size_t capacity, size_t& size) override {
         if(!Ready() || f_open(&file_, path, FA_OPEN_EXISTING | FA_READ) != FR_OK) return false;

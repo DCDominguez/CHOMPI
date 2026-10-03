@@ -2,7 +2,7 @@ CXX ?= c++
 HOST_FLAGS = -std=c++14 -Wall -Wextra -Werror -pedantic -pthread
 HEADERS = $(wildcard core/*.h)
 .PHONY: test sanitize firmware firmware-dev libdaisy browser-test bench
-test: build/core_test build/protocol_test build/synth_test build/v3_test build/preset_test build/sampler_test build/panel_test build/forge_probe
+test: build/core_test build/protocol_test build/synth_test build/v3_test build/preset_test build/sampler_test build/panel_test build/inspector_test build/forge_probe
 	./build/core_test
 	./build/protocol_test
 	./build/synth_test
@@ -10,6 +10,7 @@ test: build/core_test build/protocol_test build/synth_test build/v3_test build/p
 	./build/preset_test
 	./build/sampler_test
 	./build/panel_test
+	./build/inspector_test
 	python3 -m unittest discover -s tests -p 'test_*.py' -v
 build/core_test: tests/core_test.cpp $(HEADERS)
 	mkdir -p build
@@ -32,6 +33,9 @@ build/sampler_test: tests/sampler_test.cpp $(HEADERS)
 build/panel_test: tests/panel_test.cpp $(HEADERS)
 	mkdir -p build
 	$(CXX) $(HOST_FLAGS) -DFORGE_TEST_HOOKS -O2 tests/panel_test.cpp -o $@
+build/inspector_test: tests/inspector_test.cpp tests/sample_card.h $(HEADERS)
+	mkdir -p build
+	$(CXX) $(HOST_FLAGS) -DFORGE_TEST_HOOKS -O2 tests/inspector_test.cpp -o $@
 build/forge_probe: host/forge_probe.cpp tests/sample_card.h $(HEADERS)
 	mkdir -p build
 	$(CXX) $(HOST_FLAGS) -DFORGE_TEST_HOOKS -O2 host/forge_probe.cpp -o $@
@@ -51,6 +55,8 @@ sanitize:
 	./build/sampler_test_sanitize
 	$(CXX) $(HOST_FLAGS) -DFORGE_TEST_HOOKS -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer tests/panel_test.cpp -o build/panel_test_sanitize
 	./build/panel_test_sanitize
+	$(CXX) $(HOST_FLAGS) -DFORGE_TEST_HOOKS -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer tests/inspector_test.cpp -o build/inspector_test_sanitize
+	./build/inspector_test_sanitize
 libdaisy:
 	mkdir -p build
 	$(MAKE) -C ../chompi-wave/code/libs/libDaisy BUILD_DIR=$(abspath build/libdaisy)

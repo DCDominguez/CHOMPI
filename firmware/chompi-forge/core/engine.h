@@ -80,11 +80,24 @@ public:
            || (patch.version >= 3) != (parameters_.version >= 3) || patch.Sampler() != parameters_.Sampler()
            || (patch.Sampler() && patch.sample_mode != parameters_.sample_mode)) Panic();
         parameters_ = patch;
+#ifdef FORGE_TEST_HOOKS
+        ++patch_revision_;
+#endif
         synth_.Configure(parameters_);
         if(has_reverb_) reverb_.Configure(parameters_.reverb_size, parameters_.reverb_damping);
         return true;
     }
     const Parameters& GetParameters() const { return parameters_; }
+#ifdef FORGE_TEST_HOOKS
+    uint32_t PatchRevision() const { return patch_revision_; }
+    void ObserveVoiceEdges(SpscQueue<InspectorEvent,64>& events, std::atomic<uint32_t>& drops, uint32_t now) {
+        synth_.ObserveVoiceEdges(events,drops,now);
+    }
+    void Inspect(InspectorAudio& a) const {
+        a.patch=parameters_; synth_.Inspect(a);
+        a.mix=mix_; a.feedback=feedback_; a.level=level_; a.delay_samples=time_; a.reverb_mix=reverb_mix_;
+    }
+#endif
 
     void Process(float left, float right, float& out_left, float& out_right) {
         if(!ready_) { out_left = out_right = 0.f; return; }
@@ -126,6 +139,9 @@ public:
         out_right = Sanitize(level_ * mixed_right);
     }
 private:
+#ifdef FORGE_TEST_HOOKS
+    uint32_t patch_revision_=0;
+#endif
     static float Sanitize(float value) {
         return std::isfinite(value) ? Clamp(value, -1.f, 1.f) : 0.f;
     }

@@ -540,7 +540,7 @@ def midi_module():
     return mido
 
 
-def exchange(payload, input_name, output_name, timeout=2.0, midi=None):
+def exchange(payload, input_name, output_name, timeout=2.0, midi=None, decoder=None):
     if not math.isfinite(timeout) or timeout <= 0 or timeout > 30:
         raise ValueError("Timeout must be greater than 0 and at most 30 seconds")
     midi = midi or midi_module()
@@ -561,7 +561,7 @@ def exchange(payload, input_name, output_name, timeout=2.0, midi=None):
                 data = list(reply.data)
                 if len(data) < 7 or data[:3] != PREFIX[:3] or read14(data, 5) != sequence:
                     continue
-                result = decode_response(data, sequence)
+                result = (decoder or decode_response)(data, sequence)
                 if payload[4] == 1 and data[8:len(payload)] != list(payload[7:-1]):
                     raise RuntimeError("Acknowledgement does not match the requested patch; query status")
                 return result

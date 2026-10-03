@@ -42,6 +42,37 @@ when recording from it (3D); keep headphones on so the speaker cannot feed back.
 | 1.2 | Power up; watch LED | Initialization completes; no output burst |
 | 1.3 | `H status ...` | Firmware 0.5, version 1 aux patch, counters 0 |
 
+## 1A. Inspector development candidate (before the normal audio checks)
+
+Use the development `src/build-dev/FORGE.bin` for this session if inspecting
+hardware. Release rejects probe reads; keep the two candidates separate and
+record the exact binary hash. [Inspector guide](INSPECTOR.md) explains the
+read-only viewer and measured versus unavailable fields. No agent has flashed
+or verified it on hardware.
+
+1. Start `python host/forge_inspector.py --input "IN" --output "OUT" --watch
+   --record inspector-session.jsonl` on one line, using explicit port names.
+2. At the dry aux startup patch, hold then release physical button 15 (C3).
+   Expect physical/logical bit 15, mapped note 48, down/up events whose value
+   includes physical bit 1, no override. Aux intentionally starts no voice.
+3. Turn logical knob 1 (SW4, encoder index 3) one step each way. Expect both
+   hardware and merged counters to move at index 3 and mix to follow. Match the
+   commanded LED shadow to actual board positions/colours.
+4. Stop Inspector during a normal host exchange; send preset 04 Glass Keys,
+   restart and repeat C3. Expect a panel-owned note-48 voice, release, then stop.
+5. Compare CPU peak, audio continuity, MIDI RX/TX failures, request/event drops
+   and emergency count with Inspector polling on versus off. Repeat with
+   `--interval 5` on UART if one-second polling causes traffic loss.
+6. During later sampler/record/jack/card tests, preserve the JSONL: wanted patch
+   versus actual loaded files, frame totals, partial slots, recording source,
+   lock/job state, card flags and errors. Card detection follows the existing
+   one-second watch. Check SD load progress with polling on/off.
+
+Record every discrepancy, polling interval, transport, binary hash and CPU
+reading. Actual DMA underruns and MIDI framing errors are **unavailable**, not
+zero. LED shadow is intent, not an electrical measurement. Do not count offline
+injections or simulated file loading as a physical pass.
+
 ## 2. External audio path (v1 compatibility)
 
 | # | Do | Pass when |

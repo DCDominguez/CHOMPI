@@ -24,12 +24,19 @@ template<typename Transport> struct MidiPort {
     forge::MidiFramer framer;
     forge::SpscQueue<forge::MidiFrame, 16> frames;
     std::atomic<uint32_t> dropped{0};
+#ifdef FORGE_TEST_HOOKS
+    std::atomic<uint32_t> received{0};
+#endif
     static void Receive(uint8_t* data, size_t size, void* context) {
         auto& self = *static_cast<MidiPort*>(context);
         forge::MidiFrame frame;
         for(size_t i = 0; i < size; ++i)
-            if(self.framer.Feed(data[i], frame) && !self.frames.Push(frame))
-                self.dropped.fetch_add(1, std::memory_order_relaxed);
+            if(self.framer.Feed(data[i], frame)) {
+#ifdef FORGE_TEST_HOOKS
+                self.received.fetch_add(1, std::memory_order_relaxed);
+#endif
+                if(!self.frames.Push(frame)) self.dropped.fetch_add(1, std::memory_order_relaxed);
+            }
     }
     void Listen() {
         if(!transport.RxActive()) {
@@ -103,12 +110,42 @@ std::atomic<bool> panel_overridden{false};
 uint8_t led_shadow[26][3];                                    // main loop: what the LEDs show now
 uint32_t flash_count = 0;                                     // main loop
 
+#ifdef FORGE_TEST_HOOKS
+forge::InspectorMailbox inspector_mailbox;
+forge::InspectorAudio inspector_latest;
+forge::InspectorSnapshot inspector_snapshot;
+forge::InspectorLog inspector_log;
+forge::SpscQueue<forge::InspectorEvent,64> inspector_edges;
+std::atomic<uint32_t> inspector_event_drops{0}, inspector_panel_drops{0}, inspector_sample_drops{0};
+uint32_t inspector_tx[2]{}, inspector_tx_errors[2]{};
+uint32_t inspector_storage_errors=0;
+uint8_t inspector_last_storage_error=0;
+void InspectorEvent(forge::InspectorEventKind kind, uint8_t id, uint32_t value) {
+    inspector_log.Add({0,System::GetNow(),value,kind,id});
+}
+void InspectorStorageError(forge::Error error) {
+    if(error==forge::Error::None) return;
+    ++inspector_storage_errors; inspector_last_storage_error=static_cast<uint8_t>(error);
+    InspectorEvent(forge::InspectorEventKind::StorageError,0,static_cast<uint8_t>(error));
+}
+#endif
+
 // Panel work for the main loop (audio callback is the producer).
 struct FirmwarePanelSink : forge::PanelSink {
     bool PresetAction(const forge::MenuAction& action, const forge::Parameters& snapshot) override {
-        return panel_actions.Push({action, snapshot});
+        const bool ok=panel_actions.Push({action, snapshot});
+#ifdef FORGE_TEST_HOOKS
+        if(!ok) inspector_panel_drops.fetch_add(1,std::memory_order_relaxed);
+#endif
+        return ok;
     }
-    bool SampleJob(const forge::SampleJob& job) override { return sample_jobs.Push(job); }
+    bool SampleJob(const forge::SampleJob& job) override {
+        const bool ok=sample_jobs.Push(job);
+#ifdef FORGE_TEST_HOOKS
+        if(!ok) inspector_sample_drops.fetch_add(1,std::memory_order_relaxed);
+#endif
+        return ok;
+    }
     void Flash(bool ok) override { audio_flash.store(ok ? 1 : 2, std::memory_order_relaxed); }
 };
 forge::PanelController panel_controller;                      // audio owner
@@ -154,6 +191,10 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     input.jack = hw.jack_detect.Read();
     input.tone_press = hw.enc[forge::panel::kToneEncoder].RisingEdge();
     for(unsigned i = 0; i < forge::panel::kEncoders; ++i) input.turns[i] = static_cast<int16_t>(hw.enc[i].Increment());
+#ifdef FORGE_TEST_HOOKS
+    const uint32_t inspector_now=System::GetNow();
+    panel_controller.SetInspectorEvents(&inspector_edges,&inspector_event_drops,inspector_now);
+#endif
     panel_controller.Block(input, engine, recorder, sink);
     const forge::RecordSource source = panel_controller.Source();
     sample_wanted.store(forge::PackSelection(engine.GetParameters()), std::memory_order_relaxed);
@@ -180,6 +221,29 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
         out[0][i] = out[2][i] = left;
         out[1][i] = out[3][i] = right;
     }
+#ifdef FORGE_TEST_HOOKS
+    static uint32_t block=0, revision=0, selection=0; static bool was_recording=false;
+    ++block;
+    auto edge=[&](forge::InspectorEventKind kind,uint32_t value) {
+        if(!inspector_edges.Push({0,inspector_now,value,kind,0})) inspector_event_drops.fetch_add(1,std::memory_order_relaxed);
+    };
+    engine.ObserveVoiceEdges(inspector_edges,inspector_event_drops,inspector_now);
+    if(engine.PatchRevision()!=revision) { revision=engine.PatchRevision(); edge(forge::InspectorEventKind::PatchApply,revision); }
+    const uint32_t live=forge::PackSelection(engine.GetParameters());
+    if(live!=selection) { selection=live; edge(forge::InspectorEventKind::SampleSelection,live); }
+    if(recorder.Recording()!=was_recording) {
+        was_recording=recorder.Recording();
+        edge(was_recording?forge::InspectorEventKind::RecordingStart:forge::InspectorEventKind::RecordingStop,recorder.Length());
+    }
+    if(auto* a=inspector_mailbox.AudioBegin()) {
+        engine.Inspect(*a); panel_controller.Inspect(*a);
+        a->block=block; a->time_ms=inspector_now; a->record_frames=recorder.Length();
+        a->recording=recorder.Recording(); a->locked=recorder.Locked();
+        // Completed earlier callbacks only; mirror work is included in this callback's meter.
+        a->cpu_average=cpu.GetAvgCpuLoad(); a->cpu_peak=cpu.GetMaxCpuLoad();
+        inspector_mailbox.AudioEnd();
+    }
+#endif
     cpu.OnBlockEnd();
 }
 
@@ -204,7 +268,12 @@ void TransmitPending() {
         const uint32_t timeout_ms = static_cast<uint32_t>((pending.size * 320 + 999) / 1000 + 5);
         sent = uart_midi.transport.GetUartHandle().BlockingTransmit(pending.bytes, pending.size, timeout_ms)
             == UartHandler::Result::OK;
-        if(!sent) { ++dropped_commands; has_pending = false; }
+        if(!sent) {
+#ifdef FORGE_TEST_HOOKS
+            ++inspector_tx_errors[0];
+#endif
+            ++dropped_commands; has_pending = false;
+        }
     } else {
         ScopedIrqBlocker guard;
         if(hUsbDeviceHS.dev_state == USBD_STATE_CONFIGURED && hUsbDeviceHS.pClassData) {
@@ -216,8 +285,16 @@ void TransmitPending() {
             }
         }
     }
-    if(sent) has_pending = false;
+    if(sent) {
+#ifdef FORGE_TEST_HOOKS
+        ++inspector_tx[pending.source];
+#endif
+        has_pending = false;
+    }
     else if(System::GetNow() - pending_since > 100) {
+#ifdef FORGE_TEST_HOOKS
+        ++inspector_tx_errors[pending.source];
+#endif
         ++dropped_commands; has_pending = false;
     }
 }
@@ -288,6 +365,9 @@ void RunPanelActions() {
             case forge::MenuAction::Kind::Copy: error = store.Copy(a.bank, a.slot, a.to_bank, a.to_slot); break;
             default: continue;   // sample actions never reach this queue (handled in the audio callback)
         }
+#ifdef FORGE_TEST_HOOKS
+        InspectorStorageError(error);
+#endif
         Flash(error == forge::Error::None);
     }
 }
@@ -299,6 +379,9 @@ void RunSampler() {
     }
     forge::SampleEvent event;
     if(sample_loader.Poll(sample_files, sample_wanted.load(std::memory_order_relaxed), record_memory, event)) {
+#ifdef FORGE_TEST_HOOKS
+        InspectorEvent(forge::InspectorEventKind::SampleJobDone,static_cast<uint8_t>(event.job.kind),event.ok?1:0);
+#endif
         if(event.job.kind == forge::SampleJob::Kind::Save) recorder.Unlock();
         if(event.job.source == 0xff) Flash(event.ok);
         else {
@@ -350,10 +433,53 @@ void WatchCard() {
     const bool present = disk_status(0) == RES_OK;
     if(present && !was_ready) {
         card.SetMounted(f_mount(&fsi.GetSDFileSystem(), fsi.GetSDPath(), 1) == FR_OK);
+#ifdef FORGE_TEST_HOOKS
+        if(!card.Ready()) InspectorStorageError(forge::Error::Storage);
+#endif
         store.Rescan();
     }
     was_ready = present && card.Ready();
 }
+
+#ifdef FORGE_TEST_HOOKS
+void CollectInspector() {
+    for(unsigned i=0;i<64;++i) { forge::InspectorEvent e; if(!inspector_edges.Pop(e)) break; inspector_log.Add(e); }
+    inspector_mailbox.Read(inspector_latest);
+    static uint32_t refreshed=0;
+    const uint32_t now=System::GetNow();
+    if(now-refreshed>=50) { refreshed=now; inspector_mailbox.RequestRefresh(); }
+    static uint32_t drops=0, loaded=0, errors=0; static uint8_t card_flags=127;
+    const uint32_t d=dropped_commands+uart_midi.dropped.load()+usb_midi.dropped.load()
+        +inspector_panel_drops.load()+inspector_sample_drops.load()+inspector_event_drops.load();
+    if(d!=drops) { InspectorEvent(forge::InspectorEventKind::QueueError,0,d-drops); drops=d; }
+    const uint8_t flags=(disk_status(0)==RES_OK?1:0)|(card.Ready()?2:0);
+    if(flags!=card_flags) { card_flags=flags; InspectorEvent(forge::InspectorEventKind::Card,0,flags); }
+    forge::InspectorStorage st; sample_loader.Inspect(st);
+    if(st.loaded_selection!=loaded && st.loaded_selection!=0xffffffffu && !st.loading) {
+        loaded=st.loaded_selection; InspectorEvent(forge::InspectorEventKind::SampleLoaded,0,loaded);
+    }
+    if(st.errors!=errors) {
+        inspector_last_storage_error=static_cast<uint8_t>(forge::Error::Storage);
+        InspectorEvent(forge::InspectorEventKind::StorageError,1,st.errors-errors); errors=st.errors;
+    }
+}
+void CaptureInspector() {
+    CollectInspector();
+    auto& s=inspector_snapshot; ++s.generation; s.audio=inspector_latest;
+    auto& sys=s.system; sys.uptime_ms=System::GetNow();
+    sys.rx[0]=uart_midi.received.load(); sys.rx[1]=usb_midi.received.load();
+    sys.ingress_drops[0]=uart_midi.dropped.load(); sys.ingress_drops[1]=usb_midi.dropped.load();
+    for(unsigned i=0;i<2;++i) { sys.tx[i]=inspector_tx[i]; sys.tx_errors[i]=inspector_tx_errors[i]; }
+    sys.dropped=dropped_commands+sys.ingress_drops[0]+sys.ingress_drops[1]; sys.rejected=rejected_messages;
+    sys.panel_drops=inspector_panel_drops.load(); sys.sample_drops=inspector_sample_drops.load();
+    sys.event_drops=inspector_event_drops.load(); sys.emergencies=emergency_epoch.load();
+    auto& st=s.storage; sample_loader.Inspect(st);
+    st.present=disk_status(0)==RES_OK; st.mounted=card.Mounted(); st.record_capacity_frames=kRecordFrames;
+    st.errors+=inspector_storage_errors;
+    if(inspector_last_storage_error) st.last_error=inspector_last_storage_error;
+    st.pending+=static_cast<uint8_t>(sample_jobs.Size());
+}
+#endif
 
 // One received frame (shared by both transports, so the code exists once).
 FORGE_NOINLINE void HandleFrame(const forge::MidiFrame& frame, uint8_t source) {
@@ -381,6 +507,12 @@ FORGE_NOINLINE void HandleFrame(const forge::MidiFrame& frame, uint8_t source) {
     if(error == forge::Error::None && request.kind == forge::RequestKind::Probe) {
         uint8_t envelope[kMaxEnvelope];
         size_t size;
+        if(request.page>=2 && !inspector_latest.block) {
+            inspector_mailbox.RequestRefresh();
+            ++rejected_messages;
+            Send(source,envelope,forge::EncodeError(request.sequence,forge::Error::Busy,envelope+1));
+            return;
+        }
         if(request.page == 0) {
             forge::ProbeState s;
             s.menu = menu_state.load(std::memory_order_relaxed);
@@ -392,7 +524,11 @@ FORGE_NOINLINE void HandleFrame(const forge::MidiFrame& frame, uint8_t source) {
             s.live = sample_wanted.load(std::memory_order_relaxed);
             s.flash_count = static_cast<uint8_t>(flash_count); s.flash_ok = flash_ok;
             size = forge::EncodeProbeState(request.sequence, s, envelope + 1);
-        } else size = forge::EncodeProbeLeds(request.sequence, led_shadow, envelope + 1);
+        } else if(request.page==1) size = forge::EncodeProbeLeds(request.sequence, led_shadow, envelope + 1);
+        else {
+            if(request.page==2 || !inspector_snapshot.generation) CaptureInspector();
+            size=forge::EncodeInspector(request.sequence,request.page,inspector_snapshot,inspector_log,request.inspector_cursor,envelope+1);
+        }
         Send(source, envelope, size);
         return;
     }
@@ -417,6 +553,9 @@ FORGE_NOINLINE void HandleFrame(const forge::MidiFrame& frame, uint8_t source) {
         ++dropped_commands; error = forge::Error::Busy;
     }
     if(error != forge::Error::None) {
+#ifdef FORGE_TEST_HOOKS
+        if(error==forge::Error::Storage || error==forge::Error::StorageBusy) InspectorStorageError(error);
+#endif
         ++rejected_messages;
         uint8_t envelope[kMaxEnvelope];
         const size_t size = forge::EncodeError(forge::Read14(frame.data + 5), error, envelope + 1);
@@ -444,6 +583,9 @@ void SendResponses() {
             response = forge::StoreReply(store, response.sequence, response.source, response.bank, response.slot,
                                          response.patch);
             if(response.error != forge::Error::None) ++rejected_messages;
+#ifdef FORGE_TEST_HOOKS
+            InspectorStorageError(response.error);
+#endif
         }
         SendResponse(response);
     }
@@ -493,6 +635,9 @@ int main() {
     sdmmc.Init(sd_config);
     fsi.Init(FatFSInterface::Config::MEDIA_SD);
     card.SetMounted(f_mount(&fsi.GetSDFileSystem(), fsi.GetSDPath(), 1) == FR_OK);
+#ifdef FORGE_TEST_HOOKS
+    if(disk_status(0)==RES_OK && !card.Ready()) InspectorStorageError(forge::Error::Storage);
+#endif
     store.Rescan();
     cpu.Init(hw.seed.AudioSampleRate(), hw.seed.AudioBlockSize());
     hw.StartAudio(AudioCallback);
@@ -516,6 +661,9 @@ int main() {
         RunSampler();
         WatchCard();
         DrawLeds();
+#ifdef FORGE_TEST_HOOKS
+        CollectInspector();
+#endif
         const uint32_t now = System::GetNow();
         if(now - battery_check >= 20) {
             hw.LowBatteryLockoutCheck();

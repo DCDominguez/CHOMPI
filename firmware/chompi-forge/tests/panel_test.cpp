@@ -135,7 +135,8 @@ void DevelopmentOpcodes() {
         m = make(0x0a, bad); assert(DecodeRequest(m.data(), m.size(), r) == Error::Patch);
     }
     m = make(0x0b, {1}); assert(DecodeRequest(m.data(), m.size(), r) == Error::None && r.kind == RequestKind::Probe && r.page == 1);
-    m = make(0x0b, {2}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Patch);
+    m = make(0x0b, {2}); assert(DecodeRequest(m.data(), m.size(), r) == Error::None && r.page == 2);
+    m = make(0x0b, {8}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Patch);
     uint8_t out[kMaxReply];
     assert(EncodePanelAck(42, out) == 9 && out[4] == 0x47 && Checksum(out, 9) == 0);
     ProbeState s; s.menu = 0x7fffffffu; s.flags = 63; s.voices = 7; s.record_ms = 87000; s.live = 0x1e3; s.flash_count = 200; s.flash_ok = 1;

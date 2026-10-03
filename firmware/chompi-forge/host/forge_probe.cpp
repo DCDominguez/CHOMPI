@@ -107,6 +107,13 @@ int main(int argc, char** argv) {
     } sink;
     sink.store = &store; sink.engine = &engine; sink.loader = &loader;
     forge::PanelController panel;
+    forge::InspectorSnapshot inspection; inspection.system.simulated=true;
+    forge::InspectorLog event_log; forge::SpscQueue<forge::InspectorEvent,64> edges;
+    std::atomic<uint32_t> event_drops{0};
+    uint32_t blocks=0, revision=0, selection=0, received=0; bool was_recording=false;
+    auto add=[&](forge::InspectorEventKind kind,uint32_t value) {
+        event_log.Add({0,blocks/2,value,kind,0});
+    };
     // One audio block plus one main-loop pass, as on the device.
     auto block = [&](forge::SampleEvent& event) {
         forge::SampleEvent e; bool finished = false;
@@ -116,12 +123,21 @@ int main(int argc, char** argv) {
             if(e.job.source == 0xff) sink.Flash(e.ok);
         }
         engine.SetSampleFilesAvailable(handoff.AudioBlock(engine));
+        ++blocks;
+        panel.SetInspectorEvents(&edges,&event_drops,blocks/2);
         panel.Block(forge::PanelInput{}, engine, recorder, sink);
         float l, r;
         for(int k = 0; k < 24; ++k) {
             engine.Process(0, 0, l, r);
             if(recorder.Recording()) { float a, b; recorder.Input(panel.Source(), 0, 0, 0, l, r, a, b); recorder.Write(a, b); }
         }
+        engine.ObserveVoiceEdges(edges,event_drops,blocks/2);
+        forge::InspectorEvent edge;
+        while(edges.Pop(edge)) event_log.Add(edge);
+        if(engine.PatchRevision()!=revision) { revision=engine.PatchRevision(); add(forge::InspectorEventKind::PatchApply,revision); }
+        const uint32_t live=forge::PackSelection(engine.GetParameters());
+        if(live!=selection) { selection=live; add(forge::InspectorEventKind::SampleSelection,selection); }
+        if(recorder.Recording()!=was_recording) { was_recording=recorder.Recording(); add(was_recording?forge::InspectorEventKind::RecordingStart:forge::InspectorEventKind::RecordingStop,recorder.Length()); }
         return finished;
     };
     // Runs until the loader is idle; returns a finished job, if any.
@@ -156,7 +172,22 @@ int main(int argc, char** argv) {
             panel.Inject(event); settle(ignored);
             size = forge::EncodePanelAck(request.sequence, reply);
         } else if(error == forge::Error::None && request.kind == forge::RequestKind::Probe) {
+            ++received;
             settle(ignored);
+            if(request.page>=2) {
+                if(request.page==2 || !inspection.generation) {
+                    ++inspection.generation; engine.Inspect(inspection.audio); panel.Inspect(inspection.audio);
+                    inspection.audio.block=blocks; inspection.audio.time_ms=blocks/2;
+                    inspection.audio.recording=recorder.Recording(); inspection.audio.locked=recorder.Locked();
+                    inspection.audio.record_frames=recorder.Length();
+                    inspection.system.uptime_ms=blocks/2; inspection.system.rx[0]=received;
+                    inspection.system.event_drops=event_drops.load();
+                    loader.Inspect(inspection.storage);
+                    inspection.storage.present=inspection.storage.mounted=true;
+                    inspection.storage.record_capacity_frames=recorder.Capacity();
+                }
+                size=forge::EncodeInspector(request.sequence,request.page,inspection,event_log,request.inspector_cursor,reply);
+            } else {
             const uint32_t menu = panel.MenuPacked();
             if(request.page == 0) {
                 forge::ProbeState s; s.menu = menu;
@@ -182,6 +213,7 @@ int main(int argc, char** argv) {
                     for(unsigned k = 0; k < 3; ++k) leds[i][k] = static_cast<uint8_t>(forge::Clamp(rgb[k], 0.f, 1.f) * 127.f + 0.5f);
                 }
                 size = forge::EncodeProbeLeds(request.sequence, leds, reply);
+            }
             }
         } else if(error == forge::Error::None && request.kind == forge::RequestKind::SampleList) {
             settle(ignored);

@@ -1,5 +1,19 @@
 # Forge changelog
 
+## 0.5 development Inspector — 2026-10-03
+
+- Shared versioned SYSTEM/PANEL/ENGINE/STORAGE telemetry and retained cursor log,
+  extending development probe 0B with pages 2–7. Original pages 0/1 and status
+  layouts unchanged; release still rejects 0A/0B.
+- Physical versus injected keys/encoders, indexed voices/modulation/resolved
+  parameters, transport/queue counts, load/record/job state and storage errors.
+- Read-only terminal viewer and JSONL collector reuse the same model for MIDI
+  and the labelled simulation. Audio publishes bounded scalar/edge data; main
+  owns snapshots, formatting and transport. No musical/DSP changes.
+- New native/Python coverage and consolidated hardware checklist. Validation
+  includes a preserved Windows baseline HTTP test failure; details and limits
+  in INSPECTOR.md. Hardware remains unverified.
+
 ## 0.5 sampler (roadmap item 4) — 2026-10-03
 
 Following TAPE's sampling (DC's request), with cheap extras. Design and

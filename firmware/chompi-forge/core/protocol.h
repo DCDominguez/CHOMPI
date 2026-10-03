@@ -40,6 +40,9 @@ struct Request {
     // Panel (development): event kind, id, signed value; Probe: page.
     uint8_t panel_kind = 0, panel_id = 0, page = 0;
     int8_t panel_value = 0;
+#ifdef FORGE_TEST_HOOKS
+    uint32_t inspector_cursor = 0;
+#endif
 };
 // Status: current patch + diagnostics (op 0x40). Stored/Erased: 0x42 storage ack.
 // Occupancy: 0x43 bank bitmaps. Snapshot: internal only (audio -> main for Store).
@@ -193,9 +196,13 @@ FORGE_NOINLINE inline Error DecodeRequest(const uint8_t* bytes, size_t size, Req
         if(!ok) return Error::Patch;
         candidate.kind = RequestKind::Panel; candidate.panel_kind = kind; candidate.panel_id = id;
         candidate.panel_value = static_cast<int8_t>(value);
-    } else if(bytes[4] == 0x0b) {                    // probe page 0 (state) or 1 (LEDs)
-        if(size != 9) return Error::Length;
-        if(bytes[7] > 1) return Error::Patch;
+    } else if(bytes[4] == 0x0b) {                    // existing probe + versioned Inspector pages
+        if(size != 9 && !(size == 14 && bytes[7] == 6)) return Error::Length;
+        if(bytes[7] > 7) return Error::Patch;
+        if(size == 14) {
+            if(bytes[12] > 15) return Error::Patch;
+            for(unsigned i=0;i<5;++i) candidate.inspector_cursor |= uint32_t(bytes[8+i]) << (7*i);
+        }
         candidate.kind = RequestKind::Probe; candidate.page = bytes[7];
 #endif
     } else if(bytes[4] == 2) {

@@ -5,6 +5,7 @@
 #include "recorder.h"
 #include "sample_table.h"
 #include "wav.h"
+#include "inspector.h"
 
 namespace forge {
 // ---- TAPE file names: <jammi|cubbi>_<a-e><1-14>[_double].wav in the SD root ----
@@ -166,7 +167,24 @@ public:
     bool Loading() const { return state_ == State::Detaching || state_ == State::Headers || state_ == State::Streaming; }
     uint16_t Occupancy(uint8_t mode, uint8_t bank) const { return mode < 2 && bank < kSampleBanks ? occupancy_[mode][bank] : 0; }
     bool Scanned() const { return scanned_; }
+#ifdef FORGE_TEST_HOOKS
+    void Inspect(InspectorStorage& s) const {
+        s.busy=Busy(); s.loading=Loading(); s.loaded_selection=current_;
+        s.pending=static_cast<uint8_t>((head_+kJobs-tail_)%kJobs);
+        s.job=state_==State::Job?static_cast<uint8_t>(job_.kind):127;
+        s.pool_used_bytes=cursor_*2; s.pool_capacity_bytes=pool_samples_*2;
+        s.errors=inspector_errors_; s.last_error=inspector_errors_?8:0;
+        s.file_frames=0; s.file_loaded_frames=0; s.partial_slots=0;
+        for(unsigned i=0;i<kRamSlot;++i) { const auto& slot=table_->slots[i];
+            s.file_frames+=slot.frames; s.file_loaded_frames+=slot.loaded.load(std::memory_order_acquire);
+            if(slot.partial) ++s.partial_slots;
+        }
+    }
+#endif
 private:
+#ifdef FORGE_TEST_HOOKS
+    uint32_t inspector_errors_=0;
+#endif
     enum class State : uint8_t { Idle, Detaching, Headers, Streaming, Job };
     static constexpr uint32_t kNone = 0xffffffffu;
     // Only file slots matter: the recording slot needs no loading.
@@ -187,6 +205,9 @@ private:
             uint8_t mode, bank, slot;
             if(ParseSampleName(name, mode, bank, slot)) self->occupancy_[mode][bank] |= uint16_t(1u << slot);
         }, this);
+#ifdef FORGE_TEST_HOOKS
+        if(!scanned_) ++inspector_errors_;
+#endif
     }
     FORGE_NOINLINE void Header(SampleFiles& files, uint8_t slot) {
         const uint8_t mode = (target_ >> 1) & 1u, bank = (target_ >> 2) & 7u;
@@ -197,7 +218,12 @@ private:
                         && ParseWav(scratch_, got, size, info) == WavError::None && info.Frames();
         files.CloseRead();
         info_[slot] = info;
-        if(!ok) return;                                            // unreadable or unsupported: slot stays empty
+        if(!ok) {
+#ifdef FORGE_TEST_HOOKS
+            ++inspector_errors_;
+#endif
+            return;                                            // unreadable or unsupported: slot stays empty
+        }
         SampleSlot& s = table_->slots[slot];
         const uint32_t room = (pool_samples_ - cursor_) / info.channels;
         const uint32_t frames = info.Frames() < room ? info.Frames() : room;
@@ -217,7 +243,12 @@ private:
             const uint8_t mode = (target_ >> 1) & 1u, bank = (target_ >> 2) & 7u;
             char path[24]; SamplePath(mode, bank, slot, false, path);
             uint32_t size;
-            if(!files.OpenRead(path, size)) { s.partial = true; NextSlot(files); return; }
+            if(!files.OpenRead(path, size)) {
+#ifdef FORGE_TEST_HOOKS
+                ++inspector_errors_;
+#endif
+                s.partial = true; NextSlot(files); return;
+            }
             open_ = true;
         }
         const uint32_t align = info.BlockAlign();
@@ -225,6 +256,9 @@ private:
         if(frames > s.frames - done) frames = s.frames - done;
         uint32_t got = 0;
         if(!frames || !files.ReadAt(info.data_offset + done * align, scratch_, frames * align, got) || got < align) {
+#ifdef FORGE_TEST_HOOKS
+            ++inspector_errors_;
+#endif
             s.partial = true;                  // frames past `loaded` play as silence
             NextSlot(files); return;
         }
@@ -297,6 +331,9 @@ private:
     }
     bool Finish(SampleFiles&, bool ok, SampleEvent& event) {
         event.job = job_; event.ok = ok;
+#ifdef FORGE_TEST_HOOKS
+        if(!ok) ++inspector_errors_;
+#endif
         // A changed file of the loaded bank/slot is reloaded.
         if(ok && job_.kind != SampleJob::Kind::Copy) Invalidate(job_.mode, job_.bank);
         if(ok && job_.kind == SampleJob::Kind::Copy) Invalidate(job_.to_mode, job_.to_bank);

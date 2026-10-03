@@ -3,6 +3,44 @@
 Updated 2026-10-03 (UTC), checkpoint after roadmap items 1–4 (sampler,
 firmware 0.5). Read this first.
 
+## Current checkpoint: Forge Inspector, 2026-10-03
+
+This checkpoint supersedes the earlier validation/size figures below.
+User scope for this session was observability, with no new musical/DSP features.
+Starting remote head was verified as `7e8fd1955872ed91fba9a44b76dbb145b93f677b`.
+Work stays on `forge/foundation`; PR #1 remains draft, main untouched, no flash.
+
+- [INSPECTOR.md](INSPECTOR.md) contains the audit, field availability, ownership,
+  exact checks, memory measurements and the exact next physical test.
+- One reusable development model (`core/inspector.h`) feeds new probe pages
+  2 SYSTEM, 3 PANEL, 4 ENGINE, 5 STORAGE, 6 EVENTS and 7 PATCH. Existing pages
+  0/1 and all release/status/patch layouts remain unchanged. Schema is explicitly
+  versioned; release rejects 0A/0B. Protocol details: PROTOCOL.md.
+- Read-only `host/forge_inspector.py` provides a four-group terminal viewer and
+  JSONL recording. Both MIDI and offline paths use the same decoder/collector.
+  No dashboard UI or Tab5 implementation yet; those should consume this model.
+- Audio updates cheap scalar state on a <=20 Hz mailbox request and pushes
+  bounded numeric event observations. Main creates/latches snapshots, retains
+  the log, serializes and sends. No new audio IO, allocation or waiting.
+- Eight native suites PASS (three factory TAPE files checked). Seven new
+  Inspector Python tests PASS. Full Python suite 61/62 PASS: the existing
+  oversized HTTP-body test fails with Windows WinError 10054, reproduced using
+  unmodified HEAD host/tests. Its assertions remain intact. Not an all-green run.
+- ARM release/development builds PASS (xPack 10.3.1-2.3 Windows x64, verified
+  archive hash in INSPECTOR). Release is byte-identical to original HEAD's
+  rebuild: 213,952 bytes, SRAM 92,588; no Inspector symbols. Development
+  footprint is recorded in INSPECTOR.md; SDRAM/DTCM/D2 unchanged.
+- ASan/UBSan could not link: installed Windows LLVM lacks the MinGW sanitizer
+  runtimes. The new suite is included in `make sanitize` for Linux. No sanitizer,
+  browser, benchmark, physical hardware or live-AI pass claimed this session.
+- Next: user-run TEST_SESSION 1A, starting with physical C3/button 15 and SW4
+  encoder index 3 on the dry aux patch, then Glass Keys for voice routing.
+  Record JSONL, actual LED mapping and CPU/queue losses with polling on/off.
+
+Still invisible: actual DMA underruns, framing/parser discards, stack/heap peaks,
+per-voice sample position/filter modulation and per-kit-slot loading progress.
+None of the hardware risks in the earlier checkpoint have been retired.
+
 ## Scope (unchanged, authoritative)
 
 DC wants an **AI-programmable playable instrument**, not effects-only: describe a
