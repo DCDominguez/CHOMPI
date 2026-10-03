@@ -257,11 +257,6 @@ def spectrogram(x, rate=RATE, top_hz=12000):
 
 
 # ---- finding the audio interface -----------------------------------------------------------
-def related(a, b):
-    words = lambda s: {w for w in s.lower().replace("(", " ").replace(")", " ").split() if len(w) > 2}
-    return len(words(a) & words(b))
-
-
 def detect(device, audio, log=print, cancel=None):
     """Find the input that hears CHOMPI (a Glass Keys C4) and the output wired to its line in
     (a -18 dBFS 1 kHz tone through the dry aux patch). Plays short quiet sounds only."""
@@ -287,7 +282,7 @@ def detect(device, audio, log=print, cancel=None):
     source = best[0]
     result["input"] = {"index": source["index"], "name": source["name"], "api": source["api"]}
     outputs = sorted([d for d in devices if d["outputs"] > 0 and d.get("api") == source.get("api")],
-                     key=lambda d: -related(d["name"], source["name"]))[:8]
+                     key=lambda d: -host.shared_words(d["name"], source["name"]))[:8]
     for d in outputs:
         if cancel and cancel.is_set(): break
         try:

@@ -104,11 +104,7 @@ FatFsSampleFiles sample_files(card);
 std::atomic<uint32_t> sample_wanted{0};                      // audio -> main: PackSelection of the live patch
 std::atomic<bool> recording_now{false};                       // audio -> main, for the CHOMPI LED
 forge::SpscQueue<forge::SampleJob, 4> sample_jobs;            // audio -> main: panel save/erase/copy
-// Audio -> main snapshots for the development probe (cheap; always published).
-std::atomic<uint32_t> active_voices{0}, record_frames{0};
-std::atomic<bool> panel_overridden{false};
-uint8_t led_shadow[26][3];                                    // main loop: what the LEDs show now
-uint32_t flash_count = 0;                                     // main loop
+uint8_t led_shadow[26][3];                                    // main loop: what the LEDs show now (probe page 1)
 
 #ifdef FORGE_TEST_HOOKS
 forge::InspectorMailbox inspector_mailbox;
@@ -200,9 +196,6 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     sample_wanted.store(forge::PackSelection(engine.GetParameters()), std::memory_order_relaxed);
     recording_now.store(recorder.Recording(), std::memory_order_relaxed);
     menu_state.store(panel_controller.MenuPacked(), std::memory_order_relaxed);
-    active_voices.store(engine.ActiveVoices(), std::memory_order_relaxed);
-    record_frames.store(recorder.Length(), std::memory_order_relaxed);
-    panel_overridden.store(panel_controller.Overridden(), std::memory_order_relaxed);
 
     const bool recording = recorder.Recording();
     for(size_t i = 0; i < size; ++i) {
@@ -314,7 +307,7 @@ void SendResponse(const forge::Response& response) {
     const size_t size = forge::EncodeResponse(response, dropped, rejected_messages, envelope + 1);
     Send(response.source, envelope, size);
 }
-void Flash(bool ok) { flash_ok = ok; flash_until = System::GetNow() + 400; ++flash_count; }
+void Flash(bool ok) { flash_ok = ok; flash_until = System::GetNow() + 400; }
 // Loads a slot and queues it for the audio owner. Silent requests (panel,
 // program change) get no reply; a host recall is acknowledged with status.
 forge::Error RecallPreset(forge::Request& request) {
@@ -513,18 +506,7 @@ FORGE_NOINLINE void HandleFrame(const forge::MidiFrame& frame, uint8_t source) {
             Send(source,envelope,forge::EncodeError(request.sequence,forge::Error::Busy,envelope+1));
             return;
         }
-        if(request.page == 0) {
-            forge::ProbeState s;
-            s.menu = menu_state.load(std::memory_order_relaxed);
-            s.flags = static_cast<uint8_t>((recording_now.load(std::memory_order_relaxed) ? 1 : 0)
-                | (sample_loader.Busy() ? 2 : 0) | (sample_loader.Loading() ? 4 : 0) | (sample_files.Ready() ? 8 : 0)
-                | (store.Ready() ? 16 : 0) | (panel_overridden.load(std::memory_order_relaxed) ? 32 : 0));
-            s.voices = static_cast<uint8_t>(active_voices.load(std::memory_order_relaxed));
-            s.record_ms = static_cast<uint32_t>(uint64_t(record_frames.load(std::memory_order_relaxed)) * 1000 / 48000);
-            s.live = sample_wanted.load(std::memory_order_relaxed);
-            s.flash_count = static_cast<uint8_t>(flash_count); s.flash_ok = flash_ok;
-            size = forge::EncodeProbeState(request.sequence, s, envelope + 1);
-        } else if(request.page==1) size = forge::EncodeProbeLeds(request.sequence, led_shadow, envelope + 1);
+        if(request.page==1) size = forge::EncodeProbeLeds(request.sequence, led_shadow, envelope + 1);
         else {
             if(request.page==2 || !inspector_snapshot.generation) CaptureInspector();
             size=forge::EncodeInspector(request.sequence,request.page,inspector_snapshot,inspector_log,request.inspector_cursor,envelope+1);

@@ -43,7 +43,7 @@ make -C firmware/chompi-forge test
 make -C firmware/chompi-forge sanitize
 ```
 
-`test` builds the DSP/queue, protocol, synth, v3 and preset suites and the offline harness, then runs
+`test` builds the eight native suites (DSP/queue, protocol, synth, v3, preset, sampler, panel, Inspector) and the offline harness, then runs
 Python integration tests. `make -C firmware/chompi-forge browser-test` drives the
 real webapp in Chromium (Playwright) against `tests/sim_device.py`, a stateful
 stand-in that routes SysEx through the same C++ runtime; screenshots land in
@@ -70,7 +70,9 @@ make -C firmware/chompi-forge firmware GCC_PATH=/absolute/toolchain/path/bin
 already on PATH, omit the argument.
 
 The target rebuilds libDaisy into `firmware/chompi-forge/build/libdaisy/` and
-links the application using WAVE's BOOT_SRAM layout. Outputs are
+links the application as BOOT_SRAM with TEMPO's code/data split and libDaisy's backup-SRAM
+region (`src/forge_sram.lds`); `host/check_firmware_layout.py` then checks that `boot_info`
+is in backup SRAM and that the image passes the bootloader's checks. Outputs are
 `firmware/chompi-forge/src/build/FORGE.bin`, `.elf`, `.hex`, and `.map`.
 Keep the map for memory allocation review; it does not measure runtime CPU or
 worst-case stack headroom. Forge's Makefile rejects flashing targets.
@@ -158,7 +160,7 @@ v1–v4 round trips through the C++ codec. When changing the v3/v4 layout, edit
 `V3Fields` (core/protocol.h; v4 entries have index ≥ 68) and `V3_FIELDS` /
 `V4_SAMPLER` (host/forge_host.py) together. Any v1–v3 DSP change must keep
 their output bit-exact or be called out as a deliberate behaviour change.
-Code space is the tightest firmware budget (~24 KB left at 0.5): check
+Code space is the tightest firmware budget (about 73 KB left in release, 57 KB in the development build, 2026-10-03): check
 `SRAM_EXEC` after each firmware change. The package generator includes all schemas, thirteen
 presets, web assets and simulated renders. Browser and live API acceptance are
 separate from mocked tests.

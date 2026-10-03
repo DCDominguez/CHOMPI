@@ -62,9 +62,11 @@ libdaisy:
 	$(MAKE) -C ../chompi-wave/code/libs/libDaisy BUILD_DIR=$(abspath build/libdaisy)
 firmware: libdaisy
 	$(MAKE) -C src
+	python3 host/check_firmware_layout.py src/build/FORGE.elf src/build/FORGE.bin
 # Development firmware with the bridge's panel injection and probe (src/build-dev/).
 firmware-dev: libdaisy
 	$(MAKE) -C src TEST_HOOKS=1 BUILD_DIR=build-dev
+	python3 host/check_firmware_layout.py src/build-dev/FORGE.elf src/build-dev/FORGE.bin
 
 # Real Chromium end-to-end test of the webapp against the simulated device.
 # Needs: pip install playwright && python3 -m playwright install chromium

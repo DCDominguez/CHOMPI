@@ -532,6 +532,13 @@ def sample_message(opcode, sequence, action=None, mode=None, bank=None, slot=Non
     return message(9, sequence, [actions.index(action), *source, *target])
 
 
+def shared_words(a, b):
+    """Words two device names share, ignoring numbers and short words: pairs MIDI ports
+    ("CHOMPI 0" / "CHOMPI 1") and an audio interface's inputs and outputs."""
+    words = lambda s: {w for w in s.lower().replace("(", " ").replace(")", " ").split() if len(w) > 2 and not w.isdigit()}
+    return len(words(a) & words(b))
+
+
 def midi_module():
     try:
         import mido

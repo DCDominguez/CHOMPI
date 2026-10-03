@@ -77,7 +77,9 @@ decoder/collector/display, not different telemetry implementations.
 ## Realtime ownership
 
 `core/inspector.h` is the shared C++ telemetry model and development codec;
-`host/forge_inspector.py` is the matching host decoder and reusable collector.
+`host/forge_inspector.py` is the matching host decoder and reusable collector. For
+testing, the browser bridge ([BRIDGE.md](BRIDGE.md)) is the main interface; the
+terminal viewer is a secondary, read-only tool.
 Future desktop/bridge/Tab5 clients should consume this schema, with deliberate
 schema revisions if fields change. Do not create new device-side telemetry for
 each client. No new transport or unsolicited stream was added.

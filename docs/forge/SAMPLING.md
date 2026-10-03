@@ -16,7 +16,8 @@ Implementation notes (where it differs from or refines the plan below):
 - A note in kit mode maps white keys only (MIDI 48–72); TAPE's MIDI input
   maps a wider range of notes onto the keys. Candidate for later.
 - CPU (emulated, 7 voices): 2,104–2,236 instructions/sample; worst case
-  2,628 vs WAVE 2,695. Code space 89.7 % used (~24 KB left).
+  2,628 vs WAVE 2,695. Code space then 89.7 % used (~24 KB left); since the
+  TEMPO split, 74 % (about 73 KB left).
 
 Source analysis: TAPE 2.0 (`firmware/chompi-tape/code/src`, read only):
 `DSPEngine.h`, `SampleReader.h`, `FileStreamingManager.*`, `FileCopier.h`,

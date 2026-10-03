@@ -5,8 +5,9 @@ of running firmware state for the physical test. Current validation and limits
 are in [CONTINUE.md](CONTINUE.md); Inspector is development-only.
 
 Forge is a community firmware project for CHOMPI, built on its Daisy Seed audio
-hardware. Candidate **0.4** implements a playable synth (up to four voices, two oscillators, noise, resonant
-filter with envelope, LFO, glide) plus stereo delay and reverb, live controls, atomic patch
+hardware. Candidate **0.5** implements a playable synth (up to four voices, two oscillators, noise, resonant
+filter with envelope, LFO, glide), a TAPE-compatible sampler with recording, SD-card presets,
+stereo delay and reverb, live controls, atomic patch
 recall, host-managed JSON presets, and diagnostics. The computer can optionally
 author presets through a local OpenAI/Gemini webapp with a user-supplied API
 key, or through the optional Ollama CLI.

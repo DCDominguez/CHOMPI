@@ -10,6 +10,11 @@ ENTRY(Reset_Handler)
  *  space (sampler); it uses about 92 KB of data. The CHOMPI bootloader copies
  *  images of up to 480 KB into D1 SRAM, so this split stays within it.
  *  Copied, not edited: upstream sources are untouched.
+ *
+ *  BACKUP_SRAM is restored from libDaisy's reference STM32H750IB_sram.lds (the
+ *  CHOMPI scripts lack it): libDaisy's boot_info must sit where the bootloader
+ *  writes its version. Elsewhere it is uninitialised RAM, and a 0 there makes
+ *  DaisySeed::Init() skip clock/SDRAM setup ("64 MHz bug", found by sfaber02).
  */
 MEMORY
 {
@@ -23,6 +28,7 @@ MEMORY
 	ITCMRAM (RWX) : ORIGIN = 0x00000000, LENGTH = 64K
 	SDRAM (RWX)   : ORIGIN = 0xc0000000, LENGTH = 64M
   QSPIFLASH (RX)  : ORIGIN = 0x90000000, LENGTH = 8M
+	BACKUP_SRAM (RWX) : ORIGIN = 0x38800000, LENGTH = 4K
 }
 
 _estack = 0x20020000;
@@ -219,6 +225,18 @@ SECTIONS
 	} > SDRAM AT >FLASH
 	_sisdram_text = LOADADDR(.sdram_text);
 	*/
+
+	.backup_sram (NOLOAD) :
+	{
+		. = ALIGN(4);
+		_sbackup_sram = .;
+		PROVIDE(__backup_sram_start = _sbackup_sram);
+		*(.backup_sram)
+		*(.backup_sram*)
+		. = ALIGN(4);
+		_ebackup_sram = .;
+		PROVIDE(__backup_sram_end = _ebackup_sram);
+	} > BACKUP_SRAM
 
 	.sdram_bss (NOLOAD) :
 	{

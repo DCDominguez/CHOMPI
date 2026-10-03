@@ -137,12 +137,9 @@ void DevelopmentOpcodes() {
     m = make(0x0b, {1}); assert(DecodeRequest(m.data(), m.size(), r) == Error::None && r.kind == RequestKind::Probe && r.page == 1);
     m = make(0x0b, {2}); assert(DecodeRequest(m.data(), m.size(), r) == Error::None && r.page == 2);
     m = make(0x0b, {8}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Patch);
+    m = make(0x0b, {0}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Patch);   // retired state page
     uint8_t out[kMaxReply];
     assert(EncodePanelAck(42, out) == 9 && out[4] == 0x47 && Checksum(out, 9) == 0);
-    ProbeState s; s.menu = 0x7fffffffu; s.flags = 63; s.voices = 7; s.record_ms = 87000; s.live = 0x1e3; s.flash_count = 200; s.flash_ok = 1;
-    assert(EncodeProbeState(42, s, out) == 24 && Checksum(out, 24) == 0 && out[4] == 0x46 && out[8] == 0);
-    uint32_t menu = 0; for(unsigned i = 0; i < 5; ++i) menu |= uint32_t(out[9 + i]) << (7 * i);
-    assert(menu == 0x7fffffffu && out[15] == 7 && (Read14(out + 16) | (out[18] << 14)) == 87000 && Read14(out + 19) == 0x1e3);
     uint8_t leds[26][3]; for(unsigned i = 0; i < 26; ++i) for(unsigned c = 0; c < 3; ++c) leds[i][c] = static_cast<uint8_t>(i + c);
     assert(EncodeProbeLeds(42, leds, out) == 88 && out[8] == 1 && out[9 + 3 * 25 + 2] == 27 && Checksum(out, 88) == 0);
     assert(88 <= kMaxReply);

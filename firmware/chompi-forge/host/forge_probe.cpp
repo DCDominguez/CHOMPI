@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
     // (no hardware input). Its menu actions run here directly.
     struct ProbeSink : forge::PanelSink {
         forge::PresetStore* store; forge::Engine* engine; forge::SampleLoader* loader;
-        uint8_t last_bank = 0, last_slot = forge::panel::kNoSlot; unsigned flashes = 0; bool flash_ok = true;
+        uint8_t last_bank = 0, last_slot = forge::panel::kNoSlot;
         bool PresetAction(const forge::MenuAction& a, const forge::Parameters& snapshot) override {
             forge::Error e = forge::Error::None;
             if(a.kind == forge::MenuAction::Kind::Recall) {
@@ -103,7 +103,7 @@ int main(int argc, char** argv) {
             return true;
         }
         bool SampleJob(const forge::SampleJob& job) override { forge::SampleJob j = job; j.source = 0xff; return loader->Queue(j); }
-        void Flash(bool ok) override { ++flashes; flash_ok = ok; }
+        void Flash(bool) override {}
     } sink;
     sink.store = &store; sink.engine = &engine; sink.loader = &loader;
     forge::PanelController panel;
@@ -189,16 +189,7 @@ int main(int argc, char** argv) {
                 size=forge::EncodeInspector(request.sequence,request.page,inspection,event_log,request.inspector_cursor,reply);
             } else {
             const uint32_t menu = panel.MenuPacked();
-            if(request.page == 0) {
-                forge::ProbeState s; s.menu = menu;
-                s.flags = static_cast<uint8_t>((recorder.Recording() ? 1 : 0) | (loader.Busy() ? 2 : 0) | (loader.Loading() ? 4 : 0)
-                                               | (samples.Ready() ? 8 : 0) | (store.Ready() ? 16 : 0) | (panel.Overridden() ? 32 : 0));
-                s.voices = static_cast<uint8_t>(engine.ActiveVoices());
-                s.record_ms = static_cast<uint32_t>(uint64_t(recorder.Length()) * 1000 / 48000);
-                s.live = forge::PackSelection(engine.GetParameters());
-                s.flash_count = static_cast<uint8_t>(sink.flashes); s.flash_ok = sink.flash_ok;
-                size = forge::EncodeProbeState(request.sequence, s, reply);
-            } else {
+            {
                 forge::LedView v; v.menu = menu;
                 v.preset_occupancy = store.Occupancy((menu >> 4) & 7u); v.preset_card = store.Ready();
                 v.last_bank = sink.last_bank; v.last_slot = sink.last_slot;

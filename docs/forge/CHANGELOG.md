@@ -1,5 +1,16 @@
 # Forge changelog
 
+## 0.5 boot fix and cleanup — 2026-10-03
+
+- Fixed (release and development firmware): libDaisy's `boot_info` now links
+  into backup SRAM (0x38800000), where the bootloader writes its version.
+  Before, it sat in uninitialised RAM; a 0 there made the firmware skip clock
+  and SDRAM setup on some units ("64 MHz bug", found by sfaber02). A layout
+  check now fails the build if it moves; the firmware relinks when the linker
+  script changes.
+- Development probe page 0 retired (Inspector pages cover it); consistency
+  tests for the duplicated checklist, key table and step ids; docs refreshed.
+
 ## 0.5 plug-and-play bridge — 2026-10-03
 
 DC: "more plug and play". Host only; firmware unchanged. Software-tested only.

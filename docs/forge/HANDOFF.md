@@ -3,7 +3,10 @@
 Updated 2026-10-03 (UTC). **Read [CONTINUE.md](CONTINUE.md) first**; it is the
 live checkpoint with claim levels, what changed and prioritized next actions.
 
-Latest addition: plug-and-play bridge. Connect CHOMPI finds the ports itself.
+Latest: boot fix ("64 MHz bug": boot_info now in backup SRAM; release and
+development firmware) and cleanup; kits rebuilt. See CONTINUE.
+
+Before that: plug-and-play bridge. Connect CHOMPI finds the ports itself.
 Automatic checks find the audio interface and measure CHOMPI's output. The
 Windows development kit includes Python and all packages (double-click
 `Start Forge bridge.cmd`). See CONTINUE's current checkpoint and BRIDGE.md.

@@ -196,9 +196,9 @@ FORGE_NOINLINE inline Error DecodeRequest(const uint8_t* bytes, size_t size, Req
         if(!ok) return Error::Patch;
         candidate.kind = RequestKind::Panel; candidate.panel_kind = kind; candidate.panel_id = id;
         candidate.panel_value = static_cast<int8_t>(value);
-    } else if(bytes[4] == 0x0b) {                    // existing probe + versioned Inspector pages
+    } else if(bytes[4] == 0x0b) {                    // probe: page 1 LEDs, 2-7 versioned Inspector pages
         if(size != 9 && !(size == 14 && bytes[7] == 6)) return Error::Length;
-        if(bytes[7] > 7) return Error::Patch;
+        if(bytes[7] == 0 || bytes[7] > 7) return Error::Patch;   // page 0 (old state page) retired: Inspector covers it
         if(size == 14) {
             if(bytes[12] > 15) return Error::Patch;
             for(unsigned i=0;i<5;++i) candidate.inspector_cursor |= uint32_t(bytes[8+i]) << (7*i);
@@ -316,26 +316,11 @@ FORGE_NOINLINE inline size_t EncodeResponse(const Response& response, uint32_t d
     return offset + 12;
 }
 #ifdef FORGE_TEST_HOOKS
-// Development probe replies (main loop). 0x47: panel event queued. 0x46 page 0:
-// state; page 1: the 25 key LEDs + CHOMPI LED as 7-bit RGB.
-struct ProbeState {
-    uint32_t menu = 0;          // PresetMenu::Packed()
-    uint8_t flags = 0;          // 1 recording, 2 loader busy, 4 loading, 8 sample card, 16 preset card, 32 panel overridden
-    uint8_t voices = 0, flash_count = 0, flash_ok = 0;
-    uint32_t record_ms = 0, live = 0;
-};
+// Development probe replies (main loop). 0x47: panel event queued. 0x46 page 1:
+// the 25 key LEDs + CHOMPI LED as 7-bit RGB (pages 2-7: core/inspector.h).
 inline size_t EncodePanelAck(uint16_t sequence, uint8_t* bytes) {
     Header(bytes, 0x47, sequence); bytes[7] = 0; bytes[8] = Checksum(bytes, 8);
     return 9;
-}
-inline size_t EncodeProbeState(uint16_t sequence, const ProbeState& s, uint8_t* bytes) {
-    Header(bytes, 0x46, sequence); bytes[7] = 0; bytes[8] = 0;
-    for(unsigned i = 0; i < 5; ++i) bytes[9 + i] = (s.menu >> (7 * i)) & 127;
-    bytes[14] = s.flags & 127; bytes[15] = s.voices & 127;
-    Write21(bytes + 16, s.record_ms); Write14(bytes + 19, s.live & 0x3fff);
-    bytes[21] = s.flash_count & 127; bytes[22] = s.flash_ok & 1;
-    bytes[23] = Checksum(bytes, 23);
-    return 24;
 }
 inline size_t EncodeProbeLeds(uint16_t sequence, const uint8_t (&leds)[26][3], uint8_t* bytes) {
     Header(bytes, 0x46, sequence); bytes[7] = 0; bytes[8] = 1;

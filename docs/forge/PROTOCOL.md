@@ -334,12 +334,10 @@ five little-endian 7-bit chunks, with the fifth chunk at most 15. All sizes
 exclude F0/F7. Largest reply still fits the existing `kMaxReply = 96` and the
 existing USB/UART buffers. No subscription, background push or new transport.
 
-Existing `46` pages remain byte-for-byte compatible:
+Page 0 (the original 24-byte state page) was retired on 2026-10-03: the
+Inspector pages carry the same state and no host read it any more. A page-0
+request now returns error 4 like any unknown page.
 
-- Page 0, 24 bytes: byte 8 page, 9–13 packed menu, 14 flags (recording 1,
-  busy 2, loading 4, sample card 8, preset card 16, overridden 32), 15 voices,
-  16–18 recording ms (saturated 21 bits), 19–20 live PackSelection, 21 flash
-  counter modulo 128, 22 flash result, 23 checksum.
 - Page 1, 88 bytes: byte 8 page, 9–86 LED RGB triples, 87 checksum. Indices
   0–24 are key LEDs in renderer order, 25 is CHOMPI. Each component 0–127.
 

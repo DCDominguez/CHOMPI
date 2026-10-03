@@ -23,7 +23,7 @@ def word(value):
 
 
 def request(page, sequence, cursor=0):
-    if type(page) is not int or not 0 <= page <= 7:
+    if type(page) is not int or not 1 <= page <= 7:
         raise ValueError("Unknown Inspector page")
     return host.message(0x0b, sequence, [page, *word(cursor)] if page == 6 else [page])
 

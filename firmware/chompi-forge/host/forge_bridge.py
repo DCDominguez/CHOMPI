@@ -137,12 +137,6 @@ def midi_ports():
     return midi.get_input_names(), midi.get_output_names()
 
 
-def forge_audio_related(a, b):
-    """Shared words between two port names (pairs "CHOMPI 0" with "CHOMPI 1")."""
-    words = lambda s: {w for w in s.lower().split() if not w.isdigit()}
-    return len(words(a) & words(b))
-
-
 class SessionDevice:
     """The bridge session's transport as the device interface of forge_audio.Runner (job thread only)."""
     def __init__(self, bridge): self.bridge = bridge
@@ -357,7 +351,7 @@ class Bridge:
         inputs, outputs = self.ports()
         named = lambda names: [n for n in names if any(word in n.lower() for word in CHOMPI_NAMES)]
         pairs = sorted(((i, o) for i in named(inputs) for o in named(outputs)),
-                       key=lambda pair: -forge_audio_related(*pair))
+                       key=lambda pair: -host.shared_words(*pair))
         if not pairs:
             raise RuntimeError("No MIDI port named CHOMPI found. Check the USB data cable and that the development "
                                "firmware is running; close other MIDI programs. Ports seen: " + (", ".join(inputs) or "none"))

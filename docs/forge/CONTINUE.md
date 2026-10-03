@@ -3,7 +3,44 @@
 Updated 2026-10-03 (UTC), checkpoint after roadmap items 1–4 (sampler,
 firmware 0.5). Read this first.
 
-## Current checkpoint: plug-and-play bridge with automatic checks, 2026-10-03
+## Current checkpoint: boot fix and cleanup, 2026-10-03
+
+DC asked to review the new community CHOMPI firmware forks (sfaber02,
+lnetzel, ugrossek, xNeoclox, sthompsonjr; upstream CHOMPI-Club unchanged) and
+then to apply the boot fix and cleanup. Findings and the feature ideas list are
+in the chat summary; ideas not yet built are listed under "What's left".
+
+**Firmware fix (release and development): the "64 MHz" boot bug.** Found by
+sfaber02 (hardware-tested on TAPE/TEMPO/WAVE). CHOMPI's linker scripts, and
+Forge's copy, had no BACKUP_SRAM region, so libDaisy's `boot_info` linked into
+uninitialised D1 SRAM (Forge: 0x2404df98). DaisySeed::Init() reads the
+bootloader version there before clock setup; a 0 skips clock and SDRAM setup
+(64 MHz, white LEDs, SD timeouts, no audio), depending on leftover RAM per
+unit/build. `src/forge_sram.lds` now has libDaisy's reference BACKUP_SRAM
+region and `.backup_sram (NOLOAD)` section: `boot_info` links at 0x38800000.
+Its static initialiser does not touch it (checked in the disassembly).
+`host/check_firmware_layout.py` runs after every `make firmware`/`firmware-dev`
+and fails the build if `boot_info` moves or the image fails the bootloader's /
+launcher's checks. `src/Makefile` now relinks when the linker script changes
+(before, a script edit was silently ignored).
+
+Cleanup: development probe page 0 retired (no host read it; the Inspector
+carries the same state); the three audio-callback atomics only it used are
+gone. New `tests/test_consistency.py`: bridge checklist vs TEST_SESSION ids
+(found and fixed drift in section 1A), automatic-check ids, Inspector key table
+vs firmware, linker script, layout checker. One shared `shared_words` helper.
+Stale docs fixed (README 0.4, DEVELOPMENT suites/layout, code headroom).
+
+Checks 2026-10-03: `make test` 8 native suites PASS, 92 Python tests OK;
+`make sanitize` 8 PASS (detect_leaks=0); `make browser-test` 11 + 4 OK; ARM
+(xPack 10.3.1) release FORGE.bin 213,716 B (74.0 %), sha256 `a7997e4c…ef793`;
+development 229,404 B (79.4 %), sha256 `627c8039…f16fd`; layout guard OK for
+both. Bench not rerun: DSP engine code unchanged. Hardware: none; the boot fix
+is verified on hardware only for the stock firmwares (by sfaber02), not Forge.
+
+Previous kits (`Forge-Bridge-dev-50cdc4b`, `Forge-0.5-test-b7a504a`) are stale:
+do not flash them.
+
 
 DC reviewed the bridge and asked for it to be "more plug and play". Built on
 DC's (ChatGPT session's) browser bridge at `7fa8624`, which an agent reviewed
@@ -155,7 +192,7 @@ No main merge, flashing or real-key API calls by agents.
   page); Samples page for TAPE's sample slots, source and save/copy/erase.
 - Stock comparison: bootloader layout, keybed, SD setup, CCs and knob order
   match stock; Forge reads/writes TAPE's sample files; sampler worst case
-  ~97 % of WAVE's engine (emulated), synth ~55 %; ~24 KB code headroom.
+  ~97 % of WAVE's engine (emulated), synth ~55 %; ~73 KB code headroom (TEMPO split).
 - QA bundle `Forge-0.5-test-b7a504a` is current (see Next actions).
 
 **What's left.**
@@ -163,7 +200,7 @@ No main merge, flashing or real-key API calls by agents.
   start-up stays dry aux; QA bundles go to DC's Google Drive (DC uploads;
   agents have no Drive access). Still open: configurable MIDI channel.
 - Features (PROJECT.md roadmap): 5 looping (TAPE's looper; ~7.6 MB SDRAM
-  and ~24 KB code left — tight, plan for it), 6 Tab5 controllers (optional).
+  and ~73 KB code left in release, ~57 KB in the development build), 6 Tab5 controllers (optional).
   Smaller candidates: TAPE per-slot settings, threshold-armed recording, kit
   MIDI note range, preset/sample names, mono note stack, octave shift, bend
   range, cheaper sine for Bell Keys.

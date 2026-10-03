@@ -26,6 +26,7 @@ $(error Forge foundation is build-only; see ../README.md for hardware validation
 endif
 include $(SYSTEM_FILES_DIR)/Makefile
 
-$(BUILD_DIR)/FORGE.elf: ../build/libdaisy/libdaisy.a
+# Relink when the linker script changes (libDaisy's rule only lists objects and Makefile).
+$(BUILD_DIR)/FORGE.elf: ../build/libdaisy/libdaisy.a $(LDSCRIPT)
 ../build/libdaisy/libdaisy.a:
 	$(MAKE) -C .. libdaisy

@@ -61,23 +61,25 @@ record the exact binary hash. [Inspector guide](INSPECTOR.md) explains the
 read-only viewer and measured versus unavailable fields. No agent has flashed
 or verified it on hardware.
 
-1. Start `python host/forge_inspector.py --input "IN" --output "OUT" --watch
-   --record inspector-session.jsonl` on one line, using explicit port names.
-2. At the dry aux startup patch, hold then release physical button 15 (C3).
+These four checks match the bridge's guided checks 1A.1–1A.4. The bridge
+records state and events into its session export by itself. Terminal
+alternative: `python host/forge_inspector.py --input "IN" --output "OUT" --watch
+--record inspector-session.jsonl`; keep that JSONL through the later sampler,
+record, jack and card tests (wanted patch versus loaded files, frame totals,
+partial slots, recording source, lock/job state, card flags, errors).
+
+1. At the dry aux startup patch, hold then release physical button 15 (C3).
    Expect physical/logical bit 15, mapped note 48, down/up events whose value
    includes physical bit 1, no override. Aux intentionally starts no voice.
-3. Turn logical knob 1 (SW4, encoder index 3) one step each way. Expect both
+2. Turn logical knob 1 (SW4, encoder index 3) one step each way. Expect both
    hardware and merged counters to move at index 3 and mix to follow. Match the
    commanded LED shadow to actual board positions/colours.
-4. Stop Inspector during a normal host exchange; send preset 04 Glass Keys,
-   restart and repeat C3. Expect a panel-owned note-48 voice, release, then stop.
-5. Compare CPU peak, audio continuity, MIDI RX/TX failures, request/event drops
-   and emergency count with Inspector polling on versus off. Repeat with
-   `--interval 5` on UART if one-second polling causes traffic loss.
-6. During later sampler/record/jack/card tests, preserve the JSONL: wanted patch
-   versus actual loaded files, frame totals, partial slots, recording source,
-   lock/job state, card flags and errors. Card detection follows the existing
-   one-second watch. Check SD load progress with polling on/off.
+3. Send preset 04 Glass Keys and repeat C3. Expect a panel-owned note-48 voice,
+   release, then stop.
+4. Compare CPU peak, audio continuity, MIDI RX/TX failures, request/event drops
+   and emergency count with polling on versus paused (terminal: `--interval 5`
+   on UART if one-second polling causes traffic loss). Check SD load progress
+   with polling on/off during the sampler tests.
 
 Record every discrepancy, polling interval, transport, binary hash and CPU
 reading. Actual DMA underruns and MIDI framing errors are **unavailable**, not
