@@ -8,6 +8,7 @@
 #include <vector>
 #include "../core/preset_menu.h"
 #include "../core/runtime.h"
+#include "../core/sample_loader.h"
 using namespace forge;
 
 // In-memory card with fault injection.
@@ -155,6 +156,78 @@ void KnobOrder() {
         assert(panel::kKnobEncoder[stock_encoder_map[hardware]] == hardware);
 }
 
+
+void SamplesPage() {
+    Panel p; p.Chompi(true);
+    assert(p.Press(panel::kPage) && p.menu.Page() == MenuPage::Samples && ((p.menu.Packed() >> 21) & 1u));
+    // Chromatic (default): a white key plays that slot; KEY_15 = the recording.
+    p.Press(kWhite[4]); p.Press(kWhite[14]);
+    auto a = p.Actions();
+    assert(a.size() == 2 && a[0].kind == MenuAction::Kind::SampleSelect && a[0].mode == 0 && a[0].bank == 0 && a[0].slot == 4);
+    assert(a[1].slot == kRamSlot);
+    // KEY_16 again cycles the chromatic bank (a -> b) and the instrument follows; KEY_17 selects kit, again cycles.
+    p.Press(panel::kChromatic); p.Press(panel::kKit); p.Press(panel::kKit);
+    a = p.Actions();
+    assert(a.size() == 3 && a[0].mode == 0 && a[0].bank == 1 && a[0].slot == kRamSlot);
+    assert(a[1].mode == 1 && a[1].bank == 0 && a[2].mode == 1 && a[2].bank == 1);
+    for(int i = 0; i < 5; ++i) { p.Press(panel::kKit); assert(p.Actions().size() == 1); }
+    assert(p.menu.SampleBank() == 1);                                            // wraps a-e
+    // Knob 1 turns the shown mode's bank (clamped), not the preset bank.
+    assert(p.menu.Encoder(0, 9) && p.menu.SampleBank() == 4 && p.menu.Bank() == 0);
+    assert(p.menu.Encoder(0, -9) && p.menu.SampleBank() == 0);
+    // Record source keys.
+    p.Press(panel::kMic); a = p.Actions();
+    assert(a.size() == 1 && a[0].kind == MenuAction::Kind::RecordSource && a[0].slot == 0 && ((p.menu.Packed() >> 25) & 3u) == 0);
+    // Save the recording into kit c3 (KEY_15 cannot be a target).
+    p.Press(panel::kKit); p.Press(panel::kKit); assert(p.menu.SampleBank() == 2);
+    p.Actions();
+    p.Press(panel::kSave); p.Press(kWhite[14]); p.Chompi(false); p.Chompi(true); assert(p.Actions().empty());
+    p.Press(kWhite[2]); p.Chompi(false); p.Chompi(true); a = p.Actions();
+    assert(a.size() == 1 && a[0].kind == MenuAction::Kind::SampleSave && a[0].mode == 1 && a[0].bank == 2 && a[0].slot == 2);
+    // Copy kit c2 -> chromatic b5, across modes and banks; mode keys do not reselect meanwhile.
+    p.Press(panel::kCopy); p.Press(kWhite[1]); assert(p.menu.Mode() == MenuMode::CopyDest);
+    p.Press(panel::kChromatic); p.Press(panel::kChromatic); p.Press(kWhite[4]); p.Chompi(false); p.Chompi(true);
+    a = p.Actions();
+    assert(a.size() == 1 && a[0].kind == MenuAction::Kind::SampleCopy && a[0].mode == 1 && a[0].bank == 2 && a[0].slot == 1
+           && a[0].to_mode == 0 && a[0].to_bank == 2 && a[0].to_slot == 4);
+    // Erase chromatic c5.
+    p.Press(panel::kErase); p.Press(kWhite[4]); p.Chompi(false); p.Chompi(true); a = p.Actions();
+    assert(a.size() == 1 && a[0].kind == MenuAction::Kind::SampleErase && a[0].mode == 0 && a[0].bank == 2 && a[0].slot == 4);
+    // Switching page cancels a pending function; the presets page still works.
+    p.Press(panel::kSave); p.Press(panel::kPage); assert(p.menu.Mode() == MenuMode::None && p.menu.Page() == MenuPage::Presets);
+    p.Press(kWhite[3]); a = p.Actions(); assert(a.size() == 1 && a[0].kind == MenuAction::Kind::Recall && a[0].slot == 3);
+    // The page and sample state persist between openings; FollowSampler tracks recalls.
+    p.Press(panel::kPage); p.Chompi(false); p.Chompi(true); assert(p.menu.Page() == MenuPage::Samples);
+    p.menu.FollowSampler(1, 4, 0); assert(p.menu.SampleMode() == 1 && p.menu.SampleBank() == 4);
+}
+void SampleLedsAndRecordGesture() {
+    Panel p; p.Chompi(true); p.Press(panel::kPage); p.Press(panel::kKit); p.Actions();
+    Rgb leds[25];
+    Parameters live; live.version = 4; live.synth = true; live.source = 1; live.sample_mode = 1;
+    RenderSampleLeds(p.menu.Packed(), 0b101, true, true, PackSelection(live), true, leds);
+    assert(leds[panel::SlotLed(0)].r == 1.f && leds[panel::SlotLed(0)].g == 1.f);   // playing kit bank: occupied slots white
+    assert(leds[panel::SlotLed(1)].r == 0.f && leds[panel::SlotLed(2)].g == 1.f);
+    assert(leds[panel::BlackLed(panel::kKit)].r > leds[panel::BlackLed(panel::kChromatic)].r);
+    assert(leds[panel::BlackLed(panel::kPage)].g == 0.f);                             // magenta: samples page
+    live.sample_bank = 3;                                                             // a different bank plays
+    RenderSampleLeds(p.menu.Packed(), 0b101, true, true, PackSelection(live), true, leds);
+    assert(leds[panel::SlotLed(0)].r < .5f && leds[panel::SlotLed(0)].r > 0.f);
+    RenderSampleLeds(p.menu.Packed(), 0b101, false, true, 0, true, leds);              // no card: file slots red
+    assert(leds[panel::SlotLed(0)].r > 0.f && leds[panel::SlotLed(0)].g == 0.f && leds[panel::SlotLed(kRamSlot)].g > 0.f);
+    RenderSampleLeds(0, 0b101, true, true, 0, true, leds); assert(leds[panel::SlotLed(0)].r == 0.f);  // closed
+    // Record gesture: toggle down + hold CHOMPI; release or toggle up stops.
+    RecordGesture g;
+    assert(g.Update(true, true) == RecordGesture::Event::None);                       // toggle up: menu, not record
+    assert(g.Update(false, true) == RecordGesture::Event::None);                      // no new press
+    g.Update(false, false);
+    assert(g.Update(false, true) == RecordGesture::Event::Start && g.Recording());
+    assert(g.Update(false, true) == RecordGesture::Event::None);
+    assert(g.Update(false, false) == RecordGesture::Event::Stop && !g.Recording());
+    assert(g.Update(false, true) == RecordGesture::Event::Start);
+    assert(g.Update(true, true) == RecordGesture::Event::Stop);                       // toggle up stops
+    assert(g.Update(false, true) == RecordGesture::Event::None);                      // still held: no restart
+}
+
 void LedModel() {
     PresetMenu menu; Rgb leds[25];
     RenderMenuLeds(menu.Packed(), 0x7fff, true, 0, 0, true, leds);
@@ -226,6 +299,6 @@ void RuntimeFlows() {
     assert(ListReply(store, list).error == Error::Storage);
 }
 int main() {
-    RecordsAndPaths(); StoreBehaviour(); MenuGestures(); KnobOrder(); LedModel(); Protocol(); RuntimeFlows();
-    std::cout << "PASS: preset records/paths, store faults, TAPE-style menu, LEDs, storage protocol, runtime flows\n";
+    RecordsAndPaths(); StoreBehaviour(); MenuGestures(); SamplesPage(); SampleLedsAndRecordGesture(); KnobOrder(); LedModel(); Protocol(); RuntimeFlows();
+    std::cout << "PASS: preset records/paths, store faults, TAPE-style menu, samples page, sample LEDs, record gesture, LEDs, storage protocol, runtime flows\n";
 }
