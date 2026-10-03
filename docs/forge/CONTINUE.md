@@ -3,7 +3,50 @@
 Updated 2026-10-03 (UTC), checkpoint after roadmap items 1–4 (sampler,
 firmware 0.5). Read this first.
 
-## Current checkpoint: Forge Inspector, 2026-10-03
+## Current checkpoint: plug-and-play bridge with automatic checks, 2026-10-03
+
+DC reviewed the bridge and asked for it to be "more plug and play". Built on
+DC's (ChatGPT session's) browser bridge at `7fa8624`, which an agent reviewed
+first: all firmware changes are `FORGE_TEST_HOOKS`-only; release FORGE.bin is
+byte-identical (`f0a18b13…`, reproduced on Linux), development `c2a4fb3d…`
+reproduced; 8 native, sanitizer (all 8, first Linux run) and browser suites pass.
+An earlier agent-only CLI bridge (local branch, never pushed) was folded in as
+`host/forge_audio.py` instead of being pushed separately.
+
+What is new (host only; firmware unchanged):
+- **Connect CHOMPI** finds the ports itself (`discover`): only ports named
+  CHOMPI/Daisy are opened (USB product string "CHOMPI"), confirmed by a Forge
+  status reply; clear messages when none is found or Forge does not answer.
+  Manual port choice stays available (DIN/UART).
+- **Automatic checks** card: Find audio interface (plays a C4, listens on each
+  input; then a −18 dBFS 1 kHz beep, interface's own outputs first) and Run
+  automatic checks (`host/auto_checks.json`, 19 TEST_SESSION steps: pitch,
+  clicks, levels, panic silence, menu/LED state via Inspector, samples, line-in
+  recording, CPU). Background jobs on the server with progress, cancel,
+  spectrograms on demand, results in the session export and `reports/<time>/`.
+  Without numpy/sounddevice or an interface, audio steps are skipped.
+- `python host/forge_audio.py run`: the same session from a terminal (for an
+  agent on DC's PC).
+- **Development kit ships Python** (NuGet `python` 3.12.10, PSF-signed binaries,
+  plus mido/python-rtmidi/numpy/sounddevice and Microsoft-signed msvcp140.dll,
+  all pinned by SHA-256 in `host/windows-runtime.json`; fetched by
+  `host/fetch_windows_runtime.py`, bundled by `package_candidate.py
+  --development --windows-runtime`). Reason found during this work:
+  python-rtmidi 1.5.8 has **no Windows wheel for Python 3.13/3.14**, so the
+  previous launcher fails on a fresh PC with current Python. The source-checkout
+  launcher now picks 3.10–3.12 and explains otherwise. `*.cmd` checked out CRLF.
+
+Checks run 2026-10-03 (Linux container): `make test` 8 native suites PASS,
+87 Python tests OK (14 new); with numpy hidden 87 OK, 11 skipped; `make
+browser-test` 11 + 4 OK (new: automatic checks in simulation); 8 targeted
+mutations of the new code all caught. Simulated autorun: 6 pass, 13 skipped
+(no audio), 0 fail. DLL imports of every bundled native module resolved
+against the kit (found and fixed: msvcp140.dll for rtmidi).
+
+Not verified: anything on Windows (launcher, bundled runtime, WASAPI device
+handling, MIDI port names), any real audio interface, detection on real
+hardware, measurement thresholds against real CHOMPI output. No hardware test.
+
 
 ### Browser hardware test bridge (supersedes terminal-only delivery below)
 

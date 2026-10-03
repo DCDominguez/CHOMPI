@@ -11,9 +11,17 @@ import time
 
 import forge_host as host
 import forge_inspector as inspector
+try:                       # automatic checks need numpy (+ sounddevice for a real interface)
+    import forge_audio
+except ImportError as missing:
+    forge_audio, AUDIO_MISSING = None, f"Automatic checks need numpy and sounddevice ({missing.name} is not installed)"
+else:
+    AUDIO_MISSING = None
 
 ROOT = Path(__file__).resolve().parent
 CHECKS = json.loads((ROOT / "bridge_checks.json").read_text(encoding="utf-8"))
+# Only ports whose names say CHOMPI (USB product string) or Daisy are ever probed by discover.
+CHOMPI_NAMES = ("chompi", "daisy")
 
 
 def now():
@@ -84,10 +92,10 @@ class Transport:
         else:
             self.destination.send(self.midi.Message.from_bytes(data))
 
-    def exchange(self, payload, decoder=host.decode_response):
+    def exchange(self, payload, decoder=host.decode_response, timeout=2):
         sequence = host.read14(payload, 5)
         self.raw([0xf0, *payload, 0xf7])
-        deadline = time.monotonic() + 2
+        deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             if self.process:
                 try: line = self.lines.get(timeout=max(.001, deadline-time.monotonic()))
@@ -124,9 +132,50 @@ class Transport:
                 if self.source: self.source.close()
 
 
+def midi_ports():
+    midi = host.midi_module()
+    return midi.get_input_names(), midi.get_output_names()
+
+
+def forge_audio_related(a, b):
+    """Shared words between two port names (pairs "CHOMPI 0" with "CHOMPI 1")."""
+    words = lambda s: {w for w in s.lower().split() if not w.isdigit()}
+    return len(words(a) & words(b))
+
+
+class SessionDevice:
+    """The bridge session's transport as the device interface of forge_audio.Runner (job thread only)."""
+    def __init__(self, bridge): self.bridge = bridge
+    def exchange(self, payload, decoder=host.decode_response): return self.bridge.transport.exchange(payload, decoder)
+    def send_patch(self, patch): return self.exchange(host.encode_patch(patch, self.bridge.seq()))
+    def status(self): return self.exchange(host.message(2, self.bridge.seq()))
+    def panic(self): return self.exchange(host.message(3, self.bridge.seq()))
+    def samples(self): return self.exchange(host.sample_message(8, self.bridge.seq()))
+    def snapshot(self): return self.bridge.snapshot()
+    def panel(self, event):
+        payload = panel_message(event, self.bridge.seq())
+        self.bridge.injected = True
+        result = self.exchange(payload, panel_ack)
+        self.bridge.log("injection", {**{k: event[k] for k in ("kind", "id", "value")}, "by": "automatic checks"})
+        if event["kind"] == 5: self.bridge.injected = False
+        return result
+    def note(self, note, velocity): self.bridge.transport.raw([0x90 if velocity else 0x80, note, velocity])
+    def cc(self, control, value):
+        if control == 64: self.bridge.pedal = value >= 64
+        self.bridge.transport.raw([0xb0, control, value])
+
+
 class Bridge:
-    def __init__(self, midi_lock, probe=None, factory=Transport):
-        self.midi_lock, self.probe, self.factory = midi_lock, probe, factory
+    # Operations allowed while a background job (audio detection, automatic checks) owns the transport.
+    DURING_JOB = ("job", "cancel", "capture", "heartbeat", "resume", "export", "check", "marker")
+
+    def __init__(self, midi_lock, probe=None, factory=Transport, ports=midi_ports, audio_factory=None, reports=None, plan=None):
+        self.midi_lock, self.probe, self.factory, self.ports = midi_lock, probe, factory, ports
+        self.audio_factory = audio_factory or (forge_audio.SoundDeviceAudio if forge_audio else None)
+        self.reports = Path(reports) if reports else ROOT.parent / "reports"
+        self.plan = Path(plan) if plan else ROOT / "auto_checks.json"   # server-side choice; never from a browser
+        self.job = None
+        self.log_lock = threading.Lock()
         self.lock = threading.Lock()
         self.transport = None
         self.owner = None
@@ -141,8 +190,9 @@ class Bridge:
         return self.sequence
 
     def log(self, kind, value):
-        self.total_records += 1
-        self.records.append({"utc": now(), "kind": kind, "value": value})
+        with self.log_lock:                        # request threads and a job thread both log
+            self.total_records += 1
+            self.records.append({"utc": now(), "kind": kind, "value": value})
 
     def snapshot(self):
         deadline = time.monotonic() + 15
@@ -163,8 +213,11 @@ class Bridge:
                 "connection": self.connection, "checks": dict(self.results),
                 "checklist": CHECKS, "records": list(self.records),
                 "records_omitted": self.total_records-len(self.records),
+                "automatic": {"audio": self.audio_info, "runs": list(self.runs)},
                 "hardware_verified": False,
-                "claim": "Check results are operator observations; simulation and injected events are not physical verification."}
+                "claim": "Check results are operator observations; simulation and injected events are not physical verification. "
+                         "Automatic results are the bridge's measurements of CHOMPI's audio output and telemetry: "
+                         "evidence only for what each step measured."}
 
     def disconnect(self, reason):
         if not self.transport: return
@@ -191,21 +244,26 @@ class Bridge:
             self.log("disconnect", reason)
             self.archive = self.report()
 
+    def busy(self): return bool(self.job and self.job["thread"].is_alive())
+
     def watchdog(self):
         while not self.stop.wait(1):
             with self.lock:
-                if self.transport and time.monotonic()-self.touched > 35:
+                if self.transport and not self.busy() and time.monotonic()-self.touched > 35:
                     self.disconnect("Browser heartbeat expired")
 
     def close(self):
         self.stop.set()
         self.worker.join(timeout=2)
+        if self.job:
+            self.job["cancel"].set(); self.job["thread"].join(timeout=30)
         with self.lock: self.disconnect("Server closed")
 
     def request(self, operation, body):
         if not self.lock.acquire(blocking=False):
             raise RuntimeError("Bridge operation in progress; wait for it to finish")
         try:
+            if operation == "discover": return self.discover()
             if operation == "connect":
                 if self.transport: raise RuntimeError("A bridge session already owns MIDI; disconnect it first")
                 mode = body.get("mode")
@@ -228,6 +286,7 @@ class Bridge:
                 self.total_records, self.cursor = 0, 0
                 self.injected = self.armed = self.pedal = False
                 self.latest = None
+                self.audio, self.audio_info, self.runs, self.images = None, None, [], {}
                 self.touched = time.monotonic()
                 try: snapshot = self.snapshot()
                 except Exception:
@@ -242,8 +301,12 @@ class Bridge:
                 return {"connected":bool(self.transport), "snapshot":self.latest,
                         "checks":dict(self.results), "metadata":self.metadata, "mode":self.mode,
                         "armed":self.armed if self.transport else False}
+            if operation in ("job", "cancel", "capture"): return self.job_request(operation, body)
             if not self.transport: raise RuntimeError("Session disconnected; export the report or reconnect")
             self.touched = time.monotonic()
+            if self.busy() and operation not in self.DURING_JOB:
+                raise RuntimeError("Automatic checks are running; wait for them or Cancel")
+            if operation in ("audio_detect", "autorun"): return self.start_job(operation, body)
             if operation == "disconnect":
                 self.disconnect("Operator disconnected")
                 return {"disconnected": True, "cleanup_errors":self.cleanup_errors}
@@ -287,6 +350,96 @@ class Bridge:
                 self.disconnect("Transport/action failed")
                 raise
         finally: self.lock.release()
+
+    def discover(self):
+        """Find CHOMPI's MIDI ports: only ports named CHOMPI/Daisy, confirmed by a Forge status reply."""
+        if self.transport: raise RuntimeError("A bridge session already owns MIDI; disconnect it first")
+        inputs, outputs = self.ports()
+        named = lambda names: [n for n in names if any(word in n.lower() for word in CHOMPI_NAMES)]
+        pairs = sorted(((i, o) for i in named(inputs) for o in named(outputs)),
+                       key=lambda pair: -forge_audio_related(*pair))
+        if not pairs:
+            raise RuntimeError("No MIDI port named CHOMPI found. Check the USB data cable and that the development "
+                               "firmware is running; close other MIDI programs. Ports seen: " + (", ".join(inputs) or "none"))
+        if not self.midi_lock.acquire(blocking=False): raise RuntimeError("Another Forge MIDI operation is active")
+        try:
+            tried = []
+            for i, o in pairs[:6]:
+                try:
+                    transport = self.factory(i, o, None)
+                except Exception as error:
+                    tried.append(f"{i} / {o}: {error}"); continue
+                try:
+                    status = transport.exchange(host.message(2, self.seq()), timeout=0.8)
+                    if "firmware" in status:
+                        return {"input": i, "output": o, "firmware": status["firmware"]}
+                    tried.append(f"{i} / {o}: unexpected reply")
+                except Exception as error:
+                    tried.append(f"{i} / {o}: {type(error).__name__}")
+                finally:
+                    transport.close()
+            raise RuntimeError("CHOMPI's ports were found but Forge did not answer (" + "; ".join(tried) +
+                               "). Is Forge's development firmware installed? Is another program using the ports?")
+        finally:
+            self.midi_lock.release()
+
+    def start_job(self, kind, body):
+        if kind == "autorun" and body.get("confirm") is not True:
+            raise ValueError("Confirm that automatic checks may send patches, notes, tones and virtual panel presses")
+        if forge_audio is None: raise RuntimeError(AUDIO_MISSING)
+        if kind == "autorun":
+            plan = json.loads(self.plan.read_text(encoding="utf-8"))
+            folder = body.get("folder") or time.strftime("%Y%m%d-%H%M%S")
+            if not isinstance(folder, str) or not folder.replace("-", "").isalnum(): raise ValueError("Invalid report folder")
+        if kind == "audio_detect" and self.mode == "simulation":
+            raise RuntimeError("The simulation has no audio; automatic checks skip audio steps there")
+        if kind == "audio_detect" and self.audio_factory is None:
+            raise RuntimeError("Audio detection is disabled for this session")
+        job = {"kind": kind, "started": now(), "finished": None, "progress": [], "result": None, "error": None,
+               "cancel": threading.Event()}
+        device = SessionDevice(self)
+        def say(line):
+            job["progress"].append(line); self.touched = time.monotonic()
+        def body_():
+            try:
+                if kind == "audio_detect":
+                    audio = self.audio_factory()
+                    info = forge_audio.detect(device, audio, say, job["cancel"])
+                    self.audio = audio if info["input"] else None
+                    self.audio_info = info
+                    say("Hears CHOMPI on: " + (info["input"]["name"] if info["input"] else "nothing (audio steps will be skipped)"))
+                    say("Plays into line in from: " + (info["output"]["name"] if info["output"] else "nothing (tone steps will be skipped)"))
+                    job["result"] = info
+                else:
+                    runner = forge_audio.Runner(device, self.audio, self.reports / folder, ROOT.parent,
+                                                lambda e: say(f"{e['id']:>6}  {e['result']:<8} {e['title']}"), job["cancel"])
+                    result = runner.run(plan)
+                    self.images.update(runner.images)
+                    result.update(folder=str((self.reports / folder).resolve()), audio=self.audio_info)
+                    self.runs.append(result)
+                    job["result"] = result
+                self.log(kind, job["result"])
+            except Exception as error:
+                job["error"] = f"{type(error).__name__}: {error}"
+                self.log("error", f"{kind}: {job['error']}")
+            finally:
+                job["finished"] = now(); self.touched = time.monotonic()
+        job["thread"] = threading.Thread(target=body_, daemon=True)
+        self.job = job
+        self.log(kind + "_started", {"plan": self.plan.name} if kind == "autorun" else {})
+        job["thread"].start()
+        return {"started": kind}
+
+    def job_request(self, operation, body):
+        job = self.job
+        if operation == "capture":
+            image = self.images.get(body.get("image"))
+            if image is None: raise ValueError("Unknown capture")
+            return {"image": body["image"], "png": forge_audio.data_url(image)}
+        if not job: return {"kind": None, "finished": None, "progress": [], "result": None, "error": None}
+        if operation == "cancel": job["cancel"].set()
+        return {"kind": job["kind"], "started": job["started"], "finished": job["finished"], "progress": list(job["progress"]),
+                "result": job["result"], "error": job["error"], "cancelling": job["cancel"].is_set()}
 
     def prepare(self, body):
         action = body.get("action")

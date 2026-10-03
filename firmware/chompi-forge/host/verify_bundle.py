@@ -21,7 +21,7 @@ def verify(folder):
             problems.append(f"changed: {name}")
     extra = {p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file()} - listed - {"manifest.json"}
     problems += [f"unlisted: {name}" for name in sorted(extra)
-                 if "__pycache__" not in name and not name.startswith("host/.bridge-venv/")]
+                 if "__pycache__" not in name and not name.startswith(("host/.bridge-venv/", "reports/"))]
     return manifest, problems
 
 

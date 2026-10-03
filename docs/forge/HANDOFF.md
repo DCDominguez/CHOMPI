@@ -3,7 +3,13 @@
 Updated 2026-10-03 (UTC). **Read [CONTINUE.md](CONTINUE.md) first**; it is the
 live checkpoint with claim levels, what changed and prioritized next actions.
 
-Latest addition: [Forge Inspector](INSPECTOR.md), development-only shared telemetry
+Latest addition: plug-and-play bridge. Connect CHOMPI finds the ports itself.
+Automatic checks find the audio interface and measure CHOMPI's output. The
+Windows development kit includes Python and all packages (double-click
+`Start Forge bridge.cmd`). See CONTINUE's current checkpoint and BRIDGE.md.
+Software-tested only: 8 native suites, 87 Python and 15 Chromium tests.
+
+Before that: [Forge Inspector](INSPECTOR.md), development-only shared telemetry
 and the [browser hardware test bridge](BRIDGE.md), with guided checks, controls,
 session exports and a Windows launcher. Latest host validation: 73 Python and
 14 real Chromium tests pass. Firmware is unchanged by the bridge increment.

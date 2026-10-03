@@ -45,8 +45,12 @@ when recording from it (3D); keep headphones on so the speaker cannot feed back.
 ## 1A. Inspector development candidate (before the normal audio checks)
 
 The [hardware test bridge](BRIDGE.md) provides this checklist in the browser,
-with observations, state evidence and exports. Start `python host/forge_web.py
---open` (one line), select ports and Connect. Enable test controls only for
+with observations, state evidence and exports. With the development kit,
+double-click `Start Forge bridge.cmd` and press Connect CHOMPI (from a clone:
+`python host/forge_web.py --open`). With an audio interface wired in, Find
+audio interface and Run automatic checks measure 1.3, 2.1–2.4, 3.1, 3.4, 3.10,
+3.17, 3.28–3.30, 3.34, 4.1 and 6.2b/c and record the results in the session
+export; record those steps from it, and judge by ear what it cannot. Enable test controls only for
 explicit actions. It coordinates polling with its own patch/MIDI/storage tests.
 Disconnect before running the separate `H` CLI commands below. The terminal
 Inspector remains an alternative; do not run both clients together.

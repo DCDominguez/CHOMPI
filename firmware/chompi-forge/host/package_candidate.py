@@ -20,7 +20,10 @@ def main():
     parser.add_argument("--source-commit", help="Remote commit when uploaded through the GitHub connector")
     parser.add_argument("--development", action="store_true", help="Package the Inspector development firmware")
     parser.add_argument("--include-probe", action="store_true", help="Include this platform's simulation executable")
+    parser.add_argument("--windows-runtime", type=Path, metavar="CACHE",
+                        help="Bundle portable Python + MIDI/audio packages for Windows (folder from fetch_windows_runtime.py)")
     args = parser.parse_args()
+    if args.windows_runtime and not args.development: raise SystemExit("--windows-runtime is for the development kit")
     if subprocess.check_output(["git", "status", "--porcelain"], cwd=REPO, text=True).strip():
         raise SystemExit("Commit the tested source before packaging")
     source_tree = subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], cwd=REPO, text=True).strip()
@@ -52,7 +55,8 @@ def main():
         "TRADEMARKS.md": (REPO / "TRADEMARKS.md").read_bytes(),
     }
     for name in ("forge_host.py", "forge_ai.py", "forge_ai_check.py", "forge_web.py", "forge_bridge.py",
-                 "forge_inspector.py", "bridge_checks.json", "start_bridge.cmd", "requirements.txt", "README.md"):
+                 "forge_inspector.py", "bridge_checks.json", "start_bridge.cmd", "requirements.txt", "README.md",
+                 "forge_audio.py", "auto_checks.json", "bridge-requirements.txt", "windows-runtime.json"):
         files["host/" + name] = (ROOT / "host" / name).read_bytes()
     for name in ("BRIDGE.md", "INSPECTOR.md", "TEST_SESSION.md"):
         files["docs/" + name] = (REPO / "docs/forge" / name).read_bytes()
@@ -75,9 +79,14 @@ def main():
         subprocess.run([str(probe), "--render", str(render)],
                        input=midi, text=True, check=True, capture_output=True, timeout=10)
         files["audio-reference/" + render.name] = render.read_bytes()
+    runtime = None
+    if args.windows_runtime:
+        runtime = windows_runtime(args.windows_runtime, files)
+        files["Start Forge bridge.cmd"] = b'@echo off\r\ncall "%~dp0host\\start_bridge.cmd"\r\n'
     manifest = {"candidate": "Forge Bridge 0.5 development" if args.development else "Forge 0.5", "hardware_verified": False,
                 "development_hooks": args.development,
                 "simulation_platform": sys.platform if args.include_probe else None,
+                "windows_runtime": runtime,
                 "source_commit": commit, "source_tree": source_tree,
                 "source_url": f"https://github.com/DCDominguez/CHOMPI/tree/{commit}",
                 "compiler": compiler,
@@ -96,6 +105,34 @@ def main():
             archive.writestr(info, data)
     print(json.dumps({"file": str(Path(args.output).resolve()), "source_tree": source_tree,
                       "firmware_sha256": manifest["files"]["firmware/FORGE.bin"]["sha256"]}))
+
+
+def windows_runtime(cache, files):
+    """Portable Python (NuGet `python`, tools/ -> python/) with the bridge's packages unpacked into
+    python/Lib/site-packages, all verified against host/windows-runtime.json."""
+    import fetch_windows_runtime as fetch
+    paths = fetch.verify(cache)
+    skip = ("tools/Lib/site-packages/", "tools/Lib/ensurepip/", "tools/Lib/venv/", "tools/include/", "tools/libs/")
+    with zipfile.ZipFile(paths[0]) as nupkg:
+        for entry in nupkg.infolist():
+            if entry.filename.startswith("tools/") and not entry.is_dir() and not entry.filename.startswith(skip):
+                files["python/" + entry.filename[len("tools/"):]] = nupkg.read(entry)
+    lock = json.loads((ROOT / "host/windows-runtime.json").read_text(encoding="utf-8"))
+    with zipfile.ZipFile(paths[-1]) as msvc:                        # only the C++ runtime DLL rtmidi needs
+        for member, target in lock["msvc"]["extract"].items(): files[target] = msvc.read(member)
+    for wheel in paths[1:-1]:
+        with zipfile.ZipFile(wheel) as archive:
+            for entry in archive.infolist():
+                name = entry.filename
+                if entry.is_dir() or name.startswith("numpy/") and "/tests/" in name: continue   # numpy's own test suite
+                top, _, rest = name.partition("/")
+                if top.endswith(".data"):                                   # <dist>.data/<kind>/...
+                    kind, _, name = rest.partition("/")
+                    if kind not in ("purelib", "platlib"): continue         # scripts/headers are not needed
+                files["python/Lib/site-packages/" + name] = archive.read(entry)
+    return {"python": lock["python"]["file"], "packages": [w["file"] for w in lock["wheels"]],
+            "msvc": lock["msvc"]["file"],
+            "note": "python.exe/python312.dll signed by the Python Software Foundation, msvcp140.dll by Microsoft; files verified by SHA-256"}
 
 
 if __name__ == "__main__": main()

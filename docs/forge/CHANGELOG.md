@@ -1,5 +1,18 @@
 # Forge changelog
 
+## 0.5 plug-and-play bridge — 2026-10-03
+
+DC: "more plug and play". Host only; firmware unchanged. Software-tested only.
+- Connect CHOMPI: automatic port discovery (CHOMPI/Daisy-named ports only,
+  confirmed by a Forge reply).
+- Automatic checks: finds the audio interface, then runs 19 measurable
+  TEST_SESSION steps (pitch, clicks, levels, panic, menu/LEDs, samples,
+  recording, CPU) with spectrograms and reports; `forge_audio.py run` for
+  terminals. Audio steps skip without an interface or numpy.
+- Windows development kit bundles Python 3.12 and its packages (pinned,
+  signed sources); python-rtmidi has no Windows build for Python 3.13+.
+- verify_bundle ignores the kit's `reports/` folder; `*.cmd` use CRLF.
+
 ## 0.5 development Inspector — 2026-10-03
 
 - Shared versioned SYSTEM/PANEL/ENGINE/STORAGE telemetry and retained cursor log,

@@ -21,6 +21,7 @@ This guide does not require merging the branch or flashing a unit.
 | Optional CLI AI | A configured Ollama server and an already-installed model |
 | Native software tests / renderer | GNU Make, a C++14 compiler, pthreads and Python 3.10+ |
 | Firmware build | GNU Make and GNU Arm Embedded 10.3-2021.10 |
+| Bridge automatic checks | `host/bridge-requirements.txt` (numpy, sounddevice) and an audio interface; Windows kit: `host/fetch_windows_runtime.py CACHE`, then `package_candidate.py --development --windows-runtime CACHE` |
 
 Native tests and the ARM build have been exercised in Linux. The upstream
 [quickstart](../../firmware/README.md) covers macOS toolchain setup. Windows users

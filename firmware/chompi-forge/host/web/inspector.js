@@ -1,6 +1,6 @@
 "use strict";
 const $ = id => document.getElementById(id);
-let token, owner, connected = false, busy = false, paused = false, armed = false;
+let token, owner, connected = false, busy = false, paused = false, armed = false, jobActive = false;
 let presets = [], checks = [], results = {}, events = [], lastReceived = 0, nextPoll = 0, lastHeartbeat = 0;
 const value = id => $(id).value;
 const number = id => Number(value(id));
@@ -8,9 +8,11 @@ const text = (id, message) => { $(id).textContent = message; };
 function notice(message, error = false) { text("notice", message); $("notice").classList.toggle("error", error); }
 function controls() {
   for (const id of ["mode", "input", "output", "metadata", "ports", "connect"]) $(id).disabled = busy || connected;
-  for (const id of ["pause", "disconnect", "arm", "release", "panic", "save-check"]) $(id).disabled = busy || !connected;
+  for (const id of ["pause", "disconnect", "arm", "release", "panic", "save-check"]) $(id).disabled = busy || !connected || (jobActive && id !== "save-check");
+  for (const id of ["detect", "autorun"]) $(id).disabled = busy || !connected || jobActive;
+  $("cancel-job").disabled = !jobActive;
   for (const id of ["export", "jsonl"]) $(id).disabled = busy || !owner;
-  $("controls").disabled = busy || !connected || !armed;
+  $("controls").disabled = busy || !connected || !armed || jobActive;
   text("pause", paused ? "Resume polling" : "Pause polling");
 }
 async function api(path, body = {}) {
@@ -99,6 +101,12 @@ bind("ports",async()=>{
   notice(p.inputs.length && p.outputs.length ? "Select CHOMPI's input and output." : "No MIDI ports found. Check the data cable, development firmware and device connection.");
 });
 bind("connect",async()=>{
+  if(value("mode")==="hardware" && !(value("input") && value("output"))) {
+    notice("Looking for CHOMPI…");
+    const found=await api("/api/bridge/discover",{});
+    for (const kind of ["input","output"]) options(kind,[[found[kind],found[kind]]]);
+    notice(`Found CHOMPI (Forge ${found.firmware}) on ${found.input} / ${found.output}. Connecting…`);
+  }
   const r=await bridge("connect",{mode:value("mode"),input:value("input"),output:value("output"),metadata:value("metadata")});
   owner=r.owner; connected=true; paused=false; armed=false; $("arm").checked=false; events=[]; results={};
   sessionStorage.setItem("forge-bridge-owner",owner);
@@ -148,10 +156,56 @@ function download(name,data,type) {
 bind("export",async()=>{ const report=await bridge("export"); download("forge-session.json",JSON.stringify(report,null,2),"application/json"); });
 bind("jsonl",async()=>{ const report=await bridge("export"); const {records,...metadata}=report; download("forge-trace.jsonl",[JSON.stringify({kind:"session",value:metadata}),...records.map(r=>JSON.stringify(r))].join("\n")+"\n","application/x-ndjson"); });
 $("event-filter").addEventListener("change",drawEvents);
+// ---- automatic checks: background jobs on the server; the page polls their progress ----
+function el(tag, className, content) { const e=document.createElement(tag); if(className) e.className=className; if(content!==undefined) e.textContent=content; return e; }
+function showAudio(info) {
+  if(!info) return;
+  text("audio-status",`Audio interface: ${info.input?`hears CHOMPI on “${info.input.name}”`:"none hears CHOMPI (audio steps will be skipped)"} · ${info.output?`plays into line in from “${info.output.name}”`:"no output reaches line in (tone steps will be skipped)"}`);
+}
+function showRun(result) {
+  const c=result.counts, box=$("auto-results");
+  const head=el("p","auto-counts",`pass ${c.pass} · fail ${c.fail} · error ${c.error} · skipped ${c.skipped}${result.cancelled?" · cancelled":""}. Files: ${result.folder}`);
+  const rows=result.steps.map(s=>{
+    const d=el("details",`auto-step ${s.result}`); const sum=el("summary");
+    sum.append(el("span",`badge-${s.result}`,s.result.toUpperCase()),` ${s.id} · ${s.title}`); d.append(sum);
+    if(s.reason||s.error) d.append(el("p","hint",s.reason||s.error));
+    const bad=s.checks.filter(k=>!k.ok);
+    if(bad.length) d.append(el("pre","",bad.map(k=>`expected ${k.what} = ${JSON.stringify(k.expected)}, got ${JSON.stringify(k.actual)}`).join("\n")));
+    for (const [name,cap] of Object.entries(s.captures||{})) {
+      d.append(el("p","hint",`${name}: peak ${cap.peak_db} dBFS · pitch ${cap.pitch_hz??"none"} Hz · clicks ${cap.clicks.length} · ${cap.silent?"silent":"sound"}`));
+      const show=el("button","","Show spectrogram");
+      show.addEventListener("click",()=>run(async()=>{ const r=await bridge("capture",{image:cap.image}); const img=el("img","spectrogram"); img.src=r.png; img.alt=`Spectrogram of ${s.id} ${name}`; show.replaceWith(img); }));
+      d.append(show);
+    }
+    return d;
+  });
+  box.replaceChildren(head,...rows);
+}
+async function followJob() {
+  const j=await bridge("job");
+  text("job-log",j.progress.join("\n")||"Starting…");
+  if(!j.finished) return false;
+  jobActive=false; controls();
+  if(j.error) notice(`${j.kind==="autorun"?"Automatic checks":"Audio search"} stopped: ${j.error}`,true);
+  else if(j.kind==="audio_detect") { showAudio(j.result); notice("Audio search finished."); }
+  else { showRun(j.result); notice(`Automatic checks finished: ${j.result.counts.pass} pass, ${j.result.counts.fail} fail, ${j.result.counts.error} error, ${j.result.counts.skipped} skipped.`, j.result.counts.fail+j.result.counts.error>0); }
+  nextPoll=Date.now();
+  return true;
+}
+async function startJob(op, body={}) {
+  await bridge(op, body); jobActive=true; controls(); text("job-log","Starting…"); $("auto-results").replaceChildren();
+}
+bind("detect",()=>startJob("audio_detect"));
+bind("autorun",async()=>{
+  if(!window.confirm("Automatic checks send patches, play notes and quiet test tones, press virtual panel keys and record a short take into CHOMPI's RAM (nothing is written to the SD card). About 2 minutes. Keep monitoring volume low. Start?")) return;
+  await startJob("autorun",{confirm:true});
+});
+bind("cancel-job",async()=>{ await bridge("cancel"); notice("Cancelling after the current step…"); });
 setInterval(()=>{
   if(lastReceived) text("freshness",`${connected?(paused?"PAUSED":"CONNECTED"):"DISCONNECTED"} · last complete state ${Math.floor((Date.now()-lastReceived)/1000)}s ago`);
   $("telemetry").classList.toggle("stale",!connected || paused || Date.now()-lastReceived>number("interval")*2+2000);
   if(!connected || busy) return;
+  if(jobActive) { run(async()=>{ try { await followJob(); lastHeartbeat=Date.now(); } catch(error) { jobActive=false; disconnected(); throw error; } }); return; }
   if(!paused && Date.now()>=nextPoll) run(async()=>{
     try { render(await bridge("poll")); lastHeartbeat=Date.now(); }
     catch(error) { disconnected(); throw error; }
@@ -176,6 +230,9 @@ async function init() {
       const r=await bridge("resume"); connected=r.connected; paused=true; armed=r.armed; results=r.checks;
       $("arm").checked=armed; $("metadata").value=r.metadata; $("mode").value=r.mode;
       if(r.snapshot) render(r.snapshot);
+      const j=await bridge("job");
+      if(j.kind && !j.finished) { jobActive=true; text("job-log",j.progress.join("\n")); }
+      else if(j.kind==="autorun" && j.result) showRun(j.result);
       showCheck(); controls(); notice(connected?"Session restored with polling paused. Resume when ready.":"Previous session retained. Export before starting a new one.");
       return;
     } catch { owner=null; sessionStorage.removeItem("forge-bridge-owner"); }

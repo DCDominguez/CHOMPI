@@ -7,7 +7,10 @@ Use `python3` instead of `python` if that is your Python executable.
 ## Development Forge Inspector
 
 For the complete browser test workflow, use `python host/forge_web.py --open`
-and open `/inspector`, or double-click `host/start_bridge.cmd` on Windows.
+and open `/inspector`, or double-click `host/start_bridge.cmd` on Windows (the
+development kit's `Start Forge bridge.cmd` needs no Python install). Connect
+CHOMPI finds the ports; Automatic checks (`forge_audio.py`, needs
+`bridge-requirements.txt` and an audio interface) measure CHOMPI's output.
 The [bridge guide](../../../docs/forge/BRIDGE.md) covers live state, test controls,
 the 62 physical checks, session reports and optional C++ simulation.
 

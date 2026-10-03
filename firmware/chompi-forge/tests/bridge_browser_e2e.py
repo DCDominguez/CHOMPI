@@ -83,6 +83,22 @@ class BridgeBrowserTests(unittest.TestCase):
             path=Path(d)/"trace.jsonl"; download.value.save_as(path)
             self.assertEqual(json.loads(path.read_text().splitlines()[0])["kind"],"session")
 
+    def test_automatic_checks_in_simulation(self):
+        expect(self.page.locator("#autorun")).to_be_enabled()
+        self.page.click("#detect")                     # the simulation has no audio: explained, session kept
+        expect(self.page.locator("#notice")).to_contain_text("simulation has no audio")
+        self.page.once("dialog",lambda dialog: dialog.accept())
+        self.page.click("#autorun")
+        expect(self.page.locator("#autorun")).to_be_disabled()
+        expect(self.page.locator("#notice")).to_contain_text("Automatic checks finished",timeout=60000)
+        expect(self.page.locator("#auto-results")).to_contain_text("PASS 3.17")
+        expect(self.page.locator("#auto-results")).to_contain_text("SKIPPED 2.1")
+        expect(self.page.locator("#autorun")).to_be_enabled()
+        self.assertEqual(self.page.locator(".auto-step.fail, .auto-step.error").count(),0)
+        self.page.locator("#auto").screenshot(path=str(ROOT/"build/browser/bridge-automatic.png"))
+        self.page.click("#pause")                      # polling resumes normally after the job
+        expect(self.page.locator("#notice")).to_contain_text("snapshot")
+
     def test_mobile_layout_and_connection_failure(self):
         self.page.set_viewport_size({"width":390,"height":844})
         self.assertLessEqual(self.page.evaluate("document.documentElement.scrollWidth"),390)
