@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "name": "Soft Pad",
+  "engine": "instrument",
+  "routing": "synth>delay>output",
+  "modules": {
+    "synth": {
+      "waveform": "triangle",
+      "attack_ms": 650,
+      "decay_ms": 900,
+      "sustain": 0.7,
+      "release_ms": 1600,
+      "cutoff_hz": 2400
+    },
+    "delay": {
+      "mix": 0.25,
+      "time_ms": 510,
+      "feedback": 0.3,
+      "bypass": false
+    },
+    "output": {
+      "level": 0.25
+    }
+  }
+}

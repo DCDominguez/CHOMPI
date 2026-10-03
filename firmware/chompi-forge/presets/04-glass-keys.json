@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "name": "Glass Keys",
+  "engine": "instrument",
+  "routing": "synth>delay>output",
+  "modules": {
+    "synth": {
+      "waveform": "sine",
+      "attack_ms": 3,
+      "decay_ms": 450,
+      "sustain": 0.12,
+      "release_ms": 900,
+      "cutoff_hz": 12000
+    },
+    "delay": {
+      "mix": 0.3,
+      "time_ms": 370,
+      "feedback": 0.25,
+      "bypass": false
+    },
+    "output": {
+      "level": 0.25
+    }
+  }
+}

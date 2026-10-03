@@ -1,0 +1,672 @@
+#include "hardware.h"
+#include "command_queue.h"
+#include "engine.h"
+#include "fatfs_storage.h"
+#include "midi_framer.h"
+#include "panel_controller.h"
+#include "preset_menu.h"
+#include "runtime.h"
+#include "sampler_runtime.h"
+#include "usb_packets.h"
+#include "usbd_cdc.h"
+#include "usbd_cdc_if.h"
+#include "util/CpuLoadMeter.h"
+
+extern "C" { extern USBD_HandleTypeDef hUsbDeviceHS; }
+
+using namespace daisy;
+using namespace chompi;
+
+namespace {
+Hardware hw;
+template<typename Transport> struct MidiPort {
+    Transport transport;
+    forge::MidiFramer framer;
+    forge::SpscQueue<forge::MidiFrame, 16> frames;
+    std::atomic<uint32_t> dropped{0};
+#ifdef FORGE_TEST_HOOKS
+    std::atomic<uint32_t> received{0};
+#endif
+    static void Receive(uint8_t* data, size_t size, void* context) {
+        auto& self = *static_cast<MidiPort*>(context);
+        forge::MidiFrame frame;
+        for(size_t i = 0; i < size; ++i)
+            if(self.framer.Feed(data[i], frame)) {
+#ifdef FORGE_TEST_HOOKS
+                self.received.fetch_add(1, std::memory_order_relaxed);
+#endif
+                if(!self.frames.Push(frame)) self.dropped.fetch_add(1, std::memory_order_relaxed);
+            }
+    }
+    void Listen() {
+        if(!transport.RxActive()) {
+            framer.Reset(); transport.FlushRx();
+            transport.StartRx(Receive, this);
+        }
+    }
+};
+MidiPort<MidiUartTransport> uart_midi;
+MidiPort<MidiUsbTransport> usb_midi;
+CpuLoadMeter cpu;
+UsbHandle usb_sender;
+// libDaisy exposes the configured device and CDC state used by its MIDI mode.
+// Keep TX memory alive until USB completion, and never rewrite it while busy.
+// Largest reply (v4 status, 98 bytes with F0/F7) packs into 33 USB-MIDI events.
+constexpr size_t kMaxEnvelope = forge::kMaxReply + 2;
+uint8_t usb_tx_packets[((kMaxEnvelope + 2) / 3) * 4];
+struct Outgoing { uint8_t source = 0; uint8_t bytes[kMaxEnvelope]{}; size_t size = 0; };
+forge::SpscQueue<Outgoing, 32> outgoing; // producer and consumer both main loop
+Outgoing pending;
+bool has_pending = false;
+uint32_t pending_since = 0;
+forge::Engine engine;
+// Emergency count: main loop is the only writer; audio reads it each block.
+std::atomic<uint32_t> emergency_epoch{0};
+bool discard_ingress = false; // main-loop owned
+forge::SpscQueue<forge::Request, 64> requests;
+forge::SpscQueue<forge::Response, 64> responses;
+// The bootloader does not zero SDRAM; Engine::Init clears these before audio.
+constexpr size_t kDelayCapacity = 48002;
+float DSY_SDRAM_BSS delay_left[kDelayCapacity];
+float DSY_SDRAM_BSS delay_right[kDelayCapacity];
+constexpr size_t kReverbCapacity = 8704; // >= Reverb::Required(48000) = 8606
+// 34 KB in DTCM (zero-wait, uncached), as TAPE/TEMPO/WAVE place their reverbs.
+// The FDN lines exceed the 16 KB D-cache, so SDRAM would mean cache misses.
+// Not zeroed at boot; Reverb's unread counter hides stale cells until rewritten.
+float __attribute__((section(".dtcmram_bss"))) reverb_memory[kReverbCapacity];
+uint32_t dropped_commands = 0, rejected_messages = 0; // main-loop owned
+
+// Device presets on the SD card (main loop only) and the TAPE-style panel menu
+// (audio owner). Menu actions cross to the main loop with a parameter snapshot.
+SdmmcHandler sdmmc;
+FatFSInterface fsi;
+FatFsStorage card;
+forge::PresetStore store(card);
+struct PanelAction { forge::MenuAction action; forge::Parameters patch; };
+forge::SpscQueue<PanelAction, 8> panel_actions;   // audio -> main
+std::atomic<uint32_t> menu_state{0};               // PresetMenu::Packed(), for LEDs
+uint8_t last_bank = 0, last_slot = forge::panel::kNoSlot; // main-loop owned
+uint32_t flash_until = 0; bool flash_ok = true;   // panel LED feedback after SD actions
+std::atomic<uint32_t> audio_flash{0};              // audio -> main: 1 = ok, 2 = failed (record refused)
+
+// Sampler (docs/forge/SAMPLING.md). SDRAM is not zeroed at boot; every read is
+// bounded by a slot's published `loaded` count, so stale memory never plays.
+constexpr uint32_t kPoolSamples = 32u * 1024 * 1024 / 2;      // 32 MiB: chromatic sample or kit bank (~174 s stereo)
+constexpr uint32_t kRecordFrames = 16u * 1024 * 1024 / 4;     // 16 MB: ~87 s stereo at 48 kHz
+int16_t DSY_SDRAM_BSS sample_pool[kPoolSamples];
+int16_t DSY_SDRAM_BSS record_memory[2 * kRecordFrames];
+// Looper (docs/forge/LOOPING.md): 4,000,000 stereo frames = ~83 s; reads stay below what was recorded.
+constexpr uint32_t kLoopFrames = 4000000u;
+int16_t DSY_SDRAM_BSS loop_memory[2 * kLoopFrames];
+forge::Looper looper;                                         // audio owner
+std::atomic<uint32_t> looper_state{0};                        // audio -> main: PackLooper, for the LEDs
+uint8_t __attribute__((aligned(32))) sample_scratch[16384];   // D1 SRAM: reachable by SD DMA
+forge::SampleTable sample_table;
+forge::SampleHandoff sample_handoff;
+forge::SampleLoader sample_loader;                            // main loop
+forge::Recorder recorder;                                     // audio owner (Unlock: main)
+FatFsSampleFiles sample_files(card);
+std::atomic<uint32_t> sample_wanted{0};                      // audio -> main: PackSelection of the live patch
+std::atomic<bool> recording_now{false};                       // audio -> main, for the CHOMPI LED
+forge::SpscQueue<forge::SampleJob, 4> sample_jobs;            // audio -> main: panel save/erase/copy
+uint8_t led_shadow[26][3];                                    // main loop: what the LEDs show now (probe page 1)
+
+#ifdef FORGE_TEST_HOOKS
+forge::InspectorMailbox inspector_mailbox;
+forge::InspectorAudio inspector_latest;
+forge::InspectorSnapshot inspector_snapshot;
+forge::InspectorLog inspector_log;
+forge::SpscQueue<forge::InspectorEvent,64> inspector_edges;
+std::atomic<uint32_t> inspector_event_drops{0}, inspector_panel_drops{0}, inspector_sample_drops{0};
+uint32_t inspector_tx[2]{}, inspector_tx_errors[2]{};
+uint32_t inspector_storage_errors=0;
+uint8_t inspector_last_storage_error=0;
+void InspectorEvent(forge::InspectorEventKind kind, uint8_t id, uint32_t value) {
+    inspector_log.Add({0,System::GetNow(),value,kind,id});
+}
+void InspectorStorageError(forge::Error error) {
+    if(error==forge::Error::None) return;
+    ++inspector_storage_errors; inspector_last_storage_error=static_cast<uint8_t>(error);
+    InspectorEvent(forge::InspectorEventKind::StorageError,0,static_cast<uint8_t>(error));
+}
+#endif
+
+// Panel work for the main loop (audio callback is the producer).
+struct FirmwarePanelSink : forge::PanelSink {
+    bool PresetAction(const forge::MenuAction& action, const forge::Parameters& snapshot) override {
+        const bool ok=panel_actions.Push({action, snapshot});
+#ifdef FORGE_TEST_HOOKS
+        if(!ok) inspector_panel_drops.fetch_add(1,std::memory_order_relaxed);
+#endif
+        return ok;
+    }
+    bool SampleJob(const forge::SampleJob& job) override {
+        const bool ok=sample_jobs.Push(job);
+#ifdef FORGE_TEST_HOOKS
+        if(!ok) inspector_sample_drops.fetch_add(1,std::memory_order_relaxed);
+#endif
+        return ok;
+    }
+    void Flash(bool ok) override { audio_flash.store(ok ? 1 : 2, std::memory_order_relaxed); }
+};
+forge::PanelController panel_controller;                      // audio owner
+
+void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size) {
+    cpu.OnBlockStart();
+    forge::Request request;
+    static forge::RecoveryGate recovery; // audio-owner only
+    recovery.Observe(static_cast<uint8_t>(emergency_epoch.load(std::memory_order_acquire)), engine);
+    // Backpressure instead of applying a patch whose acknowledgement cannot
+    // be queued. Only this audio callback produces responses.
+    // Sampler memory handoff: refuse file-slot notes while the loader rewrites them.
+    engine.SetSampleFilesAvailable(sample_handoff.AudioBlock(engine));
+    for(unsigned i = 0; i < 16 && responses.HasSpace() && requests.Pop(request); ++i) {
+        if(!recovery.Admit(request, engine)) continue;
+        forge::Response response;
+        if(request.kind == forge::RequestKind::SampleJob) {     // host save: lock the take first
+            responses.Push(forge::LockForSave(recorder, request));
+            continue;
+        }
+        if(request.kind == forge::RequestKind::Panel) {         // development: injected panel event
+            forge::PanelEvent event;
+            event.kind = static_cast<forge::PanelEvent::Kind>(request.panel_kind);
+            event.id = request.panel_id; event.value = request.panel_value;
+            panel_controller.Inject(event);
+            continue;
+        }
+        if(forge::ExecuteRequest(request, engine, response)) {
+            response.cpu_average = cpu.GetAvgCpuLoad();
+            response.cpu_max = cpu.GetMaxCpuLoad();
+            responses.Push(response);
+        }
+    }
+
+    hw.ProcessAllControls();
+    // The whole panel (menus, record gesture, keys, knobs) lives in
+    // core/panel_controller.h; development builds merge injected events.
+    static FirmwarePanelSink sink;
+    forge::PanelInput input;
+    input.frames = static_cast<uint16_t>(size);
+    for(unsigned key = 0; key < forge::panel::kButtons; ++key)
+        if(hw.button_sr.State(key)) input.keys |= uint64_t(1) << key;
+    input.toggle_up = hw.GetToggleState();
+    input.jack = hw.jack_detect.Read();
+    input.tone_press = hw.enc[forge::panel::kToneEncoder].RisingEdge();
+    for(unsigned i = 0; i < forge::panel::kEncoders; ++i) input.turns[i] = static_cast<int16_t>(hw.enc[i].Increment());
+#ifdef FORGE_TEST_HOOKS
+    const uint32_t inspector_now=System::GetNow();
+    panel_controller.SetInspectorEvents(&inspector_edges,&inspector_event_drops,inspector_now);
+#endif
+    panel_controller.Block(input, engine, recorder, sink);
+    const forge::RecordSource source = panel_controller.Source();
+    sample_wanted.store(forge::PackSelection(engine.GetParameters()), std::memory_order_relaxed);
+    recording_now.store(recorder.Recording(), std::memory_order_relaxed);
+    menu_state.store(panel_controller.MenuPacked(), std::memory_order_relaxed);
+    looper_state.store(forge::PackLooper(looper, engine.FxBeforeLoop()), std::memory_order_relaxed);
+
+    const bool recording = recorder.Recording();
+    for(size_t i = 0; i < size; ++i) {
+        float left, right;
+        // Upstream channel map: mic 0, aux L/R = 2/3 (aux feeds the delay route).
+        engine.Process(in[2][i], in[3][i], left, right);
+        if(recording) {
+            float rec_l, rec_r;
+            recorder.Input(source, in[0][i], in[2][i], in[3][i], left, right, rec_l, rec_r);
+            recorder.Write(rec_l, rec_r);
+            if(source != forge::RecordSource::Resample) {      // monitor what is recorded (as TAPE)
+                left = forge::Clamp(left + 0.5f * rec_l, -1.f, 1.f);
+                right = forge::Clamp(right + 0.5f * rec_r, -1.f, 1.f);
+            }
+        }
+        out[0][i] = out[2][i] = left;
+        out[1][i] = out[3][i] = right;
+    }
+#ifdef FORGE_TEST_HOOKS
+    static uint32_t block=0, revision=0, selection=0; static bool was_recording=false;
+    ++block;
+    auto edge=[&](forge::InspectorEventKind kind,uint32_t value) {
+        if(!inspector_edges.Push({0,inspector_now,value,kind,0})) inspector_event_drops.fetch_add(1,std::memory_order_relaxed);
+    };
+    engine.ObserveVoiceEdges(inspector_edges,inspector_event_drops,inspector_now);
+    if(engine.PatchRevision()!=revision) { revision=engine.PatchRevision(); edge(forge::InspectorEventKind::PatchApply,revision); }
+    const uint32_t live=forge::PackSelection(engine.GetParameters());
+    if(live!=selection) { selection=live; edge(forge::InspectorEventKind::SampleSelection,live); }
+    if(recorder.Recording()!=was_recording) {
+        was_recording=recorder.Recording();
+        edge(was_recording?forge::InspectorEventKind::RecordingStart:forge::InspectorEventKind::RecordingStop,recorder.Length());
+    }
+    if(auto* a=inspector_mailbox.AudioBegin()) {
+        engine.Inspect(*a); panel_controller.Inspect(*a);
+        a->block=block; a->time_ms=inspector_now; a->record_frames=recorder.Length();
+        a->recording=recorder.Recording(); a->locked=recorder.Locked();
+        // Completed earlier callbacks only; mirror work is included in this callback's meter.
+        a->cpu_average=cpu.GetAvgCpuLoad(); a->cpu_peak=cpu.GetMaxCpuLoad();
+        inspector_mailbox.AudioEnd();
+    }
+#endif
+    cpu.OnBlockEnd();
+}
+
+void Send(uint8_t source, uint8_t* envelope, size_t payload_size) {
+    Outgoing message;
+    message.source = source; message.size = payload_size + 2;
+    envelope[0] = 0xf0; envelope[payload_size + 1] = 0xf7;
+    std::copy(envelope, envelope + message.size, message.bytes);
+    if(!outgoing.Push(message)) ++dropped_commands;
+}
+
+void TransmitPending() {
+    if(!has_pending) {
+        if(!outgoing.Pop(pending)) return;
+        has_pending = true; pending_since = System::GetNow();
+    }
+    bool sent = false;
+    if(pending.source == 0) {
+        // 0.32 ms per byte at 31250 baud (83-byte v3 reply: 26.6 ms) plus 5 ms
+        // margin; the upstream PollTx wrapper's 10 ms timeout is too short.
+        // Audio remains interrupt-driven while this blocks the main loop.
+        const uint32_t timeout_ms = static_cast<uint32_t>((pending.size * 320 + 999) / 1000 + 5);
+        sent = uart_midi.transport.GetUartHandle().BlockingTransmit(pending.bytes, pending.size, timeout_ms)
+            == UartHandler::Result::OK;
+        if(!sent) {
+#ifdef FORGE_TEST_HOOKS
+            ++inspector_tx_errors[0];
+#endif
+            ++dropped_commands; has_pending = false;
+        }
+    } else {
+        ScopedIrqBlocker guard;
+        if(hUsbDeviceHS.dev_state == USBD_STATE_CONFIGURED && hUsbDeviceHS.pClassData) {
+            auto* cdc = static_cast<USBD_CDC_HandleTypeDef*>(hUsbDeviceHS.pClassData);
+            if(cdc->TxState == 0) {
+                const size_t size = forge::PackUsbSysEx(pending.bytes, pending.size,
+                                                       usb_tx_packets, sizeof(usb_tx_packets));
+                sent = size && usb_sender.TransmitExternal(usb_tx_packets, size) == UsbHandle::Result::OK;
+            }
+        }
+    }
+    if(sent) {
+#ifdef FORGE_TEST_HOOKS
+        ++inspector_tx[pending.source];
+#endif
+        has_pending = false;
+    }
+    else if(System::GetNow() - pending_since > 100) {
+#ifdef FORGE_TEST_HOOKS
+        ++inspector_tx_errors[pending.source];
+#endif
+        ++dropped_commands; has_pending = false;
+    }
+}
+
+void RaiseEmergency() {
+    emergency_epoch.store(emergency_epoch.load(std::memory_order_relaxed) + 1, std::memory_order_release);
+}
+bool Queue(forge::Request& request) {
+    request.epoch = static_cast<uint8_t>(emergency_epoch.load(std::memory_order_relaxed));
+    return requests.Push(request);
+}
+
+void SendResponse(const forge::Response& response) {
+    const uint32_t dropped = dropped_commands + uart_midi.dropped.load(std::memory_order_relaxed)
+        + usb_midi.dropped.load(std::memory_order_relaxed);
+    uint8_t envelope[kMaxEnvelope];
+    const size_t size = forge::EncodeResponse(response, dropped, rejected_messages, envelope + 1);
+    Send(response.source, envelope, size);
+}
+void Flash(bool ok) { flash_ok = ok; flash_until = System::GetNow() + 400; }
+// Loads a slot and queues it for the audio owner. Silent requests (panel,
+// program change) get no reply; a host recall is acknowledged with status.
+forge::Error RecallPreset(forge::Request& request) {
+    forge::Request apply;
+    const forge::Error error = forge::RecallRequest(store, request, apply);
+    if(error != forge::Error::None) { if(request.silent) Flash(false); return error; }
+    if(!Queue(apply)) { ++dropped_commands; return forge::Error::Busy; }
+    last_bank = request.bank; last_slot = request.slot;
+    return forge::Error::None;
+}
+// Host device-preset requests. Store goes on to the audio owner for a
+// snapshot; recall is replaced by the loaded patch; erase/list reply here.
+forge::Error HandleStorage(forge::Request& request) {
+    using forge::RequestKind;
+    if(request.kind == RequestKind::Recall) {
+        forge::Request apply;
+        const forge::Error error = forge::RecallRequest(store, request, apply);
+        if(error == forge::Error::None) { last_bank = request.bank; last_slot = request.slot; request = apply; }
+        return error;
+    }
+    if(request.kind == RequestKind::Erase) {
+        const forge::Response reply = forge::EraseReply(store, request);
+        if(reply.error == forge::Error::None) SendResponse(reply);
+        return reply.error;
+    }
+    if(request.kind == RequestKind::List) {
+        const forge::Response reply = forge::ListReply(store, request);
+        if(reply.error == forge::Error::None) SendResponse(reply);
+        return reply.error;
+    }
+    return forge::Error::None;
+}
+// Panel menu actions (queued by the audio callback).
+void RunPanelActions() {
+    PanelAction item;
+    while(panel_actions.Pop(item)) {
+        const forge::MenuAction& a = item.action;
+        forge::Error error = forge::Error::None;
+        switch(a.kind) {
+            case forge::MenuAction::Kind::Recall: {
+                forge::Request request; request.kind = forge::RequestKind::Recall;
+                request.bank = a.bank; request.slot = a.slot; request.silent = true;
+                RecallPreset(request);
+                continue;   // RecallPreset flashes on failure; success shows as the white key
+            }
+            case forge::MenuAction::Kind::Save: error = store.Save(a.bank, a.slot, item.patch); break;
+            case forge::MenuAction::Kind::Erase: error = store.Erase(a.bank, a.slot); break;
+            case forge::MenuAction::Kind::Copy: error = store.Copy(a.bank, a.slot, a.to_bank, a.to_slot); break;
+            default: continue;   // sample actions never reach this queue (handled in the audio callback)
+        }
+#ifdef FORGE_TEST_HOOKS
+        InspectorStorageError(error);
+#endif
+        Flash(error == forge::Error::None);
+    }
+}
+// Sampler main-loop work: panel jobs, one loader step, job replies.
+void RunSampler() {
+    for(forge::SampleJob job; sample_jobs.Pop(job);) {
+        job.source = 0xff;
+        if(!sample_loader.Queue(job)) {
+            if(job.kind == forge::SampleJob::Kind::Save) { if(job.from_loop) looper.Unlock(); else recorder.Unlock(); }
+            Flash(false);
+        }
+    }
+    forge::SampleEvent event;
+    if(sample_loader.Poll(sample_files, sample_wanted.load(std::memory_order_relaxed), record_memory, event, loop_memory)) {
+#ifdef FORGE_TEST_HOOKS
+        InspectorEvent(forge::InspectorEventKind::SampleJobDone,static_cast<uint8_t>(event.job.kind),event.ok?1:0);
+#endif
+        if(event.job.kind == forge::SampleJob::Kind::Save) { if(event.job.from_loop) looper.Unlock(); else recorder.Unlock(); }
+        if(event.job.source == 0xff) Flash(event.ok);
+        else {
+            const forge::Response reply = forge::SampleDoneReply(event);
+            if(reply.error != forge::Error::None) ++rejected_messages;
+            SendResponse(reply);
+        }
+    }
+    const uint32_t flash = audio_flash.exchange(0, std::memory_order_relaxed);
+    if(flash) Flash(flash == 1);
+}
+// Key LEDs (~30 Hz) and panel LED 0 (the CHOMPI key, as in TAPE): red while
+// recording, a flash after an action, pink blink while saving/copying. The
+// composed colours are kept for the development probe.
+void DrawLeds() {
+    static uint32_t last_draw = 0;
+    const uint32_t now = System::GetNow();
+    if(now - last_draw < 33) return;
+    last_draw = now;
+    forge::LedView view;
+    view.menu = menu_state.load(std::memory_order_relaxed);
+    view.preset_occupancy = store.Occupancy((view.menu >> 4) & 7u); view.preset_card = store.Ready();
+    view.last_bank = last_bank; view.last_slot = last_slot;
+    view.sample_occupancy = sample_loader.Occupancy((view.menu >> 22) & 1u, (view.menu >> 4) & 7u);
+    view.sample_card = sample_files.Ready();
+    view.recording_present = sample_table.slots[forge::kRamSlot].loaded.load(std::memory_order_acquire) > 0;
+    view.recording_now = recording_now.load(std::memory_order_relaxed);
+    view.live = sample_wanted.load(std::memory_order_relaxed);
+    view.blink = (now / 250) % 2 == 0; view.slow_blink = (now / 300) % 2 != 0;
+    view.flash = now < flash_until ? (flash_ok ? 1 : 0) : -1;
+    view.saving = sample_loader.Busy() && !sample_loader.Loading();
+    view.looper = looper_state.load(std::memory_order_relaxed);
+    forge::Rgb keys[25], chompi, play, loop;
+    forge::ComposeLeds(view, keys, chompi);
+    forge::ComposeLooperLeds(view.looper, view.blink, play, loop);
+    SetPthLedFloat(forge::panel::kPlayLed, play.r, play.g, play.b);
+    SetPthLedFloat(forge::panel::kLoopLed, loop.r, loop.g, loop.b);
+    for(unsigned i = 0; i < 25; ++i) SetSmtLedFloat(i, keys[i].r, keys[i].g, keys[i].b);
+    SetPthLedFloat(0, chompi.r, chompi.g, chompi.b);
+    fill_led_data();
+    auto seven = [](float x) { return static_cast<uint8_t>(forge::Clamp(x, 0.f, 1.f) * 127.f + 0.5f); };
+    for(unsigned i = 0; i < 26; ++i) {
+        const forge::Rgb& c = i < 25 ? keys[i] : chompi;
+        led_shadow[i][0] = seven(c.r); led_shadow[i][1] = seven(c.g); led_shadow[i][2] = seven(c.b);
+    }
+}
+// Card insert/remove: remount and rescan when the card comes back.
+void WatchCard() {
+    static uint32_t last_check = 0; static bool was_ready = false;
+    const uint32_t now = System::GetNow();
+    if(now - last_check < 1000) return;
+    last_check = now;
+    const bool present = disk_status(0) == RES_OK;
+    if(present && !was_ready) {
+        card.SetMounted(f_mount(&fsi.GetSDFileSystem(), fsi.GetSDPath(), 1) == FR_OK);
+#ifdef FORGE_TEST_HOOKS
+        if(!card.Ready()) InspectorStorageError(forge::Error::Storage);
+#endif
+        store.Rescan();
+    }
+    was_ready = present && card.Ready();
+}
+
+#ifdef FORGE_TEST_HOOKS
+void CollectInspector() {
+    for(unsigned i=0;i<64;++i) { forge::InspectorEvent e; if(!inspector_edges.Pop(e)) break; inspector_log.Add(e); }
+    inspector_mailbox.Read(inspector_latest);
+    static uint32_t refreshed=0;
+    const uint32_t now=System::GetNow();
+    if(now-refreshed>=50) { refreshed=now; inspector_mailbox.RequestRefresh(); }
+    static uint32_t drops=0, loaded=0, errors=0; static uint8_t card_flags=127;
+    const uint32_t d=dropped_commands+uart_midi.dropped.load()+usb_midi.dropped.load()
+        +inspector_panel_drops.load()+inspector_sample_drops.load()+inspector_event_drops.load();
+    if(d!=drops) { InspectorEvent(forge::InspectorEventKind::QueueError,0,d-drops); drops=d; }
+    const uint8_t flags=(disk_status(0)==RES_OK?1:0)|(card.Ready()?2:0);
+    if(flags!=card_flags) { card_flags=flags; InspectorEvent(forge::InspectorEventKind::Card,0,flags); }
+    forge::InspectorStorage st; sample_loader.Inspect(st);
+    if(st.loaded_selection!=loaded && st.loaded_selection!=0xffffffffu && !st.loading) {
+        loaded=st.loaded_selection; InspectorEvent(forge::InspectorEventKind::SampleLoaded,0,loaded);
+    }
+    if(st.errors!=errors) {
+        inspector_last_storage_error=static_cast<uint8_t>(forge::Error::Storage);
+        InspectorEvent(forge::InspectorEventKind::StorageError,1,st.errors-errors); errors=st.errors;
+    }
+}
+void CaptureInspector() {
+    CollectInspector();
+    auto& s=inspector_snapshot; ++s.generation; s.audio=inspector_latest;
+    auto& sys=s.system; sys.uptime_ms=System::GetNow();
+    sys.rx[0]=uart_midi.received.load(); sys.rx[1]=usb_midi.received.load();
+    sys.ingress_drops[0]=uart_midi.dropped.load(); sys.ingress_drops[1]=usb_midi.dropped.load();
+    for(unsigned i=0;i<2;++i) { sys.tx[i]=inspector_tx[i]; sys.tx_errors[i]=inspector_tx_errors[i]; }
+    sys.dropped=dropped_commands+sys.ingress_drops[0]+sys.ingress_drops[1]; sys.rejected=rejected_messages;
+    sys.panel_drops=inspector_panel_drops.load(); sys.sample_drops=inspector_sample_drops.load();
+    sys.event_drops=inspector_event_drops.load(); sys.emergencies=emergency_epoch.load();
+    auto& st=s.storage; sample_loader.Inspect(st);
+    st.present=disk_status(0)==RES_OK; st.mounted=card.Mounted(); st.record_capacity_frames=kRecordFrames;
+    st.errors+=inspector_storage_errors;
+    if(inspector_last_storage_error) st.last_error=inspector_last_storage_error;
+    st.pending+=static_cast<uint8_t>(sample_jobs.Size());
+}
+#endif
+
+// One received frame (shared by both transports, so the code exists once).
+FORGE_NOINLINE void HandleFrame(const forge::MidiFrame& frame, uint8_t source) {
+    forge::Request request;
+    if(frame.kind != forge::MidiFrame::Kind::SysEx) {
+        switch(forge::TranslateChannel(frame, source, request)) {
+            case forge::Ingress::Emergency: RaiseEmergency(); break;
+            case forge::Ingress::Critical:
+                if(!Queue(request)) { ++dropped_commands; discard_ingress = true; RaiseEmergency(); }
+                break;
+            case forge::Ingress::Control: if(!Queue(request)) ++dropped_commands; break;
+            case forge::Ingress::Storage: RecallPreset(request); break;   // program change
+            case forge::Ingress::Ignore: break;
+        }
+        return;
+    }
+    if(!forge::IsRequest(frame.data, frame.size)) return;
+    auto error = forge::DecodeRequest(frame.data, frame.size, request);
+    request.source = source;
+    if(error == forge::Error::None) error = HandleStorage(request);
+    bool handled = request.kind == forge::RequestKind::Erase || request.kind == forge::RequestKind::List;
+#ifdef FORGE_TEST_HOOKS
+    // Development probe: answered here from the latest snapshots; panel events
+    // go to the audio owner and are acknowledged once queued.
+    if(error == forge::Error::None && request.kind == forge::RequestKind::Probe) {
+        uint8_t envelope[kMaxEnvelope];
+        size_t size;
+        if(request.page>=2 && !inspector_latest.block) {
+            inspector_mailbox.RequestRefresh();
+            ++rejected_messages;
+            Send(source,envelope,forge::EncodeError(request.sequence,forge::Error::Busy,envelope+1));
+            return;
+        }
+        if(request.page==1) size = forge::EncodeProbeLeds(request.sequence, led_shadow, envelope + 1);
+        else {
+            if(request.page==2 || !inspector_snapshot.generation) CaptureInspector();
+            size=forge::EncodeInspector(request.sequence,request.page,inspector_snapshot,inspector_log,request.inspector_cursor,envelope+1);
+        }
+        Send(source, envelope, size);
+        return;
+    }
+    if(error == forge::Error::None && request.kind == forge::RequestKind::Panel) {
+        if(Queue(request)) { uint8_t envelope[kMaxEnvelope]; Send(source, envelope, forge::EncodePanelAck(request.sequence, envelope + 1)); return; }
+        error = forge::Error::Busy;
+        handled = true;
+    }
+#endif
+    if(error == forge::Error::None && request.kind == forge::RequestKind::SampleList) {
+        SendResponse(forge::SampleListReply(sample_loader, sample_files.Ready(), sample_table.slots[forge::kRamSlot],
+                                            kRecordFrames, request));
+        handled = true;
+    } else if(error == forge::Error::None && request.kind == forge::RequestKind::SampleJob
+              && request.action != forge::SampleAction::Save) {   // save goes to the audio owner first
+        forge::SampleJob job;
+        error = forge::FileJob(sample_loader, request, job);
+        if(error == forge::Error::None && !sample_loader.Queue(job)) error = forge::Error::StorageBusy;
+        handled = true;
+    }
+    if(error == forge::Error::None && !handled && !Queue(request)) {
+        ++dropped_commands; error = forge::Error::Busy;
+    }
+    if(error != forge::Error::None) {
+#ifdef FORGE_TEST_HOOKS
+        if(error==forge::Error::Storage || error==forge::Error::StorageBusy) InspectorStorageError(error);
+#endif
+        ++rejected_messages;
+        uint8_t envelope[kMaxEnvelope];
+        const size_t size = forge::EncodeError(forge::Read14(frame.data + 5), error, envelope + 1);
+        Send(source, envelope, size);
+    }
+}
+template<typename Midi> void PollMidi(Midi& midi, uint8_t source) {
+    midi.Listen();
+    forge::MidiFrame frame;
+    for(unsigned i = 0; i < 8 && midi.frames.Pop(frame); ++i) HandleFrame(frame, source);
+}
+
+void SendResponses() {
+    forge::Response response;
+    for(unsigned i = 0; i < 4 && outgoing.HasSpace() && responses.Pop(response); ++i) {
+        if(response.kind == forge::ResponseKind::SampleSnapshot) {   // host save: the take is locked
+            if(!sample_loader.Queue(forge::SaveJob(response))) {
+                recorder.Unlock();
+                response.kind = forge::ResponseKind::SampleDone; response.error = forge::Error::StorageBusy;
+                ++rejected_messages; SendResponse(response);
+            }
+            continue;
+        }
+        if(response.kind == forge::ResponseKind::Snapshot) {   // host store: write, then acknowledge
+            response = forge::StoreReply(store, response.sequence, response.source, response.bank, response.slot,
+                                         response.patch);
+            if(response.error != forge::Error::None) ++rejected_messages;
+#ifdef FORGE_TEST_HOOKS
+            InspectorStorageError(response.error);
+#endif
+        }
+        SendResponse(response);
+    }
+}
+} // namespace
+
+int main() {
+    hw.Init();
+    LedSetup();
+    hw.MpWrite(0x0c, 0B01010001); // retain upstream 3 V battery threshold
+    hw.MpReadAll();
+    for(unsigned i = 0; i < 10; ++i) {
+        hw.LowBatteryLockoutCheck();
+        System::Delay(10);
+    }
+    // Match the upstream charge-detection/USB switch sequence.
+    hw.usb_sw.Write(false);
+    System::Delay(1);
+    hw.MpWrite(0x0a, 0B00100100);
+    System::Delay(1);
+    hw.usb_sw.Write(true);
+
+    MidiUartTransport::Config uart_config;
+    uart_midi.transport.Init(uart_config);
+    uart_midi.Listen();
+    MidiUsbTransport::Config usb_config;
+    usb_config.periph = MidiUsbTransport::Config::EXTERNAL;
+    usb_midi.transport.Init(usb_config);
+    usb_midi.Listen();
+
+    engine.SetSamples(&sample_table);
+    recorder.Init(record_memory, kRecordFrames, &sample_table.slots[forge::kRamSlot], hw.seed.AudioSampleRate());
+    looper.Init(loop_memory, kLoopFrames, hw.seed.AudioSampleRate());
+    engine.SetLooper(&looper);
+    sample_loader.Init(&sample_table, &sample_handoff, sample_pool, kPoolSamples, sample_scratch, sizeof(sample_scratch));
+    if(!engine.Init(hw.seed.AudioSampleRate(), delay_left, delay_right, kDelayCapacity,
+                    reverb_memory, kReverbCapacity)) {
+        SetPthLedFloat(0, 0.1f, 0.f, 0.f);
+        fill_led_data();
+        while(true) { hw.LowBatteryLockoutCheck(); System::Delay(20); }
+    }
+    SetPthLedFloat(0, 0.f, 0.05f, 0.1f);
+    fill_led_data();
+    // SD card for device presets (as TAPE mounts it). Missing card: presets are
+    // unavailable (menu keys light red), everything else works.
+    SdmmcHandler::Config sd_config;
+    sd_config.speed = SdmmcHandler::Speed::FAST;
+    sd_config.width = SdmmcHandler::BusWidth::BITS_4;
+    sdmmc.Init(sd_config);
+    fsi.Init(FatFSInterface::Config::MEDIA_SD);
+    card.SetMounted(f_mount(&fsi.GetSDFileSystem(), fsi.GetSDPath(), 1) == FR_OK);
+#ifdef FORGE_TEST_HOOKS
+    if(disk_status(0)==RES_OK && !card.Ready()) InspectorStorageError(forge::Error::Storage);
+#endif
+    store.Rescan();
+    cpu.Init(hw.seed.AudioSampleRate(), hw.seed.AudioBlockSize());
+    hw.StartAudio(AudioCallback);
+    uint32_t battery_check = System::GetNow();
+    while(true) {
+        TransmitPending();
+        SendResponses();
+        static uint32_t seen_drops = 0;
+        const uint32_t ingress_drops = uart_midi.dropped.load(std::memory_order_relaxed) + usb_midi.dropped.load(std::memory_order_relaxed);
+        if(ingress_drops != seen_drops || discard_ingress) {
+            ScopedIrqBlocker guard;
+            forge::MidiFrame ignored;
+            for(unsigned i = 0; i < 16; ++i) { uart_midi.frames.Pop(ignored); usb_midi.frames.Pop(ignored); }
+            uart_midi.framer.Reset(); usb_midi.framer.Reset();
+            RaiseEmergency();
+            seen_drops = ingress_drops; discard_ingress = false;
+        }
+        PollMidi(uart_midi, 0);
+        PollMidi(usb_midi, 1);
+        RunPanelActions();
+        RunSampler();
+        WatchCard();
+        DrawLeds();
+#ifdef FORGE_TEST_HOOKS
+        CollectInspector();
+#endif
+        const uint32_t now = System::GetNow();
+        if(now - battery_check >= 20) {
+            hw.LowBatteryLockoutCheck();
+            battery_check = now;
+        }
+        System::DelayUs(100);
+    }
+}

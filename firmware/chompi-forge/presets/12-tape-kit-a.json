@@ -1,0 +1,65 @@
+{
+  "version": 4,
+  "name": "TAPE Kit A",
+  "engine": "instrument",
+  "routing": "sampler>delay>reverb>output",
+  "modules": {
+    "synth": {
+      "waveform": "sine",
+      "attack_ms": 2,
+      "decay_ms": 300,
+      "sustain": 1,
+      "release_ms": 400,
+      "osc2_waveform": "sine",
+      "osc2_level": 0,
+      "osc2_semitones": 0,
+      "osc2_detune_cents": 0,
+      "noise": 0,
+      "voices": 7,
+      "glide_ms": 0
+    },
+    "filter": {
+      "cutoff_hz": 16000,
+      "resonance": 0,
+      "env_octaves": 0,
+      "attack_ms": 10,
+      "decay_ms": 300,
+      "sustain": 0,
+      "release_ms": 300
+    },
+    "lfo": {
+      "waveform": "sine",
+      "rate_hz": 5,
+      "pitch_cents": 0,
+      "filter_octaves": 0,
+      "amp_depth": 0,
+      "mod_wheel": false
+    },
+    "sampler": {
+      "mode": "kit",
+      "bank": "a",
+      "slot": 1,
+      "pitch_semitones": 0,
+      "start": 0,
+      "end": 1,
+      "loop": false,
+      "hold": false,
+      "reverse": false,
+      "crossfade_ms": 10
+    },
+    "delay": {
+      "mix": 0.0,
+      "time_ms": 250,
+      "feedback": 0.25,
+      "bypass": false
+    },
+    "reverb": {
+      "mix": 0.1,
+      "size": 0.4,
+      "damping": 0.5
+    },
+    "output": {
+      "level": 0.6
+    }
+  }
+}

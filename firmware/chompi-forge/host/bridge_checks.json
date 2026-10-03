@@ -1,0 +1,440 @@
+[
+  {
+    "id": "1A.1",
+    "group": "Inspector / physical controls",
+    "do": "Hold and release physical C3 (button 15) on the dry aux patch.",
+    "expect": "Physical/logical key 15 and note 48; physical down/up events. No synth voice on aux."
+  },
+  {
+    "id": "1A.2",
+    "group": "Inspector / physical controls",
+    "do": "Turn SW4 (encoder index 3) one step each way.",
+    "expect": "Physical and logical encoder counts and mix follow. Compare LED shadow against the board."
+  },
+  {
+    "id": "1A.3",
+    "group": "Inspector / physical controls",
+    "do": "Send Glass Keys, then press and release C3 physically.",
+    "expect": "Panel-owned note 48 voice, then release and voice stop."
+  },
+  {
+    "id": "1A.4",
+    "group": "Inspector / physical controls",
+    "do": "Compare playing with polling running and paused.",
+    "expect": "Record CPU, audio continuity and queue/MIDI/event losses. No automatic physical pass."
+  },
+  {
+    "id": "1.1",
+    "do": "Put `firmware/FORGE.bin` on the test card root as the **only** `.bin` file. On macOS also remove `._FORGE.bin` (`dot_clean -m /Volumes/CARD` or delete it); the bootloader loads the first `.bin` it finds and would reject that metadata file. Use the installed bootloader's normal SD update",
+    "expect": "Update completes uninterrupted",
+    "group": "1. Flash and identity"
+  },
+  {
+    "id": "1.2",
+    "do": "Power up; watch LED",
+    "expect": "Initialization completes; no output burst",
+    "group": "1. Flash and identity"
+  },
+  {
+    "id": "1.3",
+    "do": "`H status ...`",
+    "expect": "Firmware 0.5, version 1 aux patch, counters 0",
+    "group": "1. Flash and identity"
+  },
+  {
+    "id": "2.1",
+    "do": "Aux source in; `H send presets/01-dry.json ...`; play left-only then right-only",
+    "expect": "Correct L/R on headphones and main outs",
+    "group": "2. External audio path (v1 compatibility)"
+  },
+  {
+    "id": "2.2",
+    "do": "`H send presets/02-slap.json`, then `03-long-echo.json`, while audio plays",
+    "expect": "Acknowledged; echoes change; no crash; time change glides in pitch",
+    "group": "2. External audio path (v1 compatibility)"
+  },
+  {
+    "id": "2.3",
+    "do": "Turn knobs 1–4 (hardware SW4, SW1, SW2, SW3, in panel order) and volume SW6; `H status`",
+    "expect": "Mix/time/feedback/level move in that knob order; level can mute. Note which physical knob is which",
+    "group": "2. External audio path (v1 compatibility)"
+  },
+  {
+    "id": "2.4",
+    "do": "`H cc 85 127 --output \"OUT\"`, then `H cc 85 0`",
+    "expect": "Wet fades out then back; dry still follows level",
+    "group": "2. External audio path (v1 compatibility)"
+  },
+  {
+    "id": "2.5",
+    "do": "`H capture saved-aux.json ...`; send another preset; `H send saved-aux.json`",
+    "expect": "Returns within 14-bit quantization",
+    "group": "2. External audio path (v1 compatibility)"
+  },
+  {
+    "id": "3.1",
+    "do": "Unplug aux source. `H send presets/04-glass-keys.json ...`; play all 25 keys",
+    "expect": "Chromatic low→high (MIDI 48–72); sound on press, release on key-up, nothing stuck",
+    "group": "3. Instrument"
+  },
+  {
+    "id": "3.2",
+    "do": "`H note 60 --output \"OUT\"`; `H note 60 --velocity 30`",
+    "expect": "Correct pitch; second clearly quieter",
+    "group": "3. Instrument"
+  },
+  {
+    "id": "3.3",
+    "do": "`H note 60 64 67 --zero-velocity-off`",
+    "expect": "Chord sounds and releases (velocity-0 note-on = note-off)",
+    "group": "3. Instrument"
+  },
+  {
+    "id": "3.4",
+    "do": "`H note 60 64 67 71 74 --hold 3`",
+    "expect": "Four voices max; oldest note (60) stolen without a click; all release",
+    "group": "3. Instrument"
+  },
+  {
+    "id": "3.5",
+    "do": "Hold a key on CHOMPI; `H note` the same pitch; release the key",
+    "expect": "MIDI note keeps sounding until its own release",
+    "group": "3. Instrument"
+  },
+  {
+    "id": "3.6",
+    "do": "Send `05-soft-pad.json`, `06-saw-bass.json`; turn SW5",
+    "expect": "Audibly different; SW5 sweeps tone. Steal/retrigger should not click and triangle should be clean high up (both fixed in software). **Record any click, or aliasing on high saw/square notes — don't fix during session**",
+    "group": "3. Instrument"
+  },
+  {
+    "id": "3.7",
+    "do": "In the webapp, change waveform, ADSR, cutoff; Send",
+    "expect": "Each change audible as described",
+    "group": "3. Instrument"
+  },
+  {
+    "id": "3.8",
+    "do": "`H note 60 64 67 --sustain --hold 3`; while it sustains, play a CHOMPI key",
+    "expect": "Chord rings ~3 s after keys release, stops when pedal lifts; keybed note unaffected by the MIDI pedal",
+    "group": "3. Instrument"
+  },
+  {
+    "id": "3.9",
+    "do": "`H note 69 --bend 8191 --hold 2`, then `--bend -8192`",
+    "expect": "Pitch glides up / down two semitones without zipper noise; returns to A afterwards",
+    "group": "3. Instrument"
+  },
+  {
+    "id": "3.10",
+    "do": "`H send presets/07-warm-pad.json ...`; hold chords on the keys",
+    "expect": "Two detuned oscillators (slow beating), filter swells open over ~1 s, gentle vibrato, reverb tail after release. At the marked SW6 position, record loudness vs the stock reference from 0.5 (quieter / similar / louder), on headphones and main outs",
+    "group": "3B. v3 instrument modules (firmware 0.4)"
+  },
+  {
+    "id": "3.11",
+    "do": "`H send presets/08-acid-bass.json`; play overlapping notes low on the keys",
+    "expect": "Monophonic; pitch glides between notes; resonant filter \"snap\" on each note",
+    "group": "3B. v3 instrument modules (firmware 0.4)"
+  },
+  {
+    "id": "3.12",
+    "do": "With Acid Bass: `H cc 1 127 --output \"OUT\"`, hold a note, then `H cc 1 0`",
+    "expect": "Mod wheel brings in a filter wobble; at 0 it stops",
+    "group": "3B. v3 instrument modules (firmware 0.4)"
+  },
+  {
+    "id": "3.13",
+    "do": "`H send presets/09-bell-keys.json`; play single notes",
+    "expect": "Bell-like tone (second oscillator a 12th above); reverb tail; slight vibrato only with mod wheel up",
+    "group": "3B. v3 instrument modules (firmware 0.4)"
+  },
+  {
+    "id": "3.14",
+    "do": "With a v3 patch: `H cc 71 110`, `H cc 91 110`; `H capture cc-test.json ...`",
+    "expect": "Resonance and reverb mix audibly increase; captured JSON shows filter.resonance and reverb.mix near 0.87",
+    "group": "3B. v3 instrument modules (firmware 0.4)"
+  },
+  {
+    "id": "3.15",
+    "do": "Webapp: load Soft Pad (v2), **Convert to v3 instrument**, Send",
+    "expect": "Sounds close to the v2 Soft Pad (filter slightly steeper); no error",
+    "group": "3B. v3 instrument modules (firmware 0.4)"
+  },
+  {
+    "id": "3.16",
+    "do": "Send a v2 preset, then a v3 preset, while holding a note",
+    "expect": "Sound stops cleanly at the format change (like a route change); next note plays",
+    "group": "3B. v3 instrument modules (firmware 0.4)"
+  },
+  {
+    "id": "3.17",
+    "do": "Toggle to menu position, hold the CHOMPI key",
+    "expect": "Key LEDs light: bank keys (KEY_16/17) in bank 1's colour, save/copy/erase dim blue/green/red, white keys off (empty card); playing keys makes no sound while held",
+    "group": "3C. Device presets on the SD card (TAPE-style keys + encoder)"
+  },
+  {
+    "id": "3.18",
+    "do": "`H send presets/07-warm-pad.json`. Menu: press SAVE (KEY_25), release CHOMPI, press white key 1 (it turns blue), press CHOMPI",
+    "expect": "Panel LED flashes green; white key 1 now dim (occupied). `FORGE/B1S01.FPR` exists on the card afterwards",
+    "group": "3C. Device presets on the SD card (TAPE-style keys + encoder)"
+  },
+  {
+    "id": "3.19",
+    "do": "Send `08-acid-bass.json`, save it to slot 2 the same way. Release CHOMPI",
+    "expect": "Menu closes; keys play Acid Bass again",
+    "group": "3C. Device presets on the SD card (TAPE-style keys + encoder)"
+  },
+  {
+    "id": "3.20",
+    "do": "Hold CHOMPI (menu), press white key 1, release CHOMPI, play",
+    "expect": "Warm Pad plays; key 1 shows white while the menu is open. Repeat with key 2 → Acid Bass",
+    "group": "3C. Device presets on the SD card (TAPE-style keys + encoder)"
+  },
+  {
+    "id": "3.21",
+    "do": "Menu: turn knob 1 (hw SW4) and press KEY_17 / KEY_16",
+    "expect": "Bank colour changes on the bank keys; encoder stops at banks 1 and 8, keys wrap. Mix (knob 1's normal job) does not change while the menu is open",
+    "group": "3C. Device presets on the SD card (TAPE-style keys + encoder)"
+  },
+  {
+    "id": "3.22",
+    "do": "Menu: COPY (KEY_24), white key 1 (green), KEY_17 to bank 2, white key 5 (blue), CHOMPI",
+    "expect": "Green flash; bank 2 key 5 occupied. ERASE (KEY_23), key 5, CHOMPI → key 5 empty",
+    "group": "3C. Device presets on the SD card (TAPE-style keys + encoder)"
+  },
+  {
+    "id": "3.23",
+    "do": "Send MIDI program change 1 on channel 1 from a keyboard or DAW",
+    "expect": "Acid Bass (bank 1 slot 2) loads; program 0 → Warm Pad",
+    "group": "3C. Device presets on the SD card (TAPE-style keys + encoder)"
+  },
+  {
+    "id": "3.24",
+    "do": "`H slots ...`, `H recall 1 1 ...`, `H store 1 3 ...`, `H erase 1 3 ...`",
+    "expect": "JSON lists occupied slots; recall returns the patch; store/erase acknowledged",
+    "group": "3C. Device presets on the SD card (TAPE-style keys + encoder)"
+  },
+  {
+    "id": "3.25",
+    "do": "Webapp Device presets: Read slots, select bank 1 slot 2, Recall; then Store into slot 4; Erase slot 4 (press twice)",
+    "expect": "Slot buttons show stored slots; recall loads the sound into the editor; erase asks for a second press",
+    "group": "3C. Device presets on the SD card (TAPE-style keys + encoder)"
+  },
+  {
+    "id": "3.26",
+    "do": "Power off and on; open the menu",
+    "expect": "Slots 1 and 2 still occupied and recall correctly (boot itself still starts in dry aux)",
+    "group": "3C. Device presets on the SD card (TAPE-style keys + encoder)"
+  },
+  {
+    "id": "3.27",
+    "do": "Optional: power off, remove the card, power on, open the menu; reinsert the card",
+    "expect": "White keys red without a card; nothing crashes; within ~1 s of reinserting, slots show again",
+    "group": "3C. Device presets on the SD card (TAPE-style keys + encoder)"
+  },
+  {
+    "id": "3.28",
+    "do": "`H samples ...`",
+    "expect": "JSON lists chromatic a and kit a slots matching the files you copied; `card` true; no recording yet",
+    "group": "3D. Sampler (TAPE-style, firmware 0.5)"
+  },
+  {
+    "id": "3.29",
+    "do": "`H send presets/12-tape-kit-a.json`; play the white keys",
+    "expect": "Each white key plays its TAPE kit sample (one-shots), as on stock TAPE; black keys silent; no clicks at sample ends. Note how long after Send the first key sounds (loading time)",
+    "group": "3D. Sampler (TAPE-style, firmware 0.5)"
+  },
+  {
+    "id": "3.30",
+    "do": "Menu → KEY_22 (Samples page)",
+    "expect": "Page key magenta; KEY_17 lit in bank a's colour; occupied kit slots dim/white; KEY_19 (line) or KEY_18 (mic) lit depending on the line-in jack",
+    "group": "3D. Sampler (TAPE-style, firmware 0.5)"
+  },
+  {
+    "id": "3.31",
+    "do": "Samples page: KEY_16 (chromatic), white key 1; close the menu; play keys across the keybed",
+    "expect": "`jammi_a1` plays chromatically, KEY_8 (middle C) at original pitch; press KEY_16 again in the menu → bank b (your own WAV if added in 0.6 plays at the right pitch)",
+    "group": "3D. Sampler (TAPE-style, firmware 0.5)"
+  },
+  {
+    "id": "3.32",
+    "do": "Turn knobs 1–3 while holding a key",
+    "expect": "Pitch, start and end change like TAPE's first page; knob 4 changes the delay mix",
+    "group": "3D. Sampler (TAPE-style, firmware 0.5)"
+  },
+  {
+    "id": "3.33",
+    "do": "Webapp: Capture to editor (chromatic `jammi_a1` playing), set Start 0.2, End 0.4, Loop on, Crossfade 50 ms, Send, hold a key",
+    "expect": "The loop repeats without a click or level dip at the loop point; Reverse on → plays backwards",
+    "group": "3D. Sampler (TAPE-style, firmware 0.5)"
+  },
+  {
+    "id": "3.34",
+    "do": "**Record (line):** line in plugged, source KEY_19 lit. Toggle down, hold CHOMPI while playing audio into line in for ~5 s, release",
+    "expect": "CHOMPI LED red while recording; input audible while recording; on release the keys play the recording chromatically at once, normalised (similar loudness to the kit) and without clicks at its start/end",
+    "group": "3D. Sampler (TAPE-style, firmware 0.5)"
+  },
+  {
+    "id": "3.35",
+    "do": "**Record (mic):** unplug line in (source switches to the mic), record a few words, release",
+    "expect": "Plays back; record the level (too quiet / ok / distorted) and any hum",
+    "group": "3D. Sampler (TAPE-style, firmware 0.5)"
+  },
+  {
+    "id": "3.36",
+    "do": "**Resample:** menu, KEY_20; send `07-warm-pad.json` (oscillators), toggle down, hold CHOMPI while playing a chord, release",
+    "expect": "The recording is the instrument's own output and plays chromatically",
+    "group": "3D. Sampler (TAPE-style, firmware 0.5)"
+  },
+  {
+    "id": "3.37",
+    "do": "Menu, Samples page: KEY_25 (save), KEY_17 kit, white key 9, CHOMPI",
+    "expect": "CHOMPI LED blinks pink, then green flash; key 9 of kit bank a now occupied. `cubbi_a9.wav` on the card afterwards",
+    "group": "3D. Sampler (TAPE-style, firmware 0.5)"
+  },
+  {
+    "id": "3.38",
+    "do": "Put the card in a computer: open `cubbi_a9.wav`",
+    "expect": "Plays in any audio app (16-bit stereo 48 kHz)",
+    "group": "3D. Sampler (TAPE-style, firmware 0.5)"
+  },
+  {
+    "id": "3.39",
+    "do": "Menu: KEY_24 copy kit a9 → chromatic c2 (KEY_16, bank c, key 2), CHOMPI; then KEY_23 erase kit a9, CHOMPI",
+    "expect": "Copy and erase confirmed (green flashes); `H samples` agrees",
+    "group": "3D. Sampler (TAPE-style, firmware 0.5)"
+  },
+  {
+    "id": "3.40",
+    "do": "`H sample-save chromatic d 1 ...`, `H sample-copy chromatic d 1 kit e 14 ...`, `H sample-erase chromatic d 1 ...`",
+    "expect": "Each acknowledged; webapp Device samples shows the same slots after Read samples",
+    "group": "3D. Sampler (TAPE-style, firmware 0.5)"
+  },
+  {
+    "id": "3.41",
+    "do": "Optional, **TAPE compatibility:** put stock TAPE (`firmware/card-profiles/tape-2.0` .bin) on this card, boot",
+    "expect": "TAPE plays the samples Forge saved (after regenerating their `_double` files at boot); Forge's `FORGE/` folder does not disturb it. Then restore `FORGE.bin`",
+    "group": "3D. Sampler (TAPE-style, firmware 0.5)"
+  },
+  {
+    "id": "3.42",
+    "do": "Send `07-warm-pad.json`. Tap LOOP, play a phrase for a few seconds, tap PLAY",
+    "expect": "PLAY LED teal while recording, LOOP LED red; after PLAY the phrase repeats seamlessly (no click or gap at the loop point) while you can play over it",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "3.43",
+    "do": "Tap LOOP (overdub), play another phrase for one pass, tap LOOP again",
+    "expect": "LOOP LED yellow while overdubbing; both phrases play back; tap LOOP during the first take of a new loop instead of PLAY: it goes straight into overdub (TAPE)",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "3.44",
+    "do": "Tap PLAY (pause), tap PLAY (resume); pause again and hold PLAY 2 s, then tap PLAY",
+    "expect": "Pause and resume fade without clicks; after the 2 s hold the loop restarts from its beginning",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "3.45",
+    "do": "Hold PLAY + LOOP 2 s",
+    "expect": "The loop fades out and is gone (LEDs dark); SW5 turns the cutoff again",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "3.46",
+    "do": "With no loop: press PLAY + LOOP together, release, then play a key",
+    "expect": "LOOP LED blinks red (armed); recording starts with the first note",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "3.47",
+    "do": "With a loop playing: turn SW5, press SW5; pause and turn SW5",
+    "expect": "Loop pitch/speed follows (reverse below zero), press = back to normal; paused, turning scrubs (tape-like); SW5 never changes the cutoff while a loop exists",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "3.48",
+    "do": "Menu (toggle up + CHOMPI): PLAY / LOOP a few times; KEY_20 then KEY_21",
+    "expect": "Overdub feedback down / up (older layers fade faster or stay); KEY_20 = effects after the loop (the delay/reverb applies to the loop too), KEY_21 = before (default); the lit key shows which",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "3.49",
+    "do": "Menu, Samples page: KEY_24 (copy), LOOP, a white key, CHOMPI",
+    "expect": "CHOMPI LED pink, then green; the loop is now that sample slot and plays on the keys; while saving, LOOP cannot overdub",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "3.50",
+    "do": "`H cc 27 127`, `H cc 27 0`, `H cc 26 127`, `H cc 26 0`, `H cc 24 100`",
+    "expect": "CC 27 = LOOP, CC 26 = PLAY (as TAPE); CC 24 changes the loop speed while a loop exists",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "3.51",
+    "do": "Panic (`H panic`, SW5 without a loop, CC 120) while a loop plays; then switch presets",
+    "expect": "Panic stops the loop at once (it stays, PLAY resumes it); a preset change does not stop the loop",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "4.1",
+    "do": "Hold a long-release chord with echo (use Warm Pad for reverb too); press SW5",
+    "expect": "Voices, old echo and reverb tails stop at once",
+    "group": "4. Panic and recovery"
+  },
+  {
+    "id": "4.2",
+    "do": "Repeat with `H cc 123 0`, `H cc 120 0`, `H panic ...`, webapp Panic",
+    "expect": "Same each time; notes retrigger normally afterwards",
+    "group": "4. Panic and recovery"
+  },
+  {
+    "id": "4.3",
+    "do": "Switch route aux↔synth (webapp Signal path, Send) while notes ring",
+    "expect": "Sound stops cleanly; next keypress plays; aux stays stereo",
+    "group": "4. Panic and recovery"
+  },
+  {
+    "id": "6.1",
+    "do": "10 minutes: four-voice playing with delay and reverb, recalling presets (v1, v2 and v3), turning knobs, normal MIDI clock if you have it",
+    "expect": "No hang, dropout, stuck note or noise burst",
+    "group": "6. Sustained run and power"
+  },
+  {
+    "id": "6.2",
+    "do": "`H status` at the end",
+    "expect": "Peak CPU < 100% (fail at ≥100%; < 70% is the comfort target). Record average, peak, dropped, rejected",
+    "group": "6. Sustained run and power"
+  },
+  {
+    "id": "6.2b",
+    "do": "**Worst case:** reboot (resets peak), `H send presets/10-cpu-stress.json`, hold four keys for 1 minute, `H status`",
+    "expect": "Record average and peak. If peak ≥ 70 %, set voices to 3 then 2 in the webapp, Send, repeat, and record each. This sets the v3 CPU budget",
+    "group": "6. Sustained run and power"
+  },
+  {
+    "id": "6.2c",
+    "do": "**Sampler worst case:** record a ≥ 5 s take (3.34), reboot is not needed but note the peak first, `H send presets/13-sampler-stress.json`, hold seven keys for 1 minute, `H status`",
+    "expect": "Record average and peak. If peak ≥ 70 %, lower voices to 5 then 4 and repeat. Sample reads come from SDRAM, so this is the number the emulator cannot predict",
+    "group": "6. Sustained run and power"
+  },
+  {
+    "id": "6.2d",
+    "do": "**Sampler + looper:** as 6.2c, then tap LOOP and overdub for 1 minute while holding the seven keys, `H status`",
+    "expect": "Record average and peak. While the looper records or overdubs, a seventh sampler voice is released (6 voices max, by design); report whether that is noticeable",
+    "group": "6. Sustained run and power"
+  },
+  {
+    "id": "6.3",
+    "do": "Reboot; `H status`; resend a saved patch",
+    "expect": "Boots to dry aux defaults; recall works",
+    "group": "6. Sustained run and power"
+  },
+  {
+    "id": "6.4",
+    "do": "Optional: restore stock firmware with your normal card (or copy a folder from `firmware/card-profiles/` to a card)",
+    "expect": "Stock works again",
+    "group": "6. Sustained run and power"
+  }
+]

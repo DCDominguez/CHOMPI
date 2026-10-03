@@ -1,0 +1,53 @@
+{
+  "version": 3,
+  "name": "Bell Keys",
+  "engine": "instrument",
+  "routing": "synth>delay>reverb>output",
+  "modules": {
+    "synth": {
+      "waveform": "sine",
+      "attack_ms": 2,
+      "decay_ms": 1600,
+      "sustain": 0,
+      "release_ms": 1800,
+      "osc2_waveform": "sine",
+      "osc2_level": 0.45,
+      "osc2_semitones": 19,
+      "osc2_detune_cents": 4,
+      "noise": 0,
+      "voices": 4,
+      "glide_ms": 0
+    },
+    "filter": {
+      "cutoff_hz": 9000,
+      "resonance": 0.1,
+      "env_octaves": 0,
+      "attack_ms": 1,
+      "decay_ms": 500,
+      "sustain": 1,
+      "release_ms": 500
+    },
+    "lfo": {
+      "waveform": "sine",
+      "rate_hz": 5.5,
+      "pitch_cents": 12,
+      "filter_octaves": 0,
+      "amp_depth": 0.1,
+      "mod_wheel": true
+    },
+    "delay": {
+      "mix": 0.25,
+      "time_ms": 375,
+      "feedback": 0.3,
+      "bypass": false
+    },
+    "reverb": {
+      "mix": 0.35,
+      "size": 0.65,
+      "damping": 0.35
+    },
+    "output": {
+      "level": 0.25
+    }
+  }
+}

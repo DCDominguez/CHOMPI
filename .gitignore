@@ -7,3 +7,6 @@ Icon?
 # Editor state
 .cortex-debug.*.state.json
 .vs/
+
+# Local bridge launcher environment
+.bridge-venv/

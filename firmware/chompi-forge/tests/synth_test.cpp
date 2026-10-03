@@ -1,0 +1,324 @@
+#include <cassert>
+#include <cmath>
+#include <iostream>
+#include <limits>
+#include <vector>
+#include "../core/runtime.h"
+using namespace forge;
+
+Parameters Instrument() {
+    Parameters p; p.version = 2; p.synth = true; p.mix = 0; p.level = 1;
+    p.attack = p.decay = p.release = 0; p.sustain = 1; p.cutoff = 1;
+    return p;
+}
+void VoicesAndPitch() {
+    Synth synth; synth.Init(48000); const auto p = Instrument(); synth.Configure(p);
+    for(unsigned i = 0; i < 4800; ++i) assert(synth.Process() == 0);
+    synth.Note(69, 127, 0);
+    for(unsigned i = 0; i < 4800; ++i) synth.Process();
+    unsigned crossings = 0; float prior = 0, peak = 0;
+    for(unsigned i = 0; i < 48000; ++i) {
+        float x = synth.Process(); if(prior <= 0 && x > 0) ++crossings;
+        prior = x; peak = std::max(peak, std::fabs(x));
+    }
+    assert(crossings >= 439 && crossings <= 441 && peak > 0.15f && peak <= 0.201f);
+    synth.Note(69, 0, 1); // different input must not release this note
+    for(unsigned i = 0; i < 4800; ++i) synth.Process();
+    assert(synth.Active() == 1);
+    synth.Note(69, 0, 0);
+    for(unsigned i = 0; i < 4800; ++i) synth.Process();
+    assert(synth.Active() == 0 && std::fabs(synth.Process()) < 1e-9f);
+    for(unsigned n = 40; n < 80; ++n) synth.Note(n, 100, 0);
+    assert(synth.Active() == 4); // bounded stealing
+    synth.Note(40, 0, 0); // stolen note-off must not kill replacement
+    assert(synth.Active() == 4);
+    synth.Silence(); assert(synth.Active() == 0 && synth.Process() == 0);
+}
+void EnvelopeVelocityAndFilter() {
+    auto p = Instrument(); p.attack = (100.f - 1.f) / 1999.f; p.decay = p.attack; p.sustain = 0.2f;
+    p.release = (100.f - 5.f) / 4995.f;
+    Synth loud, soft; loud.Init(48000); soft.Init(48000); loud.Configure(p); soft.Configure(p);
+    loud.Note(69, 100, 0); soft.Note(69, 50, 0);
+    float early = 0, attack = 0, sustain = 0;
+    for(unsigned i = 0; i < 24000; ++i) {
+        float x = loud.Process(), y = soft.Process();
+        assert(std::fabs(y * 2 - x) < 1e-5f);
+        if(i < 480) early = std::max(early, std::fabs(x));
+        if(i >= 4320 && i < 4800) attack = std::max(attack, std::fabs(x));
+        if(i > 18000) sustain = std::max(sustain, std::fabs(x));
+    }
+    assert(early < attack * .15f && sustain < attack * .25f);
+    loud.Note(69, 0, 0);
+    for(unsigned i = 0; i < 6000; ++i) loud.Process();
+    assert(loud.Active() == 0);
+    Synth dark, bright; dark.Init(48000); bright.Init(48000);
+    p = Instrument(); bright.Configure(p); p.cutoff = 0; dark.Configure(p);
+    bright.Note(100,127,0); dark.Note(100,127,0);
+    float bright_energy = 0, dark_energy = 0;
+    for(unsigned i = 0; i < 10000; ++i) {
+        const float a = bright.Process(), b = dark.Process();
+        if(i > 5000) { bright_energy += a*a; dark_energy += b*b; }
+    }
+    assert(dark_energy < bright_energy * .01f);
+}
+void RoutingPanicAndBounds() {
+    Engine engine; std::vector<float> l(48002), r(48002); assert(engine.Init(48000,l.data(),r.data(),l.size()));
+    auto p = Instrument(); assert(engine.ApplyPatch(p)); float left, right;
+    for(unsigned i = 0; i < 9600; ++i) { engine.Process(1,-1,left,right); assert(left == 0 && right == 0); }
+    engine.Note(60,100,0);
+    float peak = 0;
+    for(unsigned i = 0; i < 4800; ++i) { engine.Process(0,0,left,right); peak = std::max(peak,std::fabs(left)); assert(left == right); }
+    assert(peak > .05f);
+    auto invalid = p; invalid.cutoff = std::numeric_limits<float>::quiet_NaN();
+    assert(!engine.ApplyPatch(invalid) && engine.ActiveVoices() == 1);
+    p.mix = 1; p.feedback = 1; assert(engine.ApplyPatch(p));
+    for(unsigned i = 0; i < 48000; ++i) engine.Process(0,0,left,right);
+    engine.Panic(); assert(engine.ActiveVoices() == 0);
+    for(unsigned i = 0; i < 96000; ++i) { engine.Process(0,0,left,right); assert(left == 0 && right == 0); }
+    for(unsigned wave = 0; wave < 4; ++wave) {
+        p.waveform = wave; p.mix = .3f; assert(engine.ApplyPatch(p));
+        for(unsigned note = 0; note < 128; ++note) {
+            engine.Note(note,127,0);
+            for(unsigned i = 0; i < 100; ++i) {
+                engine.Process(0,0,left,right); assert(std::isfinite(left) && std::fabs(left) <= 1 && left == right);
+            }
+        }
+    }
+    Parameters fx; fx.level = 1; assert(engine.ApplyPatch(fx)); assert(engine.ActiveVoices() == 0);
+    for(unsigned i = 0; i < 48000; ++i) engine.Process(.2f,-.3f,left,right);
+    assert(std::fabs(left-.2f) < .0001f && std::fabs(right+.3f) < .0001f);
+}
+// Mirrors the firmware audio-callback loop: notes queued before an emergency are
+// dropped, control requests still run, and notes queued after it play at once,
+// even when the queue never drains.
+struct Callback {
+    Engine& engine; RecoveryGate gate; unsigned replies = 0;
+    void Block(uint8_t epoch, std::vector<Request> queue) {
+        gate.Observe(epoch, engine);
+        for(const auto& request : queue) {
+            if(!gate.Admit(request, engine)) continue;
+            Response response; if(ExecuteRequest(request, engine, response)) ++replies;
+        }
+    }
+};
+Request NoteRequest(uint8_t n, uint8_t v, uint8_t epoch) {
+    Request q; q.kind = RequestKind::Note; q.note = n; q.velocity = v; q.source = 1; q.epoch = epoch; return q;
+}
+void RecoveryAfterLostNotes() {
+    std::vector<float> l(48002), r(48002); Engine engine;
+    assert(engine.Init(48000, l.data(), r.data(), l.size()));
+    Parameters p = Instrument(); assert(engine.ApplyPatch(p));
+    Callback cb{engine, RecoveryGate{}, 0};
+    cb.Block(0, {NoteRequest(60, 100, 0)}); assert(engine.ActiveVoices() == 1); // its note-off is "lost"
+    Request status; status.kind = RequestKind::Status; status.epoch = 0;
+    // Emergency 1 raised: stale epoch-0 notes and a status are still queued,
+    // fresh epoch-1 notes are queued behind them in the same block.
+    cb.Block(1, {NoteRequest(62, 100, 0), status, NoteRequest(64, 100, 0), NoteRequest(67, 100, 1)});
+    assert(cb.replies == 1 && engine.ActiveVoices() == 1);    // only 67 sounds
+    // Request stamped with a newer epoch than the block start (race): silence first, then play.
+    cb.Block(1, {NoteRequest(69, 100, 2)});
+    assert(cb.gate.Epoch() == 2 && engine.ActiveVoices() == 1);
+    cb.Block(2, {NoteRequest(69, 0, 2)});
+    float left, right; for(unsigned i = 0; i < 48000; ++i) engine.Process(0, 0, left, right);
+    assert(engine.ActiveVoices() == 0);                       // releases normally
+    // CC120 with nothing queued still silences on the next block.
+    cb.Block(2, {NoteRequest(72, 100, 2)}); assert(engine.ActiveVoices() == 1);
+    cb.Block(3, {}); assert(engine.ActiveVoices() == 0);
+    // Wraparound: 255 -> 0 is newer, 0 -> 255 is older.
+    RecoveryGate gate; for(unsigned e = 1; e <= 255; ++e) gate.Observe(uint8_t(e), engine);
+    assert(gate.Epoch() == 255);
+    engine.Note(60, 100, 1); gate.Observe(0, engine); assert(gate.Epoch() == 0 && engine.ActiveVoices() == 0);
+    assert(!gate.Admit(NoteRequest(60, 100, 255), engine));
+    assert(gate.Admit(NoteRequest(60, 100, 0), engine));
+    Request old_status = status; old_status.epoch = 255; assert(gate.Admit(old_status, engine));
+}
+// Worst sample-to-sample step after reusing a sounding voice, relative to the
+// steady-state worst step of the same chord. Sine makes discontinuities obvious.
+float StepRatio(bool retrigger, uint8_t new_velocity) {
+    Synth s; s.Init(48000); auto p = Instrument(); p.attack = 0.002f; p.sustain = 0.8f; s.Configure(p);
+    for(uint8_t n : {60, 64, 67, 71}) s.Note(n, 127, 0);
+    float prior = 0, steady = 0, jump = 0;
+    for(unsigned i = 0; i < 24000; ++i) { const float y = s.Process(); if(i > 12000) steady = std::max(steady, std::fabs(y - prior)); prior = y; }
+    s.Note(retrigger ? 64 : 74, new_velocity, 0);
+    for(unsigned i = 0; i < 480; ++i) { const float y = s.Process(); jump = std::max(jump, std::fabs(y - prior)); prior = y; }
+    return jump / steady;
+}
+void ClickFreeStealAndRetrigger() {
+    assert(StepRatio(false, 127) < 1.5f);  // steal (was ~5x before level/phase carry-over)
+    assert(StepRatio(true, 127) < 1.5f);   // same-note retrigger
+    assert(StepRatio(false, 20) < 1.5f);   // steal by a much softer note
+    // A releasing voice is stolen before any held voice.
+    Synth s; s.Init(48000); auto p = Instrument(); p.release = 0.5f; s.Configure(p);
+    for(uint8_t n : {60, 62, 64, 65}) s.Note(n, 100, 0);
+    for(unsigned i = 0; i < 480; ++i) s.Process();
+    s.Note(64, 0, 0); for(unsigned i = 0; i < 480; ++i) s.Process();
+    s.Note(70, 100, 0); assert(s.Active() == 4);
+    // Short release from here on: if 70 replaced the releasing 64, every voice
+    // now ends quickly; had it stolen held 60, slow-releasing 64 would remain.
+    p.release = 0; s.Configure(p);
+    for(uint8_t n : {60, 62, 65, 70}) s.Note(n, 0, 0);
+    for(unsigned i = 0; i < 2400; ++i) s.Process();
+    assert(s.Active() == 0);
+}
+// Non-harmonic energy below 12 kHz relative to harmonic energy, in dB.
+double AliasDb(uint8_t waveform, uint8_t note) {
+    Synth s; s.Init(48000); auto p = Instrument(); p.waveform = waveform; s.Configure(p);
+    s.Note(note, 127, 0);
+    const unsigned N = 4096; std::vector<double> x(N);
+    for(unsigned i = 0; i < 12000 - N; ++i) s.Process();
+    for(unsigned i = 0; i < N; ++i) {
+        const double a = 2 * M_PI * i / (N - 1);
+        x[i] = (0.35875 - 0.48829 * std::cos(a) + 0.14128 * std::cos(2 * a) - 0.01168 * std::cos(3 * a)) * s.Process();
+    }
+    const double f0 = 440 * std::pow(2.0, (note - 69) / 12.0), bin = 48000.0 / N;
+    double harmonic = 0, alias = 0;
+    for(unsigned k = 1; k * bin < 12000; ++k) {
+        double re = 0, im = 0, c = 1, sn = 0; const double dc = std::cos(2 * M_PI * k / N), ds = std::sin(2 * M_PI * k / N);
+        for(unsigned i = 0; i < N; ++i) { re += x[i] * c; im -= x[i] * sn; const double t = c * dc - sn * ds; sn = sn * dc + c * ds; c = t; }
+        const double f = k * bin, m = std::round(f / f0), power = re * re + im * im;
+        (m >= 1 && std::fabs(f - m * f0) < 5 * bin ? harmonic : alias) += power;
+    }
+    return 10 * std::log10(alias / harmonic);
+}
+void TriangleAliasing() {
+    // Naive corners measured -46.9 dB (C7) and -36.2 dB (C8); polyBLAMP about -79 and -62.
+    assert(AliasDb(1, 96) < -70);
+    assert(AliasDb(1, 108) < -55);
+    assert(AliasDb(0, 96) < -80);  // sine: measurement floor sanity check
+}
+// Zero crossings per second of the synth output (pitch measurement).
+unsigned Crossings(Synth& s) {
+    for(unsigned i = 0; i < 2400; ++i) s.Process(); // let bend smoothing settle
+    unsigned n = 0; float prior = 0;
+    for(unsigned i = 0; i < 48000; ++i) { const float x = s.Process(); if(prior <= 0 && x > 0) ++n; prior = x; }
+    return n;
+}
+void SustainPedal() {
+    Synth s; s.Init(48000); auto p = Instrument(); s.Configure(p);
+    s.Pedal(1, true);
+    s.Note(60, 100, 1); s.Note(60, 0, 1);
+    for(unsigned i = 0; i < 4800; ++i) s.Process();
+    assert(s.Active() == 1);                         // released key sustained by pedal
+    s.Pedal(0, false); s.Note(62, 100, 0); s.Note(62, 0, 0);
+    for(unsigned i = 0; i < 4800; ++i) s.Process();
+    assert(s.Active() == 1);                         // other source has no pedal: 62 released
+    s.Note(64, 100, 1);                              // held key while pedal down
+    s.Pedal(1, false);
+    for(unsigned i = 0; i < 4800; ++i) s.Process();
+    assert(s.Active() == 1);                         // pedal up releases 60, held 64 remains
+    s.Note(64, 0, 1); for(unsigned i = 0; i < 4800; ++i) s.Process();
+    assert(s.Active() == 0);
+    // Re-pressing a sustained key retriggers that voice, then its own release counts.
+    s.Pedal(1, true); s.Note(65, 100, 1); s.Note(65, 0, 1); s.Note(65, 100, 1);
+    assert(s.Active() == 1);
+    s.Pedal(1, false); for(unsigned i = 0; i < 4800; ++i) s.Process();
+    assert(s.Active() == 1);                         // key is down again: not released by pedal-up
+    s.Note(65, 0, 1); for(unsigned i = 0; i < 4800; ++i) s.Process(); assert(s.Active() == 0);
+    // Pedal-sustained voices are stolen before held ones.
+    s.Pedal(1, true);
+    for(uint8_t n : {60, 62, 64, 65}) s.Note(n, 100, 1);
+    s.Note(64, 0, 1);                                // 64 now pedal-sustained
+    s.Note(70, 100, 1); s.Pedal(1, false);           // 70 replaced 64; nothing sustained left
+    for(unsigned i = 0; i < 4800; ++i) s.Process();
+    assert(s.Active() == 4);
+    for(uint8_t n : {60, 62, 65, 70}) s.Note(n, 0, 1);
+    for(unsigned i = 0; i < 4800; ++i) s.Process();
+    assert(s.Active() == 0);
+    // Panic (Silence) clears a pedal whose release was lost.
+    s.Pedal(1, true); s.Silence(); s.Note(60, 100, 1); s.Note(60, 0, 1);
+    for(unsigned i = 0; i < 4800; ++i) s.Process();
+    assert(s.Active() == 0);
+    // CC121 semantics: reset controllers releases sustained notes.
+    s.Pedal(1, true); s.Note(60, 100, 1); s.Note(60, 0, 1); s.ResetControllers(1);
+    for(unsigned i = 0; i < 4800; ++i) s.Process();
+    assert(s.Active() == 0);
+}
+void PitchBend() {
+    Synth s; s.Init(48000); auto p = Instrument(); s.Configure(p);
+    s.Note(69, 127, 1);
+    unsigned n = Crossings(s); assert(n >= 439 && n <= 441);
+    s.Bend(1, 16383); n = Crossings(s); assert(n >= 492 && n <= 495);  // +2 semitones = 493.9 Hz
+    s.Bend(1, 0); n = Crossings(s); assert(n >= 391 && n <= 393);      // -2 semitones = 392.0 Hz
+    s.Bend(1, 16384); n = Crossings(s); assert(n >= 391 && n <= 393);  // invalid value ignored
+    s.ResetControllers(1); n = Crossings(s); assert(n >= 439 && n <= 441);
+    s.Bend(1, 16383); s.Silence(); s.Note(69, 127, 1); n = Crossings(s); assert(n >= 439 && n <= 441); // panic recentres
+    // Bend belongs to its source: a source-0 voice follows only source 0's bend.
+    Synth u; u.Init(48000); u.Configure(p); u.Note(69, 127, 0);
+    u.Bend(1, 0); n = Crossings(u); assert(n >= 439 && n <= 441);
+    u.Bend(0, 16383); n = Crossings(u); assert(n >= 492 && n <= 495);
+    // Smoothing: 1 ms after a full bend jump the waveform is still close to an
+    // unbent copy (an instant jump drifts ~0.34 of peak; 5 ms smoothing ~0.03).
+    Synth a, b; a.Init(48000); b.Init(48000); a.Configure(p); b.Configure(p);
+    a.Note(69, 127, 1); b.Note(69, 127, 1);
+    for(unsigned i = 0; i < 4800; ++i) { a.Process(); b.Process(); }
+    a.Bend(1, 16383); float drift = 0;
+    for(unsigned i = 0; i < 48; ++i) drift = std::max(drift, std::fabs(a.Process() - b.Process()));
+    assert(drift < 0.02f);
+    for(unsigned note = 0; note < 128; ++note) {                       // bounds at extreme bend
+        s.Note(note, 127, 1);
+        for(unsigned i = 0; i < 64; ++i) { const float y = s.Process(); assert(std::isfinite(y) && std::fabs(y) <= 1); }
+    }
+}
+void ChannelTranslation() {
+    MidiFramer parser; MidiFrame frame; Request request;
+    auto feed = [&](std::vector<uint8_t> bytes) { bool got = false; for(auto b : bytes) got = parser.Feed(b, frame) || got; return got; };
+    assert(feed({0xe0, 0x00, 0x40}) && TranslateChannel(frame, 1, request) == Ingress::Control
+           && request.kind == RequestKind::Bend && request.value == 8192 && request.source == 1);
+    assert(feed({0x7f, 0xf8, 0x7f}) && request.kind == RequestKind::Bend);  // running status with clock inside
+    assert(TranslateChannel(frame, 0, request) == Ingress::Control && request.value == 16383);
+    assert(feed({0xb0, 64, 127}) && TranslateChannel(frame, 0, request) == Ingress::Critical
+           && request.kind == RequestKind::Pedal && request.value == 1);
+    assert(feed({64, 63}) && TranslateChannel(frame, 0, request) == Ingress::Critical && request.value == 0);
+    assert(feed({121, 0}) && TranslateChannel(frame, 0, request) == Ingress::Critical
+           && request.kind == RequestKind::ResetControllers);
+    assert(feed({123, 0}) && TranslateChannel(frame, 0, request) == Ingress::Emergency);
+    assert(feed({120, 0}) && TranslateChannel(frame, 0, request) == Ingress::Emergency);
+    // CC 24 (SW5) goes to the engine, which picks the looper transport or the cutoff;
+    // CC 26 / 27 are TAPE's looper PLAY / LOOP.
+    assert(feed({24, 127}) && TranslateChannel(frame, 0, request) == Ingress::Control
+           && request.kind == RequestKind::Looper && request.note == 2 && request.value == 127);
+    {
+        std::vector<float> dl(48002), dr(48002); Engine engine; assert(engine.Init(48000.f, dl.data(), dr.data(), dl.size()));
+        Response response; ExecuteRequest(request, engine, response);
+        assert(engine.GetParameters().cutoff == 1.f);                    // no looper: still the cutoff
+    }
+    assert(feed({26, 127}) && TranslateChannel(frame, 0, request) == Ingress::Control
+           && request.kind == RequestKind::Looper && request.note == 0);
+    assert(feed({27, 0}) && TranslateChannel(frame, 0, request) == Ingress::Control && request.note == 1);
+    assert(feed({28, 127}) && TranslateChannel(frame, 0, request) == Ingress::Ignore);   // stock virtual key
+    assert(feed({1, 64}) && TranslateChannel(frame, 0, request) == Ingress::Control
+           && request.kind == RequestKind::ModWheel && request.value == 64);
+    assert(feed({2, 64}) && TranslateChannel(frame, 0, request) == Ingress::Ignore);   // breath: unmapped
+    assert(feed({0x91, 60, 100}) && TranslateChannel(frame, 0, request) == Ingress::Ignore); // channel 2
+    assert(feed({0xe1, 0, 0}) && TranslateChannel(frame, 0, request) == Ingress::Ignore);
+    assert(feed({0x80, 60, 30}) && TranslateChannel(frame, 2, request) == Ingress::Critical
+           && request.kind == RequestKind::Note && request.velocity == 0);
+    // Program change n = bank n / 15, slot n % 15 (device presets), silent recall.
+    assert(feed({0xc0, 17}) && TranslateChannel(frame, 1, request) == Ingress::Storage
+           && request.kind == RequestKind::Recall && request.bank == 1 && request.slot == 2 && request.silent);
+    assert(feed({119}) && TranslateChannel(frame, 1, request) == Ingress::Storage            // running status
+           && request.bank == 7 && request.slot == 14);
+    assert(feed({120}) && TranslateChannel(frame, 1, request) == Ingress::Ignore);            // beyond 8 x 15
+    assert(feed({0xc1, 3}) && TranslateChannel(frame, 1, request) == Ingress::Ignore);        // channel 2
+    assert(!feed({0xd0, 5}));                                               // channel pressure: dropped
+    // Stale pedal/bend/reset are dropped by the recovery gate like notes.
+    std::vector<float> l(48002), r(48002); Engine engine; assert(engine.Init(48000, l.data(), r.data(), l.size()));
+    RecoveryGate gate; gate.Observe(1, engine);
+    for(auto kind : {RequestKind::Note, RequestKind::Pedal, RequestKind::Bend, RequestKind::ResetControllers, RequestKind::ModWheel}) {
+        Request q; q.kind = kind; q.epoch = 0; assert(!gate.Admit(q, engine));
+    }
+    Request param; param.kind = RequestKind::Parameter; param.epoch = 0; assert(gate.Admit(param, engine));
+    // Engine forwards pedal through ExecuteRequest on the synth route.
+    assert(engine.ApplyPatch(Instrument())); Response ignored;
+    Request pedal; pedal.kind = RequestKind::Pedal; pedal.value = 1; pedal.source = 1;
+    assert(!ExecuteRequest(pedal, engine, ignored));
+    engine.Note(60, 100, 1); engine.Note(60, 0, 1);
+    float left, right; for(unsigned i = 0; i < 4800; ++i) engine.Process(0, 0, left, right);
+    assert(engine.ActiveVoices() == 1);
+    pedal.value = 0; ExecuteRequest(pedal, engine, ignored);
+    for(unsigned i = 0; i < 4800; ++i) engine.Process(0, 0, left, right);
+    assert(engine.ActiveVoices() == 0);
+}
+int main() { VoicesAndPitch(); EnvelopeVelocityAndFilter(); RoutingPanicAndBounds(); RecoveryAfterLostNotes();
+    ClickFreeStealAndRetrigger(); TriangleAliasing(); SustainPedal(); PitchBend(); ChannelTranslation();
+    std::cout << "PASS: synth pitch, ADSR, velocity, filter, source ownership, voices, routing, panic, bounds, recovery gate, click-free steal, triangle aliasing, sustain pedal, pitch bend, channel translation\n"; }

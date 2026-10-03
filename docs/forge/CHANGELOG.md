@@ -1,0 +1,239 @@
+# Forge changelog
+
+## 0.5 looper (roadmap item 5) — 2026-10-03
+
+TAPE's looper on KEY_28 LOOP / KEY_27 PLAY (design: LOOPING.md). Software-tested only.
+- First take, overdub with feedback (soft limited), pause/resume, hold PLAY
+  2 s = start, hold both 2 s = clear, armed recording; varispeed −2…+2 with
+  reverse and tape slew, scrub while paused; seamless 5 ms seam fades; ~83 s
+  stereo (sample pool 40 → 32 MiB).
+- SW5 is the looper transport while a loop exists (else cutoff/panic); menu:
+  PLAY/LOOP set the feedback, KEY_21/KEY_20 put the effects before/after the
+  loop; Samples page COPY → LOOP → slot → CHOMPI saves the loop as a sample.
+- MIDI CC 26 PLAY / 27 LOOP (as TAPE); CC 24 follows SW5.
+- Panic pauses the loop (kept); patch changes leave it playing.
+- While recording/overdubbing, sampler voices are capped at 6 (CPU budget).
+- Inspector page 5 carries the looper state; TEST_SESSION 3E + 6.2d; bridge
+  checks and automatic checks.
+
+## 0.5 boot fix and cleanup — 2026-10-03
+
+- Fixed (release and development firmware): libDaisy's `boot_info` now links
+  into backup SRAM (0x38800000), where the bootloader writes its version.
+  Before, it sat in uninitialised RAM; a 0 there made the firmware skip clock
+  and SDRAM setup on some units ("64 MHz bug", found by sfaber02). A layout
+  check now fails the build if it moves; the firmware relinks when the linker
+  script changes.
+- Development probe page 0 retired (Inspector pages cover it); consistency
+  tests for the duplicated checklist, key table and step ids; docs refreshed.
+
+## 0.5 plug-and-play bridge — 2026-10-03
+
+DC: "more plug and play". Host only; firmware unchanged. Software-tested only.
+- Connect CHOMPI: automatic port discovery (CHOMPI/Daisy-named ports only,
+  confirmed by a Forge reply).
+- Automatic checks: finds the audio interface, then runs 19 measurable
+  TEST_SESSION steps (pitch, clicks, levels, panic, menu/LEDs, samples,
+  recording, CPU) with spectrograms and reports; `forge_audio.py run` for
+  terminals. Audio steps skip without an interface or numpy.
+- Windows development kit bundles Python 3.12 and its packages (pinned,
+  signed sources); python-rtmidi has no Windows build for Python 3.13+.
+- verify_bundle ignores the kit's `reports/` folder; `*.cmd` use CRLF.
+
+## 0.5 development Inspector — 2026-10-03
+
+- Shared versioned SYSTEM/PANEL/ENGINE/STORAGE telemetry and retained cursor log,
+  extending development probe 0B with pages 2–7. Original pages 0/1 and status
+  layouts unchanged; release still rejects 0A/0B.
+- Physical versus injected keys/encoders, indexed voices/modulation/resolved
+  parameters, transport/queue counts, load/record/job state and storage errors.
+- Read-only terminal viewer and JSONL collector reuse the same model for MIDI
+  and the labelled simulation. Audio publishes bounded scalar/edge data; main
+  owns snapshots, formatting and transport. No musical/DSP changes.
+- New native/Python coverage and consolidated hardware checklist. Validation
+  includes a preserved Windows baseline HTTP test failure; details and limits
+  in INSPECTOR.md. Hardware remains unverified.
+
+## 0.5 sampler (roadmap item 4) — 2026-10-03
+
+Following TAPE's sampling (DC's request), with cheap extras. Design and
+differences: SAMPLING.md. Software-tested only; nothing on hardware.
+- Patch v4: sampler module (chromatic/kit, banks a–e, slots 1–14 + the
+  recording, pitch, start/end, loop with crossfade, hold/trigger, reverse),
+  7 voices, sampler route; wire 84/96 bytes; firmware minor 5. v1–v3 output
+  bit-exact.
+- Plays TAPE's `jammi_`/`cubbi_` files from the card; reads 8/16/24-bit,
+  float, mono/stereo, 8–96 kHz; 40 MB SDRAM pool loaded in 16 KB main-loop
+  steps behind a lock-free handoff; notes can start while loading.
+- Recording as TAPE (toggle down + hold CHOMPI) from mic/line/resample, ~87 s,
+  5 ms fades, normalisation, monitoring; becomes chromatic slot 15.
+- Samples menu page (KEY_22): TAPE's shift-menu keys for mode/bank, source,
+  save/copy/erase; record gesture; LEDs in TAPE's bank colours.
+- Sample voices through the resonant filter, filter envelope, LFO, glide,
+  delay, reverb; Hermite when pitched down; declicked restarts.
+- Host: v4 schema/codec/upgrade, `samples`/`sample-save|erase|copy`,
+  opcodes 08/09 (replies 44/45); webapp sampler controls and Device samples
+  panel; AI authors v4 and may only use samples the device reported.
+- Presets 11 Recorded Keys, 12 TAPE Kit A, 13 Sampler Stress; `make bench`
+  sampler scenarios (worst 2,628 vs WAVE 2,695 instructions/sample).
+- Fixed in passing: v3→v4 upgrade shared module dicts with its input.
+
+## 0.4 MIDI CCs match stock — 2026-10-03
+
+- DC's decision: CC20+n sets encoder n (SW1–SW6) as on TAPE/TEMPO/WAVE:
+  CC24 = cutoff (SW5), CC25 = output level (SW6). Forge-only controls moved
+  to General MIDI numbers stock leaves free: CC71 resonance, CC74 cutoff,
+  CC85 wet bypass, CC91 reverb mix. Stock virtual-key CCs (14, 15, 26–33)
+  are ignored. Wire format (SysEx) unchanged.
+- Knob order follows stock `encoder_map = {1, 2, 3, 0, 4, 5}`: logical knob
+  1–4 = hardware SW4, SW1, SW2, SW3, so CC20–23 move the same physical knobs
+  as stock. Panel functions moved with them (mix is now on hardware SW4).
+
+## 0.4 stock comparison refresh — 2026-10-03
+
+- COMPATIBILITY.md refreshed for `4fec6ac`: SD card coexistence section,
+  toolchain provenance (TEMPO is a GCC 13 build), proof that xPack 10.3.1
+  generates the same libDaisy/DaisySP code as Arm 10.3-2021.10, corrected
+  factory rebuild deltas, current Forge size and headroom.
+- `make bench`: `TEMPO_GCC_PATH` builds TEMPO with its own compiler;
+  TEMPO FX+output 1,352 instructions/sample with GCC 13.3.
+
+## 0.4 device presets on the SD card — 2026-10-03
+
+- 8 banks × 15 slots in `FORGE/B<bank>S<slot>.FPR` (CRC-checked wire DATA,
+  temp + rename, read-back). Never `.bin`, so the bootloader ignores them.
+- TAPE-style panel menu: toggle + CHOMPI key; white keys recall; KEY_16/17
+  and encoder 1 select banks; KEY_25 save, KEY_24 copy, KEY_23 erase,
+  confirmed with CHOMPI; key LEDs show occupancy, selection and mode.
+- MIDI program change 0–119 recalls; SysEx opcodes 04–07 (store, recall,
+  erase, list) with replies 42/43 and errors 7–9; `forge_host.py
+  store|recall|erase|slots`; webapp Device presets panel.
+- Shared patch DATA codec (`EncodePatchData`/`DecodePatchData`) used by SysEx,
+  status replies and SD records.
+- Tests: new native preset suite (records, card faults, menu, LEDs, protocol,
+  runtime), 6 Python and 1 browser test; 7 code mutations each caught.
+  SD card, LEDs and timing are hardware-unverified.
+
+## 0.4 stock-firmware comparison and CPU benchmark — 2026-10-03
+
+- New docs/forge/COMPATIBILITY.md: bootloader acceptance (FORGE.bin layout
+  matches factory TAPE/TEMPO/WAVE), memory maps, audio config, identical
+  keybed map, MIDI differences (CC24/25, fixed channel), upstream rebuild
+  findings (TAPE case-sensitive include, xPack overflow; TEMPO size delta).
+- `make bench`: ARM instruction counts in an emulator for Forge presets vs
+  TAPE/TEMPO FX stages and WAVE's 8-voice engine; gate: Forge <= WAVE.
+- Reverb memory moved from SDRAM to DTCM (as the stock apps do); a test
+  proves uninitialised DTCM never reaches the output.
+- TEST_SESSION: stock loudness reference before flashing, single-.bin and
+  macOS `._` file rule at 1.1, restore from firmware/card-profiles.
+
+## 0.4 v3 instrument: richer synth and reverb — 2026-10-03
+
+- Patch v3 (firmware minor 4): second oscillator (waveform, level, ±24
+  semitones, ±50 cents), noise, per-voice resonant SVF low-pass with its own
+  ADSR and ±6-octave amount, LFO (4 shapes, 0.05–20 Hz) to pitch/filter/amp
+  with mod-wheel gating, voices 1–4 (CPU fallback), glide, FDN reverb.
+- CC1 mod wheel, CC26 resonance, CC27 reverb mix (v3 only).
+- v1/v2 output bit-exact against 0.3 (simulation, 384,000 stereo samples).
+- Transport buffers sized for 69-byte requests / 83-byte replies; UART
+  timeout computed per reply. Multi-packet USB replies unverified on device.
+- Host: strict v3 schema/validation, table-driven codec, `upgrade` command,
+  AI instrument mode authors v3. Webapp edits every module; v1/v2 fields
+  greyed; Convert to v3. Presets: Warm Pad, Acid Bass, Bell Keys, CPU Stress.
+- Tests: new v3 native suite, v3 protocol tests, 200 random v3 round trips,
+  upgrade/endpoint tests, 9 browser tests; 13/14 mutations caught (14th is
+  output-equivalent). Hardware and live AI still unverified.
+
+## 0.3 playability: sustain pedal and pitch bend — 2026-10-02
+
+- CC64 sustain and 14-bit pitch bend (±2 semitones, 5 ms smoothing), both per
+  MIDI source; CC121 resets them; panic/route change clears them. Steal order
+  adds pedal-sustained voices before held ones.
+- Channel-message decoding moved from forge_main into host-tested
+  `TranslateChannel`; lost pedal/CC121 raises the stuck-note emergency, a lost
+  bend only counts a drop.
+- `forge_host.py note --bend/--sustain` for the hardware session (always reset).
+- Tests: sustain, bend pitch/isolation/smoothing, translation and gate cases;
+  6 code mutations each caught. Hardware still unverified.
+
+## 0.3 sound fixes — 2026-10-02
+
+- Voice steal/retrigger keeps level, phase and (slewed) velocity gain; steals a
+  releasing voice before a held one. Simulated steal step 4.98x → 1.12x.
+- Triangle corners band-limited with polyBLAMP: alias below 12 kHz at C7
+  -46.9 → -78.9 dB (simulated).
+- Recovery uses emergency epochs: only notes queued before an emergency are
+  dropped; later notes play even under continuous traffic.
+- New native tests for all three (each fails on the previous code). Firmware
+  binary changed: older 0.3 bundles are stale. Hardware still unverified.
+
+## 0.3 integration review and browser testing — 2026-10-03
+
+- First real browser run (Chromium 141): 8 end-to-end tests against a stateful
+  simulated device using the C++ runtime; mocked providers; phone/tablet layout.
+- Fixed: localhost URL refused; field/device errors hidden behind generic text;
+  status banner out of view; linear cutoff slider; 14-bit wrap on float rounding.
+- Stuck-note recovery factored into host-tested `RecoveryGate`; firmware logic
+  unchanged. PROTOCOL recovery description corrected.
+- Added `cc`/`note` test commands, `forge_ai_check.py` live preflight, provider
+  range descriptions, bundle `verify_bundle.py`, compiler identity in manifest.
+- Rewrote the consolidated hardware checklist with exact commands.
+- 35 Python, 3 native, 3 sanitizer, 8 browser tests and ARM build pass.
+  Hardware and live providers still unverified.
+
+## 0.3 instrument software candidate — 2026-10-02
+
+- Corrected project scope to AI-programmable instrument, not effects-only.
+- Added four-voice synth, ADSR/tone/velocity, keybed and MIDI notes, source ownership
+  and panic; retained external stereo delay and v1 patch compatibility.
+- Added v2 synth/delay/output modules with two routes, host encoding/capture,
+  OpenAI/Gemini instrument authoring, web controls and three instrument presets.
+- Added synth native/sanitizer coverage and 200 v2 integration round trips.
+  Three C++ suites, 28 Python tests, sanitizers and ARM build pass.
+- Added AGENTS.md and live CONTINUE.md for ongoing agent handoffs; updated docs,
+  wire protocol, package generator and single physical acceptance checklist.
+- Browser, live-provider and actual hardware acceptance remain pending.
+
+## Local AI webapp — 2026-10-02
+
+- Added a local browser interface with OpenAI and Gemini using user-provided API
+  keys and configurable model IDs; the Ollama CLI remains available.
+- Added validated patch generation, parameter editing, preset import/export,
+  MIDI port selection, status, capture and explicit acknowledged send.
+- Kept credentials out of disk/browser storage; bounded local requests, checked
+  origin/session, disabled cross-origin access and refused provider redirects.
+- Added twelve provider/server tests; all 24 Python tests and both C++ suites pass.
+- Updated packaging to include the webapp. Existing ZIPs are unchanged.
+- Firmware remains 0.2; live provider and physical hardware tests are pending.
+- Browser smoke testing is pending: the development Chromium download failed;
+  static asset serving and JavaScript syntax checks pass.
+
+## Documentation follow-up — 2026-10-02
+
+- Added a documentation index, architecture and developer guides.
+- Added prominent navigation and current Forge status to the repository README.
+- Clarified tracked source versus generated test artifacts and verification limits.
+- Expanded the root README with the project/build summary, full candidate feature
+  inventory, controls/defaults, usage commands and explicitly unimplemented scope.
+- No firmware behavior or candidate binary changed.
+
+## 0.2 software candidate — 2026-10-02
+
+- Added versioned host JSON patches, strict validation, save/capture and atomic recall.
+- Added acknowledged USB/TRS SysEx control and status with sequence/checksum checks.
+- Added framing tolerant of interleaved MIDI real-time bytes, complete USB SysEx
+  packetization, response backpressure and transport-lifetime handling.
+- Added average/peak callback load and drop/rejection reporting.
+- Added Python control tools, optional Ollama authoring, presets and offline rendering.
+- Added protocol/integration tests, a bundle generator and one hardware-test checklist.
+- Software tests and ARM build pass; device and actual-model acceptance are pending.
+
+## Initial foundation — 2026-10-01
+
+- Added a standalone Forge BOOT_SRAM application using WAVE's hardware support.
+- Implemented stereo delay, smoothed parameters, encoder/MIDI CC controls and host tests.
+- Established the project brief and repository handoff.
+- Updated the plan to batch physical validation into one consolidated session.
+
+These are development milestones, not hardware-approved releases. The initial
+foundation did not publish a formal semantic version or GitHub release.
