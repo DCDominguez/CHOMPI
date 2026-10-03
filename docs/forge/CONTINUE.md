@@ -335,7 +335,10 @@ KEY_16/17 banks; CHOMPI confirms; SMT LED 25 − slot# under white keys,
    start-up stays dry aux (no boot recall); QA bundles → DC's Google Drive.
    Open, low priority: configurable MIDI input channel (stock: options.json).
 2. Agent: roadmap item 4, sampling — DC: follow TAPE's sampling (known to
-   work) plus cheap extras. Design in SAMPLING.md, then implement.
+   work) plus cheap extras. Design: SAMPLING.md (2026-10-03). Implementation
+   order: WAV codec → v4 patch + sampler voices → recorder + pool/loader →
+   samples menu page → firmware SD/SDRAM integration → host/AI/webapp →
+   docs/TEST_SESSION. Each step commits with its own tests.
 4. Bundle: `Forge-0.4-test-4fec6ac` built from `4fec6ac` (xPack GCC 10.3.1,
    zip sha256 `c1ee9eb1…f2f18aa`, FORGE.bin sha256 `6bfc4925…02dcc6b`,
    `verify_bundle.py`: 43 files OK). Regenerate if firmware changes again.

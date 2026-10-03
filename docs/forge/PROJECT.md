@@ -71,7 +71,9 @@ unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
    software-tested): 8 × 15 slots, TAPE-style key + encoder menu, program
    change, host CLI and webapp. Candidates: names on the device, recall the
    last preset at boot, preset import from TAPE/WAVE cards.
-4. **Sampling** — recording and playable sample maps (SDRAM + SD).
+4. **Sampling** — TAPE-compatible sampler (design: [SAMPLING.md](SAMPLING.md)):
+   JAMMI/CUBBI slots from TAPE-named WAVs, recording (mic/line/resample),
+   v4 patches, samples menu page. In progress.
 5. **Looping** — capture, overdub, manipulation on the sampling buffers.
 6. **Dedicated/networked controllers** (Tab5) — optional, last.
 
