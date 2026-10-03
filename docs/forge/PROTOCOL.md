@@ -217,7 +217,7 @@ Ways to recall the same slots:
 - **Panel menu (as in TAPE):** with the toggle in TAPE's menu position, press
   the CHOMPI key. While the menu is open, keys select presets instead of
   playing. White keys 1–15 recall slot 1–15 of the current bank (hold CHOMPI).
-  Black KEY_16 / KEY_17 step the bank down / up, and turning encoder 1 also
+  Black KEY_16 / KEY_17 step the bank down / up, and turning knob 1 (hardware SW4) also
   selects the bank. Save is KEY_25, erase KEY_23, copy KEY_24 (source, then
   destination, any bank). Choose the mode, press a white key, press CHOMPI to
   confirm; pressing the mode key again cancels. Releasing CHOMPI with nothing

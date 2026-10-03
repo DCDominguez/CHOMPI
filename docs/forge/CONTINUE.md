@@ -303,7 +303,7 @@ KEY_16/17 banks; CHOMPI confirms; SMT LED 25 − slot# under white keys,
 - `core/preset_store.h`: Storage interface; record `'F''P' fmt len DATA crc16`;
   `PresetStore` (save with read-back, load, erase, copy, occupancy, Rescan).
 - `core/preset_menu.h`: `PresetMenu` (audio-owner FSM) + `RenderMenuLeds`.
-  Bank persists between openings; encoder 1 clamps (1–8), bank keys wrap; a
+  Bank persists between openings; knob 1 (hw SW4) clamps (1–8), bank keys wrap; a
   selection keeps its bank if the bank changes before confirming.
 - `core/protocol.h`: `EncodePatchData`/`DecodePatchData` shared by SysEx,
   status and records; opcodes 04–07, replies 42 (12 B) / 43 (33 B), errors 7–9.

@@ -9,6 +9,10 @@ constexpr uint8_t kChompiKey = 5, kToggle = 6;
 constexpr uint8_t kBankDown = 7, kBankUp = 12;            // black KEY_16 / KEY_17
 constexpr uint8_t kErase = 29, kCopy = 30, kSave = 31;    // black KEY_23 / 24 / 25, as in TAPE
 constexpr uint8_t kNoSlot = 0xff;
+// Stock logical knob order: TAPE/TEMPO/WAVE ui.h `encoder_map = {1, 2, 3, 0, 4, 5}`
+// maps hardware encoder SW1..SW6 to logical knob 1, 2, 3, 0, 4, 5, and CC20+n
+// turns logical knob n. Logical knob n is hardware encoder kKnobEncoder[n].
+constexpr uint8_t kKnobEncoder[6] = {3, 0, 1, 2, 4, 5};
 // White keys KEY_1..KEY_15 -> slot 0..14 (TAPE's KeyToSlot, 0-based).
 inline uint8_t KeyToSlot(uint8_t button) {
     if(button >= 8 && button <= 11) return button - 7;    // KEY_2..KEY_5 -> 1..4
@@ -30,7 +34,7 @@ inline uint8_t BlackLed(uint8_t button) {                   // SMT LED under bla
 // TAPE-style preset menu (audio owner; no I/O). Toggle up + press the CHOMPI
 // key opens it. While open, keys do not play notes:
 //   white key            recall that slot of the current bank (hold CHOMPI)
-//   KEY_16 / KEY_17       bank down / up (wraps); encoder 1 also turns banks
+//   KEY_16 / KEY_17       bank down / up (wraps); knob 0 (hardware SW4) also turns banks
 //   KEY_25 save, KEY_23 erase: choose the mode, pick a white key, press CHOMPI
 //   KEY_24 copy: pick source, then destination (any bank), press CHOMPI
 // Pressing an active function key again cancels it. The menu closes when the
@@ -72,7 +76,7 @@ public:
             default: return BlackKey(button);
         }
     }
-    // Encoder turn; encoder 1 (index 0) selects the bank while the menu is open.
+    // Logical knob turn; knob 0 (CC20's knob, hardware SW4) selects the bank while the menu is open.
     bool Encoder(uint8_t index, int increment) {
         if(!active_ || index != 0 || !increment) return false;
         int bank = bank_ + increment;

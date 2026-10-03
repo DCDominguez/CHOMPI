@@ -12,7 +12,7 @@ and emulation. Nothing was run on CHOMPI hardware.**
 | Will the bootloader accept FORGE.bin? | Yes by its own rules: same stack/entry layout as all three factory binaries |
 | Same audio setup? | Yes: 48 kHz, 24-frame blocks, mic in 0, aux in 2/3, outputs 0/1 + 2/3 |
 | Same keybed notes? | Yes: identical 25-key map (MIDI 48–72) to TAPE, TEMPO and WAVE |
-| Same MIDI conventions? | CC20–25 = encoders SW1–SW6 as in stock; channel fixed to 1 (stock configurable) |
+| Same MIDI conventions? | CC20–25 turn the same physical knobs as stock (logical knob order); channel fixed to 1 (stock configurable) |
 | Is Forge's CPU load plausible? | Worst case ~1,430 instructions/sample, about half of WAVE's shipping engine (~2,700) |
 | Can Forge share an SD card with stock files? | Yes: same SD bus setup and FatFS config as TAPE/WAVE; stock apps ignore `FORGE/` (§3a) |
 | Is our compiler equivalent to the pinned one? | For libDaisy and DaisySP, yes: identical machine code to the shipped Arm 10.3-2021.10 objects (§5) |
@@ -101,7 +101,7 @@ never reaches the output.
 | | Stock TAPE/TEMPO/WAVE | Forge 0.4 |
 | --- | --- | --- |
 | Input channel | Configurable (`options.json` midi_ch_in); CC input can be disabled | Fixed channel 1 |
-| CC20–23 | Turn encoders SW1–SW4 | SW1–SW4's functions (mix, time, feedback, level) |
+| CC20–23 | Turn logical knobs 0–3 = hardware SW4, SW1, SW2, SW3 (`encoder_map`) | Same knobs: mix, time, feedback, level |
 | CC24 | Encoder SW5 (WAVE ignores it; TAPE only while the looper plays) | SW5's function (cutoff) |
 | CC25 | Encoder SW6 | SW6's function (output level) |
 | CC14/15 (WAVE/TEMPO), CC26/27 (TAPE) | Emulate two buttons | Ignored |
@@ -109,14 +109,15 @@ never reaches the output.
 | Note/CC output | Keys sent as MIDI | None (SysEx replies only) |
 | Also in Forge | — | CC1, 64, 71 resonance, 74 cutoff, 85 bypass, 91 reverb, 120, 121, 123, pitch bend, SysEx patches |
 
-Aligned with stock on DC's decision (2026-10-03): CC20+n turns encoder n, as
-an absolute position, exactly as the stock `OnEncoderTurned` CC path does.
+Aligned with stock on DC's decision (2026-10-03): CC20+n turns logical knob n
+(stock `encoder_map = {1, 2, 3, 0, 4, 5}` remaps hardware SW1–SW4), as an
+absolute position, exactly as the stock `OnEncoderTurned` CC path does.
 Forge-only controls moved to General MIDI numbers that stock never uses.
 A controller template built for stock CHOMPI now drives the same encoders.
 
 Device presets (0.4) follow TAPE's panel gestures: toggle in TAPE's menu
 position + CHOMPI key opens the menu; white keys select slots; KEY_23/24/25
-are erase/copy/save; CHOMPI confirms. KEY_16/17 select banks and encoder 1
+are erase/copy/save; CHOMPI confirms. KEY_16/17 select banks and knob 1 (hw SW4)
 also turns banks. TAPE's own files (`presets.json`, samples) are not read or
 written; Forge's live in `FORGE/` and are never `.bin`.
 

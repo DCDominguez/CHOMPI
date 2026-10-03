@@ -7,6 +7,9 @@
   to General MIDI numbers stock leaves free: CC71 resonance, CC74 cutoff,
   CC85 wet bypass, CC91 reverb mix. Stock virtual-key CCs (14, 15, 26–33)
   are ignored. Wire format (SysEx) unchanged.
+- Knob order follows stock `encoder_map = {1, 2, 3, 0, 4, 5}`: logical knob
+  1–4 = hardware SW4, SW1, SW2, SW3, so CC20–23 move the same physical knobs
+  as stock. Panel functions moved with them (mix is now on hardware SW4).
 
 ## 0.4 stock comparison refresh — 2026-10-03
 

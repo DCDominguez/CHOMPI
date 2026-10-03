@@ -43,7 +43,7 @@ Keep monitoring volume low. Avoid audio feedback loops. The mic is unused.
 | --- | --- | --- |
 | 2.1 | Aux source in; `H send presets/01-dry.json ...`; play left-only then right-only | Correct L/R on headphones and main outs |
 | 2.2 | `H send presets/02-slap.json`, then `03-long-echo.json`, while audio plays | Acknowledged; echoes change; no crash; time change glides in pitch |
-| 2.3 | Turn SW1–SW4 and volume SW6; `H status` | Mix/time/feedback/level move as documented; level can mute |
+| 2.3 | Turn knobs 1–4 (hardware SW4, SW1, SW2, SW3, in panel order) and volume SW6; `H status` | Mix/time/feedback/level move in that knob order; level can mute. Note which physical knob is which |
 | 2.4 | `H cc 85 127 --output "OUT"`, then `H cc 85 0` | Wet fades out then back; dry still follows level |
 | 2.5 | `H capture saved-aux.json ...`; send another preset; `H send saved-aux.json` | Returns within 14-bit quantization |
 
@@ -84,7 +84,7 @@ toggle position in which TAPE's CHOMPI key opens its menu; note which way that i
 | 3.18 | `H send presets/07-warm-pad.json`. Menu: press SAVE (KEY_25), release CHOMPI, press white key 1 (it turns blue), press CHOMPI | Panel LED flashes green; white key 1 now dim (occupied). `FORGE/B1S01.FPR` exists on the card afterwards |
 | 3.19 | Send `08-acid-bass.json`, save it to slot 2 the same way. Release CHOMPI | Menu closes; keys play Acid Bass again |
 | 3.20 | Hold CHOMPI (menu), press white key 1, release CHOMPI, play | Warm Pad plays; key 1 shows white while the menu is open. Repeat with key 2 → Acid Bass |
-| 3.21 | Menu: turn encoder 1 and press KEY_17 / KEY_16 | Bank colour changes on the bank keys; encoder stops at banks 1 and 8, keys wrap. Mix (encoder 1's normal job) does not change while the menu is open |
+| 3.21 | Menu: turn knob 1 (hw SW4) and press KEY_17 / KEY_16 | Bank colour changes on the bank keys; encoder stops at banks 1 and 8, keys wrap. Mix (knob 1's normal job) does not change while the menu is open |
 | 3.22 | Menu: COPY (KEY_24), white key 1 (green), KEY_17 to bank 2, white key 5 (blue), CHOMPI | Green flash; bank 2 key 5 occupied. ERASE (KEY_23), key 5, CHOMPI → key 5 empty |
 | 3.23 | Send MIDI program change 1 on channel 1 from a keyboard or DAW | Acid Bass (bank 1 slot 2) loads; program 0 → Warm Pad |
 | 3.24 | `H slots ...`, `H recall 1 1 ...`, `H store 1 3 ...`, `H erase 1 3 ...` | JSON lists occupied slots; recall returns the patch; store/erase acknowledged |

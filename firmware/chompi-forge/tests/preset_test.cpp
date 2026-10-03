@@ -148,6 +148,13 @@ void MenuGestures() {
     for(int i = 0; i < 10; ++i) p.Press(kWhite[0]);
     assert(p.Actions().size() == 3);
 }
+void KnobOrder() {
+    // Inverse of stock ui.h encoder_map {1, 2, 3, 0, 4, 5}: CC20+n turns the same physical knob as stock.
+    const uint8_t stock_encoder_map[6] = {1, 2, 3, 0, 4, 5};
+    for(uint8_t hardware = 0; hardware < 6; ++hardware)
+        assert(panel::kKnobEncoder[stock_encoder_map[hardware]] == hardware);
+}
+
 void LedModel() {
     PresetMenu menu; Rgb leds[25];
     RenderMenuLeds(menu.Packed(), 0x7fff, true, 0, 0, true, leds);
@@ -219,6 +226,6 @@ void RuntimeFlows() {
     assert(ListReply(store, list).error == Error::Storage);
 }
 int main() {
-    RecordsAndPaths(); StoreBehaviour(); MenuGestures(); LedModel(); Protocol(); RuntimeFlows();
+    RecordsAndPaths(); StoreBehaviour(); MenuGestures(); KnobOrder(); LedModel(); Protocol(); RuntimeFlows();
     std::cout << "PASS: preset records/paths, store faults, TAPE-style menu, LEDs, storage protocol, runtime flows\n";
 }

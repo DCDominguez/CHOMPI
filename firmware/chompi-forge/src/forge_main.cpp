@@ -115,13 +115,13 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     if(hw.enc[4].RisingEdge()) engine.Panic();
     const int tone = hw.enc[4].Increment();
     if(tone) engine.Apply({forge::Parameter::Cutoff, engine.GetParameters().cutoff + tone / 127.f});
-    // Hardware encoder IDs, not assumptions about printed panel labels.
+    // Logical knobs in stock order (knob n = CC20+n), mapped to hardware encoders.
     const auto p = engine.GetParameters();
     const float values[] = {p.mix, p.time, p.feedback, p.level};
-    for(unsigned i = 0; i < 4; ++i) {
-        const int increment = hw.enc[i].Increment();
-        if(increment && !menu.Encoder(i, increment))   // encoder 1 picks the bank while the menu is open
-            engine.Apply({static_cast<forge::Parameter>(i), values[i] + increment / 127.f});
+    for(unsigned knob = 0; knob < 4; ++knob) {
+        const int increment = hw.enc[forge::panel::kKnobEncoder[knob]].Increment();
+        if(increment && !menu.Encoder(knob, increment))   // knob 0 picks the bank while the menu is open
+            engine.Apply({static_cast<forge::Parameter>(knob), values[knob] + increment / 127.f});
     }
     // Physical volume encoder SW6 also controls output level.
     const int volume = hw.enc[5].Increment();

@@ -37,7 +37,7 @@ The original upstream TAPE/WAVE/TEMPO and bootloader sources remain separate.
 | Patch format | v3 named synth/filter/lfo/delay/reverb/output modules with two supported routes; v1 delay and v2 instrument files still work and convert to v3 |
 | Presets | Ten: Dry, Slap, Long Echo (v1); Glass Keys, Soft Pad, Saw Bass (v2); Warm Pad, Acid Bass, Bell Keys, CPU Stress test (v3) |
 | Computer persistence | Save/import/export JSON, capture device targets and recall |
-| Device presets | 8 banks × 15 slots on the SD card; TAPE-style panel menu (toggle + CHOMPI key, white keys, bank keys/encoder 1, save/copy/erase), MIDI program change, host CLI and webapp |
+| Device presets | 8 banks × 15 slots on the SD card; TAPE-style panel menu (toggle + CHOMPI key, white keys, bank keys/knob 1, save/copy/erase), MIDI program change, host CLI and webapp |
 | Webapp | Instrument/effect authoring selector, provider/model/key input, editor for every module (greys out what a v1/v2 preset lacks), convert-to-v3 |
 | AI providers | OpenAI and Gemini structured output (v3 instruments, v1 delay) plus independent validation; Ollama CLI for v1 delay only |
 | Key handling | Ephemeral page/request memory; no keys in presets, browser storage, source or logs |
@@ -55,10 +55,10 @@ mode on reboot. Load an instrument preset to enable synthesis.
 
 | Control | Hardware / MIDI channel 1 | Range |
 | --- | --- | --- |
-| Delay mix | SW1 / CC20 | 0–100% |
-| Delay time | SW2 / CC21 | 10–1000 ms |
-| Feedback | SW3 / CC22 | 0–85% |
-| Output level | SW4 and SW6 / CC23, CC25 | 0–1 |
+| Delay mix | Knob 1 (hw SW4) / CC20 | 0–100% |
+| Delay time | Knob 2 (hw SW1) / CC21 | 10–1000 ms |
+| Feedback | Knob 3 (hw SW2) / CC22 | 0–85% |
+| Output level | Knob 4 (hw SW3) and volume SW6 / CC23, CC25 | 0–1 |
 | Wet bypass | CC85 | >=64 on; dry still obeys output level |
 | Synth cutoff | SW5 turn / CC24, CC74 | 40–16000 Hz, logarithmic |
 | Filter resonance | CC71 (v3) | 0–1 (Q 0.7–11) |
