@@ -69,46 +69,52 @@ Forge's independent local validator before reaching the editor.
 
 ## Instrument patches and playing
 
-Firmware 0.4 plays v3 instrument patches (and still v1/v2). Load Warm Pad, Acid
+Firmware 0.5 plays v4 instrument patches (and still v1–v3). Load Warm Pad, Acid
 Bass or Bell Keys; connect MIDI, send once, then play CHOMPI keys (MIDI 48–72)
 or incoming channel 1 notes. Keybed velocity is fixed at 100; MIDI velocity
 changes loudness. Synth output is mono duplicated to stereo through the delay
 and reverb. No audio input is needed on the synth route. The aux route
 processes external stereo audio.
 
-v3 JSON has `version: 3`, `engine: "instrument"`, `routing`
-(`synth>delay>reverb>output` or `aux>delay>reverb>output`) and six modules,
-all keys required:
+v4 JSON has `version: 4`, `engine: "instrument"`, `routing`
+(`synth>delay>reverb>output`, `sampler>delay>reverb>output` or
+`aux>delay>reverb>output`) and seven modules, all keys required (v3 is the same
+without `sampler`, with `voices` 1–4):
 
 | Module | Keys and ranges |
 | --- | --- |
-| `synth` | `waveform` and `osc2_waveform` (sine/triangle/saw/square); `attack_ms`, `decay_ms` 1–2000; `sustain` 0–1; `release_ms` 5–5000; `osc2_level` 0–1; `osc2_semitones` integer −24…24; `osc2_detune_cents` −50…50; `noise` 0–1; `voices` integer 1–4; `glide_ms` 0–2000 |
+| `synth` | `waveform` and `osc2_waveform` (sine/triangle/saw/square); `attack_ms`, `decay_ms` 1–2000; `sustain` 0–1; `release_ms` 5–5000; `osc2_level` 0–1; `osc2_semitones` integer −24…24; `osc2_detune_cents` −50…50; `noise` 0–1; `voices` integer 1–7 (v3: 1–4); `glide_ms` 0–2000 |
+| `sampler` | `mode` chromatic/kit; `bank` a–e; `slot` integer 1–15 (15 = the recording; kit ignores it); `pitch_semitones` −24…24; `start`, `end` 0–1 with start < end; `loop`, `hold` (true: sounds while held; false: one-shot), `reverse` booleans; `crossfade_ms` 0–250 |
 | `filter` | `cutoff_hz` 40–16000; `resonance` 0–1; `env_octaves` −6…6; `attack_ms`, `decay_ms` 1–2000; `sustain` 0–1; `release_ms` 5–5000 |
 | `lfo` | `waveform` (sine/triangle/square/sample_hold); `rate_hz` 0.05–20; `pitch_cents` 0–200; `filter_octaves` 0–4; `amp_depth` 0–1; `mod_wheel` boolean |
 | `delay` | `mix` 0–1; `time_ms` 10–1000; `feedback` 0–0.85; `bypass` boolean |
 | `reverb` | `mix`, `size`, `damping` 0–1 |
 | `output` | `level` 0–1 |
 
-v2 JSON (`synth`, `delay`, `output`; routes without reverb) and v1 delay files
+v3, v2 JSON (`synth`, `delay`, `output`; routes without reverb) and v1 delay files
 still load, send and capture. `python host/forge_host.py upgrade old.json new.json`
-writes a v3 copy with the same settings and neutral new modules; the v3 filter is
-steeper, so tone can differ slightly. `schema --instrument` prints the v3 schema.
-No arbitrary graph, sampler, looper or FM can be generated.
+writes a v3 copy (`--to 4` for v4) with the same settings and neutral new
+modules; the v3 filter is steeper than v1/v2, so tone can differ slightly.
+`schema --instrument` prints the v4 schema. No arbitrary graph, looper or FM
+can be generated, and AI never creates audio: the sampler plays files that are
+already on the card or the device's recording.
 
 **Panic / stop sound** clears all voices and old delay and reverb tails; it requires both
 MIDI ports and waits for a reply. SW5 press or channel-1 CC120/123 also panic.
 SW5 turn/CC24/CC74 change cutoff; CC71 resonance and CC91 reverb mix (v3); CC85 wet bypass; CC1 mod
 wheel scales LFO depth when the patch enables it. Route or waveform changes,
-and switching between v1/v2 and v3 patches, stop voices/tails; retrigger held notes. Up to four voices (the patch's `voices`); additional notes steal a releasing voice, else the oldest.
+and switching between v1/v2 and v3/v4 patches or between oscillators and sampler, stop voices/tails; retrigger held notes. Up to the patch's `voices` (4, or 7 on v4); additional notes steal a releasing voice, else the oldest.
 A patch is volatile; save JSON and resend after reboot. v1 delay files still work.
-Firmware 0.3 rejects v3 patches; 0.2 also rejects v2 and panic. Use the matching 0.4 host tools.
+Firmware 0.4 rejects v4 patches, 0.3 also v3, 0.2 also v2 and panic. Use the matching 0.5 host tools.
 
 ```sh
 python host/forge_host.py panic --input "EXACT INPUT NAME" --output "EXACT OUTPUT NAME"
 ```
 
 Ollama CLI authoring currently emits v1 delay patches only. OpenAI/Gemini webapp
-supports both authoring modes (v3 instrument, v1 delay). Instrument code has software and
+supports both authoring modes (v4 instrument, v1 delay); after Read samples
+in the Device samples panel, instrument authoring may use only the samples
+CHOMPI reported, and a patch pointing at a missing sample is refused. Instrument code has software and
 real-Chromium test coverage, but real model and hardware acceptance remain pending.
 
 ## Command-line controller
@@ -150,6 +156,21 @@ knob changes. Existing files are not overwritten. Recall with `send`. Saving
 and recall use files on the computer. To keep sounds on CHOMPI itself, use device
 presets (below). Reboot returns to firmware defaults;
 send a saved patch again to restore it. Patch transfer uses 14-bit quantization.
+
+## Samples on the SD card
+
+TAPE's files (`jammi_…`, `cubbi_…`, banks a–e, slots 1–14) and the recording:
+
+```sh
+python host/forge_host.py samples --input "IN" --output "OUT"                          # what is on the card
+python host/forge_host.py sample-save kit b 3 --input "IN" --output "OUT"              # recording -> cubbi_b3.wav
+python host/forge_host.py sample-copy kit b 3 chromatic a 1 --input "IN" --output "OUT"
+python host/forge_host.py sample-erase kit b 3 --input "IN" --output "OUT"            # also removes _double
+```
+
+Saving is refused while recording (busy) or with no take (empty). The webapp's
+Device samples panel does the same plus "Use in patch" (sets the editor's
+sampler module and routing). Record on the device: toggle down, hold CHOMPI.
 
 ## Device presets on the SD card
 

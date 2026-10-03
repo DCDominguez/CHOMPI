@@ -1,5 +1,29 @@
 # Forge changelog
 
+## 0.5 sampler (roadmap item 4) — 2026-10-03
+
+Following TAPE's sampling (DC's request), with cheap extras. Design and
+differences: SAMPLING.md. Software-tested only; nothing on hardware.
+- Patch v4: sampler module (chromatic/kit, banks a–e, slots 1–14 + the
+  recording, pitch, start/end, loop with crossfade, hold/trigger, reverse),
+  7 voices, sampler route; wire 84/96 bytes; firmware minor 5. v1–v3 output
+  bit-exact.
+- Plays TAPE's `jammi_`/`cubbi_` files from the card; reads 8/16/24-bit,
+  float, mono/stereo, 8–96 kHz; 40 MB SDRAM pool loaded in 16 KB main-loop
+  steps behind a lock-free handoff; notes can start while loading.
+- Recording as TAPE (toggle down + hold CHOMPI) from mic/line/resample, ~87 s,
+  5 ms fades, normalisation, monitoring; becomes chromatic slot 15.
+- Samples menu page (KEY_22): TAPE's shift-menu keys for mode/bank, source,
+  save/copy/erase; record gesture; LEDs in TAPE's bank colours.
+- Sample voices through the resonant filter, filter envelope, LFO, glide,
+  delay, reverb; Hermite when pitched down; declicked restarts.
+- Host: v4 schema/codec/upgrade, `samples`/`sample-save|erase|copy`,
+  opcodes 08/09 (replies 44/45); webapp sampler controls and Device samples
+  panel; AI authors v4 and may only use samples the device reported.
+- Presets 11 Recorded Keys, 12 TAPE Kit A, 13 Sampler Stress; `make bench`
+  sampler scenarios (worst 2,628 vs WAVE 2,695 instructions/sample).
+- Fixed in passing: v3→v4 upgrade shared module dicts with its input.
+
 ## 0.4 MIDI CCs match stock — 2026-10-03
 
 - DC's decision: CC20+n sets encoder n (SW1–SW6) as on TAPE/TEMPO/WAVE:

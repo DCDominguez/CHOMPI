@@ -1,9 +1,10 @@
-# Forge 0.4 — consolidated test candidate
+# Forge 0.5 — consolidated test candidate
 
 Experimental community firmware for CHOMPI: a playable synth (up to four voices,
-two oscillators, noise, resonant filter, LFO, glide) with stereo delay and reverb,
-live patch control, host-managed presets, and diagnostics. TAPE's sampler UI
-is not included. Start with the [documentation index](../../docs/forge/README.md).
+two oscillators, noise, resonant filter, LFO, glide), a TAPE-compatible sampler
+with recording (up to seven voices), stereo delay and reverb, live patch
+control, device and host presets, and diagnostics. Sampler design:
+[SAMPLING.md](../../docs/forge/SAMPLING.md). Start with the [documentation index](../../docs/forge/README.md).
 See the [project brief](../../docs/forge/PROJECT.md) and
 [current handoff](../../docs/forge/HANDOFF.md),
 [host controller](host/README.md), [protocol](../../docs/forge/PROTOCOL.md), and
@@ -112,8 +113,36 @@ corners; saw/square use 2-point polyBLEP, so some high-note aliasing remains.
 No claim of click-free sound or hardware CPU headroom before the listening session;
 TEST_SESSION 6.2b measures the v3 worst case (`presets/10-cpu-stress.json`).
 
-Startup remains dry aux v1 for compatibility. Send an instrument preset to play.
-No automatic mode detection. Knobs 1–4 still control delay/output, not ADSR.
+Startup remains dry aux v1 for compatibility (DC, 2026-10-03). Send an
+instrument preset, recall a device preset, pick a sample or record to play.
+Knobs 1–4 control delay/output; on a sampler patch they follow TAPE's first
+page instead: pitch, start, end, delay mix.
+
+## Sampler and recording (v4 patches)
+
+Plays TAPE's sample files from the SD card root: `jammi_<a-e><1-14>.wav`
+(chromatic: one sample across the keys, middle C at original pitch) and
+`cubbi_<a-e><1-14>.wav` (kit: white keys = slots 1–15 of a bank). Slot 15 is
+the recording. Per patch: pitch ±24 semitones, start/end, loop with crossfade,
+hold or one-shot, reverse; samples run through the filter, filter envelope,
+LFO, glide, delay and reverb, up to 7 voices. Accepted files: 8/16/24-bit PCM
+or 32-bit float, mono or stereo, 8–96 kHz.
+
+| Gesture | Action |
+| --- | --- |
+| Toggle down, hold CHOMPI | Record (mic, line in or resample); release to stop and play it chromatically |
+| Menu (toggle up + CHOMPI), KEY_22 | Samples page |
+| Samples page: KEY_16 / KEY_17 | Chromatic / kit; again = next bank a–e |
+| Samples page: white key | Play that slot (chromatic) or that bank (kit) |
+| Samples page: KEY_18 / 19 / 20 | Record source mic / line / resample (jack insertion picks line) |
+| Samples page: KEY_25 / 24 / 23 → white key → CHOMPI | Save recording / copy / erase a sample file |
+
+The chromatic slot or the whole kit bank is loaded into a 40 MB SDRAM pool in
+16 KB steps (notes can start while it loads); the recording has its own
+16 MB (~87 s). Forge writes TAPE's 16-bit stereo 48 kHz format and removes the
+slot's stale `_double.wav`, which TAPE regenerates at boot. See
+[PROTOCOL.md](../../docs/forge/PROTOCOL.md#sampler-firmware-05) for LEDs and
+host opcodes 08/09.
 
 ## Device presets (SD card)
 
@@ -152,7 +181,8 @@ DSP and parameter state belong to the audio callback after initialization;
 physical encoder changes apply after MIDI changes in each block. JSON files,
 validation, saving/capture, an OpenAI/Gemini webapp and optional Ollama CLI
 authoring live on the host. See the host guide for launch and key handling.
-The active patch is volatile and the device boots into dry aux defaults. Sounds
+The active patch is volatile and the device boots into dry aux defaults
+(samples on the card and the device presets persist; the recording does not). Sounds
 can be stored on the SD card as device presets (8 banks × 15 slots) and
 recalled from the panel, MIDI program change or the host; see "Device presets"
 below. It does not run AI/networking or load new DSP/graphs. The stock

@@ -1,6 +1,7 @@
 # Forge vs stock TAPE / TEMPO / WAVE: compatibility and CPU benchmark
 
-Measured 2026-10-03 (refreshed after device presets, Forge `4fec6ac`) against the upstream sources in `firmware/chompi-tape`,
+Measured 2026-10-03 (refreshed after device presets, Forge `4fec6ac`, and
+again for the sampler, firmware 0.5) against the upstream sources in `firmware/chompi-tape`,
 `firmware/chompi-tempo`, `firmware/chompi-wave` (read only) and the factory card
 images in `firmware/card-profiles`. **Everything here is source analysis, builds
 and emulation. Nothing was run on CHOMPI hardware.**
@@ -13,8 +14,8 @@ and emulation. Nothing was run on CHOMPI hardware.**
 | Same audio setup? | Yes: 48 kHz, 24-frame blocks, mic in 0, aux in 2/3, outputs 0/1 + 2/3 |
 | Same keybed notes? | Yes: identical 25-key map (MIDI 48–72) to TAPE, TEMPO and WAVE |
 | Same MIDI conventions? | CC20–25 turn the same physical knobs as stock (logical knob order); channel fixed to 1 (stock configurable) |
-| Is Forge's CPU load plausible? | Worst case ~1,430 instructions/sample, about half of WAVE's shipping engine (~2,700) |
-| Can Forge share an SD card with stock files? | Yes: same SD bus setup and FatFS config as TAPE/WAVE; stock apps ignore `FORGE/` (§3a) |
+| Is Forge's CPU load plausible? | Synth worst case ~1,470 instructions/sample; 7 sampler voices 2,100–2,240, worst case (constant loop crossfades) ~2,630, just under WAVE's shipping engine (~2,700) — SDRAM sample reads are the open hardware question (§6) |
+| Can Forge share an SD card with stock files? | Yes: same SD bus setup and FatFS config as TAPE/WAVE; stock apps ignore `FORGE/`; Forge reads and writes TAPE's own sample files in TAPE's format (§3a) |
 | Is our compiler equivalent to the pinned one? | For libDaisy and DaisySP, yes: identical machine code to the shipped Arm 10.3-2021.10 objects (§5) |
 | Do stock sources rebuild like factory? | Within ~3.9 KB (TAPE, WAVE) and 388 B (TEMPO); the gap is the compiler's runtime libraries, not the source (§5) |
 
@@ -31,6 +32,7 @@ From `firmware/chompi-tape/code/Chompi_Bootloader/bootloader/src/bootloader.cpp`
 | Binary | Size | Stack pointer | Entry | Accepted |
 | --- | --- | --- | --- | --- |
 | FORGE.bin 0.4 (`4fec6ac`) | 187,592 | 0x20020000 (DTCM) | 0x240008DD (D1 SRAM) | yes |
+| FORGE.bin 0.5 (sampler) | 213,164 | 0x20020000 (DTCM) | 0x240008FD (D1 SRAM) | yes |
 | TAPE 2.0 factory | 240,520 | 0x20020000 (DTCM) | 0x24001901 (D1 SRAM) | yes |
 | TEMPO 1.0 factory | 263,112 | 0x20020000 (DTCM) | 0x2400174D (D1 SRAM) | yes |
 | WAVE 1.0 factory | 200,028 | 0x20020000 (DTCM) | 0x240018F9 (D1 SRAM) | yes |
@@ -54,6 +56,7 @@ All four apps link as BOOT_SRAM into the 512 KB D1 SRAM, split differently:
 | TEMPO | 282 KB | 230 KB | xPack build: 89.5 % code, 70 % data, 50 % DTCM, 11 % SDRAM |
 | WAVE | 232 KB | 280 KB | Forge uses this linker script |
 | Forge 0.4 (`4fec6ac`) | 232 KB (79 % used) | 280 KB (23 %) | ~48 KB code headroom; DTCM 27 %, SDRAM 0.6 % |
+| Forge 0.5 (sampler) | 232 KB (89.7 % used) | 280 KB (32 %) | ~24 KB code headroom; SDRAM 88 % (40 MB pool + 16 MB recording; TAPE uses ~64 MB the same way) |
 
 The stock apps keep their reverb in DTCM (`DSY_DTCMRAM_BSS`). Forge now does
 the same: its 34 KB reverb moved from SDRAM to DTCM (26.6 % of DTCM), because
@@ -73,18 +76,26 @@ never reaches the output.
 - **Keybed:** Forge's note table equals the stock `NormalPage::key_map` for all
   25 note keys in TAPE, TEMPO and WAVE (checked programmatically).
 
-## 3a. SD card coexistence (device presets)
+## 3a. SD card coexistence (device presets, samples)
 
-| | TAPE 2.0 | TEMPO 1.0 | WAVE 1.0 | Forge 0.4 |
+| | TAPE 2.0 | TEMPO 1.0 | WAVE 1.0 | Forge 0.5 |
 | --- | --- | --- | --- | --- |
 | SDMMC | FAST, 4-bit | VERY_FAST, 4-bit | FAST, 4-bit | FAST, 4-bit (TAPE's sequence) |
 | FatFS config (`ffconf.h`) | same | same | same | WAVE's libDaisy (same) |
-| What it reads | its sample names, `options.json`, `presets.json` | `/Chromatic`, `/Slice`, `/Buffer`, options/presets | root names containing `.wav` | `FORGE/BnSnn.FPR` only |
-| What it writes | presets/options in root; unlink + rename for presets | options/presets | options/presets | `FORGE/TMP.FPR`, then unlink + rename (TAPE's pattern) |
+| What it reads | its sample names, `options.json`, `presets.json` | `/Chromatic`, `/Slice`, `/Buffer`, options/presets | root names containing `.wav` | `FORGE/BnSnn.FPR`; TAPE's `jammi_`/`cubbi_` names (not `_double`) |
+| What it writes | presets/options in root; unlink + rename for presets | options/presets | options/presets | `FORGE/TMP.FPR`; TAPE sample files via `FORGE_TMP.WAV`; unlink + rename (TAPE's pattern); deletes the slot's `_double` |
 
 - No stock app scans subdirectories other than TEMPO's three fixed ones, and
   WAVE only takes root names containing `.wav`, so a `FORGE/` folder is
-  invisible to all three. Forge never opens stock files.
+  invisible to all three. Forge never opens stock options/presets files.
+- **Samples are shared with TAPE on purpose.** Forge plays TAPE's files and
+  writes new ones in TAPE's exact format (44-byte header, 16-bit stereo
+  48 kHz). It does not write `_double` files; it deletes a replaced slot's old
+  one, and TAPE's boot check regenerates missing ones (FileCopier). Forge reads
+  formats TAPE cannot (mono, 24-bit, float, other rates); TAPE would play such
+  files wrongly, so keep those for Forge-only banks. Forge's temp file is
+  upper-case `FORGE_TMP.WAV`, which WAVE's case-sensitive `.wav` scan ignores
+  (stock WAVE would, as stock, list TAPE's own `.wav` files if they share its card).
 - The bootloader only looks at root names containing `.bin`; `.FPR` records
   and the `FORGE` directory never match.
 - The upstream build guide warns that compilers newer than 10.3 "can create
@@ -98,10 +109,10 @@ never reaches the output.
 
 ## 4. MIDI conventions
 
-| | Stock TAPE/TEMPO/WAVE | Forge 0.4 |
+| | Stock TAPE/TEMPO/WAVE | Forge 0.5 |
 | --- | --- | --- |
 | Input channel | Configurable (`options.json` midi_ch_in); CC input can be disabled | Fixed channel 1 |
-| CC20–23 | Turn logical knobs 0–3 = hardware SW4, SW1, SW2, SW3 (`encoder_map`) | Same knobs: mix, time, feedback, level |
+| CC20–23 | Turn logical knobs 0–3 = hardware SW4, SW1, SW2, SW3 (`encoder_map`) | Same knobs: mix, time, feedback, level; on sampler patches TAPE's page 0: pitch, start, end, mix |
 | CC24 | Encoder SW5 (WAVE ignores it; TAPE only while the looper plays) | SW5's function (cutoff) |
 | CC25 | Encoder SW6 | SW6's function (output level) |
 | CC14/15 (WAVE/TEMPO), CC26/27 (TAPE) | Emulate two buttons | Ignored |
@@ -179,20 +190,32 @@ Forge runs its real presets through the real SysEx decoder.
 | Workload | Instructions / sample | at 1 instr/cycle, % of 480 MHz |
 | --- | --- | --- |
 | Forge v1 delay (aux) | 209 | 2.1 % |
-| Forge v2 Soft Pad, 4 voices | 621 | 6.2 % |
-| Forge v3 Warm Pad, 4 voices | 1,209 | 12.1 % |
-| Forge v3 Acid Bass, mono | 625 | 6.3 % |
-| Forge v3 Bell Keys, 4 voices | 1,428 | 14.3 % |
-| Forge v3 CPU Stress, 4 voices | 1,300 | 13.0 % |
+| Forge v2 Soft Pad, 4 voices | 652 | 6.5 % |
+| Forge v3 Warm Pad, 4 voices | 1,245 | 12.5 % |
+| Forge v3 Acid Bass, mono | 638 | 6.4 % |
+| Forge v3 Bell Keys, 4 voices | 1,470 | 14.7 % |
+| Forge v3 CPU Stress, 4 voices | 1,351 | 13.5 % |
+| Forge v4 Recorded Keys, sampler, 7 voices | 2,236 | 22.4 % |
+| Forge v4 TAPE Kit A, sampler, 7 one-shots | 2,104 | 21.0 % |
+| Forge v4 Sampler Stress, 7 voices, constant crossfades | 2,628 | 26.3 % |
 | TAPE 2.0 FX + output (voices **not** included) | 1,249 | 12.5 % |
 | TEMPO 1.0 FX + output (sample engines **not** included) | 1,352 | 13.5 % |
 | WAVE 1.0 engine, 8 voices + delay | 2,747 | 27.5 % |
 | WAVE 1.0 engine, 8 voices + reverb | 2,695 | 26.9 % |
 
 **Reading it.** WAVE's engine ships and runs on this chip, so it is a
-known-good load. Forge's heaviest case is about 53 % of WAVE's, and similar to
-TAPE's or TEMPO's effects stage alone. Those two run their voices on top of
-it. `make bench` fails if any Forge scenario exceeds WAVE (`--check`).
+known-good load. Forge's synth presets cost at most about 55 % of WAVE's,
+similar to TAPE's or TEMPO's effects stage alone (those two run their voices on
+top). Seven sampler voices with filter, LFO, delay and reverb cost 78–83 % of
+WAVE; the deliberately pessimistic stress case (every voice crossfading half
+the time, resonant filter, LFO, glide) is 97 %. `make bench` fails if any Forge
+scenario exceeds WAVE (`--check`). v1–v3 rose 2–3 % in 0.5 (7-voice array,
+stereo engine path); their output is still bit-exact.
+
+**Sampler optimisation (0.5).** First version: 3,233 / 4,185 (stress). Then:
+direct reads when all taps are loaded, 4-point Hermite only when pitched down
+(linear at or above original speed, as TAPE everywhere), per-voice cached loop
+window and SVF terms, the "loaded" atomic skipped once a slot is complete.
 
 **Limits.**
 - These are instruction counts, not cycles. The M7 dual-issues, and cache and
@@ -200,7 +223,11 @@ it. `make bench` fails if any Forge scenario exceeds WAVE (`--check`).
 - UI, control scanning, SD streaming and MIDI are excluded for every app alike.
   Forge's preset menu runs in the audio callback but only on key/encoder edges
   and once per block (small; not separately measured); SD access is in the main loop.
-- Forge numbers are unchanged by device presets (DSP untouched).
+- Forge numbers were unchanged by device presets (DSP untouched).
+- **Sampler reads come from SDRAM** (as TAPE's RAM slot and looper do; TAPE's
+  streaming voices read internal SRAM FIFOs). Cache misses on those reads are
+  not modelled; TEST_SESSION 6.2c measures the real cost. Fallback if needed:
+  fewer voices per patch (the `voices` field), as for the synth.
 - Bell Keys is the most expensive Forge preset because its eight sine
   oscillators call `sinf` (~46 instructions each). A cheaper sine is an easy
   optimisation if CPU proves tight.

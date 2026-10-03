@@ -1,43 +1,48 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-03 (UTC), checkpoint after roadmap items 1–3 and the stock
-comparison refresh (head `cd8d6df` + this checkpoint commit). Read this first.
+Updated 2026-10-03 (UTC), checkpoint after roadmap items 1–4 (sampler,
+firmware 0.5). Read this first.
 
 ## Scope (unchanged, authoritative)
 
 DC wants an **AI-programmable playable instrument**, not effects-only: describe a
 sound → AI configures installed modules → play keys/MIDI → adjust → save/recall.
 Patch changes need no recompile; new DSP algorithms need firmware work; AI never
-generates executable effects. Sampling, looping, sequencing, more engines/effects,
-flexible routing are future work (SD presets exist since 0.4). ONE consolidated hardware session.
+generates executable effects. Looping, sequencing, more engines/effects,
+flexible routing are future work (SD presets since 0.4, sampler since 0.5). ONE consolidated hardware session.
 No main merge, flashing or real-key API calls by agents.
 
 ## Checkpoint summary (2026-10-03)
 
-**Where we are.** Forge 0.4 on `forge/foundation`, software-tested only:
+**Where we are.** Forge 0.5 on `forge/foundation`, software-tested only:
 - Instrument: 4-voice synth (v1/v2 legacy bit-exact; v3 palette with osc2,
   noise, resonant filter + envelope, LFO/mod wheel, voices/glide, reverb),
-  delay, keybed + MIDI (sustain, bend, mod wheel, program change).
-- Patches: versioned SysEx v1/v2/v3, host CLI, AI webapp (OpenAI/Gemini,
-  mocked only), v2→v3 upgrade.
-- Device presets: 8 × 15 SD slots, TAPE-style key + encoder menu.
-- Stock comparison: bootloader layout, keybed, SD setup match stock; CPU
-  worst case ~53 % of WAVE's engine; ~48 KB code headroom; xPack 10.3 proven
-  equivalent to Arm 10.3 for libDaisy/DaisySP (COMPATIBILITY.md).
-- QA bundle `Forge-0.4-test-4fec6ac` is current (firmware unchanged since).
+  TAPE-compatible sampler with recording (v4, up to 7 voices), delay, keybed
+  + MIDI (sustain, bend, mod wheel, program change, CCs as stock).
+- Patches: versioned SysEx v1–v4, host CLI, AI webapp (OpenAI/Gemini,
+  mocked only; may only use samples the device reports), upgrades to v3/v4.
+- Device presets: 8 × 15 SD slots, TAPE-style key + encoder menu (Presets
+  page); Samples page for TAPE's sample slots, source and save/copy/erase.
+- Stock comparison: bootloader layout, keybed, SD setup, CCs and knob order
+  match stock; Forge reads/writes TAPE's sample files; sampler worst case
+  ~97 % of WAVE's engine (emulated), synth ~55 %; ~24 KB code headroom.
+- QA bundle: see Next actions (0.5).
 
 **What's left.**
 - DC decisions made 2026-10-03: CCs match stock (done: CC20+n = encoder n);
   start-up stays dry aux; QA bundles go to DC's Google Drive (DC uploads;
   agents have no Drive access). Still open: configurable MIDI channel.
-- Features (PROJECT.md roadmap): 4 sampling (design first, confirm scope),
-  5 looping, 6 Tab5 controllers (optional). Smaller candidates: preset names,
-  boot recall, mono note stack, octave shift, bend range, TAPE/WAVE preset
-  import, cheaper sine for Bell Keys.
+- Features (PROJECT.md roadmap): 5 looping (TAPE's looper; ~7.6 MB SDRAM
+  and ~24 KB code left — tight, plan for it), 6 Tab5 controllers (optional).
+  Smaller candidates: TAPE per-slot settings, threshold-armed recording, kit
+  MIDI note range, preset/sample names, mono note stack, octave shift, bend
+  range, cheaper sine for Bell Keys.
 - QA (DC, later, per feature): LIVE_AI_TEST.md (own key, own terminal), then
   TEST_SESSION.md in one hardware session; record in TEST_RESULTS.md.
-- Hardware-unverified risks: device CPU, SD write stalls/card swap, LED
-  positions/colours, UART/USB reply timing, v3 loudness by ear, line-out vs
+- Hardware-unverified risks: device CPU (above all 7 sampler voices reading
+  SDRAM, TEST_SESSION 6.2c), SD load/save speed and main-loop stalls, card
+  swap, recording levels/monitoring/jack detect, LED positions/colours,
+  UART/USB reply timing (98-byte v4 status), v3 loudness by ear, line-out vs
   headphone level vs stock.
 
 ## Branch and publishing
@@ -74,7 +79,7 @@ All rerun from tree `cf807ad0…`, not copied from earlier notes:
 | Level | What |
 | --- | --- |
 | Implemented | Everything in README feature table, plus the items below |
-| Software-tested | 5 native C++ suites (core, protocol incl. v3, synth, v3, preset), 48 Python tests, 5 ASan/UBSan suites, 10 real-Chromium browser tests, ARM build (xPack GCC 10.3.1), `make bench` (emulated instruction counts vs stock firmware) — all pass 2026-10-03 UTC at firmware 0.4 with device presets |
+| Software-tested | 6 native C++ suites (core, protocol incl. v3, synth, v3, preset, sampler), 55 Python tests, 6 ASan/UBSan suites, 11 real-Chromium browser tests, ARM build (xPack GCC 10.3.1), `make bench --check` (emulated instruction counts vs stock firmware) — all pass 2026-10-03 UTC at firmware 0.5 with the sampler |
 | Hardware-verified | **Nothing.** No flash, audio, keybed, MIDI transport, CPU or battery test |
 | Live AI | **Not run.** Formats checked against provider docs 2026-10-03; mocks only |
 
@@ -329,18 +334,54 @@ KEY_16/17 banks; CHOMPI confirms; SMT LED 25 − slot# under white keys,
 - Known limits: no names on the device; boot still starts in dry aux (no
   auto-recall); mono mode note stack still missing.
 
+### Roadmap item 4: sampler (implemented; software-tested; firmware 0.5)
+
+DC: "follow the existing sample functionality on TAPE … if there's anything
+cool we can add without overloading". Design and differences: SAMPLING.md.
+Commits: `c19522d` design, `c7ffc78` WAV, `054bfab` v4 + voices, `698cda1`
+recorder/loader, `89bdfde` menu page, `ed80acf` firmware, `107b8ea` host/AI/
+webapp + bench optimisation, then docs.
+
+- Wire: v4 apply 84 bytes, status 96 (`kMaxRequest`/`kMaxReply`); framer 88;
+  opcodes 08 (list → 0x44) and 09 (save/erase/copy → 0x45). V3Fields holds
+  the v4 entries (index ≥ 68 only for version 4); Python mirrors in
+  `V4_SAMPLER`. Firmware minor 5.
+- Memory: SDRAM pool 40 MB + recording 16 MB + delay; SDRAM 88 %. Not zeroed;
+  reads bounded by `loaded`. Code: SRAM_EXEC 213,164 B (89.7 %) after
+  noinline on non-realtime helpers, one `HandleFrame` for both transports and
+  no snprintf (saved ~5 KB). Watch this before adding features.
+- Concurrency: `SampleHandoff` (request/ack/publish atomics) before the
+  loader rewrites slots; recorder save lock is atomic; main reads only the
+  recording's atomic `loaded`. Sample jobs from the panel cross on
+  `sample_jobs`; host save goes audio (lock) → main (job) → 0x45.
+- CPU (`make bench`): 7 voices 2,104–2,236, stress 2,628 vs WAVE 2,695.
+  First version was 3,233/4,185; optimisations listed in COMPATIBILITY §6.
+  v1–v3 +2–3 % (7-voice array, stereo engine call), still bit-exact.
+- Tests: tests/sampler_test.cpp (+ tests/sample_card.h in-memory card) — WAV
+  incl. real factory TAPE files, v4 protocol, voices, recorder, loader,
+  handoff, jobs, requests; preset_test samples page/LEDs/record gesture;
+  test_samples.py (150 v4 round trips, CLI, web, AI guard); browser test
+  for sampler controls + Device samples. ~45 targeted mutations caught across
+  steps (a few weak tests were strengthened: loop window shorter than the
+  1024-frame minimum, temp-file cleanup, file gate).
+- Harness: forge_probe has a simulated card (jammi_a1, cubbi_a1/a2) and a 1 s
+  recording; kit renders use notes 48/50/52.
+- QA: TEST_SESSION 3.28–3.41 and 6.2c. Unverified: everything on hardware,
+  especially SDRAM read cost, SD speeds (load time of a kit), record levels,
+  jack detection polarity, TAPE reading Forge-saved files.
+- Known limits: per-slot settings not stored (TAPE presets.json ignored);
+  kit MIDI uses notes 48–72 only; recording lost at power-off unless saved;
+  no sample names; looping not implemented.
+
 ## Next actions (priority order)
 
 1. Done 2026-10-03 (DC): CCs aligned with stock (COMPATIBILITY.md §4);
    start-up stays dry aux (no boot recall); QA bundles → DC's Google Drive.
    Open, low priority: configurable MIDI input channel (stock: options.json).
-2. Agent: roadmap item 4, sampling — DC: follow TAPE's sampling (known to
-   work) plus cheap extras. Design: SAMPLING.md (2026-10-03). Implementation
-   order: WAV codec → v4 patch + sampler voices → recorder + pool/loader →
-   samples menu page → firmware SD/SDRAM integration → host/AI/webapp →
-   docs/TEST_SESSION. Each step commits with its own tests.
-4. Bundle: `Forge-0.4-test-4fec6ac` built from `4fec6ac` (xPack GCC 10.3.1,
-   zip sha256 `c1ee9eb1…f2f18aa`, FORGE.bin sha256 `6bfc4925…02dcc6b`,
-   `verify_bundle.py`: 43 files OK). Regenerate if firmware changes again.
+2. Done: roadmap item 4, sampling (see "Roadmap item 4" below).
+3. Agent: roadmap item 5, looping — design first from TAPE's LooperEngine /
+   FileSampler (tape-style overdub, varispeed), within ~7.6 MB SDRAM and the
+   remaining code space; confirm scope with DC before building.
+4. Bundle: regenerate for 0.5 (recorded below once built); older ZIPs stale.
 5. DC (later, per feature): LIVE_AI_TEST.md, then TEST_SESSION.md; record in
    TEST_RESULTS.md. Agent then fixes only what QA finds.

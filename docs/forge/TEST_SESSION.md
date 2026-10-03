@@ -1,4 +1,4 @@
-# Forge 0.4 — the one consolidated hardware test
+# Forge 0.5 — the one consolidated hardware test
 
 Status of the candidate: **software-tested, hardware-unverified.** This is the
 single planned physical session. Work top to bottom. If a stage fails, record
@@ -24,10 +24,15 @@ feature has its own steps below so results can be recorded per feature.
    keys and note how loud the stock sound is on headphones and on the main
    outputs. Steps 3.10–3.13 compare Forge against this. `docs/COMPATIBILITY.md`
    (in the bundle) lists what differs from stock.
+6. **Samples for 3D:** copy the `jammi_a*.wav` and `cubbi_a*.wav` files
+   (with their `_double` files) from `firmware/card-profiles/tape-2.0/` to the
+   test card's root (the same card you put `FORGE.bin` on in 1.1). Optionally add one WAV
+   of your own that is mono or 44.1 kHz, renamed `jammi_b1.wav`.
 
 Shorthand below: `H = python3 host/forge_host.py`, with
 `--input "IN" --output "OUT"` set to your exact CHOMPI port names from `H ports`.
-Keep monitoring volume low. Avoid audio feedback loops. The mic is unused.
+Keep monitoring volume low. Avoid audio feedback loops. The mic is used only
+when recording from it (3D); keep headphones on so the speaker cannot feed back.
 
 ## 1. Flash and identity
 
@@ -35,7 +40,7 @@ Keep monitoring volume low. Avoid audio feedback loops. The mic is unused.
 | --- | --- | --- |
 | 1.1 | Put `firmware/FORGE.bin` on the test card root as the **only** `.bin` file. On macOS also remove `._FORGE.bin` (`dot_clean -m /Volumes/CARD` or delete it); the bootloader loads the first `.bin` it finds and would reject that metadata file. Use the installed bootloader's normal SD update | Update completes uninterrupted |
 | 1.2 | Power up; watch LED | Initialization completes; no output burst |
-| 1.3 | `H status ...` | Firmware 0.4, version 1 aux patch, counters 0 |
+| 1.3 | `H status ...` | Firmware 0.5, version 1 aux patch, counters 0 |
 
 ## 2. External audio path (v1 compatibility)
 
@@ -92,6 +97,27 @@ toggle position in which TAPE's CHOMPI key opens its menu; note which way that i
 | 3.26 | Power off and on; open the menu | Slots 1 and 2 still occupied and recall correctly (boot itself still starts in dry aux) |
 | 3.27 | Optional: power off, remove the card, power on, open the menu; reinsert the card | White keys red without a card; nothing crashes; within ~1 s of reinserting, slots show again |
 
+## 3D. Sampler (TAPE-style, firmware 0.5)
+
+Card prepared in 0.6. "Menu" = toggle up + CHOMPI key, as in 3.17.
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.28 | `H samples ...` | JSON lists chromatic a and kit a slots matching the files you copied; `card` true; no recording yet |
+| 3.29 | `H send presets/12-tape-kit-a.json`; play the white keys | Each white key plays its TAPE kit sample (one-shots), as on stock TAPE; black keys silent; no clicks at sample ends. Note how long after Send the first key sounds (loading time) |
+| 3.30 | Menu → KEY_22 (Samples page) | Page key magenta; KEY_17 lit in bank a's colour; occupied kit slots dim/white; KEY_19 (line) or KEY_18 (mic) lit depending on the line-in jack |
+| 3.31 | Samples page: KEY_16 (chromatic), white key 1; close the menu; play keys across the keybed | `jammi_a1` plays chromatically, KEY_8 (middle C) at original pitch; press KEY_16 again in the menu → bank b (your own WAV if added in 0.6 plays at the right pitch) |
+| 3.32 | Turn knobs 1–3 while holding a key | Pitch, start and end change like TAPE's first page; knob 4 changes the delay mix |
+| 3.33 | Webapp: Capture to editor (chromatic `jammi_a1` playing), set Start 0.2, End 0.4, Loop on, Crossfade 50 ms, Send, hold a key | The loop repeats without a click or level dip at the loop point; Reverse on → plays backwards |
+| 3.34 | **Record (line):** line in plugged, source KEY_19 lit. Toggle down, hold CHOMPI while playing audio into line in for ~5 s, release | CHOMPI LED red while recording; input audible while recording; on release the keys play the recording chromatically at once, normalised (similar loudness to the kit) and without clicks at its start/end |
+| 3.35 | **Record (mic):** unplug line in (source switches to the mic), record a few words, release | Plays back; record the level (too quiet / ok / distorted) and any hum |
+| 3.36 | **Resample:** menu, KEY_20; send `07-warm-pad.json` (oscillators), toggle down, hold CHOMPI while playing a chord, release | The recording is the instrument's own output and plays chromatically |
+| 3.37 | Menu, Samples page: KEY_25 (save), KEY_17 kit, white key 9, CHOMPI | CHOMPI LED blinks pink, then green flash; key 9 of kit bank a now occupied. `cubbi_a9.wav` on the card afterwards |
+| 3.38 | Put the card in a computer: open `cubbi_a9.wav` | Plays in any audio app (16-bit stereo 48 kHz) |
+| 3.39 | Menu: KEY_24 copy kit a9 → chromatic c2 (KEY_16, bank c, key 2), CHOMPI; then KEY_23 erase kit a9, CHOMPI | Copy and erase confirmed (green flashes); `H samples` agrees |
+| 3.40 | `H sample-save chromatic d 1 ...`, `H sample-copy chromatic d 1 kit e 14 ...`, `H sample-erase chromatic d 1 ...` | Each acknowledged; webapp Device samples shows the same slots after Read samples |
+| 3.41 | Optional, **TAPE compatibility:** put stock TAPE (`firmware/card-profiles/tape-2.0` .bin) on this card, boot | TAPE plays the samples Forge saved (after regenerating their `_double` files at boot); Forge's `FORGE/` folder does not disturb it. Then restore `FORGE.bin` |
+
 ## 4. Panic and recovery
 
 | # | Do | Pass when |
@@ -116,6 +142,7 @@ Record provider/model/seconds, never the key.
 | 6.1 | 10 minutes: four-voice playing with delay and reverb, recalling presets (v1, v2 and v3), turning knobs, normal MIDI clock if you have it | No hang, dropout, stuck note or noise burst |
 | 6.2 | `H status` at the end | Peak CPU < 100% (fail at ≥100%; < 70% is the comfort target). Record average, peak, dropped, rejected |
 | 6.2b | **Worst case:** reboot (resets peak), `H send presets/10-cpu-stress.json`, hold four keys for 1 minute, `H status` | Record average and peak. If peak ≥ 70 %, set voices to 3 then 2 in the webapp, Send, repeat, and record each. This sets the v3 CPU budget |
+| 6.2c | **Sampler worst case:** record a ≥ 5 s take (3.34), reboot is not needed but note the peak first, `H send presets/13-sampler-stress.json`, hold seven keys for 1 minute, `H status` | Record average and peak. If peak ≥ 70 %, lower voices to 5 then 4 and repeat. Sample reads come from SDRAM, so this is the number the emulator cannot predict |
 | 6.3 | Reboot; `H status`; resend a saved patch | Boots to dry aux defaults; recall works |
 | 6.4 | Optional: restore stock firmware with your normal card (or copy a folder from `firmware/card-profiles/` to a card) | Stock works again |
 
@@ -132,10 +159,12 @@ Board / bootloader / stock firmware / OS / Python / MIDI connection:
 3 Instrument 3.1–3.9 (note clicks/aliasing, sustain, bend here):
 3B v3 modules 3.10–3.16 (incl. loudness vs stock reference):
 3C Device presets 3.17–3.27 (note the toggle "menu position"):
+3D Sampler 3.28–3.41 (loading time, recording levels per source, TAPE compatibility):
 4 Panic & recovery 4.1–4.3:
 5 Webapp (+ AI provider/model/seconds or "not run"):
 6 Sustained: minutes / avg CPU / peak CPU / dropped / rejected; reboot; restore:
 6.2b CPU stress: avg / peak at 4 voices (and at 3 / 2 if needed):
+6.2c Sampler stress: avg / peak at 7 voices (and lower counts if needed):
 Unexpected behavior:
 Overall: pass / partial / blocked
 ```

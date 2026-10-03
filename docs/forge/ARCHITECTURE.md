@@ -1,11 +1,12 @@
-> Updated for candidate 0.4: audio originates from the synth (v3: two oscillators,
-> noise, resonant filter, LFO) or aux, then delay and reverb.
-> Read [PROTOCOL.md](PROTOCOL.md) for v1/v2/v3 module DATA and [CONTINUE.md](CONTINUE.md)
+> Updated for candidate 0.5: audio originates from the synth (v3: two oscillators,
+> noise, resonant filter, LFO), the sampler (v4) or aux, then delay and reverb.
+> Read [PROTOCOL.md](PROTOCOL.md) for v1–v4 module DATA, [SAMPLING.md](SAMPLING.md)
+> for the sampler design and [CONTINUE.md](CONTINUE.md)
 > for the current implementation/verification checkpoint.
 
 # Forge architecture
 
-Applies to software candidate 0.4. Exact ranges and defaults live in the
+Applies to software candidate 0.5. Exact ranges and defaults live in the
 [firmware guide](../../firmware/chompi-forge/README.md); byte layouts live in the
 [protocol](PROTOCOL.md).
 
@@ -25,7 +26,9 @@ flowchart TD
     Queue --> Audio["Audio owner"]
     Knobs["Physical encoders"] --> Audio
     Keys["Keybed and MIDI notes"] --> Audio
-    Audio --> DSP["Synth or aux → delay → reverb (v3) → output"]
+    Audio --> DSP["Synth, sampler (v4) or aux → delay → reverb (v3) → output"]
+    Card["SD card: presets, TAPE sample files"] <--> Main["Main loop: SD loader/saver"]
+    Main -->|"pool + handoff"| Audio
     Audio --> Reply["Snapshot reply queue"]
     Reply --> Host["Host acknowledgement and status"]
 ```
@@ -33,10 +36,18 @@ flowchart TD
 ## Audio path
 
 The reused hardware class configures 48 kHz audio in 24-frame blocks. The
-callback selects auxiliary channels 2/3 or the mono synth (up to four voices),
+callback selects auxiliary channels 2/3, the mono synth (up to four voices) or
+the stereo sampler (up to seven voices),
 processes the stereo delay and, for v3 patches, the reverb, and mirrors the
 result to headphone channels 0/1 and main channels 2/3. Microphone channel 0
-is not mixed into the effect.
+is used only as a recording source (monitored while recording).
+
+Sampler (v4): each voice reads its slot from SDRAM (4-point Hermite when
+pitched down, linear otherwise), handles loop crossfade/one-shot/reverse, then
+runs the same amplitude and filter envelopes, a stereo pair of the v3 SVF, the
+LFO and glide. Reads never pass a slot's published `loaded` count. The
+recorder (audio owner) writes the chosen input or the output (resample) into
+its own 16 MB SDRAM buffer with 5 ms edge fades and an incremental peak.
 
 Synth paths: v1/v2 patches use the original voices summed into one shared
 one-pole low-pass (kept bit-exact). v3 voices each run oscillator 1, an optional
@@ -86,6 +97,21 @@ executes everything else, so notes sent after an emergency are never lost
 waiting for the queue to drain. Keybed notes and SW5 act directly in the
 callback and bypass the gate.
 
+## Samples (SD card) and the memory handoff
+
+The main loop owns all sample file I/O (`SampleLoader`, `FatFsSampleFiles`):
+it scans the root once per mount for TAPE names, loads the wanted chromatic
+slot or kit bank into the 40 MB pool in 16 KB steps (one per loop pass), and
+runs save/copy/erase jobs via a temp file. The audio callback publishes the
+wanted selection (`PackSelection`) each block. Before rewriting slot memory
+the loader asks `SampleHandoff` to detach: the audio owner then refuses new
+file-slot notes, fades the sounding ones (2 ms) and acknowledges; only then
+does the main loop rewrite the slot table, and it publishes when the headers
+are in. Saving the recording locks it in the audio owner first (no new take
+can start) and the main loop unlocks it after writing. Panel sample actions
+(select, source) are applied in the audio callback; file jobs cross on
+`sample_jobs` (audio → main).
+
 ## Device presets (SD card)
 
 The audio callback runs the TAPE-style `PresetMenu` state machine (no I/O): it
@@ -128,8 +154,8 @@ running status, and discards oversized SysEx in full. It replaces dependence on
 the upstream event parser without modifying the vendored source.
 
 USB responses use a Forge packetizer that keeps F7 in the final USB-MIDI event
-packet. The transmit buffer (112 bytes) remains allocated until completion and
-is not rewritten while busy; the 83-byte v3 reply spans more than one 64-byte USB
+packet. The transmit buffer (132 bytes) remains allocated until completion and
+is not rewritten while busy; the 98-byte v4 reply spans more than one 64-byte USB
 packet. UART replies use a timeout computed from the reply length. These transmission paths execute in main; physical transport behavior
 still needs the consolidated test.
 
@@ -150,8 +176,13 @@ Paths below are relative to `firmware/chompi-forge/`.
 | `core/usb_packets.h` | Complete-SysEx USB-MIDI packetization |
 | `core/preset_store.h` | Storage interface, SD record format (CRC), PresetStore save/load/erase/copy/occupancy |
 | `core/preset_menu.h` | TAPE-style panel preset menu state machine and its key-LED model |
-| `src/fatfs_storage.h` | Storage on the SD card via FatFS (temp file + rename) |
-| `core/synth.h` | Up to four voices: two band-limited oscillators, noise, amp/filter envelopes, per-voice resonant SVF (v3) or shared one-pole (v1/v2), LFO, glide, pedal/bend/wheel, click-free voice reuse and ownership |
+| `src/fatfs_storage.h` | Storage and sample files on the SD card via FatFS (temp file + rename, root listing) |
+| `core/wav.h` | WAV parsing/conversion (PCM 8/16/24, float, mono/stereo) and TAPE's 44-byte header |
+| `core/sample_table.h` | Sample slots shared by audio and main (release/acquire `loaded` counts) |
+| `core/recorder.h` | Recording into the RAM slot: sources, fades, normalising gain, save lock |
+| `core/sample_loader.h` | TAPE names, `SampleFiles`, `SampleHandoff`, chunked loader and save/copy/erase jobs |
+| `core/sampler_runtime.h` | Sampler request helpers shared by firmware and harness (select, lock-for-save, replies) |
+| `core/synth.h` | Up to four voices (seven on v4): two band-limited oscillators, sample voices, noise, amp/filter envelopes, per-voice resonant SVF (v3) or shared one-pole (v1/v2), LFO, glide, pedal/bend/wheel, click-free voice reuse and ownership |
 | `host/forge_host.py` | Python CLI, JSON schema, preset files, MIDI exchange, optional Ollama adapter |
 | `host/forge_ai.py` | OpenAI/Gemini HTTPS adapters, structured output and independent validation |
 | `host/forge_web.py` | Loopback server, session/origin checks, request bounds and serialized MIDI access |

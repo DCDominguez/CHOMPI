@@ -1,27 +1,30 @@
-# Forge handoff — instrument candidate 0.4
+# Forge handoff — instrument candidate 0.5
 
 Updated 2026-10-03 (UTC). **Read [CONTINUE.md](CONTINUE.md) first**; it is the
 live checkpoint with claim levels, what changed and prioritized next actions.
 
 - Development branch `forge/foundation`, draft PR #1. No merge, no flash.
 - Scope: AI-programmable playable instrument (synth with up to four voices,
-  two oscillators, noise, resonant filter, LFO, glide; stereo delay and reverb;
-  keybed/MIDI; v3 module patches with v1/v2 still supported; AI webapp).
+  two oscillators, noise, resonant filter, LFO, glide; TAPE-compatible sampler
+  with recording, up to seven voices; stereo delay and reverb; keybed/MIDI; v4
+  module patches with v1–v3 still supported; AI webapp).
   Never narrow to effects-only.
 - Plan: develop roadmap features first (PROJECT.md order), QA each later.
 - Firmware changes since the integration checkpoint: sound fixes (`0a605f6`),
   sustain pedal + pitch bend (roadmap item 1, `0f4290e`), v3 instrument
   palette (roadmap item 2, firmware 0.4: `91c11c2`, `79c5d9f`), device presets
-  on the SD card with a TAPE-style key + encoder menu (roadmap item 3).
+  on the SD card with a TAPE-style key + encoder menu (roadmap item 3), MIDI
+  CCs/knob order matching stock, and the sampler (roadmap item 4, firmware 0.5,
+  `c7ffc78`…; design in [SAMPLING.md](SAMPLING.md)).
 - Software-tested: native, Python, sanitizer, real-Chromium browser and ARM build
   (xPack GCC 10.3.1; the pinned Arm archive was unreachable).
 - Stock comparison and CPU benchmark: [COMPATIBILITY.md](COMPATIBILITY.md)
   (`make bench`).
-- QA bundle: `Forge-0.4-test-4fec6ac` (includes device presets); checksums in
-  CONTINUE.md "Next actions". Older ZIPs are stale.
+- QA bundle: see CONTINUE.md "Next actions" (0.5 bundle with the sampler);
+  older ZIPs are stale. DC keeps bundles on his Google Drive.
 - Not verified: anything on hardware; any live OpenAI/Gemini request; device CPU.
 - Current state and remaining work: CONTINUE.md "Checkpoint summary".
-- Next for the agent: roadmap item 4 (sampling), design first; open DC
-  decisions are listed in CONTINUE.md. QA for DC later:
+- Next for the agent: roadmap item 5 (looping), design first from TAPE's
+  looper; open DC decisions are listed in CONTINUE.md. QA for DC later:
   [LIVE_AI_TEST.md](LIVE_AI_TEST.md), then [TEST_SESSION.md](TEST_SESSION.md);
   record results in TEST_RESULTS.md only after running them.

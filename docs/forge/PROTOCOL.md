@@ -1,9 +1,10 @@
-# Forge control protocol — firmware 0.4
+# Forge control protocol — firmware 0.5
 
-Transport version remains **1**; patch formats **1, 2 and 3** are supported.
-Firmware 0.4 adds patch v3 (second oscillator, noise, resonant filter with
-envelope, LFO, voice limit, glide, reverb). v1/v2 patches render bit-exactly
-as on 0.3 (checked against the previous core in simulation).
+Transport version remains **1**; patch formats **1, 2, 3 and 4** are supported.
+Firmware 0.4 added patch v3 (second oscillator, noise, resonant filter with
+envelope, LFO, voice limit, glide, reverb); 0.5 adds patch v4 (the sampler,
+up to 7 voices) and sample requests (opcodes 08/09). v1–v3 patches render
+bit-exactly as on 0.4 (checked against the previous core in simulation).
 All lengths/indexes below exclude MIDI F0/F7 unless stated. USB and bidirectional
 TRS MIDI use the non-commercial manufacturer ID 7D followed by ASCII FG.
 
@@ -17,17 +18,21 @@ Every payload byte is 7-bit. Words are little-endian base 128. Sequence is
 
 | OP | Length | Operation |
 | --- | --- | --- |
-| 01 | 18 for v1, 30 for v2, 69 for v3 | Apply complete patch |
+| 01 | 18 for v1, 30 for v2, 69 for v3, 84 for v4 | Apply complete patch |
 | 02 | 8 | Read current patch and status |
 | 03 | 8 | Panic: silence all synth voices and clear old delay tail; return status |
 | 04 | 10 | Store the current device patch to SD preset (bank 0–7 at 7, slot 0–14 at 8); reply 42 |
 | 05 | 10 | Recall SD preset (bank, slot): applied like 01; reply 40 with the recalled patch |
 | 06 | 10 | Erase SD preset (bank, slot); reply 42 |
 | 07 | 8 | List occupied SD presets; reply 43 |
-| 40 | 30 for v1, 42 for v2, 81 for v3 | Success/current targets plus diagnostics |
+| 08 | 8 | List samples on the card and the recording; reply 44 |
+| 09 | 15 | Sample job: 7 action (0 save recording, 1 erase, 2 copy), 8 mode, 9 bank, 10 slot, 11–13 copy destination mode/bank/slot; reply 45 |
+| 40 | 30 for v1, 42 for v2, 81 for v3, 96 for v4 | Success/current targets plus diagnostics |
 | 41 | 9 | Rejection; error code at index 7, checksum at 8 |
 | 42 | 12 | Preset done: index 8 = 1 stored / 2 erased, 9 bank, 10 slot |
 | 43 | 33 | Occupancy: per bank (0–7) 3 bytes at 8 + 3·bank = 15-bit slot mask, 7 + 7 + 1 bits |
+| 44 | 36 | Samples: 14-bit slot masks at 8 + 2·(mode·5 + bank) (mode 0 chromatic, 1 kit; bank 0–4 = a–e; bit s = slot s+1); 28 flags (1 card, 2 recording, 4 loader busy); 29–31 recording length ms, 32–34 capacity ms (21-bit) |
+| 45 | 13 | Sample job done: 8 action, 9 mode, 10 bank, 11 slot (the destination for a copy) |
 
 ## Apply request layout
 
@@ -64,10 +69,19 @@ Every payload byte is 7-bit. Words are little-endian base 128. Sequence is
 | 59 | v3 voices 1–4 |
 | 60–61 | v3 glide |
 | 62–67 | v3 reverb mix, size, damping (2 bytes each) |
-| 68 | v3 checksum |
+| 68 | v3 checksum; v4 source: 0 oscillators, 1 sampler (with route 1) |
+| 69 | v4 sample mode: 0 chromatic (TAPE JAMMI), 1 kit (TAPE CUBBI) |
+| 70 | v4 sample bank 0–4 (a–e) |
+| 71 | v4 sample slot 0–14 (slot 15 = index 14 = the recording; kit mode ignores it) |
+| 72–73 | v4 sample pitch |
+| 74–75, 76–77 | v4 sample start, end (start < end, else error 4) |
+| 78, 79, 80 | v4 loop, gate (1 = sound while held, TAPE "sustain"; 0 = trigger), reverse: 0 or 1 |
+| 81–82 | v4 loop crossfade |
+| 83 | v4 checksum |
 
 v3 indexes 7–28 are identical to v2, except that the cutoff at 27–28 feeds the
-v3 per-voice resonant filter instead of the shared one-pole filter.
+v3 per-voice resonant filter instead of the shared one-pole filter. v4 indexes
+7–67 are identical to v3 except that byte 59 (voices) allows 1–7.
 
 For normalized value n = word / 16383:
 
@@ -89,12 +103,17 @@ For normalized value n = word / 16383:
 | v3 glide | 2000 × n ms (0 = off; ~98 % of the interval after that time) |
 | v3 reverb size | decay RT60 = 0.2 × 50^n seconds (0.2–10 s) |
 | v3 reverb damping | in-loop low-pass 16000 × (1500/16000)^n Hz |
+| v4 sample pitch | −24 + 48 × n semitones (n = 0.5 is the sample's own pitch) |
+| v4 sample start / end | n × sample length (minimum window 1024 frames) |
+| v4 loop crossfade | 250 × n ms (limited to half the window and the room before the start) |
 
 v1 always selects aux input and restores default dormant synth settings. v2
 selects one of two supported paths; all three named module settings are present
 in JSON even on the aux path. v3 has the same two paths with reverb after the
-delay; all six modules are present in JSON. Fields a format lacks take neutral
-defaults (no osc2, noise, LFO, glide or reverb; four voices). No arbitrary edges, feedback routing, plugin code
+delay; all six modules are present in JSON. v4 adds a third path,
+sampler→delay→reverb→output (route 1 with source 1), and a seventh module,
+`sampler`. Fields a format lacks take neutral defaults (no osc2, noise, LFO,
+glide, reverb or sampler; four voices). No arbitrary edges, feedback routing, plugin code
 or dynamic module creation is accepted. Names remain host-side.
 
 ## Success/status response
@@ -105,7 +124,7 @@ or dynamic module creation is accepted. Names remain host-side.
 | 7 | Success, 0 |
 | 8 onward | Exact quantized patch DATA (request indexes 7 through before checksum) |
 
-After patch DATA, diagnostics begin at offset **18 for v1**, **30 for v2**, **69 for v3**:
+After patch DATA, diagnostics begin at offset **18 for v1**, **30 for v2**, **69 for v3**, **84 for v4**:
 
 | Offset from diagnostics | Content |
 | --- | --- |
@@ -113,7 +132,7 @@ After patch DATA, diagnostics begin at offset **18 for v1**, **30 for v2**, **69
 | +2,+3 | Peak audio callback load since boot ×1000, 14-bit |
 | +4..+6 | Dropped ingress/control/reply count, saturated 21-bit |
 | +7..+9 | Rejected recognized requests, saturated 21-bit |
-| +10 | Firmware minor version, 4 |
+| +10 | Firmware minor version, 5 |
 | +11 | Checksum |
 
 CPU resolution is 0.1 percentage point; max 1638.3%. Readings are from completed
@@ -121,8 +140,9 @@ callbacks before the snapshot, not total scheduling/interrupt-mask time. Offline
 harness readings are synthetic zero and say nothing about device headroom.
 
 Errors: 1 length, 2 protocol/patch version, 3 checksum, 4 patch fields or
-preset address, 5 opcode, 6 queue busy, 7 empty preset slot, 8 SD card missing
-or storage failed, 9 storage busy. Foreign SysEx/replies are ignored. Framing
+preset/sample address, 5 opcode, 6 queue busy (also: recording in progress
+when saving it), 7 empty slot (preset, copy source, or no recording to save),
+8 SD card missing or storage failed, 9 storage busy. Foreign SysEx/replies are ignored. Framing
 discards may be silent and are not included in rejected recognized-request counts.
 
 ## Notes, controls and recovery
@@ -130,7 +150,7 @@ discards may be silent and are not included in rejected recognized-request count
 Channel 1 (zero-based 0): Note On/Off, including Note On velocity zero. Notes
 0–127 accepted; keybed uses 48–72 at velocity 100. UART, USB and keybed have
 separate source IDs. Matching source/note is retriggered; otherwise idle voices
-are used, then the quietest releasing voice, then the oldest held voice of four.
+are used, then the quietest releasing voice, then the oldest held voice (four voices; up to seven on v4).
 A reused voice keeps its current level and waveform phase and glides to the new
 velocity over about 2 ms, so retrigger/steal does not jump to silence. An old note-off cannot release a
 replacement with a different note/source.
@@ -146,8 +166,10 @@ source. The keybed has no pedal or bend input. Not yet: octave switching,
 clock sync, MPE, aftertouch, arpeggiator or MIDI note output. v3 voices = 1
 is monophonic with last-note priority but no return to a still-held earlier note.
 
-Stock CHOMPI convention, CC20+n = absolute position of encoder n: CC20 mix,
-21 time, 22 feedback, 23 level, 24 cutoff (SW5), 25 level (SW6). Stock's
+Stock CHOMPI convention, CC20+n = absolute position of logical knob n:
+CC20–23 = knobs 1–4, which are mix, time, feedback, level (or, on a v4
+sampler patch, TAPE's page: sample pitch, start, end, mix), 24 cutoff (SW5),
+25 level (SW6). Stock's
 virtual-key and second-page CCs (14, 15, 26–33) are ignored. General MIDI
 extras: 74 cutoff, 85 wet bypass (>=64 on), 71 resonance and 91 reverb mix
 (71/91 on v3 patches only; ignored on v1/v2 so status stays truthful), 64 sustain pedal, 121 reset controllers, 1 mod wheel (scales
@@ -185,10 +207,10 @@ Patches, status, panic and controls always execute (`RecoveryGate` in
 core/runtime.h, host-tested). Keys held through a recovery must be retriggered. This logic is implemented; actual interrupt/transport behavior is
 still hardware-unverified. Use SW5 press or host panic if an audible note hangs.
 
-Replies are sent only by main loop. Largest response is the 83-byte v3 status
-(with F0/F7): 26.6 ms at 31250 baud; the UART timeout is computed per reply
-(0.32 ms per byte + 5 ms). Incoming SysEx up to 72 bytes is accepted (v3 apply
-is 71 with F0/F7). The USB buffer holds 112 bytes (28 USB-MIDI events); a v3
+Replies are sent only by main loop. Largest response is the 98-byte v4 status
+(with F0/F7): 31.4 ms at 31250 baud; the UART timeout is computed per reply
+(0.32 ms per byte + 5 ms). Incoming SysEx up to 88 bytes is accepted (v4 apply
+is 86 with F0/F7). The USB buffer holds 132 bytes (33 USB-MIDI events); a v3/v4
 reply is larger than one 64-byte USB packet, relying on the USB stack's
 multi-packet transfer, which is **unverified on hardware**. TX memory survives
 completion. Pending TX is abandoned/counts a drop after 100 ms without progress.
@@ -199,7 +221,7 @@ Host checks full patch DATA, checksum and sequence. Timeout may mean applied
 but reply lost; query status before retrying. No auto retry, deduplication,
 subscriptions, sessions or authentication. One host, one acknowledged exchange
 at a time. Old 0.2 hosts cannot decode v2 status and 0.3 hosts cannot decode
-v3 status; use the matching 0.4 host. Old firmware rejects newer patch versions
+v3 status and 0.4 hosts cannot decode v4 status; use the matching 0.5 host. Old firmware rejects newer patch versions
 (error 2) and 0.2 rejects panic rather than executing them.
 
 ## Device presets (SD card), firmware 0.4
@@ -240,4 +262,54 @@ the main loop for the SD write (typically a few to tens of ms); incoming MIDI
 waits in the 16-frame ingress queues meanwhile. A recalled patch is applied
 atomically like any patch request. **Hardware-unverified:** SD timing,
 card-swap remount, LED colours and positions.
+
+## Sampler, firmware 0.5
+
+Design and TAPE comparison: [SAMPLING.md](SAMPLING.md).
+
+**Files.** TAPE's names in the SD root: `jammi_<a-e><1-14>.wav` (chromatic)
+and `cubbi_<a-e><1-14>.wav` (kit). Forge reads PCM 8/16/24-bit or 32-bit
+float, mono or stereo, 8–96 kHz (pitch-corrected). It writes TAPE's format
+(44-byte header, 16-bit stereo, 48 kHz), deletes the slot's stale
+`_double.wav` (TAPE regenerates it at its next boot) and never touches
+`presets.json`/`options.json`. Saves and copies go to `FORGE_TMP.WAV`, then
+replace the slot file.
+
+**Memory.** The chromatic slot, or every file of a kit bank, is loaded into a
+40 MB SDRAM pool (~218 s stereo); a file that does not fit is loaded partly
+(the rest plays silent). Loading happens in 16 KB steps in the main loop;
+notes can start before a file has fully loaded. The recording lives in its own
+16 MB buffer (~87 s stereo).
+
+**Playing.** Chromatic: MIDI note 60 plays the sample at its own pitch (±
+semitones across the keys). Kit: the white keys/notes C3–C5 (MIDI 48–72) play
+slots 1–15 of the bank (C5 = the recording); black notes are silent. Pitch,
+start, end, loop (with crossfade), gate/trigger, reverse; samples pass through
+the per-voice filter, filter envelope, LFO, glide, delay and reverb.
+Interpolation is 4-point Hermite when pitched down, linear otherwise.
+
+**Recording (as TAPE).** Toggle down, hold the CHOMPI key: records from the
+selected source (mic ×5 with DC blocking, line ×3, or resample = the output);
+CHOMPI LED red; the input is monitored. Releasing it stops; the take becomes
+chromatic slot 15 and plays at once. 5 ms fades at both ends; playback and
+saving are normalised to −1 dBFS (at most +24 dB). Jack insertion selects line
+in, removal the mic.
+
+**Panel menu.** Toggle up + CHOMPI key, then KEY_22 switches to the Samples
+page: KEY_16 chromatic / KEY_17 kit (press again for the next bank a–e; the
+instrument follows), white keys play a slot (chromatic) or the bank (kit),
+KEY_18/19/20 choose mic / line / resample, KEY_25 save the recording, KEY_23
+erase, KEY_24 copy (any mode/bank), each confirmed with CHOMPI. Knob 1 turns
+the shown bank. Bank keys light in TAPE's bank colours; occupied slots dim,
+the playing slot white, the recording pink, file slots red without a card.
+CHOMPI LED blinks pink while a save/copy runs.
+
+**Host.** Opcodes 08/09 above (`forge_host.py samples | sample-save |
+sample-erase | sample-copy`, webapp Device samples). A host save first locks
+the recording (refused with error 6 while recording, error 7 with no take);
+the reply comes when the file is written.
+
+**Hardware-unverified:** SD read/write speed and main-loop stalls during
+saves, SDRAM cache behaviour of sample reads (device CPU), recording levels,
+monitoring, jack detection, LED colours.
 

@@ -42,6 +42,7 @@ def main():
         "docs/PROTOCOL.md": (REPO / "docs/forge/PROTOCOL.md").read_bytes(),
         "docs/HANDOFF.md": (REPO / "docs/forge/HANDOFF.md").read_bytes(),
         "docs/COMPATIBILITY.md": (REPO / "docs/forge/COMPATIBILITY.md").read_bytes(),
+        "docs/SAMPLING.md": (REPO / "docs/forge/SAMPLING.md").read_bytes(),
         "LICENSE": (REPO / "LICENSE").read_bytes(),
         "THIRD_PARTY.md": (REPO / "THIRD_PARTY.md").read_bytes(),
         "TRADEMARKS.md": (REPO / "TRADEMARKS.md").read_bytes(),
@@ -51,7 +52,8 @@ def main():
     for path in sorted((ROOT / "host/web").iterdir()):
         if path.is_file():
             files["host/web/" + path.name] = path.read_bytes()
-    files["host/instrument.schema.json"] = (json.dumps(forge_host.SCHEMA3, indent=2) + "\n").encode()
+    files["host/instrument.schema.json"] = (json.dumps(forge_host.SCHEMA4, indent=2) + "\n").encode()
+    files["host/instrument-v3.schema.json"] = (json.dumps(forge_host.SCHEMA3, indent=2) + "\n").encode()
     files["host/instrument-v2.schema.json"] = (json.dumps(forge_host.SCHEMA2, indent=2) + "\n").encode()
     files["docs/CONTINUE.md"] = (REPO / "docs/forge/CONTINUE.md").read_bytes()
     files["host/patch.schema.json"] = (json.dumps(forge_host.SCHEMA, indent=2) + "\n").encode()
@@ -63,19 +65,19 @@ def main():
         subprocess.run([str(ROOT / "build/forge_probe"), "--render", str(render)],
                        input=midi, text=True, check=True, capture_output=True, timeout=10)
         files["audio-reference/" + render.name] = render.read_bytes()
-    manifest = {"candidate": "Forge 0.4", "hardware_verified": False,
+    manifest = {"candidate": "Forge 0.5", "hardware_verified": False,
                 "source_commit": commit, "source_tree": source_tree,
                 "source_url": f"https://github.com/DCDominguez/CHOMPI/tree/{commit}",
                 "compiler": compiler,
                 "pinned_compiler": "GNU Arm Embedded 10.3-2021.10 (Arm archive)",
                 "built_with_pinned_compiler": "GNU Arm Embedded Toolchain 10.3-2021.10" in compiler,
-                "audio_reference": "Simulated aux plucks and synth chords; not CHOMPI recordings",
+                "audio_reference": "Simulated aux plucks, synth chords and sampler notes (synthetic sine samples); not CHOMPI recordings",
                 "files": {name: {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
                           for name, data in sorted(files.items())}}
     files["manifest.json"] = (json.dumps(manifest, indent=2) + "\n").encode()
     with zipfile.ZipFile(args.output, "x", compression=zipfile.ZIP_DEFLATED) as archive:
         for name, data in sorted(files.items()):
-            info = zipfile.ZipInfo(f"Forge-0.4-test-{commit[:7]}/" + name, date_time=(2026, 10, 2, 0, 0, 0))
+            info = zipfile.ZipInfo(f"Forge-0.5-test-{commit[:7]}/" + name, date_time=(2026, 10, 2, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o100644 << 16
             archive.writestr(info, data)

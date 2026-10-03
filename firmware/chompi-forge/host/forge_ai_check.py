@@ -32,7 +32,7 @@ def run(provider, model, prompt, kind, api_key, generate=None, clock=time.monoto
     started = clock()
     try:
         patch = generate(provider, api_key, model, prompt, kind=kind)
-        forge_host.encode_patch(patch, 1)  # wire-compatible with firmware 0.4
+        forge_host.encode_patch(patch, 1)  # wire-compatible with firmware 0.5
         record.update(ok=True, patch=patch)
     except (forge_ai.ProviderError, ValueError) as error:
         record.update(ok=False, error=str(error))  # safe messages only; never provider bodies

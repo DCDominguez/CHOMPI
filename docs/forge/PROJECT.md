@@ -73,7 +73,9 @@ unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
    last preset at boot, preset import from TAPE/WAVE cards.
 4. **Sampling** — TAPE-compatible sampler (design: [SAMPLING.md](SAMPLING.md)):
    JAMMI/CUBBI slots from TAPE-named WAVs, recording (mic/line/resample),
-   v4 patches, samples menu page. In progress.
+   v4 patches, samples menu page (done, software-tested; firmware 0.5).
+   Candidates: TAPE's per-slot settings (`presets.json`), threshold-armed
+   recording, wider MIDI note range in kit mode, sample names.
 5. **Looping** — capture, overdub, manipulation on the sampling buffers.
 6. **Dedicated/networked controllers** (Tab5) — optional, last.
 

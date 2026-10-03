@@ -152,10 +152,12 @@ offline; physical claims remain pending until recorded in the consolidated
 session. Do not change the bootloader as a routine Forge development step.
 
 Instrument development starts with [CONTINUE.md](CONTINUE.md). `make test` runs
-five native suites (core, protocol, synth, v3, preset) and the Python tests, including
-v1/v2/v3 round trips through the C++ codec. When changing the v3 layout, edit
-`V3Fields` (core/protocol.h) and `V3_FIELDS` (host/forge_host.py) together.
-Any v1/v2 DSP change must keep their output bit-exact or be called out as a
-deliberate behaviour change. The package generator includes all schemas, ten
+six native suites (core, protocol, synth, v3, preset, sampler) and the Python tests, including
+v1–v4 round trips through the C++ codec. When changing the v3/v4 layout, edit
+`V3Fields` (core/protocol.h; v4 entries have index ≥ 68) and `V3_FIELDS` /
+`V4_SAMPLER` (host/forge_host.py) together. Any v1–v3 DSP change must keep
+their output bit-exact or be called out as a deliberate behaviour change.
+Code space is the tightest firmware budget (~24 KB left at 0.5): check
+`SRAM_EXEC` after each firmware change. The package generator includes all schemas, thirteen
 presets, web assets and simulated renders. Browser and live API acceptance are
 separate from mocked tests.

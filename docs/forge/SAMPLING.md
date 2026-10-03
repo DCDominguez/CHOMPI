@@ -1,9 +1,22 @@
 # Forge sampling (roadmap item 4): design
 
 Status: design agreed in scope with DC on 2026-10-03 ("follow TAPE's sampling,
-which works; add cool things that don't overload"). Implementation follows
-this document; update it if the implementation diverges. Nothing here is
-hardware-verified.
+which works; add cool things that don't overload"). **Implemented and
+software-tested in firmware 0.5** (sampler steps 1–7, see CHANGELOG). Nothing
+here is hardware-verified; TEST_SESSION 3D and 6.2c cover it.
+
+Implementation notes (where it differs from or refines the plan below):
+- Interpolation: 4-point Hermite only when pitched down, linear at or above
+  the original speed (TAPE uses linear everywhere). Chosen after the CPU
+  benchmark; see COMPATIBILITY.md §6.
+- Code: `core/wav.h`, `core/sample_table.h`, `core/recorder.h`,
+  `core/sample_loader.h`, `core/sampler_runtime.h`, sample voices in
+  `core/synth.h`, the Samples page in `core/preset_menu.h`,
+  `src/fatfs_storage.h` (FatFsSampleFiles), wiring in `src/forge_main.cpp`.
+- A note in kit mode maps white keys only (MIDI 48–72); TAPE's MIDI input
+  maps a wider range of notes onto the keys. Candidate for later.
+- CPU (emulated, 7 voices): 2,104–2,236 instructions/sample; worst case
+  2,628 vs WAVE 2,695. Code space 89.7 % used (~24 KB left).
 
 Source analysis: TAPE 2.0 (`firmware/chompi-tape/code/src`, read only):
 `DSPEngine.h`, `SampleReader.h`, `FileStreamingManager.*`, `FileCopier.h`,
@@ -40,7 +53,7 @@ Source analysis: TAPE 2.0 (`firmware/chompi-tape/code/src`, read only):
 | --- | --- | --- |
 | Streams every voice from SD (FatFS inside a 1 kHz timer ISR, shared non-atomic FIFOs) | Loads the selected sample (JAMMI) or bank (CUBBI) into SDRAM, in chunks, from the main loop | Removes the ISR races TAPE's own comments hint at; no SD bandwidth limit per voice; no `_double` files needed |
 | 16-bit stereo 48 kHz only; other formats play as noise | Reads 16/24-bit PCM and 32-bit float, mono or stereo, any rate 8–96 kHz (pitch-corrected); mono stays mono in RAM | Common WAVs just work; mono halves memory |
-| Linear interpolation | 4-point Hermite | Cleaner pitched-down sound; small cost |
+| Linear interpolation | 4-point Hermite when pitched down, linear otherwise | Cleaner pitched-down sound where it is audible, at TAPE's cost elsewhere |
 | Loop wrap = fade out/in dip | Real crossfade (length is a patch field) | Smooth pads/loops |
 | Minimum attack ≈ 0.2 s | Forge ADSR (1 ms minimum) | Drums and plucks |
 | Samples bypass any filter | Samples go through Forge's per-voice resonant filter + filter envelope, LFO, glide, delay and reverb | Makes the sampler an instrument, the "cool" extra that costs little |

@@ -52,9 +52,12 @@ void Render(forge::Engine& engine, const char* path) {
     float left, right;
     // Settle parameter ramps before the test signal.
     for(unsigned i = 0; i < rate; ++i) engine.Process(0, 0, left, right);
-    if(engine.GetParameters().synth) { engine.Note(60, 100, 2); engine.Note(64, 90, 2); engine.Note(67, 90, 2); }
+    // Kit patches play white keys with samples on the simulated card (slots 1-3).
+    const bool kit = engine.GetParameters().Sampler() && engine.GetParameters().sample_mode == 1;
+    const uint8_t chord[3] = {static_cast<uint8_t>(kit ? 48 : 60), static_cast<uint8_t>(kit ? 50 : 64), static_cast<uint8_t>(kit ? 52 : 67)};
+    if(engine.GetParameters().synth) { engine.Note(chord[0], 100, 2); engine.Note(chord[1], 90, 2); engine.Note(chord[2], 90, 2); }
     for(unsigned i = 0; i < frames; ++i) {
-        if(i == rate) { engine.Note(60, 0, 2); engine.Note(64, 0, 2); engine.Note(67, 0, 2); }
+        if(i == rate) for(uint8_t note : chord) engine.Note(note, 0, 2);
         const float t = float(i) / rate;
         const float envelope = i < rate / 2 ? std::exp(-t * 12.f) : 0.f;
         const float l = 0.6f * envelope * std::sin(6.2831853f * 220.f * t);
