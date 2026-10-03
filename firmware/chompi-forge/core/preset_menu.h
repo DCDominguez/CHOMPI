@@ -69,7 +69,7 @@ public:
         chompi_ = chompi_down;
         if(!toggle_up) { Close(); return; }
         if(!active_) {
-            if(rising) { active_ = true; mode_ = MenuMode::None; selected_ = source_ = panel::kNoSlot; }
+            if(rising) { active_ = true; mode_ = MenuMode::None; selected_ = source_ = panel::kNoSlot; loop_source_ = false; }
             return;
         }
         if(rising) Confirm();
@@ -82,7 +82,7 @@ public:
         if(!active_ || !pressed) return false;
         if(button == panel::kPage) {
             page_ = page_ == MenuPage::Presets ? MenuPage::Samples : MenuPage::Presets;
-            mode_ = MenuMode::None; selected_ = source_ = panel::kNoSlot;
+            mode_ = MenuMode::None; selected_ = source_ = panel::kNoSlot; loop_source_ = false;
             return true;
         }
         const uint8_t slot = panel::KeyToSlot(button);
@@ -130,6 +130,15 @@ public:
     // Compact state for the main loop's LED drawing (one atomic word).
     // Samples page: bank_ fields hold the sample bank; bits 21-29 add the page,
     // sample mode, selected/source modes and the record source.
+    // Samples page, COPY: the LOOP key picks the loop as the source (TAPE's
+    // "slot 16"); then a white key and CHOMPI save the loop into that slot.
+    static constexpr uint8_t kLoopSource = 16;
+    bool SelectLoopSource() {
+        if(!active_ || page_ != MenuPage::Samples || mode_ != MenuMode::CopySource) return false;
+        selected_ = source_ = panel::kNoSlot; loop_source_ = true; mode_ = MenuMode::CopyDest;
+        return true;
+    }
+    bool LoopSource() const { return loop_source_; }
     uint32_t Packed() const {
         const bool samples = page_ == MenuPage::Samples;
         return (active_ ? 1u : 0u) | (static_cast<uint32_t>(mode_) << 1)
@@ -138,12 +147,13 @@ public:
             | (static_cast<uint32_t>(source_ & 0xf) << 14) | (static_cast<uint32_t>(source_bank_) << 18)
             | (samples ? 1u << 21 : 0u) | (static_cast<uint32_t>(sample_mode_) << 22)
             | (static_cast<uint32_t>(selected_mode_) << 23) | (static_cast<uint32_t>(source_mode_) << 24)
-            | (static_cast<uint32_t>(record_source_) << 25) | (static_cast<uint32_t>(chromatic_slot_ & 0xf) << 27);
+            | (static_cast<uint32_t>(record_source_) << 25) | (static_cast<uint32_t>(chromatic_slot_ & 0xf) << 27)
+            | (loop_source_ ? 1u << 31 : 0u);
     }
 private:
     static constexpr unsigned kActions = 4;
     bool BlackKey(uint8_t button) { return panel::BlackLed(button) != 0xff; }  // other black keys: swallowed
-    void Close() { active_ = false; mode_ = MenuMode::None; selected_ = source_ = panel::kNoSlot; }
+    void Close() { active_ = false; mode_ = MenuMode::None; selected_ = source_ = panel::kNoSlot; loop_source_ = false; }
     FORGE_NOINLINE bool SampleKey(uint8_t button, uint8_t slot) {
         if(slot != panel::kNoSlot) {
             if(mode_ == MenuMode::None) {
@@ -184,7 +194,7 @@ private:
         const bool same = mode_ == mode || (mode == MenuMode::CopySource && mode_ == MenuMode::CopyDest);
         if(mode_ != MenuMode::None && !same) return;    // finish or cancel the current mode first
         mode_ = same ? MenuMode::None : mode;
-        selected_ = source_ = panel::kNoSlot;
+        selected_ = source_ = panel::kNoSlot; loop_source_ = false;
     }
     void Slot(uint8_t slot) {
         switch(mode_) {
@@ -202,12 +212,12 @@ private:
             if(mode_ == MenuMode::Save) a.kind = MenuAction::Kind::SampleSave;
             else if(mode_ == MenuMode::Erase) a.kind = MenuAction::Kind::SampleErase;
             else if(mode_ == MenuMode::CopyDest) {
-                if(source_mode_ == selected_mode_ && source_bank_ == selected_bank_ && source_ == selected_) return;
+                if(!loop_source_ && source_mode_ == selected_mode_ && source_bank_ == selected_bank_ && source_ == selected_) return;
                 a.kind = MenuAction::Kind::SampleCopy; a.to_mode = selected_mode_; a.to_bank = selected_bank_; a.to_slot = selected_;
-                a.mode = source_mode_; a.bank = source_bank_; a.slot = source_;
+                a.mode = source_mode_; a.bank = source_bank_; a.slot = loop_source_ ? kLoopSource : source_;
             } else return;
             Push(a);
-            mode_ = MenuMode::None; selected_ = source_ = panel::kNoSlot;
+            mode_ = MenuMode::None; selected_ = source_ = panel::kNoSlot; loop_source_ = false;
             return;
         }
         if(mode_ == MenuMode::Save) Push({MenuAction::Kind::Save, selected_bank_, selected_, 0, 0});
@@ -216,7 +226,7 @@ private:
             if(source_bank_ == selected_bank_ && source_ == selected_) return;
             Push({MenuAction::Kind::Copy, source_bank_, source_, selected_bank_, selected_});
         } else return;
-        mode_ = MenuMode::None; selected_ = source_ = panel::kNoSlot;
+        mode_ = MenuMode::None; selected_ = source_ = panel::kNoSlot; loop_source_ = false;
     }
     void Push(const MenuAction& action) {
         const unsigned next = (head_ + 1) % kActions;
@@ -228,6 +238,7 @@ private:
     bool active_ = false, chompi_ = false;
     MenuMode mode_ = MenuMode::None;
     uint8_t bank_ = 0, selected_ = panel::kNoSlot, selected_bank_ = 0, source_ = panel::kNoSlot, source_bank_ = 0;
+    bool loop_source_ = false;
     MenuPage page_ = MenuPage::Presets;
     uint8_t sample_mode_ = 0, sample_bank_[2]{}, chromatic_slot_ = 0, selected_mode_ = 0, source_mode_ = 0, record_source_ = 1;
 };

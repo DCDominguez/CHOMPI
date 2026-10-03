@@ -406,7 +406,8 @@ class Bridge:
                     job["result"] = info
                 else:
                     runner = forge_audio.Runner(device, self.audio, self.reports / folder, ROOT.parent,
-                                                lambda e: say(f"{e['id']:>6}  {e['result']:<8} {e['title']}"), job["cancel"])
+                                                lambda e: say(f"{e['id']:>6}  {e['result']:<8} {e['title']}"), job["cancel"],
+                                                simulated=self.mode == "simulation")
                     result = runner.run(plan)
                     self.images.update(runner.images)
                     result.update(folder=str((self.reports / folder).resolve()), audio=self.audio_info)

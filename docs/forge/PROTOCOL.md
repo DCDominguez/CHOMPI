@@ -169,8 +169,10 @@ is monophonic with last-note priority but no return to a still-held earlier note
 Stock CHOMPI convention, CC20+n = absolute position of logical knob n:
 CC20–23 = knobs 1–4, which are mix, time, feedback, level (or, on a v4
 sampler patch, TAPE's page: sample pitch, start, end, mix), 24 cutoff (SW5),
-25 level (SW6). Stock's
-virtual-key and second-page CCs (14, 15, 26–33) are ignored. General MIDI
+25 level (SW6). While a loop exists, CC 24 sets the looper speed instead
+(−2…+2×, as TAPE's transport knob). CC 26 / 27 are TAPE's looper PLAY / LOOP
+(≥ 85 press, ≤ 41 release, the middle third ignored). Stock's virtual-key and
+second-page CCs (14, 15, 28–33) are ignored. General MIDI
 extras: 74 cutoff, 85 wet bypass (>=64 on), 71 resonance and 91 reverb mix
 (71/91 on v3 patches only; ignored on v1/v2 so status stays truthful), 64 sustain pedal, 121 reset controllers, 1 mod wheel (scales
 LFO depth when the v3 patch sets mod_wheel; global, reset by panic/CC121).
@@ -276,7 +278,7 @@ float, mono or stereo, 8–96 kHz (pitch-corrected). It writes TAPE's format
 replace the slot file.
 
 **Memory.** The chromatic slot, or every file of a kit bank, is loaded into a
-40 MB SDRAM pool (~218 s stereo); a file that does not fit is loaded partly
+32 MiB SDRAM pool (~174 s stereo); a file that does not fit is loaded partly
 (the rest plays silent). Loading happens in 16 KB steps in the main loop;
 notes can start before a file has fully loaded. The recording lives in its own
 16 MB buffer (~87 s stereo).
@@ -352,7 +354,7 @@ listed order, with no struct padding on the wire.
 | 2 SYSTEM | 88 | firmware minor, protocol, simulated flag (3 bytes); uptime ms, audio state timestamp ms, audio block count (3 U32); CPU average and peak ×1000 (2 14-bit words); UART then USB: RX complete accepted frames, TX accepted submissions, TX errors, ingress drops (4 U32 each); aggregate drops and rejections (2 U32) |
 | 3 PANEL | 95 | physical and merged key masks (6 7-bit chunks each, 40 bits); physical then merged flags (2 bytes); packed menu U32; six physical encoder accumulators then six merged accumulators (12 U32, signed two's complement) |
 | 4 ENGINE | 88 | seven voices (7 bytes each: note, source 0 UART/1 USB/2 panel, stage 0 off/1 attack/2 decay/3 sustain/4 release, sample slot 0–14 or 127 none, flags sampled 1/sustained 2/reverse 4, envelope N14); smoothed cutoff normalized, (LFO+1)/2, mod wheel (3 N14); pedal-source bit mask byte; three smoothed bend ratios ×4096 (3 14-bit words); resolved mix, feedback/0.85, level, delay samples/48000, reverb mix (5 N14) |
-| 5 STORAGE | 82 | flags, recording source 0 mic/1 line/2 resample, queued sample-job count, active job 0 save/1 copy/2 erase/127 none, last generic error code, partial-file-slot count (6 bytes); actual loaded file selection, file readable frames, file allocated frames, pool reserved bytes, pool capacity bytes, recording frames, recording capacity frames, storage error count, audio event drops, emergency count, panel queue drops, sample queue drops (12 U32) |
+| 5 STORAGE | 94 | flags, recording source 0 mic/1 line/2 resample, queued sample-job count, active job 0 save/1 copy/2 erase/127 none, last generic error code, partial-file-slot count (6 bytes); actual loaded file selection, file readable frames, file allocated frames, pool reserved bytes, pool capacity bytes, recording frames, recording capacity frames, storage error count, audio event drops, emergency count, panel queue drops, sample queue drops (12 U32); looper: flags (state 0 empty/1 armed/2 first take/3 playing/4 paused, 8 overdub, 16 effects before the loop, 32 locked for saving), length frames (U32), position, speed ((s+2)/4) and feedback (N14) |
 | 6 EVENTS | 27 + 17 × count, count 0–3 | latest event serial U32, total retention overwrites U32, count byte; records: serial U32, timestamp ms U32, kind byte, id byte, value U32 |
 | 7 PATCH | 26/38/77/92 for v1/v2/v3/v4 | existing patch DATA, exactly as `EncodePatchData` and status use |
 

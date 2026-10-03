@@ -120,7 +120,7 @@ already on the card or the device's recording.
 
 **Panic / stop sound** clears all voices and old delay and reverb tails; it requires both
 MIDI ports and waits for a reply. SW5 press or channel-1 CC120/123 also panic.
-SW5 turn/CC24/CC74 change cutoff; CC71 resonance and CC91 reverb mix (v3); CC85 wet bypass; CC1 mod
+SW5 turn/CC24/CC74 change cutoff (while a loop exists, SW5 and CC24 are the looper transport instead; CC26/CC27 are looper PLAY/LOOP, as TAPE); CC71 resonance and CC91 reverb mix (v3); CC85 wet bypass; CC1 mod
 wheel scales LFO depth when the patch enables it. Route or waveform changes,
 and switching between v1/v2 and v3/v4 patches or between oscillators and sampler, stop voices/tails; retrigger held notes. Up to the patch's `voices` (4, or 7 on v4); additional notes steal a releasing voice, else the oldest.
 A patch is volatile; save JSON and resend after reboot. v1 delay files still work.

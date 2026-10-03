@@ -128,7 +128,7 @@ public:
             for(const uint8_t key : {panel::kPlayKey, panel::kLoopKey}) {
                 const bool play = key == panel::kPlayKey;
                 if((rising >> key) & 1u) {
-                    if(menu_.Active()) looper->AdjustFeedback(play ? -0.1f : 0.1f);
+                    if(menu_.Active()) { if(play || !menu_.SelectLoopSource()) looper->AdjustFeedback(play ? -0.1f : 0.1f); }
                     else if(play) looper->Play(true); else looper->Loop(true);
                 }
                 if((falling >> key) & 1u) { if(play) looper->Play(false); else looper->Loop(false); }
@@ -203,6 +203,15 @@ private:
                 engine.ApplyPatch(SelectSample(engine.GetParameters(), action.mode, action.bank, action.slot));
             } else if(action.kind == Kind::RecordSource) {
                 source_ = static_cast<RecordSource>(action.slot);
+            } else if(action.kind == Kind::SampleCopy && action.slot == PresetMenu::kLoopSource) {
+                // Save the loop into a sample slot (locked while the file is written).
+                Looper* looper = engine.GetLooper();
+                forge::SampleJob job;
+                job.kind = SampleJob::Kind::Save; job.from_loop = true;
+                job.mode = action.to_mode; job.bank = action.to_bank; job.slot = action.to_slot;
+                if(!looper || !looper->Lock()) { sink.Flash(false); continue; }
+                job.frames = looper->Length(); job.gain = 1.f;
+                if(!sink.SampleJob(job)) { looper->Unlock(); sink.Flash(false); }
             } else if(action.kind == Kind::SampleSave || action.kind == Kind::SampleErase || action.kind == Kind::SampleCopy) {
                 forge::SampleJob job;
                 job.mode = action.mode; job.bank = action.bank; job.slot = action.slot;

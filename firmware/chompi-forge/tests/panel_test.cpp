@@ -223,7 +223,38 @@ void LooperVoiceCap() {
     rig.engine.Note(71, 100, 1); rig.Block(); assert(rig.engine.ActiveVoices() == 7);
 }
 
+// Samples page: COPY, then LOOP as the source, a white key, CHOMPI: a locked
+// save-from-loop job; while locked, LOOP cannot overdub.
+void LooperSaveGesture() {
+    Rig rig;
+    std::vector<int16_t> memory(2 * 48000 * 4); Looper looper; looper.Init(memory.data(), 48000 * 4, 48000.f);
+    rig.engine.SetLooper(&looper);
+    rig.Block();
+    rig.Tap(panel::kLoopKey); for(int i = 0; i < 400; ++i) rig.Block(0.2f); rig.Tap(panel::kPlayKey);
+    assert(looper.HasLoop() && !looper.Writing());
+    rig.hw.toggle_up = true; rig.Key(panel::kChompiKey, true);
+    rig.Tap(panel::kPage); rig.Tap(panel::kCopy); rig.Key(panel::kChompiKey, false);
+    const float feedback = looper.Feedback();
+    rig.Tap(panel::kLoopKey);                                            // the loop is the source, not feedback +10 %
+    assert(rig.panel.Menu().LoopSource() && looper.Feedback() == feedback && (rig.panel.MenuPacked() >> 31));
+    rig.Tap(kWhite[4]); rig.Tap(panel::kChompiKey);                      // destination kit/chromatic slot 5, confirm
+    assert(rig.sink.jobs.size() == 1);
+    const forge::SampleJob& job = rig.sink.jobs[0];
+    assert(job.kind == SampleJob::Kind::Save && job.from_loop && job.slot == 4 && job.frames == looper.Length() && job.gain == 1.f);
+    assert(looper.Locked() && !rig.panel.Menu().LoopSource());
+    rig.hw.toggle_up = false; rig.Block();
+    rig.Tap(panel::kLoopKey); assert(!looper.Overdubbing());             // locked: no overdub
+    looper.Clear(); assert(looper.HasLoop());                            // ...and no clear
+    looper.Unlock(); rig.Tap(panel::kLoopKey); assert(looper.Overdubbing());
+    // An empty looper cannot be saved: the job is refused with a red flash.
+    Rig empty; Looper idle; std::vector<int16_t> m(2 * 4800); idle.Init(m.data(), 4800, 48000.f); empty.engine.SetLooper(&idle);
+    empty.Block(); empty.hw.toggle_up = true; empty.Key(panel::kChompiKey, true);
+    empty.Tap(panel::kPage); empty.Tap(panel::kCopy); empty.Key(panel::kChompiKey, false);
+    empty.Tap(panel::kLoopKey); empty.Tap(kWhite[4]); empty.Tap(panel::kChompiKey);
+    assert(empty.sink.jobs.empty() && empty.sink.failures == 1);
+}
+
 int main() {
-    KeysKnobsAndOverrides(); MenuAndRecordingThroughTheController(); LedComposition(); DevelopmentOpcodes(); LooperThroughThePanel(); LooperVoiceCap();
+    KeysKnobsAndOverrides(); MenuAndRecordingThroughTheController(); LedComposition(); DevelopmentOpcodes(); LooperThroughThePanel(); LooperVoiceCap(); LooperSaveGesture();
     std::cout << "PASS: panel controller keys/knobs/overrides, menu + recording via injection, LED composition, dev opcodes, looper via panel/MIDI\n";
 }

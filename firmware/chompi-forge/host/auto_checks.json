@@ -539,6 +539,193 @@
    ]
   },
   {
+   "id": "3.42",
+   "title": "Looper: record a line-in tone loop with LOOP / PLAY, it repeats without a click",
+   "do": [
+    {
+     "send": "presets/01-dry.json"
+    },
+    {
+     "panel": [
+      "release all",
+      "toggle down"
+     ]
+    },
+    {
+     "tone": {
+      "hz": 1000,
+      "seconds": 2.0,
+      "tail": 0.2,
+      "capture": "loop_in",
+      "after": 0.3,
+      "during": [
+       {
+        "panel": "tap KEY_28"
+       },
+       {
+        "wait": 1.0
+       },
+       {
+        "panel": "tap KEY_27"
+       }
+      ]
+     }
+    },
+    {
+     "capture": {
+      "name": "loop_out",
+      "seconds": 2.0
+     }
+    },
+    {
+     "probe": true
+    },
+    {
+     "panel": [
+      "hold KEY_27",
+      "hold KEY_28"
+     ]
+    },
+    {
+     "wait": 2.3
+    },
+    {
+     "panel": [
+      "let KEY_27",
+      "let KEY_28",
+      "release all"
+     ]
+    }
+   ],
+   "check": [
+    {
+     "probe": {
+      "storage.looper.state": "playing",
+      "storage.looper.length_frames": [
+       40000,
+       60000
+      ]
+     }
+    },
+    {
+     "capture": {
+      "name": "loop_out",
+      "pitch_hz": [
+       990,
+       1010
+      ],
+      "silent": false,
+      "clicks_max": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "3.42s",
+   "title": "Looper states via the virtual keys (first take, playback, overdub, pause)",
+   "do": [
+    {
+     "panel": [
+      "release all",
+      "tap KEY_28"
+     ]
+    },
+    {
+     "wait": 0.6
+    },
+    {
+     "probe": true
+    }
+   ],
+   "check": [
+    {
+     "probe": {
+      "storage.looper.state": "first_take"
+     }
+    }
+   ],
+   "realtime": true
+  },
+  {
+   "id": "3.43",
+   "title": "LOOP ends the first take straight into overdub (TAPE)",
+   "do": [
+    {
+     "panel": "tap KEY_28"
+    },
+    {
+     "probe": true
+    }
+   ],
+   "check": [
+    {
+     "probe": {
+      "storage.looper.state": "playing",
+      "storage.looper.overdub": true
+     }
+    }
+   ],
+   "realtime": true
+  },
+  {
+   "id": "3.44",
+   "title": "PLAY: overdub off, then pause",
+   "do": [
+    {
+     "panel": [
+      "tap KEY_27",
+      "tap KEY_27"
+     ]
+    },
+    {
+     "probe": true
+    }
+   ],
+   "check": [
+    {
+     "probe": {
+      "storage.looper.state": "paused",
+      "storage.looper.overdub": false
+     }
+    }
+   ],
+   "realtime": true
+  },
+  {
+   "id": "3.45",
+   "title": "Hold PLAY + LOOP 2 s: the loop is cleared",
+   "do": [
+    {
+     "panel": [
+      "hold KEY_27",
+      "hold KEY_28"
+     ]
+    },
+    {
+     "wait": 2.3
+    },
+    {
+     "panel": [
+      "let KEY_27",
+      "let KEY_28",
+      "release all"
+     ]
+    },
+    {
+     "probe": true
+    }
+   ],
+   "check": [
+    {
+     "probe": {
+      "storage.looper.state": "empty",
+      "storage.looper.length_frames": 0
+     }
+    }
+   ],
+   "realtime": true
+  },
+  {
    "id": "4.1",
    "title": "Panic stops voices, echoes and reverb at once",
    "do": [

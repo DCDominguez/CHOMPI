@@ -119,9 +119,9 @@ int main(int argc, char** argv) {
     // One audio block plus one main-loop pass, as on the device.
     auto block = [&](forge::SampleEvent& event) {
         forge::SampleEvent e; bool finished = false;
-        if(loader.Poll(samples, forge::PackSelection(engine.GetParameters()), recording.data(), e)) {
+        if(loader.Poll(samples, forge::PackSelection(engine.GetParameters()), recording.data(), e, loop_memory.data())) {
             event = e; finished = true;
-            if(e.job.kind == forge::SampleJob::Kind::Save) recorder.Unlock();
+            if(e.job.kind == forge::SampleJob::Kind::Save) { if(e.job.from_loop) looper.Unlock(); else recorder.Unlock(); }
             if(e.job.source == 0xff) sink.Flash(e.ok);
         }
         engine.SetSampleFilesAvailable(handoff.AudioBlock(engine));

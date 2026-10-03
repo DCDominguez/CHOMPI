@@ -318,6 +318,66 @@
     "group": "3D. Sampler (TAPE-style, firmware 0.5)"
   },
   {
+    "id": "3.42",
+    "do": "Send `07-warm-pad.json`. Tap LOOP, play a phrase for a few seconds, tap PLAY",
+    "expect": "PLAY LED teal while recording, LOOP LED red; after PLAY the phrase repeats seamlessly (no click or gap at the loop point) while you can play over it",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "3.43",
+    "do": "Tap LOOP (overdub), play another phrase for one pass, tap LOOP again",
+    "expect": "LOOP LED yellow while overdubbing; both phrases play back; tap LOOP during the first take of a new loop instead of PLAY: it goes straight into overdub (TAPE)",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "3.44",
+    "do": "Tap PLAY (pause), tap PLAY (resume); pause again and hold PLAY 2 s, then tap PLAY",
+    "expect": "Pause and resume fade without clicks; after the 2 s hold the loop restarts from its beginning",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "3.45",
+    "do": "Hold PLAY + LOOP 2 s",
+    "expect": "The loop fades out and is gone (LEDs dark); SW5 turns the cutoff again",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "3.46",
+    "do": "With no loop: press PLAY + LOOP together, release, then play a key",
+    "expect": "LOOP LED blinks red (armed); recording starts with the first note",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "3.47",
+    "do": "With a loop playing: turn SW5, press SW5; pause and turn SW5",
+    "expect": "Loop pitch/speed follows (reverse below zero), press = back to normal; paused, turning scrubs (tape-like); SW5 never changes the cutoff while a loop exists",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "3.48",
+    "do": "Menu (toggle up + CHOMPI): PLAY / LOOP a few times; KEY_20 then KEY_21",
+    "expect": "Overdub feedback down / up (older layers fade faster or stay); KEY_20 = effects after the loop (the delay/reverb applies to the loop too), KEY_21 = before (default); the lit key shows which",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "3.49",
+    "do": "Menu, Samples page: KEY_24 (copy), LOOP, a white key, CHOMPI",
+    "expect": "CHOMPI LED pink, then green; the loop is now that sample slot and plays on the keys; while saving, LOOP cannot overdub",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "3.50",
+    "do": "`H cc 27 127`, `H cc 27 0`, `H cc 26 127`, `H cc 26 0`, `H cc 24 100`",
+    "expect": "CC 27 = LOOP, CC 26 = PLAY (as TAPE); CC 24 changes the loop speed while a loop exists",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
+    "id": "3.51",
+    "do": "Panic (`H panic`, SW5 without a loop, CC 120) while a loop plays; then switch presets",
+    "expect": "Panic stops the loop at once (it stays, PLAY resumes it); a preset change does not stop the loop",
+    "group": "3E. Looper (TAPE-style, roadmap item 5)"
+  },
+  {
     "id": "4.1",
     "do": "Hold a long-release chord with echo (use Warm Pad for reverb too); press SW5",
     "expect": "Voices, old echo and reverb tails stop at once",
@@ -357,6 +417,12 @@
     "id": "6.2c",
     "do": "**Sampler worst case:** record a ≥ 5 s take (3.34), reboot is not needed but note the peak first, `H send presets/13-sampler-stress.json`, hold seven keys for 1 minute, `H status`",
     "expect": "Record average and peak. If peak ≥ 70 %, lower voices to 5 then 4 and repeat. Sample reads come from SDRAM, so this is the number the emulator cannot predict",
+    "group": "6. Sustained run and power"
+  },
+  {
+    "id": "6.2d",
+    "do": "**Sampler + looper:** as 6.2c, then tap LOOP and overdub for 1 minute while holding the seven keys, `H status`",
+    "expect": "Record average and peak. While the looper records or overdubs, a seventh sampler voice is released (6 voices max, by design); report whether that is noticeable",
     "group": "6. Sustained run and power"
   },
   {

@@ -137,7 +137,7 @@ or 32-bit float, mono or stereo, 8–96 kHz.
 | Samples page: KEY_18 / 19 / 20 | Record source mic / line / resample (jack insertion picks line) |
 | Samples page: KEY_25 / 24 / 23 → white key → CHOMPI | Save recording / copy / erase a sample file |
 
-The chromatic slot or the whole kit bank is loaded into a 40 MB SDRAM pool in
+The chromatic slot or the whole kit bank is loaded into a 32 MiB SDRAM pool in
 16 KB steps (notes can start while it loads); the recording has its own
 16 MB (~87 s). Forge writes TAPE's 16-bit stereo 48 kHz format and removes the
 slot's stale `_double.wav`, which TAPE regenerates at boot. See

@@ -2,7 +2,7 @@
 
 The bridge is the local browser interface for a consolidated physical test:
 live SYSTEM/PANEL/ENGINE/STORAGE, keys and LED shadow, indexed voices, retained
-events, test controls, 62 guided checks, observations and downloadable evidence.
+events, test controls, 73 guided checks, observations and downloadable evidence.
 It uses the same `forge_inspector.collect` model as the terminal Inspector.
 With an audio interface it also listens: automatic checks measure CHOMPI's
 output (pitch, clicks, level, silence) while driving notes, tones and virtual
@@ -55,12 +55,15 @@ interface outputs 1/2  ──►  CHOMPI line in            (test tones; aux pat
 ### Automatic checks
 
 `host/auto_checks.json` runs the TEST_SESSION steps a computer can measure,
-in about two minutes: identity (1.3), noise floor, the aux path with a line-in
+in about two and a half minutes: identity (1.3), noise floor, the aux path with a line-in
 tone (2.1, 2.2, 2.4), pitch over MIDI and from a virtual key (3.1), voice
 stealing without clicks (3.4), Warm Pad tail (3.10), menu and samples page with
 LED read-back (3.17, 3.30), samples (3.28, 3.29), a line-in recording played
-back at the right pitch (3.34; RAM only, nothing written to the card), panic
-(4.1), CPU worst cases (6.2b, 6.2c) and the return to dry aux. It sends
+back at the right pitch (3.34; RAM only, nothing written to the card), the
+looper (3.42: a line-in tone loop repeats at the right pitch without a seam
+click; 3.42s–3.45: first take, overdub, pause and clear via the virtual keys,
+read back from the Inspector; these need real time and are skipped in the
+simulation), panic (4.1), CPU worst cases (6.2b, 6.2c) and the return to dry aux. It sends
 patches, notes, −18 dBFS tones and virtual panel presses, and always hands the
 panel back at the end. Each step shows pass / fail / error / skipped, the
 failed expectations and, per recording, level, pitch, clicks and a

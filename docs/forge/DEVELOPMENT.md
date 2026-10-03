@@ -43,7 +43,7 @@ make -C firmware/chompi-forge test
 make -C firmware/chompi-forge sanitize
 ```
 
-`test` builds the eight native suites (DSP/queue, protocol, synth, v3, preset, sampler, panel, Inspector) and the offline harness, then runs
+`test` builds the nine native suites (DSP/queue, protocol, synth, v3, preset, sampler, panel, Inspector, looper) and the offline harness, then runs
 Python integration tests. `make -C firmware/chompi-forge browser-test` drives the
 real webapp in Chromium (Playwright) against `tests/sim_device.py`, a stateful
 stand-in that routes SysEx through the same C++ runtime; screenshots land in

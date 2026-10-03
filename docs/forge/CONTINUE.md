@@ -3,7 +3,31 @@
 Updated 2026-10-03 (UTC), checkpoint after roadmap items 1–4 (sampler,
 firmware 0.5). Read this first.
 
-## Current checkpoint: boot fix and cleanup, 2026-10-03
+## Current checkpoint: looper (roadmap item 5), 2026-10-03
+
+DC: "proceed with the looper build but run the design doc with me first".
+Design and decisions: [LOOPING.md](LOOPING.md) (D1 ~83 s stereo with the sample
+pool at 32 MiB, D2 SW5 context, D3 TAPE parity + save loop to a slot, D4 LOOP
+ends the first take into overdub). Built in four steps, each tested:
+1. `core/looper.h` + `tests/looper_test.cpp` (gestures, seam, overdub/feedback,
+   fades, varispeed/reverse/scrub, auto-close, panic, limiter, CC buttons,
+   random use; 8 mutations caught).
+2. Engine/panel/MIDI/firmware wiring; CC 26/27/24; menu feedback and effects
+   position; SDRAM; voice cap 6 while writing (CPU gate; 5 mutations caught).
+3. Save the loop to a sample slot (menu gesture, locked loop, loader
+   `from_loop`); Inspector page 5 looper fields (94 bytes ≤ 96).
+4. TEST_SESSION 3E (3.42–3.51) + 6.2d, bridge checks (73, generated from the
+   table; consistency test), automatic checks 3.42 (audio) and 3.42s–3.45
+   (virtual keys, real time only), docs.
+
+Checks 2026-10-03: `make test` 9 native suites PASS, Python tests OK; `make
+sanitize` 9 PASS (detect_leaks=0); `make browser-test` OK; `make bench
+--check` PASS (looper worst case 2,555 ≤ WAVE 2,695); ARM release 223,444 B
+(77.4 %) and development 239,632 B with the layout check; SDRAM 99.4 %.
+Exact figures in the commit messages. Hardware: none. Risks: real CPU of 7
+voices + looper (6.2d decides the cap), SDRAM bandwidth, KEY_27/28 and LEDs
+7/8 (taken from TAPE's source), loudness of overdub stacking.
+
 
 DC asked to review the new community CHOMPI firmware forks (sfaber02,
 lnetzel, ugrossek, xNeoclox, sthompsonjr; upstream CHOMPI-Club unchanged) and

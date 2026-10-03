@@ -101,7 +101,7 @@ callback and bypass the gate.
 
 The main loop owns all sample file I/O (`SampleLoader`, `FatFsSampleFiles`):
 it scans the root once per mount for TAPE names, loads the wanted chromatic
-slot or kit bank into the 40 MB pool in 16 KB steps (one per loop pass), and
+slot or kit bank into the 32 MiB pool in 16 KB steps (one per loop pass), and
 runs save/copy/erase jobs via a temp file. The audio callback publishes the
 wanted selection (`PackSelection`) each block. Before rewriting slot memory
 the loader asks `SampleHandoff` to detach: the audio owner then refuses new

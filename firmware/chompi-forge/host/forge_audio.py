@@ -320,8 +320,8 @@ def compare(expected, actual):
 class Runner:
     """Runs a plan against a device (send_patch, status, panic, panel(event), snapshot, samples,
     note, cc) and an audio backend (or None: audio steps are skipped)."""
-    def __init__(self, device, audio, report_dir=None, root=ROOT, progress=None, cancel=None):
-        self.device, self.audio, self.root = device, audio, Path(root)
+    def __init__(self, device, audio, report_dir=None, root=ROOT, progress=None, cancel=None, simulated=False):
+        self.device, self.audio, self.root, self.simulated = device, audio, Path(root), simulated
         self.report = Path(report_dir) if report_dir else None
         if self.report: self.report.mkdir(parents=True, exist_ok=True)
         self.progress, self.cancel = progress or (lambda entry: None), cancel or threading.Event()
@@ -334,6 +334,8 @@ class Runner:
                 if self.cancel.is_set(): break
                 entry = {"id": step["id"], "title": step.get("title", ""), "result": "pass", "checks": []}
                 try:
+                    if self.simulated and step.get("realtime"):
+                        raise Skipped("Needs real time (the simulation advances only on requests)")
                     if self.audio is None and any(next(iter(a)) in AUDIO_ACTIONS for a in step.get("do", [])):
                         raise Skipped("No audio interface (simulation, or none detected)")
                     for action in step.get("do", []): self.action(action, entry)

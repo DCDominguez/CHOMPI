@@ -3,7 +3,10 @@
 Updated 2026-10-03 (UTC). **Read [CONTINUE.md](CONTINUE.md) first**; it is the
 live checkpoint with claim levels, what changed and prioritized next actions.
 
-Latest: boot fix ("64 MHz bug": boot_info now in backup SRAM; release and
+Latest: the looper (roadmap item 5, LOOPING.md) — TAPE-style on KEY_27/28,
+~83 s, save to a sample slot; software-tested only. See CONTINUE.
+
+Before that: boot fix ("64 MHz bug": boot_info now in backup SRAM; release and
 development firmware) and cleanup; kits rebuilt. See CONTINUE.
 
 Before that: plug-and-play bridge. Connect CHOMPI finds the ports itself.

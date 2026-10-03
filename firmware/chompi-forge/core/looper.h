@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <cmath>
 #include <cstdint>
 #include "parameters.h"
@@ -84,7 +85,7 @@ public:
         if(state_ == State::Armed) state_ = State::Empty;
         gain_ = 0.f; speed_ = 0.f;                         // tape stopped dead, no fade
     }
-    void Clear() { if(state_ == State::FirstTake) CloseTake(false); clearing_ = state_ != State::Empty && state_ != State::Armed; if(!clearing_) Reset(); overdub_ = false; }
+    void Clear() { if(Locked()) return; if(state_ == State::FirstTake) CloseTake(false); clearing_ = state_ != State::Empty && state_ != State::Armed; if(!clearing_) Reset(); overdub_ = false; }
     // Transport (SW5 / CC 24): speed -2..+2, 1 = original, negative = reverse.
     void SetSpeed(float speed) { speed_target_ = Clamp(speed, -2.f, 2.f); }
     void NudgeSpeed(int increment) { SetSpeed(speed_target_ + increment * (4.f / 127.f)); }
@@ -122,6 +123,15 @@ public:
     bool Empty() const { return state_ == State::Empty || state_ == State::Armed; }
     bool HasLoop() const { return length_ > 0 && !clearing_; }
     bool Overdubbing() const { return overdub_ && state_ == State::Playing; }
+    // Saving the loop to a sample slot: the audio owner locks it (refused while
+    // recording or overdubbing, or when empty); while locked the loop plays but
+    // cannot be overdubbed, re-recorded or cleared. The main loop unlocks.
+    bool Lock() {
+        if(!HasLoop() || Writing() || locked_.load(std::memory_order_acquire)) return false;
+        locked_.store(true, std::memory_order_release); return true;
+    }
+    void Unlock() { locked_.store(false, std::memory_order_release); }
+    bool Locked() const { return locked_.load(std::memory_order_acquire); }
     bool Writing() const { return state_ == State::FirstTake || (overdub_ && state_ == State::Playing && !clearing_); }
     bool Clearing() const { return clearing_; }
     float Position() const { return length_ ? (index_ + frac_) / length_ : 0.f; }
@@ -175,6 +185,7 @@ private:
         }
     }
     void LoopPress() {
+        if(Locked()) return;                            // being saved: no overdub / new take
         switch(state_) {
             case State::Empty: StartTake(); break;
             case State::Armed: state_ = State::Empty; break;
@@ -200,6 +211,7 @@ private:
     bool overdub_ = false, clearing_ = false, tape_slew_ = false;
     bool play_down_ = false, loop_down_ = false, pending_play_ = false, pending_loop_ = false;
     bool combo_used_ = false, jumped_ = false, was_paused_ = false;
+    std::atomic<bool> locked_{false};
 };
 
 // MIDI CC 26 (PLAY) / 27 (LOOP), as TAPE: >= 85 press, <= 41 release, the

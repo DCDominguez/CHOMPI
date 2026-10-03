@@ -114,10 +114,11 @@ never reaches the output.
 | --- | --- | --- |
 | Input channel | Configurable (`options.json` midi_ch_in); CC input can be disabled | Fixed channel 1 |
 | CC20–23 | Turn logical knobs 0–3 = hardware SW4, SW1, SW2, SW3 (`encoder_map`) | Same knobs: mix, time, feedback, level; on sampler patches TAPE's page 0: pitch, start, end, mix |
-| CC24 | Encoder SW5 (WAVE ignores it; TAPE only while the looper plays) | SW5's function (cutoff) |
+| CC24 | Encoder SW5 (WAVE ignores it; TAPE only while the looper plays) | SW5's function: looper speed while a loop exists (as TAPE), else cutoff |
 | CC25 | Encoder SW6 | SW6's function (output level) |
-| CC14/15 (WAVE/TEMPO), CC26/27 (TAPE) | Emulate two buttons | Ignored |
-| CC26–33 | Second-page encoders (output) | Ignored |
+| CC14/15 (WAVE/TEMPO) | Emulate two buttons | Ignored |
+| CC26/27 (TAPE) | Looper PLAY / LOOP (≥ 85 press, ≤ 41 release) | Same (looper, since roadmap item 5) |
+| CC28–33 | Second-page encoders (output) | Ignored |
 | Note/CC output | Keys sent as MIDI | None (SysEx replies only) |
 | Also in Forge | — | CC1, 64, 71 resonance, 74 cutoff, 85 bypass, 91 reverb, 120, 121, 123, pitch bend, SysEx patches |
 

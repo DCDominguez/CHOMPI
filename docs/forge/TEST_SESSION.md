@@ -49,7 +49,7 @@ with observations, state evidence and exports. With the development kit,
 double-click `Start Forge bridge.cmd` and press Connect CHOMPI (from a clone:
 `python host/forge_web.py --open`). With an audio interface wired in, Find
 audio interface and Run automatic checks measure 1.3, 2.1–2.4, 3.1, 3.4, 3.10,
-3.17, 3.28–3.30, 3.34, 4.1 and 6.2b/c and record the results in the session
+3.17, 3.28–3.30, 3.34, 3.42–3.45, 4.1 and 6.2b/c and record the results in the session
 export; record those steps from it, and judge by ear what it cannot. Enable test controls only for
 explicit actions. It coordinates polling with its own patch/MIDI/storage tests.
 Disconnect before running the separate `H` CLI commands below. The terminal
@@ -162,6 +162,25 @@ Card prepared in 0.6. "Menu" = toggle up + CHOMPI key, as in 3.17.
 | 3.40 | `H sample-save chromatic d 1 ...`, `H sample-copy chromatic d 1 kit e 14 ...`, `H sample-erase chromatic d 1 ...` | Each acknowledged; webapp Device samples shows the same slots after Read samples |
 | 3.41 | Optional, **TAPE compatibility:** put stock TAPE (`firmware/card-profiles/tape-2.0` .bin) on this card, boot | TAPE plays the samples Forge saved (after regenerating their `_double` files at boot); Forge's `FORGE/` folder does not disturb it. Then restore `FORGE.bin` |
 
+## 3E. Looper (TAPE-style, roadmap item 5)
+
+KEY_28 = LOOP, KEY_27 = PLAY (the two keys TAPE uses); their LEDs are the big
+key lights. The loop records what you hear (effects before the loop). Up to
+~83 s. Nothing is written to the card except in 3.49.
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.42 | Send `07-warm-pad.json`. Tap LOOP, play a phrase for a few seconds, tap PLAY | PLAY LED teal while recording, LOOP LED red; after PLAY the phrase repeats seamlessly (no click or gap at the loop point) while you can play over it |
+| 3.43 | Tap LOOP (overdub), play another phrase for one pass, tap LOOP again | LOOP LED yellow while overdubbing; both phrases play back; tap LOOP during the first take of a new loop instead of PLAY: it goes straight into overdub (TAPE) |
+| 3.44 | Tap PLAY (pause), tap PLAY (resume); pause again and hold PLAY 2 s, then tap PLAY | Pause and resume fade without clicks; after the 2 s hold the loop restarts from its beginning |
+| 3.45 | Hold PLAY + LOOP 2 s | The loop fades out and is gone (LEDs dark); SW5 turns the cutoff again |
+| 3.46 | With no loop: press PLAY + LOOP together, release, then play a key | LOOP LED blinks red (armed); recording starts with the first note |
+| 3.47 | With a loop playing: turn SW5, press SW5; pause and turn SW5 | Loop pitch/speed follows (reverse below zero), press = back to normal; paused, turning scrubs (tape-like); SW5 never changes the cutoff while a loop exists |
+| 3.48 | Menu (toggle up + CHOMPI): PLAY / LOOP a few times; KEY_20 then KEY_21 | Overdub feedback down / up (older layers fade faster or stay); KEY_20 = effects after the loop (the delay/reverb applies to the loop too), KEY_21 = before (default); the lit key shows which |
+| 3.49 | Menu, Samples page: KEY_24 (copy), LOOP, a white key, CHOMPI | CHOMPI LED pink, then green; the loop is now that sample slot and plays on the keys; while saving, LOOP cannot overdub |
+| 3.50 | `H cc 27 127`, `H cc 27 0`, `H cc 26 127`, `H cc 26 0`, `H cc 24 100` | CC 27 = LOOP, CC 26 = PLAY (as TAPE); CC 24 changes the loop speed while a loop exists |
+| 3.51 | Panic (`H panic`, SW5 without a loop, CC 120) while a loop plays; then switch presets | Panic stops the loop at once (it stays, PLAY resumes it); a preset change does not stop the loop |
+
 ## 4. Panic and recovery
 
 | # | Do | Pass when |
@@ -187,6 +206,7 @@ Record provider/model/seconds, never the key.
 | 6.2 | `H status` at the end | Peak CPU < 100% (fail at ≥100%; < 70% is the comfort target). Record average, peak, dropped, rejected |
 | 6.2b | **Worst case:** reboot (resets peak), `H send presets/10-cpu-stress.json`, hold four keys for 1 minute, `H status` | Record average and peak. If peak ≥ 70 %, set voices to 3 then 2 in the webapp, Send, repeat, and record each. This sets the v3 CPU budget |
 | 6.2c | **Sampler worst case:** record a ≥ 5 s take (3.34), reboot is not needed but note the peak first, `H send presets/13-sampler-stress.json`, hold seven keys for 1 minute, `H status` | Record average and peak. If peak ≥ 70 %, lower voices to 5 then 4 and repeat. Sample reads come from SDRAM, so this is the number the emulator cannot predict |
+| 6.2d | **Sampler + looper:** as 6.2c, then tap LOOP and overdub for 1 minute while holding the seven keys, `H status` | Record average and peak. While the looper records or overdubs, a seventh sampler voice is released (6 voices max, by design); report whether that is noticeable |
 | 6.3 | Reboot; `H status`; resend a saved patch | Boots to dry aux defaults; recall works |
 | 6.4 | Optional: restore stock firmware with your normal card (or copy a folder from `firmware/card-profiles/` to a card) | Stock works again |
 

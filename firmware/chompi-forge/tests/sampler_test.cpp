@@ -406,6 +406,7 @@ struct LoaderRig : Rig {
     SampleCard card; SampleHandoff handoff; SampleLoader loader;
     std::vector<int16_t> pool; std::vector<uint8_t> scratch = std::vector<uint8_t>(16384);
     std::vector<int16_t> recording = std::vector<int16_t>(2 * 48000);
+    std::vector<int16_t> loop = std::vector<int16_t>(2 * 48000);      // looper memory (loop saves)
     Recorder recorder;
     std::vector<SampleEvent> events;
     explicit LoaderRig(uint32_t pool_samples = 4u << 20) : pool(pool_samples) {
@@ -415,7 +416,7 @@ struct LoaderRig : Rig {
     // One main-loop pass plus one audio block, as on the device.
     void Step() {
         SampleEvent e;
-        if(loader.Poll(card, PackSelection(engine.GetParameters()), recording.data(), e)) events.push_back(e);
+        if(loader.Poll(card, PackSelection(engine.GetParameters()), recording.data(), e, loop.data())) events.push_back(e);
         engine.SetSampleFilesAvailable(handoff.AudioBlock(engine));
         float L, R; for(int i = 0; i < 24; ++i) engine.Process(0, 0, L, R);
     }
@@ -568,6 +569,16 @@ void SaveCopyErase() {
     rig.card.append_budget = -1;
     rig.card.ready = false; assert(rig.loader.Queue(save)); rig.Step(); rig.Step();
     assert(!rig.events.back().ok && rig.events.size() == 7);
+    // Saving the loop (from_loop): the loop memory, not the recording, unscaled.
+    rig.card.ready = true; rig.Step();
+    for(size_t i = 0; i < rig.loop.size(); ++i) rig.loop[i] = static_cast<int16_t>((i * 37) % 20000 - 10000);
+    SampleJob from_loop; from_loop.kind = SampleJob::Kind::Save; from_loop.from_loop = true;
+    from_loop.mode = 1; from_loop.bank = 2; from_loop.slot = 4; from_loop.frames = 3000; from_loop.gain = 1.f;
+    assert(rig.loader.Queue(from_loop)); rig.Settle();
+    assert(rig.events.back().ok && rig.events.back().job.from_loop && rig.card.Has("cubbi_c5.wav"));
+    const auto& saved = rig.card.Get("cubbi_c5.wav");
+    assert(saved.size() == 44 + 3000 * 4);
+    for(size_t i = 0; i < 2 * 3000; i += 251) assert(int16_t(saved[44 + 2 * i] | (saved[45 + 2 * i] << 8)) == rig.loop[i]);
 }
 
 void SamplerRequests() {

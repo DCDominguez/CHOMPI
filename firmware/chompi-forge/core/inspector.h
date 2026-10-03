@@ -22,6 +22,9 @@ struct InspectorAudio {
     float mix = 0, feedback = 0, level = 0, delay_samples = 0, reverb_mix = 0;
     float bend[3]{1,1,1}; uint8_t pedals = 0;
     InspectorVoice voices[7];
+    // Looper: bits 0-2 state, 3 overdub, 4 effects before the loop, 5 locked (saving).
+    uint8_t loop_flags = 0; uint32_t loop_length = 0;
+    float loop_position = 0, loop_speed = 1, loop_feedback = 1;
 };
 // Main requests a refresh at <=20 Hz. Audio writes cheap scalar state into
 // this exclusive slot, then publishes; main makes the actual Inspector snapshot.
@@ -123,6 +126,7 @@ FORGE_NOINLINE inline size_t EncodeInspector(uint16_t sequence, uint8_t page, co
         word(st.loaded_selection); word(st.file_loaded_frames); word(st.file_frames); word(st.pool_used_bytes);
         word(st.pool_capacity_bytes); word(a.record_frames); word(st.record_capacity_frames); word(st.errors);
         word(sys.event_drops); word(sys.emergencies); word(sys.panel_drops); word(sys.sample_drops);
+        byte(a.loop_flags); word(a.loop_length); unit(a.loop_position); unit((a.loop_speed + 2.f) * .25f); unit(a.loop_feedback);
     } else if(page == 6) {
         word(log.Latest()); word(log.Overwritten());
         InspectorEvent events[3]; const unsigned count = log.After(cursor, events); byte(count);

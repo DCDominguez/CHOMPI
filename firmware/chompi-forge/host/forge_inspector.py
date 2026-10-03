@@ -49,7 +49,7 @@ def decode(data, sequence, expected_page=None):
         return {"page": 1, "rgb": [data[9+3*i:12+3*i] for i in range(26)]}
     if page not in range(2,8) or len(data) < 16 or data[9] != 1:
         raise ValueError("Unsupported Inspector schema/page; use the matching host")
-    lengths = {2:88, 3:95, 4:88, 5:82}
+    lengths = {2:88, 3:95, 4:88, 5:94}
     if page in lengths and len(data) != lengths[page]:
         raise ValueError("Invalid Inspector page length")
     pos = 10
@@ -124,6 +124,11 @@ def decode(data, sequence, expected_page=None):
         for key in ("loaded_selection","file_loaded_frames","file_allocated_frames","pool_used_bytes","pool_capacity_bytes",
                     "record_frames","record_capacity_frames","storage_errors","event_drops","emergencies","panel_queue_drops","sample_queue_drops"):
             result[key]=u32()
+        loop=byte()
+        if loop&7>4 or loop>63: raise ValueError("Invalid looper state")
+        result["looper"]={"state":("empty","armed","first_take","playing","paused")[loop&7],"overdub":bool(loop&8),
+                          "effects_before_loop":bool(loop&16),"locked":bool(loop&32),"length_frames":u32(),
+                          "position":unit(),"speed":round(unit()*4-2,3),"feedback":unit()}
         result["sd_ready"]=result["sd_present"] and result["sd_mount_configured"]
         selection=result["loaded_selection"]
         result["loaded_files"]=(None if selection==0xffffffff or not selection&1 else

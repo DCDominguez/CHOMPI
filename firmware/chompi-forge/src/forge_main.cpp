@@ -375,14 +375,17 @@ void RunPanelActions() {
 void RunSampler() {
     for(forge::SampleJob job; sample_jobs.Pop(job);) {
         job.source = 0xff;
-        if(!sample_loader.Queue(job)) { if(job.kind == forge::SampleJob::Kind::Save) recorder.Unlock(); Flash(false); }
+        if(!sample_loader.Queue(job)) {
+            if(job.kind == forge::SampleJob::Kind::Save) { if(job.from_loop) looper.Unlock(); else recorder.Unlock(); }
+            Flash(false);
+        }
     }
     forge::SampleEvent event;
-    if(sample_loader.Poll(sample_files, sample_wanted.load(std::memory_order_relaxed), record_memory, event)) {
+    if(sample_loader.Poll(sample_files, sample_wanted.load(std::memory_order_relaxed), record_memory, event, loop_memory)) {
 #ifdef FORGE_TEST_HOOKS
         InspectorEvent(forge::InspectorEventKind::SampleJobDone,static_cast<uint8_t>(event.job.kind),event.ok?1:0);
 #endif
-        if(event.job.kind == forge::SampleJob::Kind::Save) recorder.Unlock();
+        if(event.job.kind == forge::SampleJob::Kind::Save) { if(event.job.from_loop) looper.Unlock(); else recorder.Unlock(); }
         if(event.job.source == 0xff) Flash(event.ok);
         else {
             const forge::Response reply = forge::SampleDoneReply(event);

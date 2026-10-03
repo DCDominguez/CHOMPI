@@ -73,7 +73,7 @@ SDRAM (64 MB, `DSY_SDRAM_BSS`, not zeroed at boot; reads are bounded by
 | Region | Size | Holds |
 | --- | --- | --- |
 | Delay lines (existing) | 384 KB | — |
-| Sample pool | 40 MB | The JAMMI sample or the CUBBI bank: ~218 s stereo / ~436 s mono |
+| Sample pool | 32 MiB (40 MB before the looper) | The JAMMI sample or the CUBBI bank: ~174 s stereo / ~349 s mono |
 | Record buffer (slot 15) | 16 MB | ~87 s stereo at 48 kHz |
 | Free | ~7.6 MB | Reserved for looping (roadmap item 5) |
 

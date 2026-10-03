@@ -249,6 +249,14 @@ class BridgeAutomaticTests(unittest.TestCase):
         self.assertFalse(report["hardware_verified"])
         self.assertTrue((Path(self.tmp.name) / "run1" / "summary.md").exists())
 
+    def test_looper_state_reaches_the_bridge(self):
+        self.make(); self.connect(); self.call("arm", enabled=True)
+        looper = self.call("poll")["storage"]["looper"]
+        self.assertEqual((looper["state"], looper["length_frames"], looper["speed"], looper["effects_before_loop"]), ("empty", 0, 1.0, True))
+        for value in (1, 0): self.call("action", action="panel", kind=0, id=34, value=value)      # tap LOOP (KEY_28)
+        for _ in range(3): looper = self.call("poll")["storage"]["looper"]
+        self.assertEqual(looper["state"], "first_take"); self.assertGreater(looper["length_frames"], 0)
+
     @unittest.skipIf(np is None, "numpy not installed")
     def test_audio_steps_run_with_an_interface_and_images_are_served(self):
         plan = Path(tempfile.mkdtemp()) / "plan.json"

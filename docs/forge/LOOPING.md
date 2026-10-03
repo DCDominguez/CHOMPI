@@ -1,7 +1,29 @@
 # Forge looping (roadmap item 5): design
 
-Status: design agreed with DC on 2026-10-03 (section 3); being built in the
-order of section 5. Nothing is hardware-verified. Source analysis: TAPE 2.0 `LooperEngine.h`, `Sampler.h`
+Status: design agreed with DC on 2026-10-03 (section 3). **Implemented and
+software-tested** (steps 1–4 of section 5); nothing is hardware-verified.
+TEST_SESSION 3E (3.42–3.51) and 6.2d cover it.
+
+Implementation notes:
+- Code: `core/looper.h` (engine, gestures, CC buttons), `core/engine.h`
+  (signal chain, panic, CC 24/26/27, voice cap), `core/panel_controller.h`
+  (keys, SW5 context, menu, LEDs), `core/preset_menu.h` (loop as copy
+  source), `core/sample_loader.h` (save from the loop), `src/forge_main.cpp`.
+- Saving the loop: Samples page, COPY (KEY_24), **LOOP** as the source (TAPE's
+  "slot 16"), a white key, CHOMPI. The loop is locked while the WAV is
+  written (no overdub, new take or clear); it keeps playing. Panel only (no
+  host command yet).
+- **CPU budget:** while the looper records or overdubs, sampler voices are
+  capped at 6 (`kLooperVoiceCap`; a voice above the cap is released, not cut).
+  `make bench`: 7 sampler voices + overdub at 1.37× = 2,555 instr/sample
+  (≤ WAVE 2,695; 2,816 without the cap). Sampler worst case without the
+  looper 2,671 (2,628 before). Raise the cap to 7 if TEST_SESSION 6.2d shows
+  headroom.
+- Code space +9.5 KB (release 223,444 B, 77.4 %; development 239,632 B); SDRAM 99.4 % (~390 KB spare).
+- Panic now also pauses the loop (kept); patch changes no longer call it (they
+  use the engine's internal Silence(), as before minus the looper).
+- Simulator: 20 s looper; automatic-check looper steps that need real time
+  are skipped there. Source analysis: TAPE 2.0 `LooperEngine.h`, `Sampler.h`
 (`FileSampler`), `RamBuffer.h`, `NormalPage.h`, `MenuPage.h`, `ui.h`,
 `DSPEngine.h` (read only); community notes and forks listed at the end.
 

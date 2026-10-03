@@ -89,7 +89,8 @@ inline uint32_t PackSelection(const Parameters& p) {
 struct SampleJob {
     enum class Kind : uint8_t { Save, Copy, Erase } kind = Kind::Save;
     uint8_t mode = 0, bank = 0, slot = 0, to_mode = 0, to_bank = 0, to_slot = 0;
-    uint32_t frames = 0; float gain = 1.f;         // Save: the locked recording
+    uint32_t frames = 0; float gain = 1.f;         // Save: the locked recording (or loop)
+    bool from_loop = false;                        // Save: from the looper instead of the recording
     uint16_t sequence = 0; uint8_t source = 0xff;  // host request to answer (0xff = panel)
 };
 struct SampleEvent {
@@ -119,7 +120,9 @@ public:
     }
     // One step. `wanted` comes from PackSelection; `recording` is the RAM
     // slot's data for Save jobs. Returns true with `event` when a job ends.
-    FORGE_NOINLINE bool Poll(SampleFiles& files, uint32_t wanted, const int16_t* recording, SampleEvent& event) {
+    FORGE_NOINLINE bool Poll(SampleFiles& files, uint32_t wanted, const int16_t* recording, SampleEvent& event,
+                             const int16_t* loop = nullptr) {
+        loop_ = loop;
         const bool ready = files.Ready();
         if(!ready) {
             if(scanned_) { std::memset(occupancy_, 0, sizeof occupancy_); scanned_ = false; }
@@ -185,6 +188,7 @@ private:
 #ifdef FORGE_TEST_HOOKS
     uint32_t inspector_errors_=0;
 #endif
+    const int16_t* loop_ = nullptr;                 // looper memory (loop saves)
     enum class State : uint8_t { Idle, Detaching, Headers, Streaming, Job };
     static constexpr uint32_t kNone = 0xffffffffu;
     // Only file slots matter: the recording slot needs no loading.
@@ -270,6 +274,7 @@ private:
     void NextSlot(SampleFiles& files) { files.CloseRead(); open_ = false; ++index_; }
     FORGE_NOINLINE void StartJob(SampleFiles& files, const int16_t* recording, SampleEvent& event) {
         job_ = jobs_[tail_]; tail_ = (tail_ + 1) % kJobs;
+        if(job_.kind == SampleJob::Kind::Save && job_.from_loop) recording = loop_;
         progress_ = 0;
         if(job_.kind == SampleJob::Kind::Erase) {
             char path[24], twice[24];
@@ -292,6 +297,7 @@ private:
     }
     FORGE_NOINLINE bool StepJob(SampleFiles& files, const int16_t* recording, SampleEvent& event) {
         uint32_t bytes = 0;
+        if(job_.from_loop) recording = loop_;
         if(job_.kind == SampleJob::Kind::Save) {
             const uint32_t frames_left = job_.frames - progress_;
             uint32_t frames = scratch_size_ / 4; if(frames > frames_left) frames = frames_left;

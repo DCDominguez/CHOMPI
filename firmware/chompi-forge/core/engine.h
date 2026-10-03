@@ -116,6 +116,12 @@ public:
     void Inspect(InspectorAudio& a) const {
         a.patch=parameters_; synth_.Inspect(a);
         a.mix=mix_; a.feedback=feedback_; a.level=level_; a.delay_samples=time_; a.reverb_mix=reverb_mix_;
+        if(looper_) {
+            a.loop_flags=static_cast<uint8_t>(static_cast<unsigned>(looper_->GetState())|(looper_->Overdubbing()?8:0)
+                                              |(fx_before_loop_?16:0)|(looper_->Locked()?32:0));
+            a.loop_length=looper_->Length(); a.loop_position=looper_->Position();
+            a.loop_speed=looper_->Speed(); a.loop_feedback=looper_->Feedback();
+        }
     }
 #endif
 

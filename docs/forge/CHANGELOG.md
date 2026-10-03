@@ -1,5 +1,21 @@
 # Forge changelog
 
+## 0.5 looper (roadmap item 5) — 2026-10-03
+
+TAPE's looper on KEY_28 LOOP / KEY_27 PLAY (design: LOOPING.md). Software-tested only.
+- First take, overdub with feedback (soft limited), pause/resume, hold PLAY
+  2 s = start, hold both 2 s = clear, armed recording; varispeed −2…+2 with
+  reverse and tape slew, scrub while paused; seamless 5 ms seam fades; ~83 s
+  stereo (sample pool 40 → 32 MiB).
+- SW5 is the looper transport while a loop exists (else cutoff/panic); menu:
+  PLAY/LOOP set the feedback, KEY_21/KEY_20 put the effects before/after the
+  loop; Samples page COPY → LOOP → slot → CHOMPI saves the loop as a sample.
+- MIDI CC 26 PLAY / 27 LOOP (as TAPE); CC 24 follows SW5.
+- Panic pauses the loop (kept); patch changes leave it playing.
+- While recording/overdubbing, sampler voices are capped at 6 (CPU budget).
+- Inspector page 5 carries the looper state; TEST_SESSION 3E + 6.2d; bridge
+  checks and automatic checks.
+
 ## 0.5 boot fix and cleanup — 2026-10-03
 
 - Fixed (release and development firmware): libDaisy's `boot_info` now links
