@@ -215,7 +215,7 @@ void ReverbMixAndCompatibility() {
             assert(a == c && b == d);
         }
     }
-    // CC27 reverb mix works live on v3 and is refused on v2.
+    // CC91 reverb mix works live on v3 and is refused on v2.
     Rig rig; auto p = ReverbPatch(0.5f, 0.5f); p.reverb_mix = 0; assert(rig.engine.ApplyPatch(p));
     assert(rig.engine.Apply({Parameter::ReverbMix, 0.6f}) && rig.engine.GetParameters().reverb_mix == 0.6f);
     assert(rig.engine.Apply({Parameter::Resonance, 0.4f}) && rig.engine.GetParameters().resonance == 0.4f);

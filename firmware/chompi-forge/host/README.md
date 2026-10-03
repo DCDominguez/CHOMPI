@@ -97,7 +97,7 @@ No arbitrary graph, sampler, looper or FM can be generated.
 
 **Panic / stop sound** clears all voices and old delay and reverb tails; it requires both
 MIDI ports and waits for a reply. SW5 press or channel-1 CC120/123 also panic.
-SW5 turn/CC25 change cutoff; CC26 resonance and CC27 reverb mix (v3); CC1 mod
+SW5 turn/CC24/CC74 change cutoff; CC71 resonance and CC91 reverb mix (v3); CC85 wet bypass; CC1 mod
 wheel scales LFO depth when the patch enables it. Route or waveform changes,
 and switching between v1/v2 and v3 patches, stop voices/tails; retrigger held notes. Up to four voices (the patch's `voices`); additional notes steal a releasing voice, else the oldest.
 A patch is volatile; save JSON and resend after reboot. v1 delay files still work.
@@ -192,7 +192,7 @@ and musical interpretation still need a real local-model test.
 For the hardware session or without a MIDI keyboard (channel 1, no reply exists):
 
 ```sh
-python host/forge_host.py cc 24 127 --output "EXACT OUTPUT NAME"      # wet bypass on
+python host/forge_host.py cc 85 127 --output "EXACT OUTPUT NAME"      # wet bypass on
 python host/forge_host.py cc 123 0 --output "EXACT OUTPUT NAME"       # panic
 python host/forge_host.py note 60 64 67 71 74 --hold 3 --output "EXACT OUTPUT NAME"
 python host/forge_host.py note 60 --velocity 30 --zero-velocity-off --output "EXACT OUTPUT NAME"

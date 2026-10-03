@@ -34,21 +34,26 @@ void ParametersAndMidi() {
     assert(!p.Apply({static_cast<Parameter>(255), 0.f}));
     assert(p.mix == 1.f);
     Command command{Parameter::Mix, -1.f};
-    for(uint8_t cc = 20; cc <= 24; ++cc) {
+    // Stock convention: CC20+n = encoder n (SW1..SW6).
+    const Parameter stock[] = {Parameter::Mix, Parameter::Time, Parameter::Feedback, Parameter::Level,
+                               Parameter::Cutoff, Parameter::Level};
+    for(uint8_t cc = 20; cc <= 25; ++cc) {
         assert(DecodeCC(0, cc, 0, command) && command.value == 0.f);
         assert(DecodeCC(0, cc, 127, command) && command.value == 1.f);
-        assert(static_cast<unsigned>(command.parameter) == cc - 20u);
+        assert(command.parameter == stock[cc - 20]);
     }
     assert(!DecodeCC(1, 20, 127, command));
-    assert(DecodeCC(0, 26, 127, command) && command.parameter == Parameter::Resonance);
-    assert(DecodeCC(0, 27, 127, command) && command.parameter == Parameter::ReverbMix);
-    assert(!DecodeCC(0, 28, 127, command));
-    // CC26/27 are v3-only: a v1/v2 patch cannot report them in status, so they are refused.
-    Parameters legacy; assert(DecodeCC(0, 27, 100, command) && !legacy.Apply(command) && legacy.reverb_mix == 0.f);
+    assert(DecodeCC(0, 74, 127, command) && command.parameter == Parameter::Cutoff);
+    assert(DecodeCC(0, 71, 127, command) && command.parameter == Parameter::Resonance);
+    assert(DecodeCC(0, 91, 127, command) && command.parameter == Parameter::ReverbMix);
+    // Stock virtual keys and second-page encoders are not Forge controls.
+    for(uint8_t cc : {14, 15, 26, 27, 28, 29, 30, 31, 32, 33}) assert(!DecodeCC(0, cc, 127, command));
+    // Resonance/reverb are v3-only: a v1/v2 patch cannot report them in status, so they are refused.
+    Parameters legacy; assert(DecodeCC(0, 91, 100, command) && !legacy.Apply(command) && legacy.reverb_mix == 0.f);
     Parameters v3; v3.version = 3; assert(v3.Apply(command) && v3.reverb_mix > 0.78f);
     assert(!DecodeCC(0, 20, 128, command));
-    assert(DecodeCC(0, 24, 63, command) && p.Apply(command) && !p.bypass);
-    assert(DecodeCC(0, 24, 64, command) && p.Apply(command) && p.bypass);
+    assert(DecodeCC(0, 85, 63, command) && p.Apply(command) && !p.bypass);
+    assert(DecodeCC(0, 85, 64, command) && p.Apply(command) && p.bypass);
 }
 
 void QueueBoundariesAndConcurrency() {

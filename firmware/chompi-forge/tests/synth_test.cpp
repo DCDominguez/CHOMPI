@@ -273,8 +273,9 @@ void ChannelTranslation() {
            && request.kind == RequestKind::ResetControllers);
     assert(feed({123, 0}) && TranslateChannel(frame, 0, request) == Ingress::Emergency);
     assert(feed({120, 0}) && TranslateChannel(frame, 0, request) == Ingress::Emergency);
-    assert(feed({25, 127}) && TranslateChannel(frame, 0, request) == Ingress::Control
+    assert(feed({24, 127}) && TranslateChannel(frame, 0, request) == Ingress::Control
            && request.kind == RequestKind::Parameter && request.command.parameter == Parameter::Cutoff);
+    assert(feed({26, 127}) && TranslateChannel(frame, 0, request) == Ingress::Ignore);   // stock virtual key
     assert(feed({1, 64}) && TranslateChannel(frame, 0, request) == Ingress::Control
            && request.kind == RequestKind::ModWheel && request.value == 64);
     assert(feed({2, 64}) && TranslateChannel(frame, 0, request) == Ingress::Ignore);   // breath: unmapped

@@ -32,7 +32,7 @@ The original upstream TAPE/WAVE/TEMPO and bootloader sources remain separate.
 | Reverb | v3: stereo 4-line feedback-delay-network reverb, mix, size (0.2–10 s decay), damping |
 | Audio configuration | 48 kHz, 24-frame blocks; headphone/main output mirroring; microphone unused |
 | Parameter handling | Delay/output smoothing; pitch glide when delay time changes; finite bounded output |
-| Live controls | Encoders, MIDI CC20–27 (26 resonance, 27 reverb mix on v3), CC1 mod wheel, CC64 sustain, CC121 reset controllers, pitch bend, and atomic whole-patch changes between blocks |
+| Live controls | Encoders, MIDI CC20–25 as stock (CC20+n = encoder n), CC71 resonance / CC91 reverb mix (v3), CC74 cutoff, CC85 bypass, CC1 mod wheel, CC64 sustain, CC121 reset controllers, pitch bend, and atomic whole-patch changes between blocks |
 | Recovery | SW5 press, CC120/123, host panic; silence voices and delay/reverb tails; note-overflow recovery |
 | Patch format | v3 named synth/filter/lfo/delay/reverb/output modules with two supported routes; v1 delay and v2 instrument files still work and convert to v3 |
 | Presets | Ten: Dry, Slap, Long Echo (v1); Glass Keys, Soft Pad, Saw Bass (v2); Warm Pad, Acid Bass, Bell Keys, CPU Stress test (v3) |
@@ -58,11 +58,11 @@ mode on reboot. Load an instrument preset to enable synthesis.
 | Delay mix | SW1 / CC20 | 0–100% |
 | Delay time | SW2 / CC21 | 10–1000 ms |
 | Feedback | SW3 / CC22 | 0–85% |
-| Output level | SW4 and SW6 / CC23 | 0–1 |
-| Wet bypass | CC24 | >=64 on; dry still obeys output level |
-| Synth cutoff | SW5 turn / CC25 | 40–16000 Hz, logarithmic |
-| Filter resonance | CC26 (v3) | 0–1 (Q 0.7–11) |
-| Reverb mix | CC27 (v3) | 0–1 |
+| Output level | SW4 and SW6 / CC23, CC25 | 0–1 |
+| Wet bypass | CC85 | >=64 on; dry still obeys output level |
+| Synth cutoff | SW5 turn / CC24, CC74 | 40–16000 Hz, logarithmic |
+| Filter resonance | CC71 (v3) | 0–1 (Q 0.7–11) |
+| Reverb mix | CC91 (v3) | 0–1 |
 | LFO depth | CC1 mod wheel (when the patch enables it) | 0–full |
 | Panic | SW5 press / CC120 or CC123 / webapp | Stop all sources and old delay/reverb tails |
 | Waveforms | Preset or web editor | Sine / triangle / saw / square (LFO: also sample-and-hold) |

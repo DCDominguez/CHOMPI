@@ -1,5 +1,13 @@
 # Forge changelog
 
+## 0.4 MIDI CCs match stock — 2026-10-03
+
+- DC's decision: CC20+n sets encoder n (SW1–SW6) as on TAPE/TEMPO/WAVE:
+  CC24 = cutoff (SW5), CC25 = output level (SW6). Forge-only controls moved
+  to General MIDI numbers stock leaves free: CC71 resonance, CC74 cutoff,
+  CC85 wet bypass, CC91 reverb mix. Stock virtual-key CCs (14, 15, 26–33)
+  are ignored. Wire format (SysEx) unchanged.
+
 ## 0.4 stock comparison refresh — 2026-10-03
 
 - COMPATIBILITY.md refreshed for `4fec6ac`: SD card coexistence section,

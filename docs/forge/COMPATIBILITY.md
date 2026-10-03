@@ -12,7 +12,7 @@ and emulation. Nothing was run on CHOMPI hardware.**
 | Will the bootloader accept FORGE.bin? | Yes by its own rules: same stack/entry layout as all three factory binaries |
 | Same audio setup? | Yes: 48 kHz, 24-frame blocks, mic in 0, aux in 2/3, outputs 0/1 + 2/3 |
 | Same keybed notes? | Yes: identical 25-key map (MIDI 48–72) to TAPE, TEMPO and WAVE |
-| Same MIDI conventions? | Partly: CC20–23 agree; CC24/CC25 differ; channel fixed to 1 (stock configurable) |
+| Same MIDI conventions? | CC20–25 = encoders SW1–SW6 as in stock; channel fixed to 1 (stock configurable) |
 | Is Forge's CPU load plausible? | Worst case ~1,430 instructions/sample, about half of WAVE's shipping engine (~2,700) |
 | Can Forge share an SD card with stock files? | Yes: same SD bus setup and FatFS config as TAPE/WAVE; stock apps ignore `FORGE/` (§3a) |
 | Is our compiler equivalent to the pinned one? | For libDaisy and DaisySP, yes: identical machine code to the shipped Arm 10.3-2021.10 objects (§5) |
@@ -102,14 +102,17 @@ never reaches the output.
 | --- | --- | --- |
 | Input channel | Configurable (`options.json` midi_ch_in); CC input can be disabled | Fixed channel 1 |
 | CC20–23 | Turn encoders SW1–SW4 | SW1–SW4's functions (mix, time, feedback, level) |
-| CC24 | Ignored (encoder 4 skipped) | Wet bypass |
-| CC25 | Encoder SW6 | Cutoff (SW5's function) |
-| CC14/15 | Emulate two buttons | Not used |
+| CC24 | Encoder SW5 (WAVE ignores it; TAPE only while the looper plays) | SW5's function (cutoff) |
+| CC25 | Encoder SW6 | SW6's function (output level) |
+| CC14/15 (WAVE/TEMPO), CC26/27 (TAPE) | Emulate two buttons | Ignored |
+| CC26–33 | Second-page encoders (output) | Ignored |
 | Note/CC output | Keys sent as MIDI | None (SysEx replies only) |
-| Also in Forge | — | CC1, 26, 27, 64, 120, 121, 123, pitch bend, SysEx patches |
+| Also in Forge | — | CC1, 64, 71 resonance, 74 cutoff, 85 bypass, 91 reverb, 120, 121, 123, pitch bend, SysEx patches |
 
-A controller template built for stock CHOMPI works for CC20–23 but differs on
-CC24/25. Aligning these is a product decision (see CONTINUE "Next actions").
+Aligned with stock on DC's decision (2026-10-03): CC20+n turns encoder n, as
+an absolute position, exactly as the stock `OnEncoderTurned` CC path does.
+Forge-only controls moved to General MIDI numbers that stock never uses.
+A controller template built for stock CHOMPI now drives the same encoders.
 
 Device presets (0.4) follow TAPE's panel gestures: toggle in TAPE's menu
 position + CHOMPI key opens the menu; white keys select slots; KEY_23/24/25

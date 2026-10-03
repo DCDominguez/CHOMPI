@@ -146,9 +146,11 @@ source. The keybed has no pedal or bend input. Not yet: octave switching,
 clock sync, MPE, aftertouch, arpeggiator or MIDI note output. v3 voices = 1
 is monophonic with last-note priority but no return to a still-held earlier note.
 
-CC20 mix, 21 time, 22 feedback, 23 level, 24 wet bypass (>=64 on), 25 cutoff,
-26 resonance and 27 reverb mix (v3 patches only; ignored on v1/v2 so status
-stays truthful), 64 sustain pedal, 121 reset controllers, 1 mod wheel (scales
+Stock CHOMPI convention, CC20+n = absolute position of encoder n: CC20 mix,
+21 time, 22 feedback, 23 level, 24 cutoff (SW5), 25 level (SW6). Stock's
+virtual-key and second-page CCs (14, 15, 26–33) are ignored. General MIDI
+extras: 74 cutoff, 85 wet bypass (>=64 on), 71 resonance and 91 reverb mix
+(71/91 on v3 patches only; ignored on v1/v2 so status stays truthful), 64 sustain pedal, 121 reset controllers, 1 mod wheel (scales
 LFO depth when the v3 patch sets mod_wheel; global, reset by panic/CC121).
 Pitch bend (status E0) on channel 1.
 CC120 and CC123 silence **all** sources/tails as a global recovery action;

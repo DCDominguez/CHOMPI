@@ -559,7 +559,7 @@ def cli(argv=None):
             command.add_argument("bank", type=int, help="1-8"); command.add_argument("slot", type=int, help="1-15")
         command.add_argument("--input", required=True); command.add_argument("--output", required=True)
         command.add_argument("--timeout", type=float, default=2.0)
-    cc = commands.add_parser("cc", help="Send one channel-1 control change (e.g. 24 127 = wet bypass on, 123 0 = panic)")
+    cc = commands.add_parser("cc", help="Send one channel-1 control change (e.g. 85 127 = wet bypass on, 123 0 = panic)")
     cc.add_argument("number", type=int); cc.add_argument("value", type=int); cc.add_argument("--output", required=True)
     note = commands.add_parser("note", help="Play channel-1 notes together, hold, then release them")
     note.add_argument("notes", type=int, nargs="+"); note.add_argument("--output", required=True)

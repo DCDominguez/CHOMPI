@@ -67,6 +67,11 @@ struct Parameters {
 };
 
 // MIDI channel 1 (zero-based channel 0); full patches use protocol.h.
+// Stock CHOMPI convention: CC20+n sets encoder n's position (absolute), so
+// CC20-25 = SW1-SW6 = mix, time, feedback, level, cutoff (SW5), level (SW6).
+// Stock also uses CC14/15 and CC26-33 (virtual keys, second encoder pages);
+// Forge ignores those. Extra controls use General MIDI numbers that stock
+// leaves free: 71 resonance, 74 cutoff (brightness), 85 wet bypass, 91 reverb.
 inline bool DecodeCC(uint8_t channel, uint8_t cc, uint8_t value, Command& out) {
     if(channel != 0 || value > 127) return false;
     Parameter parameter;
@@ -74,11 +79,11 @@ inline bool DecodeCC(uint8_t channel, uint8_t cc, uint8_t value, Command& out) {
         case 20: parameter = Parameter::Mix; break;
         case 21: parameter = Parameter::Time; break;
         case 22: parameter = Parameter::Feedback; break;
-        case 23: parameter = Parameter::Level; break;
-        case 24: parameter = Parameter::Bypass; break;
-        case 25: parameter = Parameter::Cutoff; break;
-        case 26: parameter = Parameter::Resonance; break;
-        case 27: parameter = Parameter::ReverbMix; break;
+        case 23: case 25: parameter = Parameter::Level; break;
+        case 24: case 74: parameter = Parameter::Cutoff; break;
+        case 71: parameter = Parameter::Resonance; break;
+        case 85: parameter = Parameter::Bypass; break;
+        case 91: parameter = Parameter::ReverbMix; break;
         default: return false;
     }
     out = {parameter, static_cast<float>(value) / 127.f};

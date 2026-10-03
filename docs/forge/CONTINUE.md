@@ -27,8 +27,9 @@ No main merge, flashing or real-key API calls by agents.
 - QA bundle `Forge-0.4-test-4fec6ac` is current (firmware unchanged since).
 
 **What's left.**
-- DC decisions: CC24/25 alignment + configurable MIDI channel; boot
-  behaviour (dry aux vs recall last preset); where to host QA bundles.
+- DC decisions made 2026-10-03: CCs match stock (done: CC20+n = encoder n);
+  start-up stays dry aux; QA bundles go to DC's Google Drive (DC uploads;
+  agents have no Drive access). Still open: configurable MIDI channel.
 - Features (PROJECT.md roadmap): 4 sampling (design first, confirm scope),
   5 looping, 6 Tab5 controllers (optional). Smaller candidates: preset names,
   boot recall, mono note stack, octave shift, bend range, TAPE/WAVE preset
@@ -330,15 +331,11 @@ KEY_16/17 banks; CHOMPI confirms; SMT LED 25 − slot# under white keys,
 
 ## Next actions (priority order)
 
-1. DC decision (still open): MIDI CC24/25 alignment with stock and a
-   configurable input channel (see COMPATIBILITY.md §4).
-2. DC decision: boot behaviour — keep dry aux, or recall the last-used preset
-   at power-up (TAPE restores its state).
-   Also pending (DC, no rush): where to host QA bundles (not in git; a
-   GitHub release attachment is one option).
-3. Agent: roadmap item 4, sampling. Design first (SDRAM buffers, SD streaming
-   like TAPE's FileStreamingManager, sample maps in v4 patches, AI schema),
-   then confirm scope with DC.
+1. Done 2026-10-03 (DC): CCs aligned with stock (COMPATIBILITY.md §4);
+   start-up stays dry aux (no boot recall); QA bundles → DC's Google Drive.
+   Open, low priority: configurable MIDI input channel (stock: options.json).
+2. Agent: roadmap item 4, sampling — DC: follow TAPE's sampling (known to
+   work) plus cheap extras. Design in SAMPLING.md, then implement.
 4. Bundle: `Forge-0.4-test-4fec6ac` built from `4fec6ac` (xPack GCC 10.3.1,
    zip sha256 `c1ee9eb1…f2f18aa`, FORGE.bin sha256 `6bfc4925…02dcc6b`,
    `verify_bundle.py`: 43 files OK). Regenerate if firmware changes again.

@@ -53,17 +53,18 @@ Aux L/R (`in[2]`/`in[3]`) feed the effect; stereo output is copied to headphone
 | Wet/dry | 20 | SW1 | 0–100%; starts dry |
 | Delay time | 21 | SW2 | 10–1000 ms; starts 257.5 ms |
 | Feedback | 22 | SW3 | 0–85%; starts 21.25% |
-| Output level | 23 | SW4 and SW6 | 0–1 gain; fades up to 0.25 |
-| Wet bypass | 24 | MIDI only | 0–63 off, 64–127 on |
-| Synth cutoff | 25 | SW5 turn | Logarithmic 40–16000 Hz; v2/v3 patches |
-| Filter resonance | 26 | MIDI only | 0–1; v3 patches only |
-| Reverb mix | 27 | MIDI only | 0–1; v3 patches only |
+| Output level | 23 (SW4), 25 (SW6) | SW4 and SW6 | 0–1 gain; fades up to 0.25 |
+| Wet bypass | 85 | MIDI only | 0–63 off, 64–127 on |
+| Synth cutoff | 24 (SW5), 74 | SW5 turn | Logarithmic 40–16000 Hz; v2/v3 patches |
+| Filter resonance | 71 | MIDI only | 0–1; v3 patches only |
+| Reverb mix | 91 | MIDI only | 0–1; v3 patches only |
 | Mod wheel | 1 | MIDI only | Scales LFO depth when the v3 patch enables it |
 | Panic | 120/123 | SW5 press | Silence all voices and old delay/reverb tails |
 
 Encoder IDs follow `hardware.h`; confirm printed-panel correspondence during
 bring-up. SW5 turns synth cutoff and its press panics. Keybed notes 48–72
 play v2/v3 synth patches at velocity 100. CC values use `value / 127`.
+CC20+n sets encoder n's function, as on stock CHOMPI firmware.
 The same mapping is accepted over USB and TRS MIDI; other channels and unknown
 CCs are ignored. SysEx patch/status requests receive replies on the same transport.
 Channel-1 notes play the synth; CC64 sustain and pitch bend (±2 semitones)

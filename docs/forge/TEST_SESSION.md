@@ -44,7 +44,7 @@ Keep monitoring volume low. Avoid audio feedback loops. The mic is unused.
 | 2.1 | Aux source in; `H send presets/01-dry.json ...`; play left-only then right-only | Correct L/R on headphones and main outs |
 | 2.2 | `H send presets/02-slap.json`, then `03-long-echo.json`, while audio plays | Acknowledged; echoes change; no crash; time change glides in pitch |
 | 2.3 | Turn SW1–SW4 and volume SW6; `H status` | Mix/time/feedback/level move as documented; level can mute |
-| 2.4 | `H cc 24 127 --output "OUT"`, then `H cc 24 0` | Wet fades out then back; dry still follows level |
+| 2.4 | `H cc 85 127 --output "OUT"`, then `H cc 85 0` | Wet fades out then back; dry still follows level |
 | 2.5 | `H capture saved-aux.json ...`; send another preset; `H send saved-aux.json` | Returns within 14-bit quantization |
 
 ## 3. Instrument
@@ -69,7 +69,7 @@ Keep monitoring volume low. Avoid audio feedback loops. The mic is unused.
 | 3.11 | `H send presets/08-acid-bass.json`; play overlapping notes low on the keys | Monophonic; pitch glides between notes; resonant filter "snap" on each note |
 | 3.12 | With Acid Bass: `H cc 1 127 --output "OUT"`, hold a note, then `H cc 1 0` | Mod wheel brings in a filter wobble; at 0 it stops |
 | 3.13 | `H send presets/09-bell-keys.json`; play single notes | Bell-like tone (second oscillator a 12th above); reverb tail; slight vibrato only with mod wheel up |
-| 3.14 | With a v3 patch: `H cc 26 110`, `H cc 27 110`; `H capture cc-test.json ...` | Resonance and reverb mix audibly increase; captured JSON shows filter.resonance and reverb.mix near 0.87 |
+| 3.14 | With a v3 patch: `H cc 71 110`, `H cc 91 110`; `H capture cc-test.json ...` | Resonance and reverb mix audibly increase; captured JSON shows filter.resonance and reverb.mix near 0.87 |
 | 3.15 | Webapp: load Soft Pad (v2), **Convert to v3 instrument**, Send | Sounds close to the v2 Soft Pad (filter slightly steeper); no error |
 | 3.16 | Send a v2 preset, then a v3 preset, while holding a note | Sound stops cleanly at the format change (like a route change); next note plays |
 
