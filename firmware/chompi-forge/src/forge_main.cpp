@@ -91,10 +91,15 @@ std::atomic<uint32_t> audio_flash{0};              // audio -> main: 1 = ok, 2 =
 
 // Sampler (docs/forge/SAMPLING.md). SDRAM is not zeroed at boot; every read is
 // bounded by a slot's published `loaded` count, so stale memory never plays.
-constexpr uint32_t kPoolSamples = 40u * 1024 * 1024 / 2;      // 40 MB: chromatic sample or kit bank
+constexpr uint32_t kPoolSamples = 32u * 1024 * 1024 / 2;      // 32 MiB: chromatic sample or kit bank (~174 s stereo)
 constexpr uint32_t kRecordFrames = 16u * 1024 * 1024 / 4;     // 16 MB: ~87 s stereo at 48 kHz
 int16_t DSY_SDRAM_BSS sample_pool[kPoolSamples];
 int16_t DSY_SDRAM_BSS record_memory[2 * kRecordFrames];
+// Looper (docs/forge/LOOPING.md): 4,000,000 stereo frames = ~83 s; reads stay below what was recorded.
+constexpr uint32_t kLoopFrames = 4000000u;
+int16_t DSY_SDRAM_BSS loop_memory[2 * kLoopFrames];
+forge::Looper looper;                                         // audio owner
+std::atomic<uint32_t> looper_state{0};                        // audio -> main: PackLooper, for the LEDs
 uint8_t __attribute__((aligned(32))) sample_scratch[16384];   // D1 SRAM: reachable by SD DMA
 forge::SampleTable sample_table;
 forge::SampleHandoff sample_handoff;
@@ -181,6 +186,7 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     // core/panel_controller.h; development builds merge injected events.
     static FirmwarePanelSink sink;
     forge::PanelInput input;
+    input.frames = static_cast<uint16_t>(size);
     for(unsigned key = 0; key < forge::panel::kButtons; ++key)
         if(hw.button_sr.State(key)) input.keys |= uint64_t(1) << key;
     input.toggle_up = hw.GetToggleState();
@@ -196,6 +202,7 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     sample_wanted.store(forge::PackSelection(engine.GetParameters()), std::memory_order_relaxed);
     recording_now.store(recorder.Recording(), std::memory_order_relaxed);
     menu_state.store(panel_controller.MenuPacked(), std::memory_order_relaxed);
+    looper_state.store(forge::PackLooper(looper, engine.FxBeforeLoop()), std::memory_order_relaxed);
 
     const bool recording = recorder.Recording();
     for(size_t i = 0; i < size; ++i) {
@@ -406,8 +413,12 @@ void DrawLeds() {
     view.blink = (now / 250) % 2 == 0; view.slow_blink = (now / 300) % 2 != 0;
     view.flash = now < flash_until ? (flash_ok ? 1 : 0) : -1;
     view.saving = sample_loader.Busy() && !sample_loader.Loading();
-    forge::Rgb keys[25], chompi;
+    view.looper = looper_state.load(std::memory_order_relaxed);
+    forge::Rgb keys[25], chompi, play, loop;
     forge::ComposeLeds(view, keys, chompi);
+    forge::ComposeLooperLeds(view.looper, view.blink, play, loop);
+    SetPthLedFloat(forge::panel::kPlayLed, play.r, play.g, play.b);
+    SetPthLedFloat(forge::panel::kLoopLed, loop.r, loop.g, loop.b);
     for(unsigned i = 0; i < 25; ++i) SetSmtLedFloat(i, keys[i].r, keys[i].g, keys[i].b);
     SetPthLedFloat(0, chompi.r, chompi.g, chompi.b);
     fill_led_data();
@@ -600,6 +611,8 @@ int main() {
 
     engine.SetSamples(&sample_table);
     recorder.Init(record_memory, kRecordFrames, &sample_table.slots[forge::kRamSlot], hw.seed.AudioSampleRate());
+    looper.Init(loop_memory, kLoopFrames, hw.seed.AudioSampleRate());
+    engine.SetLooper(&looper);
     sample_loader.Init(&sample_table, &sample_handoff, sample_pool, kPoolSamples, sample_scratch, sizeof(sample_scratch));
     if(!engine.Init(hw.seed.AudioSampleRate(), delay_left, delay_right, kDelayCapacity,
                     reverb_memory, kReverbCapacity)) {

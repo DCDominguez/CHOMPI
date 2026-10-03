@@ -21,7 +21,8 @@ constexpr size_t kV3Request = 69, kMaxRequest = 84, kMaxReply = 96;
 // answers lists and runs erase/copy; a save first locks the recording (audio).
 // Panel/Probe (opcodes 0A/0B) exist only in development builds (FORGE_TEST_HOOKS).
 enum class RequestKind : uint8_t { Parameter, Patch, Status, Note, Panic, Pedal, Bend, ResetControllers, ModWheel,
-                                   Store, Recall, Erase, List, SampleList, SampleJob, Panel, Probe };
+                                   Store, Recall, Erase, List, SampleList, SampleJob, Panel, Probe,
+                                   Looper };   // internal (MIDI CC 24/26/27): note = control, value = CC value
 enum class SampleAction : uint8_t { Save, Erase, Copy };   // opcode 09 byte 7
 struct Request {
     RequestKind kind = RequestKind::Status;

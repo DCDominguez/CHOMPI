@@ -1,11 +1,15 @@
 #pragma once
 #include <algorithm>
 #include <cstddef>
+#include "looper.h"
 #include "parameters.h"
 #include "reverb.h"
 #include "synth.h"
 
 namespace forge {
+// Sampler voices while the looper writes. 6 keeps "7 sampler voices + overdub"
+// under WAVE's emulated cost (make bench); raise to 7 if hardware CPU allows.
+constexpr unsigned kLooperVoiceCap = 6;
 // Allocation-free source -> stereo delay -> reverb -> output. Caller owns the
 // delay buffers and (optionally) reverb memory and must initialize before
 // starting audio. No IO, locks, parsing or allocation here. Without reverb
@@ -57,6 +61,7 @@ public:
     void SetSampleFilesAvailable(bool available) { synth_.SetSampleFilesAvailable(available); }
     bool SampleVoicesActive(bool include_recording) const { return synth_.SampleVoicesActive(include_recording); }
     void Note(uint8_t note, uint8_t velocity, uint8_t source) {
+        if(velocity && looper_) looper_->NoteStarted();      // an armed looper starts recording
         if(parameters_.synth) synth_.Note(note, velocity, source);
     }
     // Controller state is kept on either route; Panic and route changes reset it.
@@ -64,11 +69,26 @@ public:
     void Bend(uint8_t source, uint16_t value) { synth_.Bend(source, value); }
     void ResetControllers(uint8_t source) { synth_.ResetControllers(source); }
     void ModWheel(uint8_t value) { synth_.ModWheel(value); }
-    void Panic() {
-        synth_.Silence();
-        // O(1) tail suppression: old delay cells are not read until overwritten.
-        flushed_ = capacity_;
-        reverb_.Clear();
+    // Panic (SW5, CC 120/123, SysEx, recovery): everything silent at once; a
+    // loop is paused, not lost. Patch changes use Silence() and leave the loop.
+    void Panic() { Silence(); if(looper_) looper_->Panic(); }
+    // Looper (docs/forge/LOOPING.md). Owned by the caller; audio owner only.
+    void SetLooper(Looper* looper) { looper_ = looper; }
+    Looper* GetLooper() const { return looper_; }
+    void SetFxBeforeLoop(bool before) { fx_before_loop_ = before; }
+    bool FxBeforeLoop() const { return fx_before_loop_; }
+    // MIDI: CC 26 PLAY, CC 27 LOOP (as TAPE); CC 24 follows SW5: the looper
+    // transport while a loop exists, else the filter cutoff.
+    FORGE_NOINLINE void LooperControl(uint8_t control, uint8_t value) {
+        if(control == 2) {
+            if(looper_ && looper_->HasLoop()) looper_->SetSpeed(value * (4.f / 127.f) - 2.f);
+            else { Command command; if(DecodeCC(0, 24, value, command)) Apply(command); }
+            return;
+        }
+        if(!looper_ || control > 1) return;
+        const int edge = looper_cc_[control].Edge(value);
+        if(edge && control == 0) looper_->Play(edge > 0);
+        if(edge && control == 1) looper_->Loop(edge > 0);
     }
     unsigned ActiveVoices() const { return synth_.Active(); }
     // Called only by the audio owner, between blocks. Validate before mutation;
@@ -78,7 +98,7 @@ public:
         // Structural changes (route, waveform, v1/v2 <-> v3 voice architecture) silence.
         if(patch.synth != parameters_.synth || patch.waveform != parameters_.waveform
            || (patch.version >= 3) != (parameters_.version >= 3) || patch.Sampler() != parameters_.Sampler()
-           || (patch.Sampler() && patch.sample_mode != parameters_.sample_mode)) Panic();
+           || (patch.Sampler() && patch.sample_mode != parameters_.sample_mode)) Silence();
         parameters_ = patch;
 #ifdef FORGE_TEST_HOOKS
         ++patch_revision_;
@@ -103,7 +123,11 @@ public:
         if(!ready_) { out_left = out_right = 0.f; return; }
         left = Sanitize(left);
         right = Sanitize(right);
+        // While the looper records or overdubs, sampler voices are capped (kLooperVoiceCap)
+        // so the worst case stays within the CPU budget (docs/forge/LOOPING.md).
+        if(looper_) synth_.SetVoiceCap(looper_->Writing() ? kLooperVoiceCap : 7);
         if(parameters_.synth) synth_.Process(left, right);
+        if(looper_ && !fx_before_loop_) looper_->Process(left, right);     // effects after the loop
         Smooth(mix_, parameters_.bypass ? 0.f : parameters_.mix);
         Smooth(feedback_, parameters_.feedback * 0.85f);
         Smooth(level_, parameters_.level);
@@ -135,10 +159,20 @@ public:
         } else {
             reverb_active_ = false; reverb_mix_ = 0.f;
         }
+        if(looper_ && fx_before_loop_) looper_->Process(mixed_left, mixed_right);   // the loop records what you hear
         out_left = Sanitize(level_ * mixed_left);
         out_right = Sanitize(level_ * mixed_right);
     }
 private:
+    void Silence() {
+        synth_.Silence();
+        // O(1) tail suppression: old delay cells are not read until overwritten.
+        flushed_ = capacity_;
+        reverb_.Clear();
+    }
+    Looper* looper_ = nullptr;
+    bool fx_before_loop_ = true;
+    CcButton looper_cc_[2];
 #ifdef FORGE_TEST_HOOKS
     uint32_t patch_revision_=0;
 #endif

@@ -111,7 +111,7 @@ public:
         }
         if(sampler_) { SampleNote(note, velocity, source); return; }
         Voice* selected = nullptr;
-        Voice* const end = voices_.data() + voices_used_;
+        Voice* const end = voices_.data() + (voices_used_ < cap_ ? voices_used_ : cap_);
         for(Voice* v = voices_.data(); v < end; ++v) if(v->amp.stage != Stage::Off && v->note == note && v->source == source) { selected = v; break; }
         if(!selected) for(Voice* v = voices_.data(); v < end; ++v) if(v->amp.stage == Stage::Off) { selected = v; break; }
         // Steal the quietest releasing voice, else the oldest sustained, else the oldest held.
@@ -168,6 +168,14 @@ public:
     bool SampleVoicesActive(bool include_recording) const {
         for(const auto& v : voices_) if(v.sampled && v.amp.stage != Stage::Off && (include_recording || v.slot != kRamSlot)) return true;
         return false;
+    }
+    // CPU budget while the looper writes (Engine): new notes use at most `cap`
+    // voices; a voice above it is released (its tail still plays, no click).
+    FORGE_INLINE void SetVoiceCap(unsigned cap) {
+        if(cap == cap_) return;
+        cap_ = static_cast<uint8_t>(cap);
+        for(unsigned i = cap; i < voices_used_; ++i)
+            if(voices_[i].amp.stage != Stage::Off && voices_[i].amp.stage != Stage::Release) Release(voices_[i]);
     }
     unsigned Active() const { unsigned n = 0; for(const auto& v : voices_) if(v.amp.stage != Stage::Off) ++n; return n; }
 #ifdef FORGE_TEST_HOOKS
@@ -294,7 +302,7 @@ private:
         const SampleSlot& s = table_->slots[slot];
         // Same rules as the oscillators: retrigger, idle, quietest releasing, oldest.
         Voice* selected = nullptr;
-        Voice* const end = voices_.data() + voices_used_;
+        Voice* const end = voices_.data() + (voices_used_ < cap_ ? voices_used_ : cap_);
         for(Voice* v = voices_.data(); v < end; ++v) if(v->amp.stage != Stage::Off && v->note == note && v->source == source) { selected = v; break; }
         if(!selected) for(Voice* v = voices_.data(); v < end; ++v) if(v->amp.stage == Stage::Off) { selected = v; break; }
         if(!selected) for(Voice* v = voices_.data(); v < end; ++v)
@@ -535,7 +543,7 @@ private:
     float bend_slew_ = 1, wheel_ = 0;
     // v3
     bool legacy_ = true, lfo_wheel_ = false;
-    uint8_t waveform_ = 0, osc2_waveform_ = 0, lfo_waveform_ = 0, voices_used_ = 4;
+    uint8_t waveform_ = 0, osc2_waveform_ = 0, lfo_waveform_ = 0, voices_used_ = 4, cap_ = 7;
     float osc2_level_ = 0, osc2_ratio_ = 1, noise_ = 0, mix_scale_ = 1;
     float damping_ = 1.41421356f, resonance_gain_ = 1, filter_octaves_ = 0, cutoff_ = 0.5f, cutoff_target_ = 0.5f;
     float lfo_phase_ = 0, lfo_value_ = 0, lfo_increment_ = 0, lfo_cents_ = 0, lfo_octaves_ = 0, lfo_amp_ = 0, held_ = 0;

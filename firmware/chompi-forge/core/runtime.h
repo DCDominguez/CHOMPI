@@ -18,6 +18,7 @@ FORGE_NOINLINE inline bool ExecuteRequest(const Request& request, Engine& engine
     if(request.kind == RequestKind::Bend) { engine.Bend(request.source, request.value); return false; }
     if(request.kind == RequestKind::ResetControllers) { engine.ResetControllers(request.source); return false; }
     if(request.kind == RequestKind::ModWheel) { engine.ModWheel(static_cast<uint8_t>(request.value)); return false; }
+    if(request.kind == RequestKind::Looper) { engine.LooperControl(request.note, static_cast<uint8_t>(request.value)); return false; }
     if(request.kind == RequestKind::Patch && request.silent) {   // on-device recall: no reply
         engine.ApplyPatch(request.patch); return false;
     }
@@ -62,6 +63,11 @@ inline Ingress TranslateChannel(const MidiFrame& frame, uint8_t source, Request&
             if(a == 64) { request.kind = RequestKind::Pedal; request.value = b >= 64; return Ingress::Critical; }
             if(a == 121) { request.kind = RequestKind::ResetControllers; return Ingress::Critical; }
             if(a == 1) { request.kind = RequestKind::ModWheel; request.value = b; return Ingress::Control; }
+            // CC 26 PLAY / 27 LOOP (TAPE) and CC 24 (SW5: looper transport or cutoff), decided by the engine.
+            if(a == 24 || a == 26 || a == 27) {
+                request.kind = RequestKind::Looper; request.note = a == 24 ? 2 : static_cast<uint8_t>(a - 26); request.value = b;
+                return Ingress::Control;
+            }
             if(!DecodeCC(0, a, b, request.command)) return Ingress::Ignore;
             request.kind = RequestKind::Parameter;
             return Ingress::Control;

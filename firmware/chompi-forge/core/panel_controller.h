@@ -12,6 +12,9 @@ namespace panel {
 constexpr uint8_t kKeyNotes[40] = {0,0,0,0,0,0,0,49,50,52,53,55,51,54,56,48,
     57,59,60,62,64,58,61,63,65,67,69,71,72,66,68,70,0,0,0,0,0,0,0,0};
 constexpr unsigned kButtons = 40, kEncoders = 6, kVolumeEncoder = 5, kToneEncoder = 4;
+// Looper keys (as TAPE): KEY_27 PLAY, KEY_28 LOOP; their LEDs are through-hole 7 / 8.
+// Menu (presets page): KEY_21 effects before the loop, KEY_20 after.
+constexpr uint8_t kPlayKey = 33, kLoopKey = 34, kPlayLed = 7, kLoopLed = 8, kFxBefore = 22, kFxAfter = 21;
 } // namespace panel
 
 // One block of debounced hardware input (audio owner).
@@ -20,6 +23,7 @@ struct PanelInput {
     bool toggle_up = false, jack = false;
     bool tone_press = false;             // SW5 switch rising edge this block
     int16_t turns[panel::kEncoders]{};   // increments by hardware encoder index
+    uint16_t frames = 48;                // audio frames in this block (looper key timing)
 };
 
 // Development-only panel events (firmware built with FORGE_TEST_HOOKS, and
@@ -116,11 +120,29 @@ public:
             if(((rising >> key) & 1u) && !menu_.Key(static_cast<uint8_t>(key), true)) engine.Note(panel::kKeyNotes[key], 100, 2);
             if((falling >> key) & 1u) { menu_.Key(static_cast<uint8_t>(key), false); engine.Note(panel::kKeyNotes[key], 0, 2); }
         }
+        Looper* looper = engine.GetLooper();
+        if(looper) {
+            // PLAY / LOOP. In the menu they set the overdub feedback (-/+ 10 %, as TAPE);
+            // releases always reach the looper so no key can stay held there.
+            const bool presets_page = menu_.Active() && !((menu_.Packed() >> 21) & 1u);
+            for(const uint8_t key : {panel::kPlayKey, panel::kLoopKey}) {
+                const bool play = key == panel::kPlayKey;
+                if((rising >> key) & 1u) {
+                    if(menu_.Active()) looper->AdjustFeedback(play ? -0.1f : 0.1f);
+                    else if(play) looper->Play(true); else looper->Loop(true);
+                }
+                if((falling >> key) & 1u) { if(play) looper->Play(false); else looper->Loop(false); }
+            }
+            if(presets_page && ((rising >> panel::kFxBefore) & 1u)) engine.SetFxBeforeLoop(true);
+            if(presets_page && ((rising >> panel::kFxAfter) & 1u)) engine.SetFxBeforeLoop(false);
+            looper->Tick(hardware.frames);
+        }
         RunActions(engine, recorder, sink);
         const Parameters& live = engine.GetParameters();
         if(live.Sampler()) menu_.FollowSampler(live.sample_mode, live.sample_bank, live.sample_slot);
-        // Encoders: SW5 turn = cutoff, press = panic; knobs 1-4 in stock order;
-        // SW6 = level. Virtual turns are consumed with the hardware ones.
+        // Encoders: SW5 turn = cutoff, press = panic (while a loop exists: the
+        // looper transport, as TAPE); knobs 1-4 in stock order; SW6 = level.
+        // Virtual turns are consumed with the hardware ones.
         int16_t turns[panel::kEncoders];
         for(unsigned i = 0; i < panel::kEncoders; ++i) { turns[i] = static_cast<int16_t>(hardware.turns[i] + virtual_turns_[i]); virtual_turns_[i] = 0; }
 #ifdef FORGE_TEST_HOOKS
@@ -129,9 +151,18 @@ public:
             if(turns[i]) LogEdge(InspectorEventKind::Knob, i, uint32_t(turns[i]));
         }
 #endif
-        if(hardware.tone_press || virtual_press_) { engine.Panic(); virtual_press_ = false; }
-        if(turns[panel::kToneEncoder])
-            engine.Apply({Parameter::Cutoff, engine.GetParameters().cutoff + turns[panel::kToneEncoder] / 127.f});
+        const bool press = hardware.tone_press || virtual_press_; virtual_press_ = false;
+        if(looper && looper->HasLoop()) {
+            if(press) looper->ResetSpeed();
+            if(turns[panel::kToneEncoder]) {
+                if(looper->GetState() == Looper::State::Playing) looper->NudgeSpeed(turns[panel::kToneEncoder]);
+                else looper->Scrub(turns[panel::kToneEncoder]);
+            }
+        } else {
+            if(press) engine.Panic();
+            if(turns[panel::kToneEncoder])
+                engine.Apply({Parameter::Cutoff, engine.GetParameters().cutoff + turns[panel::kToneEncoder] / 127.f});
+        }
         for(unsigned knob = 0; knob < 4; ++knob) {
             const int increment = turns[panel::kKnobEncoder[knob]];
             if(increment && !menu_.Encoder(static_cast<uint8_t>(knob), increment)) {   // knob 1 picks the bank while the menu is open
@@ -213,7 +244,34 @@ struct LedView {
     bool blink = false, slow_blink = false;       // 250 ms / 300 ms phases
     int8_t flash = -1;                            // -1 none, 0 failed, 1 ok (panel LED feedback)
     bool saving = false;                          // a sample save/copy is running
+    uint32_t looper = 0;                          // PackLooper()
 };
+// Looper state for the LEDs (audio -> main loop in one word): bits 0-2 state,
+// 3 overdub, 4 effects before the loop, 5 has a loop, 6-15 position x 1023.
+inline uint32_t PackLooper(const Looper& l, bool fx_before) {
+    return static_cast<uint32_t>(l.GetState()) | (l.Overdubbing() ? 8u : 0u) | (fx_before ? 16u : 0u)
+         | (l.HasLoop() ? 32u : 0u) | (static_cast<uint32_t>(l.Position() * 1023.f) << 6);
+}
+// PLAY / LOOP LEDs (as TAPE). PLAY: off empty, white armed, teal recording or
+// playing (fading over the loop), white fading when paused. LOOP: red first
+// take, red blink armed, yellow overdub, white otherwise (rising over the loop).
+inline void ComposeLooperLeds(uint32_t looper, bool blink, Rgb& play, Rgb& loop) {
+    const auto state = static_cast<Looper::State>(looper & 7u);
+    const float position = ((looper >> 6) & 1023u) / 1023.f;
+    const Rgb teal{0.f, .7f, .6f}, red{1.f, 0.f, 0.f}, yellow{1.f, .75f, 0.f}, white{1.f, 1.f, 1.f};
+    auto scaled = [](Rgb c, float k) { return Rgb{c.r * k, c.g * k, c.b * k}; };
+    play = loop = Rgb{};
+    switch(state) {
+        case Looper::State::Armed: play = white; loop = blink ? red : Rgb{}; break;
+        case Looper::State::FirstTake: play = teal; loop = red; break;
+        case Looper::State::Playing:
+            play = scaled(teal, 1.f - position);
+            loop = scaled((looper >> 3) & 1u ? yellow : white, position);
+            break;
+        case Looper::State::Paused: play = scaled(white, 1.f - position); loop = scaled(white, position); break;
+        default: break;
+    }
+}
 inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chompi) {
     if((v.menu >> 21) & 1u)
         RenderSampleLeds(v.menu, v.sample_occupancy, v.sample_card, v.recording_present, v.live, v.blink, keys);
@@ -224,5 +282,11 @@ inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chompi) {
     else if(v.flash >= 0) chompi = v.flash ? Rgb{0.f, .3f, 0.f} : Rgb{.3f, 0.f, 0.f};
     else if(v.saving) chompi = v.slow_blink ? Rgb{1.f, 0.f, .6f} : Rgb{};
     else chompi = Rgb{0.f, .05f, .1f};
+    // Menu, presets page: KEY_21 / KEY_20 show where the effects sit (before / after the loop).
+    if((v.menu & 1u) && !((v.menu >> 21) & 1u)) {
+        const bool before = (v.looper >> 4) & 1u;
+        keys[panel::BlackLed(panel::kFxBefore)] = before ? Rgb{.8f, .8f, .8f} : Rgb{.1f, .1f, .1f};
+        keys[panel::BlackLed(panel::kFxAfter)] = before ? Rgb{.1f, .1f, .1f} : Rgb{.8f, .8f, .8f};
+    }
 }
 } // namespace forge

@@ -27,6 +27,7 @@ struct Rig {
         assert(engine.Init(48000.f, l.data(), r.data(), l.size(), rv.data(), rv.size()));
         engine.SetSamples(&table);
         recorder.Init(rec.data(), 48000, &table.slots[kRamSlot], 48000.f);
+        hw.frames = 24;
     }
     // One audio block: panel, then 24 samples (recording from the line input).
     void Block(float line = 0.f) {
@@ -146,7 +147,83 @@ void DevelopmentOpcodes() {
 }
 } // namespace
 
+void LooperThroughThePanel() {
+    Rig rig;
+    std::vector<int16_t> memory(2 * 48000 * 4); Looper looper; looper.Init(memory.data(), 48000 * 4, 48000.f);
+    rig.engine.SetLooper(&looper);
+    rig.Block();
+    // Armed by PLAY + LOOP on an empty looper; a keybed note starts the take.
+    rig.hw.keys = (uint64_t(1) << panel::kPlayKey) | (uint64_t(1) << panel::kLoopKey); rig.Block();
+    rig.hw.keys = 0; rig.Block();
+    assert(looper.GetState() == Looper::State::Armed);
+    Parameters synth; synth.version = 3; synth.synth = true; assert(rig.engine.ApplyPatch(synth));
+    rig.Tap(kWhite[7]); assert(looper.GetState() == Looper::State::FirstTake);
+    for(int i = 0; i < 1000; ++i) rig.Block();
+    rig.Tap(panel::kPlayKey);                                        // PLAY ends the take: plain playback
+    assert(looper.GetState() == Looper::State::Playing && !looper.Overdubbing() && looper.Length() > 20000);
+    // SW5 with a loop: transport, not cutoff / panic.
+    const float cutoff = rig.engine.GetParameters().cutoff;
+    rig.hw.turns[panel::kToneEncoder] = 10; rig.Block();
+    assert(looper.Speed() > 1.2f && rig.engine.GetParameters().cutoff == cutoff);
+    rig.hw.tone_press = true; rig.Block();
+    assert(looper.Speed() == 1.f && looper.GetState() == Looper::State::Playing);
+    // Menu: PLAY / LOOP set the feedback, KEY_20 / KEY_21 place the effects; the loop keeps playing.
+    rig.hw.toggle_up = true; rig.Key(panel::kChompiKey, true);
+    rig.Tap(panel::kPlayKey); rig.Tap(panel::kPlayKey);
+    assert(std::fabs(looper.Feedback() - 0.8f) < 1e-6f && looper.GetState() == Looper::State::Playing);
+    rig.Tap(panel::kFxAfter); assert(!rig.engine.FxBeforeLoop());
+    LedView v; v.menu = rig.panel.MenuPacked(); v.looper = PackLooper(looper, rig.engine.FxBeforeLoop());
+    Rgb keys[25], chompi; ComposeLeds(v, keys, chompi);
+    assert(keys[panel::BlackLed(panel::kFxAfter)].r > keys[panel::BlackLed(panel::kFxBefore)].r);
+    rig.Tap(panel::kFxBefore); assert(rig.engine.FxBeforeLoop());
+    rig.Key(panel::kChompiKey, false); rig.hw.toggle_up = false; rig.Block();
+    // A patch change keeps the loop playing; panic pauses it (kept).
+    Parameters other = synth; other.waveform = 2; assert(rig.engine.ApplyPatch(other));
+    assert(looper.GetState() == Looper::State::Playing);
+    rig.engine.Panic(); assert(looper.GetState() == Looper::State::Paused && looper.HasLoop());
+    // MIDI: CC 26 press + release resumes; CC 24 sets the speed while a loop exists.
+    MidiFramer parser; MidiFrame frame; Request request; Response response;
+    auto cc = [&](uint8_t number, uint8_t value) {
+        for(uint8_t b : {uint8_t(0xb0), number, value}) parser.Feed(b, frame);
+        assert(TranslateChannel(frame, 0, request) == Ingress::Control); ExecuteRequest(request, rig.engine, response);
+        rig.Block();
+    };
+    cc(26, 127); cc(26, 0); assert(looper.GetState() == Looper::State::Playing);
+    cc(24, 127); assert(looper.Speed() == 2.f && rig.engine.GetParameters().cutoff == cutoff);
+    cc(27, 127); cc(27, 0); assert(looper.Overdubbing());                       // CC 27 = LOOP: overdub
+    Rgb play, loop; ComposeLooperLeds(PackLooper(looper, true), false, play, loop);
+    assert(loop.r > 0.f && loop.g > 0.f && loop.b == 0.f);                       // yellow while overdubbing
+    // Hold PLAY + LOOP 2 s: cleared; SW5 is the cutoff / panic again.
+    rig.hw.keys = (uint64_t(1) << panel::kPlayKey) | (uint64_t(1) << panel::kLoopKey);
+    for(int i = 0; i < 4100; ++i) rig.Block();
+    rig.hw.keys = 0; rig.Block();
+    assert(looper.Empty());
+    rig.hw.turns[panel::kToneEncoder] = -10; rig.Block(); assert(rig.engine.GetParameters().cutoff < cutoff);
+    ComposeLooperLeds(PackLooper(looper, true), false, play, loop);
+    assert(play.r == 0.f && play.g == 0.f && loop.r == 0.f && loop.g == 0.f);   // empty: dark
+}
+
+// While the looper writes, sampler voices are capped (CPU budget): a held 7th
+// voice is released, not cut, and new notes stay within the cap.
+void LooperVoiceCap() {
+    Rig rig;
+    std::vector<int16_t> memory(2 * 48000 * 4); Looper looper; looper.Init(memory.data(), 48000 * 4, 48000.f);
+    rig.engine.SetLooper(&looper);
+    rig.recorder.Start(); for(int i = 0; i < 24000; ++i) rig.recorder.Write(0.3f, 0.3f); rig.recorder.Stop();
+    Parameters p; p.version = 4; p.synth = true; p.voices = 7; p.sample_gate = true; p.sample_loop = true;
+    p = SelectSample(p, 0, 0, kRamSlot); assert(rig.engine.ApplyPatch(p));
+    for(uint8_t n = 0; n < 7; ++n) rig.engine.Note(static_cast<uint8_t>(48 + 2 * n), 100, 1);
+    rig.Block(); assert(rig.engine.ActiveVoices() == 7);
+    rig.Tap(panel::kLoopKey); assert(looper.GetState() == Looper::State::FirstTake && looper.Writing());
+    rig.Block(); assert(rig.engine.ActiveVoices() == 7);                // the 7th releases (still sounding)
+    for(int i = 0; i < 1000; ++i) rig.Block();                          // 0.5 s: the release has ended
+    assert(rig.engine.ActiveVoices() == 6 && looper.Writing());
+    rig.engine.Note(70, 100, 1); rig.Block(); assert(rig.engine.ActiveVoices() == 6);   // steals within the cap
+    rig.Tap(panel::kPlayKey); assert(!looper.Writing());               // plain playback: all 7 again
+    rig.engine.Note(71, 100, 1); rig.Block(); assert(rig.engine.ActiveVoices() == 7);
+}
+
 int main() {
-    KeysKnobsAndOverrides(); MenuAndRecordingThroughTheController(); LedComposition(); DevelopmentOpcodes();
-    std::cout << "PASS: panel controller keys/knobs/overrides, menu + recording via injection, LED composition, dev opcodes\n";
+    KeysKnobsAndOverrides(); MenuAndRecordingThroughTheController(); LedComposition(); DevelopmentOpcodes(); LooperThroughThePanel(); LooperVoiceCap();
+    std::cout << "PASS: panel controller keys/knobs/overrides, menu + recording via injection, LED composition, dev opcodes, looper via panel/MIDI\n";
 }

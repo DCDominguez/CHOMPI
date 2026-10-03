@@ -122,6 +122,7 @@ public:
     bool Empty() const { return state_ == State::Empty || state_ == State::Armed; }
     bool HasLoop() const { return length_ > 0 && !clearing_; }
     bool Overdubbing() const { return overdub_ && state_ == State::Playing; }
+    bool Writing() const { return state_ == State::FirstTake || (overdub_ && state_ == State::Playing && !clearing_); }
     bool Clearing() const { return clearing_; }
     float Position() const { return length_ ? (index_ + frac_) / length_ : 0.f; }
     uint32_t Length() const { return state_ == State::FirstTake ? take_ : length_; }

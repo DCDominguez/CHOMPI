@@ -17,6 +17,11 @@ float SDRAM reverb_mem[8704];
 constexpr uint32_t kSampleFrames = 96000;
 int16_t SDRAM sample_data[2 * kSampleFrames];
 forge::SampleTable samples;
+// Looper: 4 s of SDRAM; the looper scenario overdubs at a non-integer speed
+// (interpolated read plus one or two writes per sample: its worst case).
+constexpr uint32_t kLoopFrames = 4 * 48000;
+int16_t SDRAM loop_data[2 * kLoopFrames];
+forge::Looper looper;
 alignas(forge::Engine) unsigned char engine_storage[sizeof(forge::Engine)];
 forge::Engine* engine;
 uint32_t seed = 1;
@@ -26,8 +31,10 @@ extern "C" {
 uint8_t request[forge::kMaxRequest];
 uint32_t request_size;
 float out_l[24], out_r[24];
-// Returns 0 on success. notes: how many voices to start (chord from MIDI 48).
+// Returns 0 on success. notes: how many voices to start (chord from MIDI 48);
+// + 256: the looper overdubs a 1 s loop at 1.37x while they play.
 int bench_init(int notes) {
+    const bool with_looper = notes & 256; notes &= 255;
     engine = new(engine_storage) forge::Engine();
     if(!engine->Init(48000.f, delay_l, delay_r, kDelay, reverb_mem, 8704)) return 1;
     forge::Request r;
@@ -46,6 +53,15 @@ int bench_init(int notes) {
     static const uint8_t white[7] = {48, 50, 52, 53, 55, 57, 59};          // kit mode: one slot each
     const bool kit = r.patch.Sampler() && r.patch.sample_mode == 1;
     for(int i = 0; i < notes && i < 7; ++i) engine->Note(kit ? white[i] : chord[i], 100, 1);
+    if(with_looper) {
+        looper.Init(loop_data, kLoopFrames, 48000.f);
+        looper.Loop(true); looper.Tick(480); looper.Loop(false);                // first take
+        for(int i = 0; i < 48000; ++i) { float l = Noise(), r = Noise(); looper.Process(l, r); }
+        looper.Loop(true); looper.Tick(480); looper.Loop(false);                // closes into overdub (TAPE)
+        if(!looper.Overdubbing()) return 4;
+        looper.SetSpeed(1.37f);
+        engine->SetLooper(&looper);
+    }
     return 0;
 }
 void bench_block(int) {

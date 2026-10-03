@@ -85,6 +85,8 @@ int main(int argc, char** argv) {
     engine.SetSamples(&table);
     loader.Init(&table, &handoff, pool.data(), static_cast<uint32_t>(pool.size()), scratch.data(), static_cast<uint32_t>(scratch.size()));
     recorder.Init(recording.data(), 48000 * 4, &table.slots[forge::kRamSlot], 48000.f);
+    std::vector<int16_t> loop_memory(2 * 48000 * 20);            // 20 s looper (firmware: ~83 s)
+    forge::Looper looper; looper.Init(loop_memory.data(), 48000 * 20, 48000.f); engine.SetLooper(&looper);
     recorder.Start(); for(int i = 0; i < 48000; ++i) recorder.Write(0.3f * std::sin(i * 0.05f), 0.3f * std::sin(i * 0.05f)); recorder.Stop();
     // Panel: the same controller as firmware, driven by development opcode 0A
     // (no hardware input). Its menu actions run here directly.
@@ -125,7 +127,8 @@ int main(int argc, char** argv) {
         engine.SetSampleFilesAvailable(handoff.AudioBlock(engine));
         ++blocks;
         panel.SetInspectorEvents(&edges,&event_drops,blocks/2);
-        panel.Block(forge::PanelInput{}, engine, recorder, sink);
+        forge::PanelInput input; input.frames = 24;               // this harness runs 24-frame blocks
+        panel.Block(input, engine, recorder, sink);
         float l, r;
         for(int k = 0; k < 24; ++k) {
             engine.Process(0, 0, l, r);

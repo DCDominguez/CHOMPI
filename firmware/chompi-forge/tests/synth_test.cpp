@@ -273,9 +273,19 @@ void ChannelTranslation() {
            && request.kind == RequestKind::ResetControllers);
     assert(feed({123, 0}) && TranslateChannel(frame, 0, request) == Ingress::Emergency);
     assert(feed({120, 0}) && TranslateChannel(frame, 0, request) == Ingress::Emergency);
+    // CC 24 (SW5) goes to the engine, which picks the looper transport or the cutoff;
+    // CC 26 / 27 are TAPE's looper PLAY / LOOP.
     assert(feed({24, 127}) && TranslateChannel(frame, 0, request) == Ingress::Control
-           && request.kind == RequestKind::Parameter && request.command.parameter == Parameter::Cutoff);
-    assert(feed({26, 127}) && TranslateChannel(frame, 0, request) == Ingress::Ignore);   // stock virtual key
+           && request.kind == RequestKind::Looper && request.note == 2 && request.value == 127);
+    {
+        std::vector<float> dl(48002), dr(48002); Engine engine; assert(engine.Init(48000.f, dl.data(), dr.data(), dl.size()));
+        Response response; ExecuteRequest(request, engine, response);
+        assert(engine.GetParameters().cutoff == 1.f);                    // no looper: still the cutoff
+    }
+    assert(feed({26, 127}) && TranslateChannel(frame, 0, request) == Ingress::Control
+           && request.kind == RequestKind::Looper && request.note == 0);
+    assert(feed({27, 0}) && TranslateChannel(frame, 0, request) == Ingress::Control && request.note == 1);
+    assert(feed({28, 127}) && TranslateChannel(frame, 0, request) == Ingress::Ignore);   // stock virtual key
     assert(feed({1, 64}) && TranslateChannel(frame, 0, request) == Ingress::Control
            && request.kind == RequestKind::ModWheel && request.value == 64);
     assert(feed({2, 64}) && TranslateChannel(frame, 0, request) == Ingress::Ignore);   // breath: unmapped
