@@ -6,6 +6,9 @@
 #include <vector>
 #include "../core/runtime.h"
 #include "../core/wav.h"
+#include "../core/recorder.h"
+#include "../core/sample_loader.h"
+#include "sample_card.h"
 
 using namespace forge;
 
@@ -293,6 +296,11 @@ void LoadingAndHandoff() {
     rig.engine.ReleaseSampleVoices(false); rig.Run(200);
     assert(!rig.engine.SampleVoicesActive(false) && rig.engine.SampleVoicesActive(true));
     rig.engine.ReleaseSampleVoices(true); rig.Run(200); assert(!rig.engine.SampleVoicesActive(true));
+    // While file slots are being rewritten, only the recording may start.
+    rig.engine.SetSampleFilesAvailable(false);
+    p.sample_slot = 0; assert(rig.engine.ApplyPatch(p)); rig.engine.Note(60, 127, 0); assert(rig.engine.ActiveVoices() == 0);
+    p.sample_slot = kRamSlot; assert(rig.engine.ApplyPatch(p)); rig.engine.Note(60, 127, 0); assert(rig.engine.ActiveVoices() == 1);
+    rig.engine.SetSampleFilesAvailable(true);
 }
 
 void StereoVoicesAndCompatibility() {
@@ -354,12 +362,220 @@ void RetriggerAndFuzz() {
         for(unsigned i = 0; i < 2400; ++i) { fuzz.engine.Process(0, 0, L, R); assert(std::isfinite(L) && std::isfinite(R) && std::fabs(L) <= 1.f); }
     }
 }
+
+// ---- recorder ----
+void Recording() {
+    std::vector<int16_t> memory(2 * 4800);
+    SampleSlot slot; Recorder rec; rec.Init(memory.data(), 4800, &slot, 48000.f);
+    assert(!rec.Lock());                                                       // nothing to save yet
+    assert(rec.Start() && rec.Recording() && slot.frames == 0);
+    for(int i = 0; i < 2400; ++i) rec.Write(0.25f, -0.125f);
+    rec.Stop();
+    assert(!rec.Recording() && slot.frames == 2400 && slot.channels == 2 && slot.Readable() == 2400 && slot.data == memory.data());
+    assert(memory[0] == 0 && memory[2 * 120] > 3000 && memory[2 * 120] < 5000);           // 5 ms fade-in
+    assert(memory[2 * 1200] == static_cast<int16_t>(0.25f * 32767.f) && memory[2 * 1200 + 1] < 0);
+    assert(memory[2 * 2399] == 0 && std::abs(memory[2 * 2300]) < 9000);                   // fade-out
+    assert(std::fabs(rec.Peak() - 0.25f) < 1e-3f && std::fabs(slot.gain - 0.891f / rec.Peak()) < 1e-3f);
+    // Locked while saving: no new take may overwrite it.
+    assert(rec.Lock() && !rec.Start() && slot.frames == 2400);
+    rec.Unlock(); assert(rec.Start());
+    // Full buffer stops by itself; silence keeps gain 1 (no divide by zero).
+    for(int i = 0; i < 6000; ++i) rec.Write(0.f, 0.f);
+    assert(!rec.Recording() && slot.frames == 4800 && slot.gain == 1.f);
+    // A quiet take is boosted at most +24 dB.
+    rec.Start(); for(int i = 0; i < 600; ++i) rec.Write(0.001f, 0.001f); rec.Stop(); assert(slot.gain == 16.f);
+    // Input conditioning: mic DC is removed, line gets x3, resample passes the output.
+    float l, r;
+    for(int i = 0; i < 48000; ++i) rec.Input(RecordSource::Mic, 0.1f, 0, 0, 0, 0, l, r);
+    assert(std::fabs(l) < 1e-3f && l == r);
+    rec.Input(RecordSource::Line, 0, 0.1f, -0.2f, 0, 0, l, r); assert(std::fabs(l - 0.3f) < 1e-6f && std::fabs(r + 0.6f) < 1e-6f);
+    rec.Input(RecordSource::Resample, 1, 1, 1, 0.4f, 0.5f, l, r); assert(l == 0.4f && r == 0.5f);
+}
+
+// ---- loader ----
+std::vector<uint8_t> TapeWav(uint32_t frames, int base) {
+    std::vector<uint8_t> data(frames * 4);
+    for(uint32_t i = 0; i < frames; ++i) {
+        const int16_t a = static_cast<int16_t>(base + i % 1000), b = static_cast<int16_t>(-base - int(i % 1000));
+        data[4 * i] = a & 255; data[4 * i + 1] = (uint16_t(a) >> 8) & 255; data[4 * i + 2] = b & 255; data[4 * i + 3] = (uint16_t(b) >> 8) & 255;
+    }
+    return MakeWav(1, 2, 16, 48000, data);
+}
+struct LoaderRig : Rig {
+    SampleCard card; SampleHandoff handoff; SampleLoader loader;
+    std::vector<int16_t> pool; std::vector<uint8_t> scratch = std::vector<uint8_t>(16384);
+    std::vector<int16_t> recording = std::vector<int16_t>(2 * 48000);
+    Recorder recorder;
+    std::vector<SampleEvent> events;
+    explicit LoaderRig(uint32_t pool_samples = 4u << 20) : pool(pool_samples) {
+        loader.Init(&table, &handoff, pool.data(), pool_samples, scratch.data(), static_cast<uint32_t>(scratch.size()));
+        recorder.Init(recording.data(), 48000, &table.slots[kRamSlot], 48000.f);
+    }
+    // One main-loop pass plus one audio block, as on the device.
+    void Step() {
+        SampleEvent e;
+        if(loader.Poll(card, PackSelection(engine.GetParameters()), recording.data(), e)) events.push_back(e);
+        engine.SetSampleFilesAvailable(handoff.AudioBlock(engine));
+        float L, R; for(int i = 0; i < 24; ++i) engine.Process(0, 0, L, R);
+    }
+    void Settle(unsigned max_steps = 20000) { for(unsigned i = 0; i < max_steps; ++i) { Step(); if(!loader.Busy() && i > 4) return; } assert(false); }
+    void Select(uint8_t mode, uint8_t bank, uint8_t slot) {
+        Parameters p = SamplerPatch(); p.sample_mode = mode; p.sample_bank = bank; p.sample_slot = slot; p.sample_loop = true;
+        assert(engine.ApplyPatch(p));
+    }
+};
+
+void Names() {
+    uint8_t m, b, s; char path[24];
+    for(uint8_t mode = 0; mode < 2; ++mode) for(uint8_t bank = 0; bank < 5; ++bank) for(uint8_t slot = 0; slot < 14; ++slot) {
+        SamplePath(mode, bank, slot, false, path);
+        assert(ParseSampleName(path, m, b, s) && m == mode && b == bank && s == slot);
+        SamplePath(mode, bank, slot, true, path);
+        assert(!ParseSampleName(path, m, b, s));                              // _double files are TAPE's
+    }
+    SamplePath(1, 4, 13, true, path); assert(!std::strcmp(path, "cubbi_e14_double.wav"));
+    assert(ParseSampleName("JAMMI_C7.WAV", m, b, s) && m == 0 && b == 2 && s == 6);
+    for(const char* bad : {"jammi_a0.wav", "jammi_a15.wav", "jammi_f1.wav", "jammi_a01.wav", "jammi_a1.wa", "jammi-a1.wav",
+                           "jammy_a1.wav", "jammi_a1.wav.bak", "._jammi_a1.wav", "jammi_a123.wav", "cubbi_.wav"})
+        assert(!ParseSampleName(bad, m, b, s));
+}
+
+void ChromaticAndKitLoading() {
+    LoaderRig rig;
+    rig.card.files["jammi_b3.wav"] = TapeWav(20000, 100);
+    rig.card.files["CUBBI_A1.WAV"] = TapeWav(3000, 200);
+    rig.card.files["cubbi_a2.wav"] = MakeWav(1, 1, 24, 44100, std::vector<uint8_t>(3 * 5000, 0x40));
+    rig.card.files["cubbi_a4.wav"] = {1, 2, 3};                                // corrupt: stays empty
+    rig.card.files["cubbi_a5_double.wav"] = TapeWav(10, 0);
+    rig.card.files["presets.json"] = {'{', '}'};
+    rig.Step();                                                                // scan
+    assert(rig.loader.Occupancy(0, 1) == (1u << 2) && rig.loader.Occupancy(1, 0) == 0b1011);
+    rig.Select(0, 1, 2); rig.Settle();
+    const SampleSlot& s = rig.table.slots[2];
+    assert(s.frames == 20000 && s.channels == 2 && s.Readable() == 20000 && s.data[2 * 999] == 1099 && s.data[2 * 999 + 1] == -1099);
+    for(uint8_t i = 0; i < kRamSlot; ++i) if(i != 2) assert(!rig.table.slots[i].channels);
+    // The loaded sample plays.
+    rig.engine.Note(60, 127, 2); assert(rig.engine.ActiveVoices() == 1);
+    // Kit: every file of the bank; corrupt and missing slots stay empty; regions do not overlap.
+    rig.Select(1, 0, 0); rig.Settle();
+    const SampleSlot& a = rig.table.slots[0]; const SampleSlot& b = rig.table.slots[1];
+    assert(a.frames == 3000 && a.channels == 2 && b.frames == 5000 && b.channels == 1 && std::fabs(b.rate_ratio - 44100.f / 48000.f) < 1e-6f);
+    assert(b.data >= a.data + 2 * 3000 && b.data[4999] == ((0x404040 + 128) >> 8));
+    assert(!rig.table.slots[3].channels && !rig.table.slots[2].channels);
+    // Choosing the recording (or a non-sampler patch) keeps the loaded files.
+    rig.Select(0, 3, kRamSlot); rig.Settle(); assert(rig.table.slots[0].frames == 3000);
+    Parameters synth; synth.version = 3; synth.synth = true; rig.engine.ApplyPatch(synth); rig.Settle(); assert(rig.table.slots[1].frames == 5000);
+}
+
+void ProgressiveAndDetach() {
+    LoaderRig rig;
+    rig.card.files["jammi_a1.wav"] = TapeWav(200000, 1);
+    rig.card.files["jammi_a2.wav"] = TapeWav(4000, 2);
+    rig.Step();
+    rig.Select(0, 0, 0);
+    // Loading is incremental: after a few passes only part is readable, and a note already plays.
+    for(int i = 0; i < 6; ++i) rig.Step();
+    const SampleSlot& s = rig.table.slots[0];
+    assert(s.frames == 200000 && s.Readable() > 0 && s.Readable() < s.frames);
+    rig.engine.Note(60, 127, 0); assert(rig.engine.ActiveVoices() == 1);
+    rig.Settle(); assert(s.Readable() == 200000);
+    // Changing slot while a file voice sounds: the loader waits for the audio side
+    // to fade it out before touching memory, and new file notes are refused meanwhile.
+    rig.Select(0, 0, 1);
+    rig.engine.Note(62, 127, 0);
+    SampleEvent e; rig.loader.Poll(rig.card, PackSelection(rig.engine.GetParameters()), nullptr, e);   // requests detach
+    assert(rig.table.slots[0].frames == 200000);                               // untouched until acknowledged
+    rig.loader.Poll(rig.card, PackSelection(rig.engine.GetParameters()), nullptr, e);
+    assert(rig.table.slots[0].frames == 200000);
+    assert(!rig.handoff.AudioBlock(rig.engine));                               // audio starts the fade
+    rig.engine.SetSampleFilesAvailable(false);
+    rig.engine.Note(64, 127, 1);                                               // refused while detaching
+    rig.Settle();
+    assert(!rig.table.slots[0].channels && rig.table.slots[1].frames == 4000);
+    assert(rig.engine.ActiveVoices() == 0);
+    // Changing the selection mid-load restarts with the new one.
+    rig.Select(0, 0, 0); for(int i = 0; i < 8; ++i) rig.Step();
+    rig.Select(0, 0, 1); rig.Settle();
+    assert(rig.table.slots[1].Readable() == 4000 && !rig.table.slots[0].channels);
+}
+
+void PoolLimitsAndCardRemoval() {
+    LoaderRig rig(2 * 10000);                                                  // room for 10000 stereo frames
+    rig.card.files["cubbi_c1.wav"] = TapeWav(6000, 1);
+    rig.card.files["cubbi_c2.wav"] = TapeWav(6000, 2);
+    rig.card.files["cubbi_c3.wav"] = TapeWav(6000, 3);
+    rig.Step(); rig.Select(1, 2, 0); rig.Settle();
+    assert(rig.table.slots[0].frames == 6000 && !rig.table.slots[0].partial);
+    assert(rig.table.slots[1].frames == 4000 && rig.table.slots[1].partial && rig.table.slots[1].Readable() == 4000);
+    assert(!rig.table.slots[2].channels);                                      // no room left
+    // Card pulled mid-load: no crash, occupancy cleared; reinserted: rescanned and reloaded.
+    rig.Select(1, 2, 0);
+    rig.card.files["cubbi_d1.wav"] = TapeWav(9000, 4);
+    rig.Step(); rig.Select(1, 3, 0); for(int i = 0; i < 3; ++i) rig.Step();
+    rig.card.ready = false; for(int i = 0; i < 5; ++i) rig.Step();
+    assert(!rig.loader.Scanned() && !rig.loader.Occupancy(1, 2) && !rig.loader.Busy());
+    rig.card.ready = true; rig.Settle();
+    assert(rig.loader.Occupancy(1, 3) == 1 && rig.table.slots[0].Readable() == 9000);
+    // Read failures keep what loaded and mark the slot partial.
+    rig.card.files["cubbi_d2.wav"] = TapeWav(9000, 5);
+    rig.card.ready = false; rig.Step(); rig.card.ready = true;
+    rig.card.fail_reads = true; rig.Settle(); rig.card.fail_reads = false;
+    assert(!rig.table.slots[1].channels || rig.table.slots[1].partial);
+}
+
+void SaveCopyErase() {
+    LoaderRig rig;
+    rig.card.files["cubbi_b1.wav"] = TapeWav(500, 7);
+    rig.card.files["jammi_a2_double.wav"] = TapeWav(10, 0);                    // stale: must go
+    rig.Step();
+    // Record, lock, save as jammi_a2: TAPE's header and the normalised data.
+    assert(rig.recorder.Start());
+    for(int i = 0; i < 4800; ++i) rig.recorder.Write(0.5f * std::sin(i * 0.01f), 0.25f);
+    rig.recorder.Stop(); assert(rig.recorder.Lock());
+    SampleJob save; save.kind = SampleJob::Kind::Save; save.mode = 0; save.bank = 0; save.slot = 1;
+    save.frames = rig.recorder.Length(); save.gain = rig.recorder.Gain(); save.sequence = 12; save.source = 1;
+    assert(rig.loader.Queue(save)); rig.Settle();
+    assert(rig.events.size() == 1 && rig.events[0].ok && rig.events[0].job.sequence == 12);
+    rig.recorder.Unlock();
+    assert(rig.card.Has("jammi_a2.wav") && !rig.card.Has("jammi_a2_double.wav") && !rig.card.Has("FORGE_TMP.WAV"));
+    const auto& file = rig.card.Get("jammi_a2.wav");
+    WavInfo info; assert(ParseWav(file.data(), file.size(), static_cast<uint32_t>(file.size()), info) == WavError::None);
+    assert(info.data_offset == 44 && info.Frames() == 4800 && info.channels == 2 && info.rate == 48000);
+    int peak = 0; for(size_t i = 44; i + 1 < file.size(); i += 2) peak = std::max(peak, std::abs(int(int16_t(file[i] | (file[i + 1] << 8)))));
+    assert(peak > 29000 && peak <= 29205);                                     // -1 dBFS
+    assert(rig.loader.Occupancy(0, 0) == 0b10);
+    // The saved file loads back and matches what was recorded (x gain).
+    rig.Select(0, 0, 1); rig.Settle();
+    const SampleSlot& loaded = rig.table.slots[1];
+    assert(loaded.frames == 4800 && std::abs(loaded.data[2 * 2000] - int(rig.recording[2 * 2000] * save.gain)) <= 1);
+    // Copy cubbi_b1 -> jammi_e14 byte for byte; erase removes file and _double.
+    SampleJob copy; copy.kind = SampleJob::Kind::Copy; copy.mode = 1; copy.bank = 1; copy.slot = 0;
+    copy.to_mode = 0; copy.to_bank = 4; copy.to_slot = 13;
+    assert(rig.loader.Queue(copy)); rig.Settle();
+    assert(rig.events.back().ok && rig.card.Get("jammi_e14.wav") == rig.card.Get("cubbi_b1.wav") && rig.loader.Occupancy(0, 4) == (1u << 13));
+    rig.card.files["jammi_a2_double.wav"] = TapeWav(10, 0);
+    SampleJob erase; erase.kind = SampleJob::Kind::Erase; erase.mode = 0; erase.bank = 0; erase.slot = 1;
+    assert(rig.loader.Queue(erase)); rig.Settle();
+    assert(rig.events.back().ok && !rig.card.Has("jammi_a2.wav") && !rig.card.Has("jammi_a2_double.wav") && !rig.loader.Occupancy(0, 0));
+    assert(!rig.table.slots[1].channels);                                      // the loaded slot was reloaded (now empty)
+    // Failures: copy from an empty slot, write errors (temp removed), no card.
+    copy.mode = 1; copy.bank = 4; assert(rig.loader.Queue(copy)); rig.Settle(); assert(!rig.events.back().ok);
+    rig.card.fail_writes = true; assert(rig.loader.Queue(save)); rig.Settle(); assert(!rig.events.back().ok);
+    rig.card.fail_writes = false; assert(!rig.card.Has("FORGE_TMP.WAV"));
+    rig.card.append_budget = 10000; assert(rig.loader.Queue(save)); rig.Settle();     // fails mid-file
+    assert(!rig.events.back().ok && !rig.card.Has("FORGE_TMP.WAV") && !rig.card.Has("jammi_a2.wav"));
+    rig.card.append_budget = -1;
+    rig.card.ready = false; assert(rig.loader.Queue(save)); rig.Step(); rig.Step();
+    assert(!rig.events.back().ok && rig.events.size() == 7);
+}
 } // namespace
 
 int main() {
     WavFormats(); WavRejections(); HeaderRoundTrip(); FactoryTapeFiles();
     ProtocolV4(); ChromaticPitch(); KitMapping(); OneShotLoopReverse(); GateAndTrigger(); LoadingAndHandoff();
     StereoVoicesAndCompatibility(); RetriggerAndFuzz();
+    Recording(); Names(); ChromaticAndKitLoading(); ProgressiveAndDetach(); PoolLimitsAndCardRemoval(); SaveCopyErase();
     std::cout << "PASS: WAV formats/rejections/header, factory TAPE files, v4 protocol, chromatic pitch, kit map, "
-                 "one-shot/loop/reverse, gate/trigger, loading/handoff, stereo/voices/compatibility, retrigger/fuzz\n";
+                 "one-shot/loop/reverse, gate/trigger, loading/handoff, stereo/voices/compatibility, retrigger/fuzz, "
+                 "recorder, TAPE names, chromatic/kit loading, progressive/detach, pool limits/card removal, save/copy/erase\n";
 }

@@ -54,6 +54,7 @@ public:
     // Sampler memory (v4); see sample_table.h. May be set before or after Init.
     void SetSamples(const SampleTable* table) { synth_.SetSamples(table); }
     void ReleaseSampleVoices(bool include_recording) { synth_.ReleaseSampleVoices(include_recording); }
+    void SetSampleFilesAvailable(bool available) { synth_.SetSampleFilesAvailable(available); }
     bool SampleVoicesActive(bool include_recording) const { return synth_.SampleVoicesActive(include_recording); }
     void Note(uint8_t note, uint8_t velocity, uint8_t source) {
         if(parameters_.synth) synth_.Note(note, velocity, source);

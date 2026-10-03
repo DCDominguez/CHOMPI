@@ -38,6 +38,8 @@ class Synth {
 public:
     // Samples for v4 sampler patches (may be null: sampler notes are ignored).
     void SetSamples(const SampleTable* table) { table_ = table; }
+    // False while the main loop rewrites file slots (SampleHandoff): only the recording plays.
+    void SetSampleFilesAvailable(bool available) { files_available_ = available; }
     void Init(float rate) {
         rate_ = rate; voices_ = {}; age_ = 0; filter_ = 0; coefficient_ = 0; tick_ = 0;
         gain_slew_ = 1.f - std::exp(-1.f / (0.002f * rate)); // ~2 ms velocity glide on reuse
@@ -253,7 +255,8 @@ private:
     }
     FORGE_NOINLINE void SampleNote(uint8_t note, uint8_t velocity, uint8_t source) {
         const int slot = kit_ ? KitSlot(note) : sample_slot_;
-        if(slot < 0 || !table_ || !table_->slots[slot].channels || !table_->slots[slot].frames) return;
+        if(slot < 0 || !table_ || (slot != kRamSlot && !files_available_)
+           || !table_->slots[slot].channels || !table_->slots[slot].frames) return;
         const SampleSlot& s = table_->slots[slot];
         // Same rules as the oscillators: retrigger, idle, quietest releasing, oldest.
         Voice* selected = nullptr;
@@ -311,6 +314,7 @@ private:
     // One sample of a sampler voice; returns false when the voice has finished.
     bool SampleFrame(Voice& v, float step, float& l, float& r) {
         const SampleSlot& s = table_->slots[v.slot];
+        if(!s.frames || !s.channels) return false;                  // slot emptied (new recording)
         const uint32_t readable = s.Readable();
         int32_t start, end; Window(s, start, end);
         const int32_t length = end - start;
@@ -479,7 +483,7 @@ private:
     float glide_slew_ = 1, last_target_ = 0;
     // v4 sampler
     const SampleTable* table_ = nullptr;
-    bool sampler_ = false, kit_ = false, sample_gate_ = true, sample_loop_ = false, sample_reverse_ = false;
+    bool files_available_ = true, sampler_ = false, kit_ = false, sample_gate_ = true, sample_loop_ = false, sample_reverse_ = false;
     uint8_t sample_slot_ = 0;
     float sample_start_ = 0, sample_end_ = 1, xfade_frames_ = 0, pitch_ = 1, pitch_target_ = 1;
     uint32_t noise_state_ = 0x12345678u, age_ = 0, tick_ = 0;
