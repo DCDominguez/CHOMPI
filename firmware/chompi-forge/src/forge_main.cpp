@@ -3,6 +3,7 @@
 #include "engine.h"
 #include "fatfs_storage.h"
 #include "midi_framer.h"
+#include "panel_controller.h"
 #include "preset_menu.h"
 #include "runtime.h"
 #include "sampler_runtime.h"
@@ -96,6 +97,21 @@ FatFsSampleFiles sample_files(card);
 std::atomic<uint32_t> sample_wanted{0};                      // audio -> main: PackSelection of the live patch
 std::atomic<bool> recording_now{false};                       // audio -> main, for the CHOMPI LED
 forge::SpscQueue<forge::SampleJob, 4> sample_jobs;            // audio -> main: panel save/erase/copy
+// Audio -> main snapshots for the development probe (cheap; always published).
+std::atomic<uint32_t> active_voices{0}, record_frames{0};
+std::atomic<bool> panel_overridden{false};
+uint8_t led_shadow[26][3];                                    // main loop: what the LEDs show now
+uint32_t flash_count = 0;                                     // main loop
+
+// Panel work for the main loop (audio callback is the producer).
+struct FirmwarePanelSink : forge::PanelSink {
+    bool PresetAction(const forge::MenuAction& action, const forge::Parameters& snapshot) override {
+        return panel_actions.Push({action, snapshot});
+    }
+    bool SampleJob(const forge::SampleJob& job) override { return sample_jobs.Push(job); }
+    void Flash(bool ok) override { audio_flash.store(ok ? 1 : 2, std::memory_order_relaxed); }
+};
+forge::PanelController panel_controller;                      // audio owner
 
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size) {
     cpu.OnBlockStart();
@@ -113,6 +129,13 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
             responses.Push(forge::LockForSave(recorder, request));
             continue;
         }
+        if(request.kind == forge::RequestKind::Panel) {         // development: injected panel event
+            forge::PanelEvent event;
+            event.kind = static_cast<forge::PanelEvent::Kind>(request.panel_kind);
+            event.id = request.panel_id; event.value = request.panel_value;
+            panel_controller.Inject(event);
+            continue;
+        }
         if(forge::ExecuteRequest(request, engine, response)) {
             response.cpu_average = cpu.GetAvgCpuLoad();
             response.cpu_max = cpu.GetMaxCpuLoad();
@@ -121,91 +144,24 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     }
 
     hw.ProcessAllControls();
-    // Toggle + CHOMPI key: TAPE-style preset menu. While it is open, keys select
-    // presets instead of playing (releases still end held notes).
-    static forge::PresetMenu menu;
-    static forge::RecordGesture gesture;
-    static forge::RecordSource source = forge::RecordSource::Line;
-    const bool toggle_up = hw.GetToggleState(), chompi = hw.button_sr.State(forge::panel::kChompiKey);
-    menu.Update(toggle_up, chompi);
-    // TAPE: jack insertion selects line in, removal the mic.
-    static bool jack = !hw.jack_detect.Read();
-    if(hw.jack_detect.Read() != jack) {
-        jack = hw.jack_detect.Read();
-        source = jack ? forge::RecordSource::Line : forge::RecordSource::Mic;
-        menu.SetRecordSource(static_cast<uint8_t>(source));
-    }
-    // TAPE: toggle down + hold CHOMPI records; on release the take becomes the
-    // chromatic recording slot and plays at once.
-    switch(gesture.Update(toggle_up, chompi)) {
-        case forge::RecordGesture::Event::Start:
-            if(!recorder.Start()) { gesture.Cancel(); audio_flash.store(2, std::memory_order_relaxed); }
-            break;
-        case forge::RecordGesture::Event::Stop: {
-            recorder.Stop();
-            const auto p = engine.GetParameters();
-            engine.ApplyPatch(forge::SelectSample(p, 0, p.sample_bank, forge::kRamSlot));
-            break;
-        }
-        default: break;
-    }
-    // Matches upstream NormalPage::key_map: 25 chromatic keys, MIDI 48..72.
-    static constexpr uint8_t notes[40] = {0,0,0,0,0,0,0,49,50,52,53,55,51,54,56,48,
-        57,59,60,62,64,58,61,63,65,67,69,71,72,66,68,70,0,0,0,0,0,0,0,0};
-    for(unsigned key = 0; key < 40; ++key) if(notes[key]) {
-        if(hw.button_sr.RisingEdge(key) && !menu.Key(key, true)) engine.Note(notes[key], 100, 2);
-        if(hw.button_sr.FallingEdge(key)) { menu.Key(key, false); engine.Note(notes[key], 0, 2); }
-    }
-    for(forge::MenuAction action; menu.PopAction(action);) {
-        using Kind = forge::MenuAction::Kind;
-        if(action.kind == Kind::SampleSelect) {                 // applied here, as TAPE does
-            engine.ApplyPatch(forge::SelectSample(engine.GetParameters(), action.mode, action.bank, action.slot));
-        } else if(action.kind == Kind::RecordSource) {
-            source = static_cast<forge::RecordSource>(action.slot);
-        } else if(action.kind == Kind::SampleSave || action.kind == Kind::SampleErase || action.kind == Kind::SampleCopy) {
-            forge::SampleJob job;
-            job.mode = action.mode; job.bank = action.bank; job.slot = action.slot;
-            job.to_mode = action.to_mode; job.to_bank = action.to_bank; job.to_slot = action.to_slot;
-            job.kind = action.kind == Kind::SampleSave ? forge::SampleJob::Kind::Save
-                     : action.kind == Kind::SampleErase ? forge::SampleJob::Kind::Erase : forge::SampleJob::Kind::Copy;
-            if(job.kind == forge::SampleJob::Kind::Save) {
-                if(!recorder.Lock()) { audio_flash.store(2, std::memory_order_relaxed); continue; }
-                job.frames = recorder.Length(); job.gain = recorder.Gain();
-            }
-            if(!sample_jobs.Push(job)) {
-                if(job.kind == forge::SampleJob::Kind::Save) recorder.Unlock();
-                audio_flash.store(2, std::memory_order_relaxed);
-            }
-        } else {
-            panel_actions.Push({action, engine.GetParameters()});    // full queue: dropped, LEDs show no change
-        }
-    }
-    {
-        const auto& live = engine.GetParameters();
-        if(live.Sampler()) menu.FollowSampler(live.sample_mode, live.sample_bank, live.sample_slot);
-        sample_wanted.store(forge::PackSelection(live), std::memory_order_relaxed);
-    }
+    // The whole panel (menus, record gesture, keys, knobs) lives in
+    // core/panel_controller.h; development builds merge injected events.
+    static FirmwarePanelSink sink;
+    forge::PanelInput input;
+    for(unsigned key = 0; key < forge::panel::kButtons; ++key)
+        if(hw.button_sr.State(key)) input.keys |= uint64_t(1) << key;
+    input.toggle_up = hw.GetToggleState();
+    input.jack = hw.jack_detect.Read();
+    input.tone_press = hw.enc[forge::panel::kToneEncoder].RisingEdge();
+    for(unsigned i = 0; i < forge::panel::kEncoders; ++i) input.turns[i] = static_cast<int16_t>(hw.enc[i].Increment());
+    panel_controller.Block(input, engine, recorder, sink);
+    const forge::RecordSource source = panel_controller.Source();
+    sample_wanted.store(forge::PackSelection(engine.GetParameters()), std::memory_order_relaxed);
     recording_now.store(recorder.Recording(), std::memory_order_relaxed);
-    menu_state.store(menu.Packed(), std::memory_order_relaxed);
-    // Dedicated local recovery; SW5 turn controls synth tone, press silences.
-    if(hw.enc[4].RisingEdge()) engine.Panic();
-    const int tone = hw.enc[4].Increment();
-    if(tone) engine.Apply({forge::Parameter::Cutoff, engine.GetParameters().cutoff + tone / 127.f});
-    // Logical knobs in stock order (knob n = CC20+n), mapped to hardware encoders.
-    // Their functions follow the patch: mix/time/feedback/level, or TAPE's
-    // sampler page (pitch, start, end, mix).
-    for(unsigned knob = 0; knob < 4; ++knob) {
-        const int increment = hw.enc[forge::panel::kKnobEncoder[knob]].Increment();
-        if(increment && !menu.Encoder(knob, increment)) {   // knob 0 picks the bank while the menu is open
-            const auto& p = engine.GetParameters();
-            const float value = p.Value(p.KnobParameter(knob));
-            engine.Apply({static_cast<forge::Parameter>(static_cast<unsigned>(forge::Parameter::Knob1) + knob),
-                          value + increment / 127.f});
-        }
-    }
-    // Physical volume encoder SW6 also controls output level.
-    const int volume = hw.enc[5].Increment();
-    if(volume) engine.Apply({forge::Parameter::Level, engine.GetParameters().level + volume / 127.f});
+    menu_state.store(panel_controller.MenuPacked(), std::memory_order_relaxed);
+    active_voices.store(engine.ActiveVoices(), std::memory_order_relaxed);
+    record_frames.store(recorder.Length(), std::memory_order_relaxed);
+    panel_overridden.store(panel_controller.Overridden(), std::memory_order_relaxed);
 
     const bool recording = recorder.Recording();
     for(size_t i = 0; i < size; ++i) {
@@ -281,7 +237,7 @@ void SendResponse(const forge::Response& response) {
     const size_t size = forge::EncodeResponse(response, dropped, rejected_messages, envelope + 1);
     Send(response.source, envelope, size);
 }
-void Flash(bool ok) { flash_ok = ok; flash_until = System::GetNow() + 400; }
+void Flash(bool ok) { flash_ok = ok; flash_until = System::GetNow() + 400; ++flash_count; }
 // Loads a slot and queues it for the audio owner. Silent requests (panel,
 // program change) get no reply; a host recall is acknowledged with status.
 forge::Error RecallPreset(forge::Request& request) {
@@ -354,32 +310,36 @@ void RunSampler() {
     const uint32_t flash = audio_flash.exchange(0, std::memory_order_relaxed);
     if(flash) Flash(flash == 1);
 }
-// Key LEDs while the menu is open (~30 Hz); panel LED 0 (the CHOMPI key, as in
-// TAPE) shows status: red while recording, pink blink while saving/copying.
+// Key LEDs (~30 Hz) and panel LED 0 (the CHOMPI key, as in TAPE): red while
+// recording, a flash after an action, pink blink while saving/copying. The
+// composed colours are kept for the development probe.
 void DrawLeds() {
-    static uint32_t last_draw = 0; static bool was_open = false;
+    static uint32_t last_draw = 0;
     const uint32_t now = System::GetNow();
     if(now - last_draw < 33) return;
     last_draw = now;
-    const uint32_t packed = menu_state.load(std::memory_order_relaxed);
-    const bool open = packed & 1u;
-    if(open || was_open) {
-        forge::Rgb leds[25];
-        if((packed >> 21) & 1u)
-            forge::RenderSampleLeds(packed, sample_loader.Occupancy((packed >> 22) & 1u, (packed >> 4) & 7u), sample_files.Ready(),
-                                    sample_table.slots[forge::kRamSlot].loaded.load(std::memory_order_acquire) > 0,
-                                    sample_wanted.load(std::memory_order_relaxed), (now / 250) % 2 == 0, leds);
-        else
-            forge::RenderMenuLeds(packed, store.Occupancy((packed >> 4) & 7u), store.Ready(), last_bank, last_slot,
-                                  (now / 250) % 2 == 0, leds);
-        for(unsigned i = 0; i < 25; ++i) SetSmtLedFloat(i, leds[i].r, leds[i].g, leds[i].b);
-    }
-    was_open = open;
-    if(recording_now.load(std::memory_order_relaxed)) SetPthLedFloat(0, 1.f, 0.f, 0.f);
-    else if(now < flash_until) SetPthLedFloat(0, flash_ok ? 0.f : 0.3f, flash_ok ? 0.3f : 0.f, 0.f);
-    else if(sample_loader.Busy() && !sample_loader.Loading()) SetPthLedFloat(0, (now / 300) % 2 ? 1.f : 0.f, 0.f, (now / 300) % 2 ? .6f : 0.f);
-    else SetPthLedFloat(0, 0.f, 0.05f, 0.1f);
+    forge::LedView view;
+    view.menu = menu_state.load(std::memory_order_relaxed);
+    view.preset_occupancy = store.Occupancy((view.menu >> 4) & 7u); view.preset_card = store.Ready();
+    view.last_bank = last_bank; view.last_slot = last_slot;
+    view.sample_occupancy = sample_loader.Occupancy((view.menu >> 22) & 1u, (view.menu >> 4) & 7u);
+    view.sample_card = sample_files.Ready();
+    view.recording_present = sample_table.slots[forge::kRamSlot].loaded.load(std::memory_order_acquire) > 0;
+    view.recording_now = recording_now.load(std::memory_order_relaxed);
+    view.live = sample_wanted.load(std::memory_order_relaxed);
+    view.blink = (now / 250) % 2 == 0; view.slow_blink = (now / 300) % 2 != 0;
+    view.flash = now < flash_until ? (flash_ok ? 1 : 0) : -1;
+    view.saving = sample_loader.Busy() && !sample_loader.Loading();
+    forge::Rgb keys[25], chompi;
+    forge::ComposeLeds(view, keys, chompi);
+    for(unsigned i = 0; i < 25; ++i) SetSmtLedFloat(i, keys[i].r, keys[i].g, keys[i].b);
+    SetPthLedFloat(0, chompi.r, chompi.g, chompi.b);
     fill_led_data();
+    auto seven = [](float x) { return static_cast<uint8_t>(forge::Clamp(x, 0.f, 1.f) * 127.f + 0.5f); };
+    for(unsigned i = 0; i < 26; ++i) {
+        const forge::Rgb& c = i < 25 ? keys[i] : chompi;
+        led_shadow[i][0] = seven(c.r); led_shadow[i][1] = seven(c.g); led_shadow[i][2] = seven(c.b);
+    }
 }
 // Card insert/remove: remount and rescan when the card comes back.
 void WatchCard() {
@@ -415,6 +375,33 @@ FORGE_NOINLINE void HandleFrame(const forge::MidiFrame& frame, uint8_t source) {
     request.source = source;
     if(error == forge::Error::None) error = HandleStorage(request);
     bool handled = request.kind == forge::RequestKind::Erase || request.kind == forge::RequestKind::List;
+#ifdef FORGE_TEST_HOOKS
+    // Development probe: answered here from the latest snapshots; panel events
+    // go to the audio owner and are acknowledged once queued.
+    if(error == forge::Error::None && request.kind == forge::RequestKind::Probe) {
+        uint8_t envelope[kMaxEnvelope];
+        size_t size;
+        if(request.page == 0) {
+            forge::ProbeState s;
+            s.menu = menu_state.load(std::memory_order_relaxed);
+            s.flags = static_cast<uint8_t>((recording_now.load(std::memory_order_relaxed) ? 1 : 0)
+                | (sample_loader.Busy() ? 2 : 0) | (sample_loader.Loading() ? 4 : 0) | (sample_files.Ready() ? 8 : 0)
+                | (store.Ready() ? 16 : 0) | (panel_overridden.load(std::memory_order_relaxed) ? 32 : 0));
+            s.voices = static_cast<uint8_t>(active_voices.load(std::memory_order_relaxed));
+            s.record_ms = static_cast<uint32_t>(uint64_t(record_frames.load(std::memory_order_relaxed)) * 1000 / 48000);
+            s.live = sample_wanted.load(std::memory_order_relaxed);
+            s.flash_count = static_cast<uint8_t>(flash_count); s.flash_ok = flash_ok;
+            size = forge::EncodeProbeState(request.sequence, s, envelope + 1);
+        } else size = forge::EncodeProbeLeds(request.sequence, led_shadow, envelope + 1);
+        Send(source, envelope, size);
+        return;
+    }
+    if(error == forge::Error::None && request.kind == forge::RequestKind::Panel) {
+        if(Queue(request)) { uint8_t envelope[kMaxEnvelope]; Send(source, envelope, forge::EncodePanelAck(request.sequence, envelope + 1)); return; }
+        error = forge::Error::Busy;
+        handled = true;
+    }
+#endif
     if(error == forge::Error::None && request.kind == forge::RequestKind::SampleList) {
         SendResponse(forge::SampleListReply(sample_loader, sample_files.Ready(), sample_table.slots[forge::kRamSlot],
                                             kRecordFrames, request));

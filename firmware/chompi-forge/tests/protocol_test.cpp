@@ -93,6 +93,11 @@ void ProtocolV3() {
     assert(parser.Feed(0xf7, frame) && frame.size == packet.size());
     parser.Feed(0xf0, frame); for(unsigned i = 0; i <= kMaxSysEx; ++i) parser.Feed(1, frame);
     assert(!parser.Feed(0xf7, frame));
+    // Release builds have no development opcodes (panel injection, probe).
+    for(uint8_t op : {0x0a, 0x0b}) {
+        uint8_t dev[11]; Header(dev, op, 3); dev[7] = 0; dev[8] = 15; dev[9] = 65; dev[10] = Checksum(dev, 10);
+        assert(DecodeRequest(dev, op == 0x0a ? 11 : 9, request) == Error::Opcode || DecodeRequest(dev, 11, request) == Error::Opcode);
+    }
     // The largest reply (a v4 status) fits the firmware's USB packet buffer size.
     response.patch.version = 4;
     assert(EncodeResponse(response, 0, 0, reply) == kMaxReply);

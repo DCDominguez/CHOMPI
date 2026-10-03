@@ -1,14 +1,15 @@
 CXX ?= c++
 HOST_FLAGS = -std=c++14 -Wall -Wextra -Werror -pedantic -pthread
 HEADERS = $(wildcard core/*.h)
-.PHONY: test sanitize firmware libdaisy browser-test bench
-test: build/core_test build/protocol_test build/synth_test build/v3_test build/preset_test build/sampler_test build/forge_probe
+.PHONY: test sanitize firmware firmware-dev libdaisy browser-test bench
+test: build/core_test build/protocol_test build/synth_test build/v3_test build/preset_test build/sampler_test build/panel_test build/forge_probe
 	./build/core_test
 	./build/protocol_test
 	./build/synth_test
 	./build/v3_test
 	./build/preset_test
 	./build/sampler_test
+	./build/panel_test
 	python3 -m unittest discover -s tests -p 'test_*.py' -v
 build/core_test: tests/core_test.cpp $(HEADERS)
 	mkdir -p build
@@ -28,9 +29,12 @@ build/preset_test: tests/preset_test.cpp $(HEADERS)
 build/sampler_test: tests/sampler_test.cpp $(HEADERS)
 	mkdir -p build
 	$(CXX) $(HOST_FLAGS) -O2 tests/sampler_test.cpp -o $@
+build/panel_test: tests/panel_test.cpp $(HEADERS)
+	mkdir -p build
+	$(CXX) $(HOST_FLAGS) -DFORGE_TEST_HOOKS -O2 tests/panel_test.cpp -o $@
 build/forge_probe: host/forge_probe.cpp tests/sample_card.h $(HEADERS)
 	mkdir -p build
-	$(CXX) $(HOST_FLAGS) -O2 host/forge_probe.cpp -o $@
+	$(CXX) $(HOST_FLAGS) -DFORGE_TEST_HOOKS -O2 host/forge_probe.cpp -o $@
 sanitize:
 	mkdir -p build
 	$(CXX) $(HOST_FLAGS) -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer tests/core_test.cpp -o build/core_test_sanitize
@@ -45,11 +49,16 @@ sanitize:
 	./build/preset_test_sanitize
 	$(CXX) $(HOST_FLAGS) -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer tests/sampler_test.cpp -o build/sampler_test_sanitize
 	./build/sampler_test_sanitize
+	$(CXX) $(HOST_FLAGS) -DFORGE_TEST_HOOKS -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer tests/panel_test.cpp -o build/panel_test_sanitize
+	./build/panel_test_sanitize
 libdaisy:
 	mkdir -p build
 	$(MAKE) -C ../chompi-wave/code/libs/libDaisy BUILD_DIR=$(abspath build/libdaisy)
 firmware: libdaisy
 	$(MAKE) -C src
+# Development firmware with the bridge's panel injection and probe (src/build-dev/).
+firmware-dev: libdaisy
+	$(MAKE) -C src TEST_HOOKS=1 BUILD_DIR=build-dev
 
 # Real Chromium end-to-end test of the webapp against the simulated device.
 # Needs: pip install playwright && python3 -m playwright install chromium

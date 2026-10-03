@@ -11,6 +11,7 @@
 #include <vector>
 #include "../core/midi_framer.h"
 #include "../core/runtime.h"
+#include "../core/panel_controller.h"
 #include "../core/sampler_runtime.h"
 #include "../tests/sample_card.h"
 
@@ -85,14 +86,49 @@ int main(int argc, char** argv) {
     loader.Init(&table, &handoff, pool.data(), static_cast<uint32_t>(pool.size()), scratch.data(), static_cast<uint32_t>(scratch.size()));
     recorder.Init(recording.data(), 48000 * 4, &table.slots[forge::kRamSlot], 48000.f);
     recorder.Start(); for(int i = 0; i < 48000; ++i) recorder.Write(0.3f * std::sin(i * 0.05f), 0.3f * std::sin(i * 0.05f)); recorder.Stop();
-    // Runs the loader (and the audio side of the handoff) until idle; returns a finished job, if any.
+    // Panel: the same controller as firmware, driven by development opcode 0A
+    // (no hardware input). Its menu actions run here directly.
+    struct ProbeSink : forge::PanelSink {
+        forge::PresetStore* store; forge::Engine* engine; forge::SampleLoader* loader;
+        uint8_t last_bank = 0, last_slot = forge::panel::kNoSlot; unsigned flashes = 0; bool flash_ok = true;
+        bool PresetAction(const forge::MenuAction& a, const forge::Parameters& snapshot) override {
+            forge::Error e = forge::Error::None;
+            if(a.kind == forge::MenuAction::Kind::Recall) {
+                forge::Parameters patch; e = store->Load(a.bank, a.slot, patch);
+                if(e == forge::Error::None) { engine->ApplyPatch(patch); last_bank = a.bank; last_slot = a.slot; return true; }
+            } else if(a.kind == forge::MenuAction::Kind::Save) e = store->Save(a.bank, a.slot, snapshot);
+            else if(a.kind == forge::MenuAction::Kind::Erase) e = store->Erase(a.bank, a.slot);
+            else if(a.kind == forge::MenuAction::Kind::Copy) e = store->Copy(a.bank, a.slot, a.to_bank, a.to_slot);
+            Flash(e == forge::Error::None);
+            return true;
+        }
+        bool SampleJob(const forge::SampleJob& job) override { forge::SampleJob j = job; j.source = 0xff; return loader->Queue(j); }
+        void Flash(bool ok) override { ++flashes; flash_ok = ok; }
+    } sink;
+    sink.store = &store; sink.engine = &engine; sink.loader = &loader;
+    forge::PanelController panel;
+    // One audio block plus one main-loop pass, as on the device.
+    auto block = [&](forge::SampleEvent& event) {
+        forge::SampleEvent e; bool finished = false;
+        if(loader.Poll(samples, forge::PackSelection(engine.GetParameters()), recording.data(), e)) {
+            event = e; finished = true;
+            if(e.job.kind == forge::SampleJob::Kind::Save) recorder.Unlock();
+            if(e.job.source == 0xff) sink.Flash(e.ok);
+        }
+        engine.SetSampleFilesAvailable(handoff.AudioBlock(engine));
+        panel.Block(forge::PanelInput{}, engine, recorder, sink);
+        float l, r;
+        for(int k = 0; k < 24; ++k) {
+            engine.Process(0, 0, l, r);
+            if(recorder.Recording()) { float a, b; recorder.Input(panel.Source(), 0, 0, 0, l, r, a, b); recorder.Write(a, b); }
+        }
+        return finished;
+    };
+    // Runs until the loader is idle; returns a finished job, if any.
     auto settle = [&](forge::SampleEvent& event) {
         bool finished = false;
         for(int i = 0; i < 100000; ++i) {
-            forge::SampleEvent e;
-            if(loader.Poll(samples, forge::PackSelection(engine.GetParameters()), recording.data(), e)) { event = e; finished = true; }
-            engine.SetSampleFilesAvailable(handoff.AudioBlock(engine));
-            float l, r; for(int k = 0; k < 24; ++k) engine.Process(0, 0, l, r);
+            if(block(event)) finished = true;
             if(!loader.Busy() && i > 2) break;
         }
         return finished;
@@ -104,7 +140,7 @@ int main(int argc, char** argv) {
         if(byte > 255) return 2;
         if(!parser.Feed(static_cast<uint8_t>(byte), frame)) continue;
         if(frame.kind != forge::MidiFrame::Kind::SysEx || !forge::IsRequest(frame.data, frame.size)) continue;
-        forge::Request request; uint8_t reply[forge::kMaxReply]; size_t size;
+        forge::Request request; uint8_t reply[forge::kMaxReply]; size_t size = 0;
         auto error = forge::DecodeRequest(frame.data, frame.size, request);
         forge::Response response;
         // Device presets: the same main-loop helpers the firmware uses.
@@ -113,7 +149,41 @@ int main(int argc, char** argv) {
             error = forge::RecallRequest(store, request, apply);
             if(error == forge::Error::None) request = apply;
         }
-        if(error == forge::Error::None && request.kind == forge::RequestKind::SampleList) {
+        if(error == forge::Error::None && request.kind == forge::RequestKind::Panel) {
+            forge::PanelEvent event;
+            event.kind = static_cast<forge::PanelEvent::Kind>(request.panel_kind);
+            event.id = request.panel_id; event.value = request.panel_value;
+            panel.Inject(event); settle(ignored);
+            size = forge::EncodePanelAck(request.sequence, reply);
+        } else if(error == forge::Error::None && request.kind == forge::RequestKind::Probe) {
+            settle(ignored);
+            const uint32_t menu = panel.MenuPacked();
+            if(request.page == 0) {
+                forge::ProbeState s; s.menu = menu;
+                s.flags = static_cast<uint8_t>((recorder.Recording() ? 1 : 0) | (loader.Busy() ? 2 : 0) | (loader.Loading() ? 4 : 0)
+                                               | (samples.Ready() ? 8 : 0) | (store.Ready() ? 16 : 0) | (panel.Overridden() ? 32 : 0));
+                s.voices = static_cast<uint8_t>(engine.ActiveVoices());
+                s.record_ms = static_cast<uint32_t>(uint64_t(recorder.Length()) * 1000 / 48000);
+                s.live = forge::PackSelection(engine.GetParameters());
+                s.flash_count = static_cast<uint8_t>(sink.flashes); s.flash_ok = sink.flash_ok;
+                size = forge::EncodeProbeState(request.sequence, s, reply);
+            } else {
+                forge::LedView v; v.menu = menu;
+                v.preset_occupancy = store.Occupancy((menu >> 4) & 7u); v.preset_card = store.Ready();
+                v.last_bank = sink.last_bank; v.last_slot = sink.last_slot;
+                v.sample_occupancy = loader.Occupancy((menu >> 22) & 1u, (menu >> 4) & 7u); v.sample_card = samples.Ready();
+                v.recording_present = table.slots[forge::kRamSlot].loaded.load() > 0; v.recording_now = recorder.Recording();
+                v.live = forge::PackSelection(engine.GetParameters()); v.blink = true;
+                forge::Rgb keys[25], chompi; forge::ComposeLeds(v, keys, chompi);
+                uint8_t leds[26][3];
+                for(unsigned i = 0; i < 26; ++i) {
+                    const forge::Rgb& c = i < 25 ? keys[i] : chompi;
+                    const float rgb[3] = {c.r, c.g, c.b};
+                    for(unsigned k = 0; k < 3; ++k) leds[i][k] = static_cast<uint8_t>(forge::Clamp(rgb[k], 0.f, 1.f) * 127.f + 0.5f);
+                }
+                size = forge::EncodeProbeLeds(request.sequence, leds, reply);
+            }
+        } else if(error == forge::Error::None && request.kind == forge::RequestKind::SampleList) {
             settle(ignored);
             response = forge::SampleListReply(loader, samples.Ready(), table.slots[forge::kRamSlot], 48000 * 4, request);
         } else if(error == forge::Error::None && request.kind == forge::RequestKind::SampleJob) {
@@ -136,7 +206,8 @@ int main(int argc, char** argv) {
                 response = forge::StoreReply(store, response.sequence, 0, response.bank, response.slot, response.patch);
         }
         if(error != forge::Error::None) size = forge::EncodeError(forge::Read14(frame.data + 5), error, reply);
-        else size = forge::EncodeResponse(response, 0, 0, reply);
+        else if(request.kind != forge::RequestKind::Panel && request.kind != forge::RequestKind::Probe)
+            size = forge::EncodeResponse(response, 0, 0, reply);
         for(size_t i = 0; i < size; ++i) std::cout << std::hex << std::setw(2) << std::setfill('0') << unsigned(reply[i]) << ' ';
         std::cout << std::endl; ++replies; // flush: lets a host keep one stateful probe open
     }

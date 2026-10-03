@@ -19,8 +19,9 @@ constexpr size_t kV3Request = 69, kMaxRequest = 84, kMaxReply = 96;
 // performs SD I/O (Store first takes a parameter snapshot from the audio owner).
 // SampleList/SampleJob (opcodes 08/09) are sampler requests: the main loop
 // answers lists and runs erase/copy; a save first locks the recording (audio).
+// Panel/Probe (opcodes 0A/0B) exist only in development builds (FORGE_TEST_HOOKS).
 enum class RequestKind : uint8_t { Parameter, Patch, Status, Note, Panic, Pedal, Bend, ResetControllers, ModWheel,
-                                   Store, Recall, Erase, List, SampleList, SampleJob };
+                                   Store, Recall, Erase, List, SampleList, SampleJob, Panel, Probe };
 enum class SampleAction : uint8_t { Save, Erase, Copy };   // opcode 09 byte 7
 struct Request {
     RequestKind kind = RequestKind::Status;
@@ -36,6 +37,9 @@ struct Request {
     // SampleJob: action, source mode/bank/slot (bank/slot above) and copy destination.
     SampleAction action = SampleAction::Save;
     uint8_t mode = 0, to_mode = 0, to_bank = 0, to_slot = 0;
+    // Panel (development): event kind, id, signed value; Probe: page.
+    uint8_t panel_kind = 0, panel_id = 0, page = 0;
+    int8_t panel_value = 0;
 };
 // Status: current patch + diagnostics (op 0x40). Stored/Erased: 0x42 storage ack.
 // Occupancy: 0x43 bank bitmaps. Snapshot: internal only (audio -> main for Store).
@@ -176,6 +180,24 @@ FORGE_NOINLINE inline Error DecodeRequest(const uint8_t* bytes, size_t size, Req
         candidate.kind = RequestKind::SampleJob; candidate.action = static_cast<SampleAction>(bytes[7]);
         candidate.mode = bytes[8]; candidate.bank = bytes[9]; candidate.slot = bytes[10];
         candidate.to_mode = bytes[11]; candidate.to_bank = bytes[12]; candidate.to_slot = bytes[13];
+#ifdef FORGE_TEST_HOOKS
+    } else if(bytes[4] == 0x0a) {                    // panel event: kind, id, value (+64 for turns/overrides)
+        if(size != 11) return Error::Length;
+        const uint8_t kind = bytes[7], id = bytes[8];
+        const int value = int(bytes[9]) - 64;
+        const bool ok = (kind == 0 && id < 40 && (value == 0 || value == 1))
+                     || (kind == 1 && id < 6 && value >= -63 && value <= 63)
+                     || (kind == 2 && id == 4 && value == 0)
+                     || ((kind == 3 || kind == 4) && id == 0 && value >= -1 && value <= 1)
+                     || (kind == 5 && id == 0 && value == 0);
+        if(!ok) return Error::Patch;
+        candidate.kind = RequestKind::Panel; candidate.panel_kind = kind; candidate.panel_id = id;
+        candidate.panel_value = static_cast<int8_t>(value);
+    } else if(bytes[4] == 0x0b) {                    // probe page 0 (state) or 1 (LEDs)
+        if(size != 9) return Error::Length;
+        if(bytes[7] > 1) return Error::Patch;
+        candidate.kind = RequestKind::Probe; candidate.page = bytes[7];
+#endif
     } else if(bytes[4] == 2) {
         if(size != 8) return Error::Length;
         candidate.kind = RequestKind::Status;
@@ -286,4 +308,34 @@ FORGE_NOINLINE inline size_t EncodeResponse(const Response& response, uint32_t d
     bytes[offset + 11] = Checksum(bytes, offset + 11);
     return offset + 12;
 }
+#ifdef FORGE_TEST_HOOKS
+// Development probe replies (main loop). 0x47: panel event queued. 0x46 page 0:
+// state; page 1: the 25 key LEDs + CHOMPI LED as 7-bit RGB.
+struct ProbeState {
+    uint32_t menu = 0;          // PresetMenu::Packed()
+    uint8_t flags = 0;          // 1 recording, 2 loader busy, 4 loading, 8 sample card, 16 preset card, 32 panel overridden
+    uint8_t voices = 0, flash_count = 0, flash_ok = 0;
+    uint32_t record_ms = 0, live = 0;
+};
+inline size_t EncodePanelAck(uint16_t sequence, uint8_t* bytes) {
+    Header(bytes, 0x47, sequence); bytes[7] = 0; bytes[8] = Checksum(bytes, 8);
+    return 9;
+}
+inline size_t EncodeProbeState(uint16_t sequence, const ProbeState& s, uint8_t* bytes) {
+    Header(bytes, 0x46, sequence); bytes[7] = 0; bytes[8] = 0;
+    for(unsigned i = 0; i < 5; ++i) bytes[9 + i] = (s.menu >> (7 * i)) & 127;
+    bytes[14] = s.flags & 127; bytes[15] = s.voices & 127;
+    Write21(bytes + 16, s.record_ms); Write14(bytes + 19, s.live & 0x3fff);
+    bytes[21] = s.flash_count & 127; bytes[22] = s.flash_ok & 1;
+    bytes[23] = Checksum(bytes, 23);
+    return 24;
+}
+inline size_t EncodeProbeLeds(uint16_t sequence, const uint8_t (&leds)[26][3], uint8_t* bytes) {
+    Header(bytes, 0x46, sequence); bytes[7] = 0; bytes[8] = 1;
+    for(unsigned i = 0; i < 26; ++i) for(unsigned c = 0; c < 3; ++c) bytes[9 + 3 * i + c] = leds[i][c] & 127;
+    bytes[87] = Checksum(bytes, 87);
+    return 88;
+}
+#endif
 } // namespace forge
+
