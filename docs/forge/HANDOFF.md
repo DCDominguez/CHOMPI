@@ -20,7 +20,7 @@ live checkpoint with claim levels, what changed and prioritized next actions.
   (xPack GCC 10.3.1; the pinned Arm archive was unreachable).
 - Stock comparison and CPU benchmark: [COMPATIBILITY.md](COMPATIBILITY.md)
   (`make bench`).
-- QA bundle: see CONTINUE.md "Next actions" (0.5 bundle with the sampler);
+- QA bundle: `Forge-0.5-test-b7a504a` (with the sampler); checksums in CONTINUE.md;
   older ZIPs are stale. DC keeps bundles on his Google Drive.
 - Not verified: anything on hardware; any live OpenAI/Gemini request; device CPU.
 - Current state and remaining work: CONTINUE.md "Checkpoint summary".

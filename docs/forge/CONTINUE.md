@@ -26,7 +26,7 @@ No main merge, flashing or real-key API calls by agents.
 - Stock comparison: bootloader layout, keybed, SD setup, CCs and knob order
   match stock; Forge reads/writes TAPE's sample files; sampler worst case
   ~97 % of WAVE's engine (emulated), synth ~55 %; ~24 KB code headroom.
-- QA bundle: see Next actions (0.5).
+- QA bundle `Forge-0.5-test-b7a504a` is current (see Next actions).
 
 **What's left.**
 - DC decisions made 2026-10-03: CCs match stock (done: CC20+n = encoder n);
@@ -382,6 +382,9 @@ webapp + bench optimisation, then docs.
 3. Agent: roadmap item 5, looping — design first from TAPE's LooperEngine /
    FileSampler (tape-style overdub, varispeed), within ~7.6 MB SDRAM and the
    remaining code space; confirm scope with DC before building.
-4. Bundle: regenerate for 0.5 (recorded below once built); older ZIPs stale.
+4. Bundle: `Forge-0.5-test-b7a504a` built from `b7a504a` (xPack GCC 10.3.1,
+   zip sha256 `cb0380da…dfe4e1`, FORGE.bin sha256 `513d295c…af45df`,
+   `verify_bundle.py`: 51 files OK). DC stores it on Google Drive. Older ZIPs
+   are stale; regenerate if firmware changes again.
 5. DC (later, per feature): LIVE_AI_TEST.md, then TEST_SESSION.md; record in
    TEST_RESULTS.md. Agent then fixes only what QA finds.
