@@ -1,10 +1,11 @@
-> Updated for candidate 0.3: audio can originate from the four-voice synth or aux.
-> Read [PROTOCOL.md](PROTOCOL.md) for v2 module DATA and [CONTINUE.md](CONTINUE.md)
+> Updated for candidate 0.4: audio originates from the synth (v3: two oscillators,
+> noise, resonant filter, LFO) or aux, then delay and reverb.
+> Read [PROTOCOL.md](PROTOCOL.md) for v1/v2/v3 module DATA and [CONTINUE.md](CONTINUE.md)
 > for the current implementation/verification checkpoint.
 
 # Forge architecture
 
-Applies to software candidate 0.3. Exact ranges and defaults live in the
+Applies to software candidate 0.4. Exact ranges and defaults live in the
 [firmware guide](../../firmware/chompi-forge/README.md); byte layouts live in the
 [protocol](PROTOCOL.md).
 
@@ -24,7 +25,7 @@ flowchart TD
     Queue --> Audio["Audio owner"]
     Knobs["Physical encoders"] --> Audio
     Keys["Keybed and MIDI notes"] --> Audio
-    Audio --> DSP["Synth or aux → delay → output"]
+    Audio --> DSP["Synth or aux → delay → reverb (v3) → output"]
     Audio --> Reply["Snapshot reply queue"]
     Reply --> Host["Host acknowledgement and status"]
 ```
@@ -32,12 +33,23 @@ flowchart TD
 ## Audio path
 
 The reused hardware class configures 48 kHz audio in 24-frame blocks. The
-callback selects auxiliary channels 2/3 or the four-voice mono synth, processes
-the stereo delay, and mirrors the result to headphone channels 0/1 and main channels 2/3. Microphone channel 0
+callback selects auxiliary channels 2/3 or the mono synth (up to four voices),
+processes the stereo delay and, for v3 patches, the reverb, and mirrors the
+result to headphone channels 0/1 and main channels 2/3. Microphone channel 0
 is not mixed into the effect.
 
+Synth paths: v1/v2 patches use the original voices summed into one shared
+one-pole low-pass (kept bit-exact). v3 voices each run oscillator 1, an optional
+oscillator 2 and noise, normalized, into their own topology-preserving
+state-variable low-pass whose cutoff combines the smoothed base cutoff, the
+voice's filter envelope and the shared LFO; coefficients refresh every 16
+samples (one `tan` per voice). The reverb is a 4-line feedback delay network
+(Hadamard mixing, per-line damping, gains from the requested decay time, so it
+is stable for all settings) in 34 KB of SDRAM; it is skipped while its mix is
+zero. CPU cost scales with the patch's voice count (1–4).
+
 Each channel has its own delay buffer in SDRAM. Initialization clears both
-buffers before audio starts. Parameter changes use one-pole smoothing; changing
+buffers (and the reverb memory) before audio starts. Parameter changes use one-pole smoothing; changing
 delay time therefore glides in pitch. Wet bypass moves the wet mix toward zero
 without clearing the delay or changing output level. Numeric input/output bounds
 are hard clips, not a transparent limiter.
@@ -75,9 +87,11 @@ callback and bypass the gate.
 
 1. A user edits JSON or an optional model returns it. The host strictly validates
    the complete object, engine, version, keys, types and ranges.
-2. The host converts physical values to normalized 14-bit words, with bypass
-   and v2 route/waveform bytes, then sends one checksummed SysEx message with
-   a sequence number. Cutoff uses a logarithmic mapping.
+2. The host converts physical values to normalized 14-bit words, with bypass,
+   route/waveform and v3 enum/integer bytes, then sends one checksummed SysEx
+   message with a sequence number. Cutoff and LFO rate use logarithmic mappings.
+   One ordered field table on each side (`V3_FIELDS` in forge_host.py,
+   `V3Fields` in core/protocol.h) defines the v3 layout.
 3. Firmware validates the entire payload before queueing it. The audio owner
    assigns the full parameter set between blocks; rejected patches leave the
    current state intact.
@@ -98,9 +112,9 @@ running status, and discards oversized SysEx in full. It replaces dependence on
 the upstream event parser without modifying the vendored source.
 
 USB responses use a Forge packetizer that keeps F7 in the final USB-MIDI event
-packet. The transmit buffer remains allocated until completion and is not
-rewritten while busy. UART replies use a timeout sufficient for the full status
-message. These transmission paths execute in main; physical transport behavior
+packet. The transmit buffer (112 bytes) remains allocated until completion and
+is not rewritten while busy; the 83-byte v3 reply spans more than one 64-byte USB
+packet. UART replies use a timeout computed from the reply length. These transmission paths execute in main; physical transport behavior
 still needs the consolidated test.
 
 ## Source map
@@ -110,14 +124,15 @@ Paths below are relative to `firmware/chompi-forge/`.
 | Path | Responsibility |
 | --- | --- |
 | `src/forge_main.cpp` | CHOMPI wiring, boot sequence, audio callback, transport adapters, replies and CPU meter |
-| `core/engine.h` | Allocation-free stereo-delay DSP and whole-patch application |
+| `core/engine.h` | Allocation-free source → delay → reverb → output path and whole-patch application |
+| `core/reverb.h` | Stereo 4-line FDN reverb, caller-owned memory, O(1) clear |
 | `core/parameters.h` | Normalized parameter state, validation and CC mapping |
 | `core/runtime.h` | Channel-message translation (`TranslateChannel`), audio-owner request execution and epoch-based `RecoveryGate`, shared with offline tests |
 | `core/command_queue.h` | Generic bounded single-producer/single-consumer queue |
 | `core/midi_framer.h` | Byte framing, running status, overflow and resynchronization |
 | `core/protocol.h` | Request validation, patch encoding fields, status/error replies |
 | `core/usb_packets.h` | Complete-SysEx USB-MIDI packetization |
-| `core/synth.h` | Fixed four-voice oscillators (polyBLEP/polyBLAMP), ADSR, velocity, click-free voice reuse, voice ownership and low-pass tone |
+| `core/synth.h` | Up to four voices: two band-limited oscillators, noise, amp/filter envelopes, per-voice resonant SVF (v3) or shared one-pole (v1/v2), LFO, glide, pedal/bend/wheel, click-free voice reuse and ownership |
 | `host/forge_host.py` | Python CLI, JSON schema, preset files, MIDI exchange, optional Ollama adapter |
 | `host/forge_ai.py` | OpenAI/Gemini HTTPS adapters, structured output and independent validation |
 | `host/forge_web.py` | Loopback server, session/origin checks, request bounds and serialized MIDI access |

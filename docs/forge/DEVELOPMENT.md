@@ -42,7 +42,7 @@ make -C firmware/chompi-forge test
 make -C firmware/chompi-forge sanitize
 ```
 
-`test` builds the DSP/queue suite, protocol suite and offline harness, then runs
+`test` builds the DSP/queue, protocol, synth and v3 suites and the offline harness, then runs
 Python integration tests. `make -C firmware/chompi-forge browser-test` drives the
 real webapp in Chromium (Playwright) against `tests/sim_device.py`, a stateful
 stand-in that routes SysEx through the same C++ runtime; screenshots land in
@@ -87,8 +87,8 @@ Commit the tested source first and choose an output path outside the repository:
 
 ```sh
 cd firmware/chompi-forge
-python3 host/package_candidate.py /absolute/output/Forge_0.3_Test_Candidate.zip
-unzip Forge_0.3_Test_Candidate.zip && python3 Forge-0.3-test-*/verify_bundle.py
+python3 host/package_candidate.py /absolute/output/Forge_0.4_Test_Candidate.zip
+unzip Forge_0.4_Test_Candidate.zip && python3 Forge-0.4-test-*/verify_bundle.py
 ```
 
 Run `make test` and the firmware build before packaging. The script requires a
@@ -132,7 +132,11 @@ Follow DC's one-session hardware-test plan. New software work can be validated
 offline; physical claims remain pending until recorded in the consolidated
 session. Do not change the bootloader as a routine Forge development step.
 
-Instrument development starts with [CONTINUE.md](CONTINUE.md). `make test` now
-includes synth pitch/envelope/voice/routing tests and v2 host round trips. The
-package generator includes both schemas, six presets, web assets and simulated
-synth chords. Browser and live API acceptance are separate from mocked tests.
+Instrument development starts with [CONTINUE.md](CONTINUE.md). `make test` runs
+four native suites (core, protocol, synth, v3) and the Python tests, including
+v1/v2/v3 round trips through the C++ codec. When changing the v3 layout, edit
+`V3Fields` (core/protocol.h) and `V3_FIELDS` (host/forge_host.py) together.
+Any v1/v2 DSP change must keep their output bit-exact or be called out as a
+deliberate behaviour change. The package generator includes all schemas, ten
+presets, web assets and simulated renders. Browser and live API acceptance are
+separate from mocked tests.

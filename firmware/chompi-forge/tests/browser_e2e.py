@@ -108,7 +108,7 @@ class BrowserTests(unittest.TestCase):
 
     def test_initial_render_and_instrument_editing(self):
         p = self.page
-        self.assertEqual(p.locator("#preset option").count(), 10)
+        self.assertEqual(p.locator("#preset option").count(), 11)
         patch_json = self.json()
         self.assertEqual(patch_json["version"], 3)                  # starts on the first v3 preset
         self.assertTrue(p.is_disabled("#upgrade"))

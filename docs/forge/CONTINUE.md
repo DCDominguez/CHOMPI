@@ -1,6 +1,6 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-02 (UTC), candidate 0.3 + sustain/bend checkpoint. Read this first.
+Updated 2026-10-03 (UTC), candidate 0.4 (v3 instrument) checkpoint. Read this first.
 
 ## Scope (unchanged, authoritative)
 
@@ -22,9 +22,9 @@ locally made `558810e` because DC's connector re-created the commit; the tree
 SHA is identical, so the content is exactly that checkpoint. Verified by an
 agent on 2026-10-02 (UTC). Later commits on top: `716c6bc` (SHA record),
 `e24015c` (mitigation proposal), `0a605f6` (sound fixes, the bundle source),
-`3ea7529` (bundle record), `66b72a7` (documentation audit), then the
-sustain/bend feature. Use `git log` for the
-current head.
+`3ea7529` (bundle record), `66b72a7` (documentation audit), `0f4290e`
+(sustain/bend), `91c11c2` (v3 engine), `79c5d9f` (v3 host/webapp), then v3
+docs. Use `git log` for the current head.
 
 ### Independent reproduction, 2026-10-02 (UTC), fresh container
 
@@ -44,7 +44,7 @@ All rerun from tree `cf807ad0…`, not copied from earlier notes:
 | Level | What |
 | --- | --- |
 | Implemented | Everything in README feature table, plus the items below |
-| Software-tested | 3 native C++ suites (incl. steal-click, triangle-alias, epoch-recovery, sustain, bend, translation tests), 36 Python tests, 3 ASan/UBSan suites, 8 real-Chromium browser tests, ARM build (xPack GCC 10.3.1) — all pass 2026-10-02 UTC after sustain/bend |
+| Software-tested | 4 native C++ suites (core, protocol incl. v3, synth, v3), 42 Python tests, 4 ASan/UBSan suites, 9 real-Chromium browser tests, ARM build (xPack GCC 10.3.1) — all pass 2026-10-03 UTC at firmware 0.4 |
 | Hardware-verified | **Nothing.** No flash, audio, keybed, MIDI transport, CPU or battery test |
 | Live AI | **Not run.** Formats checked against provider docs 2026-10-03; mocks only |
 
@@ -166,11 +166,65 @@ the next roadmap item, and never claim a hardware result.
 - QA steps: TEST_SESSION 3.8 (sustain), 3.9 (bend).
 - Wire format: unchanged (SysEx v1/v2). Python sim device unaffected.
 
+### Roadmap item 2: v3 instrument palette (implemented; software-tested)
+
+Firmware minor 4. Commits `91c11c2` (engine/protocol), `79c5d9f` (host,
+AI, webapp, presets), then docs.
+
+- Wire: v3 apply 69 bytes, status 81; layout in PROTOCOL.md. One ordered
+  table each side: `V3Fields` (core/protocol.h) and `V3_FIELDS`
+  (host/forge_host.py) — change both together. Framer accepts 72-byte SysEx;
+  firmware reply buffers 83, USB buffer 112, UART timeout = 0.32 ms/byte + 5.
+- `core/parameters.h`: v3 fields default neutral, so v1/v2 patches carry no
+  v3 behaviour. CC26/27 refused on v1/v2 (status would not report them).
+- `core/synth.h`: `legacy_` (version < 3) keeps the old path exactly: shared
+  one-pole after the voice sum. v3: osc2 (ratio from semitones+detune), noise
+  (xorshift), mix normalized by 1/(1+osc2+noise), per-voice TPT SVF (Q 0.707·16^res,
+  gain 1/sqrt(Q/0.707)), filter ADSR (rests at 0 after release), coefficient
+  refresh every 16 samples, one shared LFO (S&H draws on wrap), mod wheel
+  global (reset by panic/CC121), voices limit (extras released on shrink),
+  glide (exponential; from sounding pitch or last note).
+- `core/reverb.h`: 4-line FDN, lengths 1601/1949/2311/2741 @48 k (+1 each =
+  8606 floats), Hadamard/2, per-line one-pole damping, gains from RT60,
+  O(1) Clear via unread counter. Engine skips it while mix target and smoothed
+  mix are 0 and clears on restart. Reverb memory in SDRAM (`kReverbCapacity`
+  8704). `Engine::Init` 6-arg overload; 4-arg leaves reverb silent.
+- Engine: v1/v2 ↔ v3 change panics (architecture differs).
+- Bit-exact check (one-off, 2026-10-03): a renderer driving notes, bend,
+  pedal and CC cutoff through v1 and v2 patches (all waveforms, 384,000
+  stereo samples) produced identical bytes with the previous core from git
+  (`git show <old>:firmware/chompi-forge/core/*`) and the new core. Repeat it
+  for any change near the legacy path.
+- Tests: `tests/v3_test.cpp` (osc2 interval/detune, noise, resonance, cutoff
+  tracking, ± filter envelope, LFO pitch/tremolo/shapes, mod wheel gating and
+  reset, voices/shrink, glide, reverb size/damping/stereo/panic/stability/
+  mix-0 exactness, CC26/27 v3-only, structural panic, 60-trial fuzz);
+  protocol_test `ProtocolV3`; Python random v3 round trips (200), atomic
+  rejection, strict schema, upgrade + CLI + /api/upgrade; browser v3 editing,
+  v2 mapping/convert, v3 send/capture. Mutations: 13/14 caught; reverb always
+  running is output-equivalent (x + 0·wet), so not detectable.
+- Measured filter facts (sim): saw 110 Hz, cutoff 300 vs 990 Hz → 3 kHz
+  power ratio 0.008; resonance 0.9 boosts the 990 Hz harmonic ~140×.
+- ARM (xPack): FORGE.bin 142,520 bytes, SRAM_EXEC 59.99%, SRAM 21.20%,
+  RAM_D2 68.07%, SDRAM 0.62%; no Forge warnings.
+- Host/webapp: `upgrade_patch` (server-side, used by the webapp's Convert
+  button and the `upgrade` CLI); webapp control table with per-version paths
+  and module-qualified IDs (`synth-attack_ms` vs `filter-attack_ms`).
+- QA steps: TEST_SESSION 3.10–3.16 and 6.2b (CPU stress preset 10).
+- Known limits: mono mode has no note-priority stack; saw/square still
+  2-point polyBLEP; device CPU unmeasured; multi-packet USB replies and the
+  27 ms UART reply blocking are hardware-unverified; live AI with the larger
+  v3 schema unverified (strict-mode providers may reject a keyword — relax
+  only that keyword).
+
 ## Next actions (priority order)
 
-1. Agent: roadmap item 2, richer synth palette (v3 patch). Design first: new
-   wire/patch v3 (keep v1/v2 decoding), module list, CPU budget with a
-   quality/voice fallback, AI schema + webapp editor, presets, tests.
+1. Agent: roadmap item 3, SD preset banks. Design first: on-device storage
+   format (reuse the v1–v3 wire DATA as the stored record), SD access only
+   from the main loop (never the audio callback), recall via UI and MIDI
+   (program change?), host commands to list/store/recall, failure handling
+   for missing/corrupt cards, and how this coexists with the bootloader's
+   SD update. Confirm with DC before choosing a physical UI for recall.
 2. Agent: before QA, regenerate the bundle from a clean committed tree
    (pinned Arm compiler if developer.arm.com becomes reachable, else xPack).
 3. DC (later, per feature): LIVE_AI_TEST.md, then TEST_SESSION.md; record in

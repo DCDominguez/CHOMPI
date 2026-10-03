@@ -25,9 +25,10 @@ installing MIDI dependencies; those are needed only for hardware control.
 2. Choose **Playable instrument** or **External-audio delay**, describe the sound and choose **Generate a patch**. A validated patch opens
    in the editor. Provider refusal, truncated output and invalid settings fail
    without replacing the current patch. There is no automatic retry or fallback.
-3. Adjust mix, delay time, feedback, level and wet bypass. For a v2 instrument,
-   choose synth/aux routing, waveform, ADSR and tone cutoff as well. Start from any of the
-   six included presets or import a JSON file. **Save JSON** validates and
+3. Adjust every module: oscillators and noise, amplitude envelope and voices,
+   filter, LFO, delay, reverb and output. Controls a v1 or v2 preset does not
+   have are greyed out; **Convert to v3 instrument** upgrades it (new modules
+   start neutral). Start from any of the ten included presets or import a JSON file. **Save JSON** validates and
    downloads a preset through your browser; normal browser download rules apply.
 4. Connect CHOMPI, select **Refresh ports**, then explicitly select the MIDI
    input and output. **Read device status** reports firmware, CPU and counters.
@@ -68,32 +69,47 @@ Forge's independent local validator before reaching the editor.
 
 ## Instrument patches and playing
 
-Firmware 0.3 adds four-voice synthesis. Load Glass Keys, Soft Pad or Saw Bass;
-connect MIDI, send once, then play CHOMPI keys (MIDI 48–72) or incoming channel 1
-notes. Keybed velocity is fixed at 100; MIDI velocity changes loudness. Synth
-output is mono duplicated to stereo through the delay. No audio input is needed
-on the synth route. Switching to aux route processes external stereo audio.
+Firmware 0.4 plays v3 instrument patches (and still v1/v2). Load Warm Pad, Acid
+Bass or Bell Keys; connect MIDI, send once, then play CHOMPI keys (MIDI 48–72)
+or incoming channel 1 notes. Keybed velocity is fixed at 100; MIDI velocity
+changes loudness. Synth output is mono duplicated to stereo through the delay
+and reverb. No audio input is needed on the synth route. The aux route
+processes external stereo audio.
 
-v2 JSON has `version: 2`, `engine: "instrument"`, `routing` and named `modules`:
-`synth`, `delay`, `output`. Two routes are accepted: `synth>delay>output` and
-`aux>delay>output`. ADSR uses attack/decay 1–2000 ms, sustain 0–1, release
-5–5000 ms; cutoff 40–16000 Hz. See included instrument JSON files for examples.
-No arbitrary graph, sampler, looper, FM or reverb can be generated yet.
+v3 JSON has `version: 3`, `engine: "instrument"`, `routing`
+(`synth>delay>reverb>output` or `aux>delay>reverb>output`) and six modules,
+all keys required:
 
-**Panic / stop sound** clears all voices and old delay tail; it requires both
+| Module | Keys and ranges |
+| --- | --- |
+| `synth` | `waveform` and `osc2_waveform` (sine/triangle/saw/square); `attack_ms`, `decay_ms` 1–2000; `sustain` 0–1; `release_ms` 5–5000; `osc2_level` 0–1; `osc2_semitones` integer −24…24; `osc2_detune_cents` −50…50; `noise` 0–1; `voices` integer 1–4; `glide_ms` 0–2000 |
+| `filter` | `cutoff_hz` 40–16000; `resonance` 0–1; `env_octaves` −6…6; `attack_ms`, `decay_ms` 1–2000; `sustain` 0–1; `release_ms` 5–5000 |
+| `lfo` | `waveform` (sine/triangle/square/sample_hold); `rate_hz` 0.05–20; `pitch_cents` 0–200; `filter_octaves` 0–4; `amp_depth` 0–1; `mod_wheel` boolean |
+| `delay` | `mix` 0–1; `time_ms` 10–1000; `feedback` 0–0.85; `bypass` boolean |
+| `reverb` | `mix`, `size`, `damping` 0–1 |
+| `output` | `level` 0–1 |
+
+v2 JSON (`synth`, `delay`, `output`; routes without reverb) and v1 delay files
+still load, send and capture. `python host/forge_host.py upgrade old.json new.json`
+writes a v3 copy with the same settings and neutral new modules; the v3 filter is
+steeper, so tone can differ slightly. `schema --instrument` prints the v3 schema.
+No arbitrary graph, sampler, looper or FM can be generated.
+
+**Panic / stop sound** clears all voices and old delay and reverb tails; it requires both
 MIDI ports and waits for a reply. SW5 press or channel-1 CC120/123 also panic.
-SW5 turn/CC25 change cutoff. Route or waveform changes stop voices/tails;
-retrigger held notes. Four voices maximum; additional notes steal a releasing voice, else the oldest.
+SW5 turn/CC25 change cutoff; CC26 resonance and CC27 reverb mix (v3); CC1 mod
+wheel scales LFO depth when the patch enables it. Route or waveform changes,
+and switching between v1/v2 and v3 patches, stop voices/tails; retrigger held notes. Up to four voices (the patch's `voices`); additional notes steal a releasing voice, else the oldest.
 A patch is volatile; save JSON and resend after reboot. v1 delay files still work.
-Older 0.2 firmware cannot accept v2 patches or panic. Use matching 0.3 host tools.
+Firmware 0.3 rejects v3 patches; 0.2 also rejects v2 and panic. Use the matching 0.4 host tools.
 
 ```sh
 python host/forge_host.py panic --input "EXACT INPUT NAME" --output "EXACT OUTPUT NAME"
 ```
 
 Ollama CLI authoring currently emits v1 delay patches only. OpenAI/Gemini webapp
-supports both authoring modes. Instrument code has software test coverage, but
-real model/browser/hardware acceptance remains pending.
+supports both authoring modes (v3 instrument, v1 delay). Instrument code has software and
+real-Chromium test coverage, but real model and hardware acceptance remain pending.
 
 ## Command-line controller
 

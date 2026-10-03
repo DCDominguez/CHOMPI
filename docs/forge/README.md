@@ -1,7 +1,8 @@
 # Forge documentation
 
 Forge is a community firmware project for CHOMPI, built on its Daisy Seed audio
-hardware. Candidate **0.3** implements a playable four-voice synth plus stereo delay, live controls, atomic patch
+hardware. Candidate **0.4** implements a playable synth (up to four voices, two oscillators, noise, resonant
+filter with envelope, LFO, glide) plus stereo delay and reverb, live controls, atomic patch
 recall, host-managed JSON presets, and diagnostics. The computer can optionally
 author presets through a local OpenAI/Gemini webapp with a user-supplied API
 key, or through the optional Ollama CLI.
@@ -44,13 +45,13 @@ installed synth/delay modules; it does not contain executable DSP.
 
 | Area | Implemented | Remaining evidence or scope |
 | --- | --- | --- |
-| Audio | Four-voice synth, ADSR/tone, two source routes and stereo delay | Physical routing, listening and CPU headroom |
+| Audio | v3 synth (oscillators, noise, resonant filter, LFO, voices/glide), two source routes, stereo delay and reverb | Physical routing, listening and CPU headroom (worst case: TEST_SESSION 6.2b) |
 | Controls | Keybed/MIDI notes, encoders, MIDI CC, panic, USB/TRS patch and status protocol | Actual encoder mapping, USB enumeration and TRS I/O |
 | Presets | Host JSON save/capture and atomic recall | Audible transitions and capture/recall on the unit |
 | Diagnostics | Callback CPU average/peak, drop/reject counters | Measured device performance under normal use |
 | AI authoring | OpenAI/Gemini webapp and Ollama CLI; strict validation and saved JSON | Live model availability, latency and musical interpretation |
 | Persistence | Files saved on the computer | Device-side SD preset storage is outside this candidate |
-| Expansion | Stable starting interfaces for later work | Additional effects, sampler/looper, general graphs, Tab5 and Wi-Fi are not implemented |
+| Expansion | Versioned patch formats (v1–v3) and roadmap in PROJECT.md | SD presets, sampler/looper, more effects, general graphs, Tab5 and Wi-Fi are not implemented |
 
 The repository contains source and documentation. Generated test bundles remain
 separate; their manifests identify the exact source commit/tree and file hashes.

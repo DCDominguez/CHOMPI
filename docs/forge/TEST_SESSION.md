@@ -1,9 +1,11 @@
-# Forge 0.3 — the one consolidated hardware test
+# Forge 0.4 — the one consolidated hardware test
 
 Status of the candidate: **software-tested, hardware-unverified.** This is the
 single planned physical session. Work top to bottom. If a stage fails, record
 it, stop that stage, and continue only where later stages do not depend on it.
-Never mark a stage passed that you did not run. Expect roughly 90 minutes.
+Never mark a stage passed that you did not run. Expect roughly 2 hours.
+Features were developed first and QA was deferred (DC, 2026-10-02); each
+feature has its own steps below so results can be recorded per feature.
 
 ## 0. Before you start (no CHOMPI needed)
 
@@ -27,7 +29,7 @@ Keep monitoring volume low. Avoid audio feedback loops. The mic is unused.
 | --- | --- | --- |
 | 1.1 | Put `firmware/FORGE.bin` alone on the test card root; use the installed bootloader's normal SD update | Update completes uninterrupted |
 | 1.2 | Power up; watch LED | Initialization completes; no output burst |
-| 1.3 | `H status ...` | Firmware 0.3, version 1 aux patch, counters 0 |
+| 1.3 | `H status ...` | Firmware 0.4, version 1 aux patch, counters 0 |
 
 ## 2. External audio path (v1 compatibility)
 
@@ -53,11 +55,23 @@ Keep monitoring volume low. Avoid audio feedback loops. The mic is unused.
 | 3.8 | `H note 60 64 67 --sustain --hold 3`; while it sustains, play a CHOMPI key | Chord rings ~3 s after keys release, stops when pedal lifts; keybed note unaffected by the MIDI pedal |
 | 3.9 | `H note 69 --bend 8191 --hold 2`, then `--bend -8192` | Pitch glides up / down two semitones without zipper noise; returns to A afterwards |
 
+## 3B. v3 instrument modules (firmware 0.4)
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.10 | `H send presets/07-warm-pad.json ...`; hold chords on the keys | Two detuned oscillators (slow beating), filter swells open over ~1 s, gentle vibrato, reverb tail after release |
+| 3.11 | `H send presets/08-acid-bass.json`; play overlapping notes low on the keys | Monophonic; pitch glides between notes; resonant filter "snap" on each note |
+| 3.12 | With Acid Bass: `H cc 1 127 --output "OUT"`, hold a note, then `H cc 1 0` | Mod wheel brings in a filter wobble; at 0 it stops |
+| 3.13 | `H send presets/09-bell-keys.json`; play single notes | Bell-like tone (second oscillator a 12th above); reverb tail; slight vibrato only with mod wheel up |
+| 3.14 | With a v3 patch: `H cc 26 110`, `H cc 27 110`; `H capture cc-test.json ...` | Resonance and reverb mix audibly increase; captured JSON shows filter.resonance and reverb.mix near 0.87 |
+| 3.15 | Webapp: load Soft Pad (v2), **Convert to v3 instrument**, Send | Sounds close to the v2 Soft Pad (filter slightly steeper); no error |
+| 3.16 | Send a v2 preset, then a v3 preset, while holding a note | Sound stops cleanly at the format change (like a route change); next note plays |
+
 ## 4. Panic and recovery
 
 | # | Do | Pass when |
 | --- | --- | --- |
-| 4.1 | Hold a long-release chord with echo; press SW5 | Voices and old echo tail stop at once |
+| 4.1 | Hold a long-release chord with echo (use Warm Pad for reverb too); press SW5 | Voices, old echo and reverb tails stop at once |
 | 4.2 | Repeat with `H cc 123 0`, `H cc 120 0`, `H panic ...`, webapp Panic | Same each time; notes retrigger normally afterwards |
 | 4.3 | Switch route aux↔synth (webapp Signal path, Send) while notes ring | Sound stops cleanly; next keypress plays; aux stays stereo |
 
@@ -74,8 +88,9 @@ Record provider/model/seconds, never the key.
 
 | # | Do | Pass when |
 | --- | --- | --- |
-| 6.1 | 10 minutes: four-voice playing with delay, recalling presets, turning knobs, normal MIDI clock if you have it | No hang, dropout, stuck note or noise burst |
+| 6.1 | 10 minutes: four-voice playing with delay and reverb, recalling presets (v1, v2 and v3), turning knobs, normal MIDI clock if you have it | No hang, dropout, stuck note or noise burst |
 | 6.2 | `H status` at the end | Peak CPU < 100% (fail at ≥100%; < 70% is the comfort target). Record average, peak, dropped, rejected |
+| 6.2b | **Worst case:** reboot (resets peak), `H send presets/10-cpu-stress.json`, hold four keys for 1 minute, `H status` | Record average and peak. If peak ≥ 70 %, set voices to 3 then 2 in the webapp, Send, repeat, and record each. This sets the v3 CPU budget |
 | 6.3 | Reboot; `H status`; resend a saved patch | Boots to dry aux defaults; recall works |
 | 6.4 | Optional: restore stock firmware with your normal card | Stock works again |
 
@@ -90,9 +105,11 @@ Board / bootloader / stock firmware / OS / Python / MIDI connection:
 1 Flash & identity:
 2 Aux path 2.1–2.5:
 3 Instrument 3.1–3.9 (note clicks/aliasing, sustain, bend here):
+3B v3 modules 3.10–3.16:
 4 Panic & recovery 4.1–4.3:
 5 Webapp (+ AI provider/model/seconds or "not run"):
 6 Sustained: minutes / avg CPU / peak CPU / dropped / rejected; reboot; restore:
+6.2b CPU stress: avg / peak at 4 voices (and at 3 / 2 if needed):
 Unexpected behavior:
 Overall: pass / partial / blocked
 ```

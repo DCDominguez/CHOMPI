@@ -25,7 +25,9 @@ The key is read with a hidden prompt (or from `FORGE_API_KEY` if you set it in
 your shell yourself). Each run appends a key-free record to
 `forge-ai-check.jsonl`: provider, model, prompt, seconds, pass/fail, safe error
 text, and the validated patch. PASS means the reply was complete, matched the
-schema, passed Forge's own validation and encodes to the 0.3 wire format.
+schema, passed Forge's own validation and encodes to the 0.4 wire format
+(instrument mode now asks for a v3 patch: six modules, ~40 fields, integers
+and booleans as well as numbers; ranges are repeated in field descriptions).
 
 Optional: `--kind delay` checks external-audio delay authoring; `--prompt "..."`
 tries your own description.

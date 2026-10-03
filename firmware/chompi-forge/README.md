@@ -1,6 +1,7 @@
-# Forge 0.3 — consolidated test candidate
+# Forge 0.4 — consolidated test candidate
 
-Experimental community firmware for CHOMPI: a playable four-voice synth and stereo delay with
+Experimental community firmware for CHOMPI: a playable synth (up to four voices,
+two oscillators, noise, resonant filter, LFO, glide) with stereo delay and reverb,
 live patch control, host-managed presets, and diagnostics. TAPE's sampler UI
 is not included. Start with the [documentation index](../../docs/forge/README.md).
 See the [project brief](../../docs/forge/PROJECT.md) and
@@ -54,17 +55,20 @@ Aux L/R (`in[2]`/`in[3]`) feed the effect; stereo output is copied to headphone
 | Feedback | 22 | SW3 | 0–85%; starts 21.25% |
 | Output level | 23 | SW4 and SW6 | 0–1 gain; fades up to 0.25 |
 | Wet bypass | 24 | MIDI only | 0–63 off, 64–127 on |
-| Synth cutoff | 25 | SW5 turn | Logarithmic 40–16000 Hz; v2 patches |
-| Panic | 120/123 | SW5 press | Silence all voices and old delay tail |
+| Synth cutoff | 25 | SW5 turn | Logarithmic 40–16000 Hz; v2/v3 patches |
+| Filter resonance | 26 | MIDI only | 0–1; v3 patches only |
+| Reverb mix | 27 | MIDI only | 0–1; v3 patches only |
+| Mod wheel | 1 | MIDI only | Scales LFO depth when the v3 patch enables it |
+| Panic | 120/123 | SW5 press | Silence all voices and old delay/reverb tails |
 
 Encoder IDs follow `hardware.h`; confirm printed-panel correspondence during
 bring-up. SW5 turns synth cutoff and its press panics. Keybed notes 48–72
-play v2 synth patches at velocity 100. CC values use `value / 127`.
+play v2/v3 synth patches at velocity 100. CC values use `value / 127`.
 The same mapping is accepted over USB and TRS MIDI; other channels and unknown
 CCs are ignored. SysEx patch/status requests receive replies on the same transport.
 Channel-1 notes play the synth; CC64 sustain and pitch bend (±2 semitones)
-apply per MIDI source; CC121 resets them; CC120/123 globally panic. No clock
-output, mod wheel or unsolicited parameter streaming.
+apply per MIDI source; CC121 resets them; CC1 sets the (global) mod wheel;
+CC120/123 globally panic. No clock output or unsolicited parameter streaming.
 
 Bypass fades the wet mix to zero while retaining output level and the delay
 state. It is software wet bypass, not a hardware relay or unity-gain bypass.
@@ -78,19 +82,31 @@ Battery warning/shutdown handling is inherited from WAVE and needs bench testing
 
 ## Synth and module patches
 
-Version-2 patches contain synth, delay and output modules plus a route selector.
-Synth→delay→output generates sound with no aux source; aux→delay→output retains
-stereo external effects. The synth is four-voice mono, duplicated to L/R before
-delay. Waveforms: sine, polyBLAMP triangle, polyBLEP saw/square. ADSR and a one-pole low-pass
-provide articulation/tone. See host guide for physical ranges and JSON examples.
+Version-3 patches (firmware 0.4) contain synth, filter, lfo, delay, reverb and
+output modules plus a route selector: synth or stereo aux → delay → reverb →
+output. The synth is mono, duplicated to L/R before the delay. Per voice: main
+oscillator and a second oscillator (sine, polyBLAMP triangle, polyBLEP
+saw/square; ±24 semitones, ±50 cents), white noise, amplitude ADSR, and a
+resonant state-variable low-pass with its own ADSR. One shared LFO
+(sine/triangle/square/sample-and-hold) modulates pitch, cutoff and amplitude;
+the mod wheel can scale it. Voices 1–4 per patch (1 = mono, the CPU fallback),
+glide 0–2000 ms. The reverb is a 4-line feedback delay network in SDRAM.
+
+Version-2 patches (synth, delay, output) and v1 delay patches still work and
+render bit-exactly as on firmware 0.3 (simulation check): v1/v2 keep the original
+shared one-pole low-pass and have no v3 modules. See host guide for physical
+ranges, JSON examples and `upgrade` (v1/v2 → v3).
 
 Voice allocation uses idle, then the quietest releasing, then the oldest voice.
 A reused voice continues from its current level and phase (simulated steal step
 1.1x steady state, was 5x). Note ownership distinguishes keybed, USB and UART.
-Note-on velocity zero is note-off. Route/waveform switching and panic stop
-voices/tails abruptly; held notes must be retriggered. Triangle uses polyBLAMP
+Note-on velocity zero is note-off. Route/waveform switching, switching between
+v1/v2 and v3 patches, and panic stop voices/tails abruptly; held notes must be
+retriggered. Mono mode (voices 1) uses last-note priority and does not return
+to a still-held earlier note. Triangle uses polyBLAMP
 corners; saw/square use 2-point polyBLEP, so some high-note aliasing remains.
-No claim of click-free sound or hardware CPU headroom before the listening session.
+No claim of click-free sound or hardware CPU headroom before the listening session;
+TEST_SESSION 6.2b measures the v3 worst case (`presets/10-cpu-stress.json`).
 
 Startup remains dry aux v1 for compatibility. Send an instrument preset to play.
 No automatic mode detection. Knobs 1–4 still control delay/output, not ADSR.

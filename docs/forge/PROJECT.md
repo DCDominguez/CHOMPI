@@ -18,17 +18,24 @@ validation without per-feature flash requests. A real defect may require retest.
 DC also requested continuously updated documentation for other development agents;
 read and maintain [CONTINUE.md](CONTINUE.md) at each checkpoint.
 
-## Current milestone: instrument candidate 0.3
+## Current milestone: instrument candidate 0.4
 
-- Four-voice oscillator synth with four waveforms, ADSR, velocity and low-pass tone.
-- Keybed/MIDI playing, note-source isolation, voice stealing and panic recovery.
-- v2 named synth/delay/output modules; synth or aux into delay into output.
-- Existing delay and v1 presets retained, with atomic recall/status/capture.
-- Webapp instrument authoring, provider/key/model selection, editing and save/send.
-- Six presets, native tests, simulated renderer, ARM build and handoff docs.
+- Synth with up to four voices (1–4 per patch, glide), two oscillators with
+  interval/detune, noise, amplitude ADSR, velocity.
+- Per-voice resonant low-pass with its own envelope; one LFO to pitch, filter
+  and amplitude, optionally under the mod wheel.
+- Keybed/MIDI playing, sustain pedal, pitch bend, note-source isolation,
+  click-free voice stealing and panic recovery.
+- v3 named synth/filter/lfo/delay/reverb/output modules; synth or aux into
+  delay into reverb into output. v1 delay and v2 instrument patches still work
+  (bit-exact) and convert to v3.
+- Webapp authoring (v3 instruments), provider/key/model selection, editing of
+  every module, save/send/capture.
+- Ten presets, native/sanitizer/browser tests, simulated renderer, ARM build and
+  handoff docs.
 
 This is a bounded module format, **not a general-purpose modular graph**. No
-sampler, recorder, looper, sequencer, custom modulation graph, FM/reverb, onboard
+sampler, recorder, looper, sequencer, custom modulation graph, FM, onboard
 AI, SD preset bank, Wi-Fi or Tab5 integration yet. Stock TAPE features are not
 available inside Forge. Upstream sources remain separate and unmodified.
 
@@ -49,16 +56,17 @@ mapping, worst-case CPU time or device recovery. Actual model use is unverified.
 
 DC decided to develop features first and run hardware/live-AI QA afterwards,
 per feature. Each feature lands as its own commit(s) with its own tests and
-TEST_SESSION steps so it can be QA'd separately. Known risk: the 0.3 base has
-not run on hardware yet, so base defects may surface late; device CPU is
+TEST_SESSION steps so it can be QA'd separately. Known risk: no Forge build (0.3 onward) has
+run on hardware yet, so base defects may surface late; device CPU is
 unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
 
 1. **Playability basics** — CC64 sustain, pitch bend (done, software-tested).
-   Candidates if wanted: mod wheel (needs the LFO from 2), octave shift for
-   the keybed (needs a control assignment), configurable bend range (wire change).
+   Candidates if wanted: octave shift for the keybed (needs a control
+   assignment), configurable bend range (wire change), mono note-priority stack.
 2. **Richer synth palette (v3 patch)** — second oscillator/detune, noise,
-   resonant filter with its own envelope, LFO, reverb module; saw/square
-   anti-aliasing improvements fold in here. Widens what AI can configure.
+   resonant filter with its own envelope, LFO + mod wheel, voices/glide, reverb
+   (done, software-tested; firmware 0.4). Saw/square anti-aliasing beyond
+   2-point polyBLEP waits for a device CPU figure (TEST_SESSION 6.2b).
 3. **SD preset banks** — device-side save/recall without a computer.
 4. **Sampling** — recording and playable sample maps (SDRAM + SD).
 5. **Looping** — capture, overdub, manipulation on the sampling buffers.

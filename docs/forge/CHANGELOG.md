@@ -1,5 +1,22 @@
 # Forge changelog
 
+## 0.4 v3 instrument: richer synth and reverb — 2026-10-03
+
+- Patch v3 (firmware minor 4): second oscillator (waveform, level, ±24
+  semitones, ±50 cents), noise, per-voice resonant SVF low-pass with its own
+  ADSR and ±6-octave amount, LFO (4 shapes, 0.05–20 Hz) to pitch/filter/amp
+  with mod-wheel gating, voices 1–4 (CPU fallback), glide, FDN reverb.
+- CC1 mod wheel, CC26 resonance, CC27 reverb mix (v3 only).
+- v1/v2 output bit-exact against 0.3 (simulation, 384,000 stereo samples).
+- Transport buffers sized for 69-byte requests / 83-byte replies; UART
+  timeout computed per reply. Multi-packet USB replies unverified on device.
+- Host: strict v3 schema/validation, table-driven codec, `upgrade` command,
+  AI instrument mode authors v3. Webapp edits every module; v1/v2 fields
+  greyed; Convert to v3. Presets: Warm Pad, Acid Bass, Bell Keys, CPU Stress.
+- Tests: new v3 native suite, v3 protocol tests, 200 random v3 round trips,
+  upgrade/endpoint tests, 9 browser tests; 13/14 mutations caught (14th is
+  output-equivalent). Hardware and live AI still unverified.
+
 ## 0.3 playability: sustain pedal and pitch bend — 2026-10-02
 
 - CC64 sustain and 14-bit pitch bend (±2 semitones, 5 ms smoothing), both per

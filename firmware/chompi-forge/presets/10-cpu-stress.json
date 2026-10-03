@@ -1,0 +1,53 @@
+{
+  "version": 3,
+  "name": "CPU Stress (test)",
+  "engine": "instrument",
+  "routing": "synth>delay>reverb>output",
+  "modules": {
+    "synth": {
+      "waveform": "saw",
+      "attack_ms": 5,
+      "decay_ms": 400,
+      "sustain": 0.7,
+      "release_ms": 1500,
+      "osc2_waveform": "square",
+      "osc2_level": 0.6,
+      "osc2_semitones": 7,
+      "osc2_detune_cents": 12,
+      "noise": 0.1,
+      "voices": 4,
+      "glide_ms": 120
+    },
+    "filter": {
+      "cutoff_hz": 900,
+      "resonance": 0.6,
+      "env_octaves": 3,
+      "attack_ms": 20,
+      "decay_ms": 600,
+      "sustain": 0.3,
+      "release_ms": 800
+    },
+    "lfo": {
+      "waveform": "triangle",
+      "rate_hz": 4,
+      "pitch_cents": 15,
+      "filter_octaves": 1,
+      "amp_depth": 0.2,
+      "mod_wheel": false
+    },
+    "delay": {
+      "mix": 0.3,
+      "time_ms": 350,
+      "feedback": 0.45,
+      "bypass": false
+    },
+    "reverb": {
+      "mix": 0.4,
+      "size": 0.8,
+      "damping": 0.4
+    },
+    "output": {
+      "level": 0.2
+    }
+  }
+}

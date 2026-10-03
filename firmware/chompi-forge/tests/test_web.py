@@ -139,7 +139,7 @@ class WebTests(unittest.TestCase):
             self.assertEqual(status, 200)
             self.assertEqual(headers["Cache-Control"], "no-store")
             self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
-        self.assertEqual(len(json.loads(data)["presets"]), 9)
+        self.assertEqual(len(json.loads(data)["presets"]), 10)
         for path in ("/../forge_ai.py", "/forge_web.py", "/?api_key=secret"):
             self.assertEqual(self.request(path)[0], 404)
 

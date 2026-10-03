@@ -4,8 +4,8 @@
 Forge runs audio on CHOMPI's Daisy Seed and uses a computer webapp for AI patch
 authoring, editing and MIDI control. OpenAI and Gemini use your own API key.
 
-**Candidate 0.3 is software-tested, browser-tested and builds for ARM.** Real
-CHOMPI operation and live provider requests remain unverified. This
+**Candidate 0.4 is software-tested, browser-tested and builds for ARM.** Real
+CHOMPI operation, device CPU load and live provider requests remain unverified. This
 is experimental community firmware, not an official or hardware-approved release.
 
 [Developer resume checkpoint](docs/forge/CONTINUE.md) · [Documentation](docs/forge/README.md)
@@ -19,24 +19,26 @@ AI chooses settings and supported connections among installed modules. New
 patches require no recompile; new DSP algorithms still require firmware work.
 The original upstream TAPE/WAVE/TEMPO and bootloader sources remain separate.
 
-| Area | Implemented in 0.3 |
+| Area | Implemented in 0.4 |
 | --- | --- |
-| Synth | Four fixed voices; sine, polyBLAMP triangle, polyBLEP saw and square oscillators |
+| Synth | Up to four voices (1–4 per patch, mono with glide); two oscillators (sine, polyBLAMP triangle, polyBLEP saw/square) with interval and detune, plus white noise |
 | Articulation | Attack/decay/sustain/release envelope, MIDI velocity; stealing prefers a releasing voice, then the oldest, and continues from the current level and phase |
-| Tone | One-pole low-pass, 40–16000 Hz, smoothed cutoff coefficient |
+| Tone | v3: per-voice resonant low-pass (40–16000 Hz) with its own ADSR and ±6-octave amount; v1/v2 keep the original one-pole low-pass |
+| Modulation | LFO (sine/triangle/square/sample-and-hold, 0.05–20 Hz) to pitch, filter and amplitude; mod wheel (CC1) can control its depth |
 | Playing | CHOMPI's 25 keys mapped to MIDI 48–72, fixed velocity 100; incoming channel-1 notes 0–127, sustain pedal (CC64) and ±2-semitone pitch bend per MIDI source |
 | Note ownership | Keybed, USB and UART tracked separately; velocity-zero note-on releases |
-| Audio routes | Synth→delay→output or stereo aux→delay→output; mono synth duplicated to stereo |
+| Audio routes | Synth or stereo aux → delay → reverb (v3) → output; mono synth duplicated to stereo |
 | Delay | Stereo buffers, 10–1000 ms, mix, feedback capped at 85%, output level, wet bypass |
+| Reverb | v3: stereo 4-line feedback-delay-network reverb, mix, size (0.2–10 s decay), damping |
 | Audio configuration | 48 kHz, 24-frame blocks; headphone/main output mirroring; microphone unused |
 | Parameter handling | Delay/output smoothing; pitch glide when delay time changes; finite bounded output |
-| Live controls | Encoders, MIDI CC20–25, CC64 sustain, CC121 reset controllers, pitch bend, and atomic whole-patch changes between blocks |
-| Recovery | SW5 press, CC120/123, host panic; silence voices/old tail; note-overflow recovery |
-| Patch format | v2 named synth/delay/output modules with two supported routes; v1 delay files retained |
-| Presets | Six examples: Dry, Slap, Long Echo, Glass Keys, Soft Pad, Saw Bass |
+| Live controls | Encoders, MIDI CC20–27 (26 resonance, 27 reverb mix on v3), CC1 mod wheel, CC64 sustain, CC121 reset controllers, pitch bend, and atomic whole-patch changes between blocks |
+| Recovery | SW5 press, CC120/123, host panic; silence voices and delay/reverb tails; note-overflow recovery |
+| Patch format | v3 named synth/filter/lfo/delay/reverb/output modules with two supported routes; v1 delay and v2 instrument files still work and convert to v3 |
+| Presets | Ten: Dry, Slap, Long Echo (v1); Glass Keys, Soft Pad, Saw Bass (v2); Warm Pad, Acid Bass, Bell Keys, CPU Stress test (v3) |
 | Computer persistence | Save/import/export JSON, capture device targets and recall; no SD-card writes |
-| Webapp | Instrument/effect authoring selector, provider/model/key input, parameter editor, route/waveform/ADSR/tone controls |
-| AI providers | OpenAI and Gemini structured output plus independent validation; Ollama CLI for v1 delay only |
+| Webapp | Instrument/effect authoring selector, provider/model/key input, editor for every module (greys out what a v1/v2 preset lacks), convert-to-v3 |
+| AI providers | OpenAI and Gemini structured output (v3 instruments, v1 delay) plus independent validation; Ollama CLI for v1 delay only |
 | Key handling | Ephemeral page/request memory; no keys in presets, browser storage, source or logs |
 | Device bridge | Explicit MIDI port selection, status/capture/send/panic with sequence/checksum/value verification |
 | Diagnostics | Average/peak audio callback load, drop/rejection counters; hardware measurements pending |
@@ -58,17 +60,24 @@ mode on reboot. Load an instrument preset to enable synthesis.
 | Output level | SW4 and SW6 / CC23 | 0–1 |
 | Wet bypass | CC24 | >=64 on; dry still obeys output level |
 | Synth cutoff | SW5 turn / CC25 | 40–16000 Hz, logarithmic |
-| Panic | SW5 press / CC120 or CC123 / webapp | Stop all sources and old delay tail |
-| Synth waveform | v2 preset or web editor | Sine / triangle / saw / square |
-| Attack / decay | v2 preset or web editor | 1–2000 ms each |
-| Sustain | v2 preset or web editor | 0–1 |
-| Release | v2 preset or web editor | 5–5000 ms |
+| Filter resonance | CC26 (v3) | 0–1 (Q 0.7–11) |
+| Reverb mix | CC27 (v3) | 0–1 |
+| LFO depth | CC1 mod wheel (when the patch enables it) | 0–full |
+| Panic | SW5 press / CC120 or CC123 / webapp | Stop all sources and old delay/reverb tails |
+| Waveforms | Preset or web editor | Sine / triangle / saw / square (LFO: also sample-and-hold) |
+| Amp and filter attack / decay | Preset or web editor | 1–2000 ms each |
+| Sustain | Preset or web editor | 0–1 |
+| Release | Preset or web editor | 5–5000 ms |
+| Osc 2 interval / detune | v3 preset or web editor | ±24 semitones / ±50 cents |
+| Voices / glide | v3 preset or web editor | 1–4 / 0–2000 ms |
+| LFO rate | v3 preset or web editor | 0.05–20 Hz |
 
 Encoder IDs follow hardware source; printed-panel mapping is unverified. Boot
 uses dry aux with time 257.5 ms, feedback 21.25%, level fading toward 0.25. Route
 or waveform changes silence current voices/tails; release/retrigger held keys.
 Steal clicks and triangle aliasing were reduced in simulation; saw/square can still
-alias on high notes. Musical quality needs listening on hardware.
+alias on high notes. Musical quality and v3 CPU cost need listening and measurement
+on hardware; lower the voice count if CPU is short.
 The fixed two-route format is not a general patch graph or generated executable DSP.
 
 ## Run the webapp
@@ -105,12 +114,13 @@ verified archive hash. No upstream sources or bootloader were changed.
 
 | Check | Recorded evidence |
 | --- | --- |
-| Native suites | DSP/queue, MIDI/protocol and synth suites pass (synth suite includes steal-click, triangle-alias, recovery-epoch, sustain, bend and channel-translation tests) |
-| Python | 36 tests pass; includes 250 v1 plus 200 v2 randomized protocol round trips and mocked providers |
-| Sanitizers | Three C++ suites pass ASan/UBSan; LeakSanitizer disabled for environment limitations |
-| Web | 8 real-Chromium tests (`make browser-test`): editing, import/export, mocked AI, send/capture/panic via simulated device, phone/tablet layout |
-| ARM | BOOT_SRAM build succeeds with xPack GCC 10.3.1 (pinned Arm archive unreachable in agent environment); FORGE.bin 120,296 bytes with sustain/bend |
-| Link allocations | SRAM_EXEC 50.64%; SRAM 17.12%; RAM_D2 68.07%; SDRAM 0.57% |
+| Native suites | Four suites pass: DSP/queue, MIDI/protocol (incl. v3 round trip and bounds), synth (steal clicks, triangle aliasing, recovery, sustain, bend, translation) and v3 (oscillators, resonant filter and envelope, LFO/mod wheel, voices/glide, reverb, fuzz) |
+| Compatibility | v1/v2 audio output bit-exact against the 0.3 core over 384,000 stereo samples (one-off check, see CONTINUE) |
+| Python | 42 tests pass; includes 250 v1, 200 v2 and 200 v3 randomized protocol round trips through the C++ codec, v3 upgrade and mocked providers |
+| Sanitizers | Four C++ suites pass ASan/UBSan; LeakSanitizer disabled for environment limitations |
+| Web | 9 real-Chromium tests (`make browser-test`): v1/v2/v3 editing and import, convert-to-v3, mocked AI, send/capture/panic via simulated device, phone/tablet layout |
+| ARM | BOOT_SRAM build succeeds with xPack GCC 10.3.1 (pinned Arm archive unreachable in agent environment); FORGE.bin 142,520 bytes |
+| Link allocations | SRAM_EXEC 59.99%; SRAM 21.20%; RAM_D2 68.07%; SDRAM 0.62% |
 | Hardware / AI | No flash, listening, physical I/O, actual CPU measurement, or live provider request performed |
 
 Firmware SHA-256 depends on the compiler; use the value printed by the test
@@ -123,13 +133,13 @@ From a clean, committed tree after building firmware and native tests:
 
 ```sh
 cd firmware/chompi-forge
-python3 host/package_candidate.py /absolute/output/Forge_0.3_Test_Candidate.zip
+python3 host/package_candidate.py /absolute/output/Forge_0.4_Test_Candidate.zip
 ```
 
-The generator includes firmware, webapp/CLI, both JSON schemas, six presets,
-simulated aux/synth references, docs, licenses and hashes/source identity.
-Binaries and ZIPs are generated artifacts, not tracked source. The earlier 0.2
-ZIP is obsolete for the instrument milestone and has not been silently updated.
+The generator includes firmware, webapp/CLI, the JSON schemas (v1 delay, v2 and
+v3 instrument), ten presets, simulated references, docs, licenses and
+hashes/source identity. Binaries and ZIPs are generated artifacts, not tracked
+source. Earlier 0.2 and 0.3 ZIPs are obsolete and have not been silently updated.
 
 DC's workflow is **one consolidated hardware session**; follow
 [TEST_SESSION.md](docs/forge/TEST_SESSION.md). A defect may require a focused
@@ -138,8 +148,8 @@ retest. Do not substitute software passes for actual device acceptance.
 ## Not implemented yet
 
 - Sampling, recording, looping, sequencing or stock TAPE performance functionality.
-- Additional effects such as reverb, FM synthesis or arbitrary routing/modulation graphs.
-- Aftertouch/MPE, mod wheel, clock sync, arpeggiator, octave controls, configurable bend range or note output.
+- Further effects (chorus, distortion, EQ), FM synthesis, multiple LFOs/envelopes, or arbitrary routing/modulation graphs.
+- Aftertouch/MPE, clock sync, arpeggiator, octave controls, configurable bend range, mono note-priority stack or note output.
 - Device-side preset banks, SD saves or automatic recall after reboot.
 - Onboard AI, generated DSP code, plugins or runtime executable loading.
 - Tab5 integration, Wi-Fi, public web hosting or phone remote control.
@@ -153,7 +163,7 @@ retest. Do not substitute software passes for actual device acceptance.
 | [CONTINUE.md](docs/forge/CONTINUE.md) | Live checkpoint and exact remaining work |
 | [PROJECT.md](docs/forge/PROJECT.md) | Corrected goal, scope and later directions |
 | [ARCHITECTURE.md](docs/forge/ARCHITECTURE.md) | Ownership and processing boundaries |
-| [PROTOCOL.md](docs/forge/PROTOCOL.md) | Exact v1/v2 wire layout and recovery semantics |
+| [PROTOCOL.md](docs/forge/PROTOCOL.md) | Exact v1/v2/v3 wire layout and recovery semantics |
 | [DEVELOPMENT.md](docs/forge/DEVELOPMENT.md) | Build, test and packaging workflow |
 | [HANDOFF.md](docs/forge/HANDOFF.md) | Current milestone summary and evidence |
 | [CHANGELOG.md](docs/forge/CHANGELOG.md) | Development history |
