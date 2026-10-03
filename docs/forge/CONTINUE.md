@@ -43,6 +43,12 @@ mutations of the new code all caught. Simulated autorun: 6 pass, 13 skipped
 (no audio), 0 fail. DLL imports of every bundled native module resolved
 against the kit (found and fixed: msvcp140.dll for rtmidi).
 
+Development kit: `Forge-Bridge-dev-50cdc4b.zip` built from `50cdc4b` (26,340,768
+bytes, sha256 `be7eed92…c17ec997`; FORGE.bin = development `c2a4fb3d…`, xPack
+GCC 10.3.1; `verify_bundle.py`: 1,290 files OK). Sent to DC in chat; DC keeps it
+on Google Drive. Unpacked on Linux, its own host code ran the simulated session
+from the kit layout and still verified OK afterwards.
+
 Not verified: anything on Windows (launcher, bundled runtime, WASAPI device
 handling, MIDI port names), any real audio interface, detection on real
 hardware, measurement thresholds against real CHOMPI output. No hardware test.
