@@ -38,8 +38,15 @@ development 229,404 B (79.4 %), sha256 `627c8039…f16fd`; layout guard OK for
 both. Bench not rerun: DSP engine code unchanged. Hardware: none; the boot fix
 is verified on hardware only for the stock firmwares (by sfaber02), not Forge.
 
-Previous kits (`Forge-Bridge-dev-50cdc4b`, `Forge-0.5-test-b7a504a`) are stale:
-do not flash them.
+Kits built from `1d1618e` (xPack GCC 10.3.1), both `verify_bundle.py` OK and
+both FORGE.bin images pass the layout check:
+- `Forge-Bridge-dev-1d1618e.zip` (development + bridge + bundled Windows Python),
+  26,341,616 B, sha256 `513f797b…85266d`, FORGE.bin `627c8039…f16fd`, 1,290 files.
+- `Forge-0.5-test-1d1618e.zip` (release QA bundle), 3,515,836 B, sha256
+  `41f9af6b…6544ae3`, FORGE.bin `a7997e4c…ef793`, 65 files.
+Sent to DC in chat; DC keeps them on Google Drive. Older kits
+(`Forge-Bridge-dev-50cdc4b`, `Forge-0.5-test-b7a504a`) lack the boot fix: do
+not flash them.
 
 
 DC reviewed the bridge and asked for it to be "more plug and play". Built on
