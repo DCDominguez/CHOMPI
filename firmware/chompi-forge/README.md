@@ -90,7 +90,8 @@ saw/square; ±24 semitones, ±50 cents), white noise, amplitude ADSR, and a
 resonant state-variable low-pass with its own ADSR. One shared LFO
 (sine/triangle/square/sample-and-hold) modulates pitch, cutoff and amplitude;
 the mod wheel can scale it. Voices 1–4 per patch (1 = mono, the CPU fallback),
-glide 0–2000 ms. The reverb is a 4-line feedback delay network in SDRAM.
+glide 0–2000 ms. The reverb is a 4-line feedback delay network in DTCM (as the
+stock apps place their reverbs); the delay stays in SDRAM.
 
 Version-2 patches (synth, delay, output) and v1 delay patches still work and
 render bit-exactly as on firmware 0.3 (simulation check): v1/v2 keep the original

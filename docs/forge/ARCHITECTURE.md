@@ -45,11 +45,14 @@ state-variable low-pass whose cutoff combines the smoothed base cutoff, the
 voice's filter envelope and the shared LFO; coefficients refresh every 16
 samples (one `tan` per voice). The reverb is a 4-line feedback delay network
 (Hadamard mixing, per-line damping, gains from the requested decay time, so it
-is stable for all settings) in 34 KB of SDRAM; it is skipped while its mix is
+is stable for all settings) in 34 KB of DTCM, like the stock apps' reverbs
+(its lines exceed the 16 KB data cache); it is skipped while its mix is
 zero. CPU cost scales with the patch's voice count (1–4).
 
 Each channel has its own delay buffer in SDRAM. Initialization clears both
-buffers (and the reverb memory) before audio starts. Parameter changes use one-pole smoothing; changing
+buffers before audio starts. Reverb memory is not cleared (DTCM is not zeroed
+at boot); its unread counter returns silence until every cell has been
+rewritten, and a test feeds it NaN-filled memory to prove that. Parameter changes use one-pole smoothing; changing
 delay time therefore glides in pitch. Wet bypass moves the wet mix toward zero
 without clearing the delay or changing output level. Numeric input/output bounds
 are hard clips, not a transparent limiter.

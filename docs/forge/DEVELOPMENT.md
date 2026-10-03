@@ -81,6 +81,21 @@ github.com/xpack-dev-tools/arm-none-eabi-gcc-xpack works with the same
 `GCC_PATH` usage. It is not byte-identical; the packager records the real
 compiler from `FORGE.elf` and flags `built_with_pinned_compiler`.
 
+## CPU benchmark against stock firmware
+
+```sh
+python3 -m pip install unicorn pyelftools
+make -C firmware/chompi-forge bench GCC_PATH=/absolute/toolchain/path/bin
+```
+
+Compiles Forge and the stock TAPE, TEMPO and WAVE DSP (their own vendored
+libraries, upstream sources read only, outputs in `build/bench/`) with the
+firmware flags. It then counts executed ARM instructions per audio sample in
+the Unicorn emulator and fails if any Forge preset costs more than WAVE's
+shipping 8-voice engine. These are instruction counts, not cycles; method,
+results and limits are in [COMPATIBILITY.md](COMPATIBILITY.md). Run it after
+DSP changes, alongside `make test`.
+
 ## Create a test bundle
 
 Commit the tested source first and choose an output path outside the repository:

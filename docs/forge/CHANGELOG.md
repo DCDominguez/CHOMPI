@@ -1,5 +1,18 @@
 # Forge changelog
 
+## 0.4 stock-firmware comparison and CPU benchmark — 2026-10-03
+
+- New docs/forge/COMPATIBILITY.md: bootloader acceptance (FORGE.bin layout
+  matches factory TAPE/TEMPO/WAVE), memory maps, audio config, identical
+  keybed map, MIDI differences (CC24/25, fixed channel), upstream rebuild
+  findings (TAPE case-sensitive include, xPack overflow; TEMPO size delta).
+- `make bench`: ARM instruction counts in an emulator for Forge presets vs
+  TAPE/TEMPO FX stages and WAVE's 8-voice engine; gate: Forge <= WAVE.
+- Reverb memory moved from SDRAM to DTCM (as the stock apps do); a test
+  proves uninitialised DTCM never reaches the output.
+- TEST_SESSION: stock loudness reference before flashing, single-.bin and
+  macOS `._` file rule at 1.1, restore from firmware/card-profiles.
+
 ## 0.4 v3 instrument: richer synth and reverb — 2026-10-03
 
 - Patch v3 (firmware minor 4): second oscillator (waveform, level, ±24

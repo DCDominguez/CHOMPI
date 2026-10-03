@@ -16,8 +16,14 @@ feature has its own steps below so results can be recorded per feature.
 3. Optional, recommended: the live AI preflight in `docs/LIVE_AI_TEST.md`.
    It needs no hardware.
 4. Back up your normal SD card and keep it aside. Use a separate test card.
-   Have the stock firmware and the known restore procedure at hand. Do **not**
-   install the repository's beta bootloader.
+   Have the stock firmware and the known restore procedure at hand. Exact
+   factory card contents are in the repository under `firmware/card-profiles/`
+   (TAPE 2.0, TEMPO 1.0, WAVE 1.0). Do **not** install the repository's beta bootloader.
+5. **Stock reference (before flashing, still on your stock firmware):** set
+   the volume (SW6) to a position you can find again (mark it), play a few
+   keys and note how loud the stock sound is on headphones and on the main
+   outputs. Steps 3.10–3.13 compare Forge against this. `docs/COMPATIBILITY.md`
+   (in the bundle) lists what differs from stock.
 
 Shorthand below: `H = python3 host/forge_host.py`, with
 `--input "IN" --output "OUT"` set to your exact CHOMPI port names from `H ports`.
@@ -27,7 +33,7 @@ Keep monitoring volume low. Avoid audio feedback loops. The mic is unused.
 
 | # | Do | Pass when |
 | --- | --- | --- |
-| 1.1 | Put `firmware/FORGE.bin` alone on the test card root; use the installed bootloader's normal SD update | Update completes uninterrupted |
+| 1.1 | Put `firmware/FORGE.bin` on the test card root as the **only** `.bin` file. On macOS also remove `._FORGE.bin` (`dot_clean -m /Volumes/CARD` or delete it); the bootloader loads the first `.bin` it finds and would reject that metadata file. Use the installed bootloader's normal SD update | Update completes uninterrupted |
 | 1.2 | Power up; watch LED | Initialization completes; no output burst |
 | 1.3 | `H status ...` | Firmware 0.4, version 1 aux patch, counters 0 |
 
@@ -59,7 +65,7 @@ Keep monitoring volume low. Avoid audio feedback loops. The mic is unused.
 
 | # | Do | Pass when |
 | --- | --- | --- |
-| 3.10 | `H send presets/07-warm-pad.json ...`; hold chords on the keys | Two detuned oscillators (slow beating), filter swells open over ~1 s, gentle vibrato, reverb tail after release |
+| 3.10 | `H send presets/07-warm-pad.json ...`; hold chords on the keys | Two detuned oscillators (slow beating), filter swells open over ~1 s, gentle vibrato, reverb tail after release. At the marked SW6 position, record loudness vs the stock reference from 0.5 (quieter / similar / louder), on headphones and main outs |
 | 3.11 | `H send presets/08-acid-bass.json`; play overlapping notes low on the keys | Monophonic; pitch glides between notes; resonant filter "snap" on each note |
 | 3.12 | With Acid Bass: `H cc 1 127 --output "OUT"`, hold a note, then `H cc 1 0` | Mod wheel brings in a filter wobble; at 0 it stops |
 | 3.13 | `H send presets/09-bell-keys.json`; play single notes | Bell-like tone (second oscillator a 12th above); reverb tail; slight vibrato only with mod wheel up |
@@ -92,7 +98,7 @@ Record provider/model/seconds, never the key.
 | 6.2 | `H status` at the end | Peak CPU < 100% (fail at ≥100%; < 70% is the comfort target). Record average, peak, dropped, rejected |
 | 6.2b | **Worst case:** reboot (resets peak), `H send presets/10-cpu-stress.json`, hold four keys for 1 minute, `H status` | Record average and peak. If peak ≥ 70 %, set voices to 3 then 2 in the webapp, Send, repeat, and record each. This sets the v3 CPU budget |
 | 6.3 | Reboot; `H status`; resend a saved patch | Boots to dry aux defaults; recall works |
-| 6.4 | Optional: restore stock firmware with your normal card | Stock works again |
+| 6.4 | Optional: restore stock firmware with your normal card (or copy a folder from `firmware/card-profiles/` to a card) | Stock works again |
 
 Do not deep-discharge the battery to test shutdown; record it as not run.
 
@@ -105,7 +111,7 @@ Board / bootloader / stock firmware / OS / Python / MIDI connection:
 1 Flash & identity:
 2 Aux path 2.1–2.5:
 3 Instrument 3.1–3.9 (note clicks/aliasing, sustain, bend here):
-3B v3 modules 3.10–3.16:
+3B v3 modules 3.10–3.16 (incl. loudness vs stock reference):
 4 Panic & recovery 4.1–4.3:
 5 Webapp (+ AI provider/model/seconds or "not run"):
 6 Sustained: minutes / avg CPU / peak CPU / dropped / rejected; reboot; restore:

@@ -44,7 +44,7 @@ All rerun from tree `cf807ad0…`, not copied from earlier notes:
 | Level | What |
 | --- | --- |
 | Implemented | Everything in README feature table, plus the items below |
-| Software-tested | 4 native C++ suites (core, protocol incl. v3, synth, v3), 42 Python tests, 4 ASan/UBSan suites, 9 real-Chromium browser tests, ARM build (xPack GCC 10.3.1) — all pass 2026-10-03 UTC at firmware 0.4 |
+| Software-tested | 4 native C++ suites (core, protocol incl. v3, synth, v3), 42 Python tests, 4 ASan/UBSan suites, 9 real-Chromium browser tests, ARM build (xPack GCC 10.3.1), `make bench` (emulated instruction counts vs stock firmware) — all pass 2026-10-03 UTC at firmware 0.4 |
 | Hardware-verified | **Nothing.** No flash, audio, keybed, MIDI transport, CPU or battery test |
 | Live AI | **Not run.** Formats checked against provider docs 2026-10-03; mocks only |
 
@@ -187,8 +187,9 @@ AI, webapp, presets), then docs.
 - `core/reverb.h`: 4-line FDN, lengths 1601/1949/2311/2741 @48 k (+1 each =
   8606 floats), Hadamard/2, per-line one-pole damping, gains from RT60,
   O(1) Clear via unread counter. Engine skips it while mix target and smoothed
-  mix are 0 and clears on restart. Reverb memory in SDRAM (`kReverbCapacity`
-  8704). `Engine::Init` 6-arg overload; 4-arg leaves reverb silent.
+  mix are 0 and clears on restart. Reverb memory (`kReverbCapacity` 8704)
+  moved to DTCM on 2026-10-03 after the stock-firmware comparison (see
+  COMPATIBILITY.md); a test proves uninitialised DTCM never reaches output. `Engine::Init` 6-arg overload; 4-arg leaves reverb silent.
 - Engine: v1/v2 ↔ v3 change panics (architecture differs).
 - Bit-exact check (one-off, 2026-10-03): a renderer driving notes, bend,
   pedal and CC cutoff through v1 and v2 patches (all waveforms, 384,000
@@ -223,20 +224,45 @@ AI, webapp, presets), then docs.
   revisit after listening (TEST_SESSION 3.10–3.13), e.g. partial compensation
   or higher preset levels.
 
+## Stock firmware comparison and CPU benchmark (2026-10-03, DC's request)
+
+Full write-up: [COMPATIBILITY.md](COMPATIBILITY.md). Key facts for agents:
+- Bootloader (TAPE's Chompi_Bootloader source) loads the first non-hidden
+  `*.bin`/`*.BIN` on the card root, checks SP in RAM and entry in D1 SRAM or
+  QSPI. FORGE.bin passes, same SP/entry layout as factory TAPE/TEMPO/WAVE.
+  Risk: macOS `._FORGE.bin` (not hidden) can be picked first → TEST_SESSION 1.1.
+- Keybed note table identical to stock in all three apps (checked by script).
+- MIDI: stock maps CC20+n → encoder n (CC24 ignored, CC25 → SW6), channel
+  from options.json, CC input optional, notes/CCs sent out. Forge: CC24
+  bypass, CC25 cutoff, fixed channel 1, no MIDI out. Open decision for DC.
+- Upstream rebuilds (scratch copy, xPack): TAPE needs a `Limiter.h` symlink
+  on Linux and then overflows SRAM_EXEC by 3,524 B; TEMPO builds 4,660 B
+  smaller than factory. Repo sources + xPack ≠ factory builds.
+- `make bench` (bench/): Forge presets 209–1,428 instructions/sample; TAPE
+  FX+output 1,249 and TEMPO FX+output 1,362 (voices excluded, lower bounds);
+  WAVE full 8-voice engine 2,695–2,747. Gate: Forge ≤ WAVE. Emulator notes:
+  A-profile "max" core (Unicorn M-profile lacks FPU enable), flush the TB
+  cache after adding the counting hook, peripheral range mapped as scratch
+  for TEMPO's timer init, link with `-u` roots or gc-sections drops entry points.
+- Firmware change from this: reverb memory SDRAM → DTCM (`.dtcmram_bss`),
+  FORGE.bin unchanged in size, DTCM 26.6 %; test
+  `ReverbIgnoresUninitializedMemory`. The 66af4c5 bundle is now stale.
+
 ## Next actions (priority order)
 
-1. Agent: roadmap item 3, SD preset banks. Design first: on-device storage
+1. DC decision: MIDI compatibility with stock. Options: (a) keep Forge's
+   CC24 bypass / CC25 cutoff; (b) follow stock "CC20+n = encoder n" (CC24 →
+   SW5 cutoff, CC25 → SW6 level, bypass moves elsewhere); also whether to add a
+   configurable input channel. Changing CCs updates PROTOCOL, TEST_SESSION
+   2.4/3.x and tests.
+2. Agent: roadmap item 3, SD preset banks. Design first: on-device storage
    format (reuse the v1–v3 wire DATA as the stored record), SD access only
    from the main loop (never the audio callback), recall via UI and MIDI
    (program change?), host commands to list/store/recall, failure handling
-   for missing/corrupt cards, and how this coexists with the bootloader's
-   SD update. Confirm with DC before choosing a physical UI for recall.
-2. Bundle: `Forge_0.4_Test_Candidate.zip` built 2026-10-03 from commit
-   `66af4c5` (tree `bc6909df`), xPack 10.3.1 (`built_with_pinned_compiler:
-   false`), FORGE.bin sha256
-   `2ce4b7fcf6cdfccc1fde7491cb07a2e1d7753adaef3d08668daf29e971d71505`;
-   verify_bundle.py OK (42 files); given to DC in chat, not committed.
-   Regenerate after any later firmware change, and with the pinned Arm
-   compiler if developer.arm.com becomes reachable.
-3. DC (later, per feature): LIVE_AI_TEST.md, then TEST_SESSION.md; record in
+   for missing/corrupt cards, and coexistence with the bootloader's SD update
+   (it loads the first `*.bin` on the root, so presets must never be `.bin`).
+   Confirm with DC before choosing a physical UI for recall.
+3. Bundle: regenerate before QA (firmware changed since `66af4c5`), with the
+   pinned Arm compiler if developer.arm.com becomes reachable.
+4. DC (later, per feature): LIVE_AI_TEST.md, then TEST_SESSION.md; record in
    TEST_RESULTS.md. Agent then fixes only what QA finds.

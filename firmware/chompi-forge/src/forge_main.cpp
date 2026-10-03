@@ -59,7 +59,10 @@ constexpr size_t kDelayCapacity = 48002;
 float DSY_SDRAM_BSS delay_left[kDelayCapacity];
 float DSY_SDRAM_BSS delay_right[kDelayCapacity];
 constexpr size_t kReverbCapacity = 8704; // >= Reverb::Required(48000) = 8606
-float DSY_SDRAM_BSS reverb_memory[kReverbCapacity];
+// 34 KB in DTCM (zero-wait, uncached), as TAPE/TEMPO/WAVE place their reverbs.
+// The FDN lines exceed the 16 KB D-cache, so SDRAM would mean cache misses.
+// Not zeroed at boot; Reverb's unread counter hides stale cells until rewritten.
+float __attribute__((section(".dtcmram_bss"))) reverb_memory[kReverbCapacity];
 uint32_t dropped_commands = 0, rejected_messages = 0; // main-loop owned
 
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size) {

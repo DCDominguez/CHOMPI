@@ -23,6 +23,7 @@ one consolidated hardware session.
 | [Architecture](ARCHITECTURE.md) | Processing boundaries, ownership, queues, patch lifecycle and source map |
 | [Developer guide](DEVELOPMENT.md) | Checkout, dependencies, software validation, packaging and troubleshooting |
 | [Protocol](PROTOCOL.md) | Exact SysEx framing, requests, replies, errors and overload semantics |
+| [Compatibility](COMPATIBILITY.md) | Comparison with stock TAPE/TEMPO/WAVE: bootloader, memory, MIDI, keybed, CPU benchmark |
 | [Test session](TEST_SESSION.md) | One physical acceptance checklist and results template |
 | [Handoff](HANDOFF.md) | Latest implementation, evidence, limitations and next action |
 | [Changelog](CHANGELOG.md) | Changes by candidate version |

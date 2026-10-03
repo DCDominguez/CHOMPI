@@ -120,7 +120,8 @@ verified archive hash. No upstream sources or bootloader were changed.
 | Sanitizers | Four C++ suites pass ASan/UBSan; LeakSanitizer disabled for environment limitations |
 | Web | 9 real-Chromium tests (`make browser-test`): v1/v2/v3 editing and import, convert-to-v3, mocked AI, send/capture/panic via simulated device, phone/tablet layout |
 | ARM | BOOT_SRAM build succeeds with xPack GCC 10.3.1 (pinned Arm archive unreachable in agent environment); FORGE.bin 142,520 bytes |
-| Link allocations | SRAM_EXEC 59.99%; SRAM 21.20%; RAM_D2 68.07%; SDRAM 0.62% |
+| Link allocations | SRAM_EXEC 59.99%; SRAM 21.20%; DTCM 26.56% (reverb); RAM_D2 68.07%; SDRAM 0.57% |
+| CPU benchmark | `make bench`: worst Forge preset ~1,430 ARM instructions/sample vs ~2,700 for stock WAVE's 8-voice engine (emulated counts, not cycles; see COMPATIBILITY) |
 | Hardware / AI | No flash, listening, physical I/O, actual CPU measurement, or live provider request performed |
 
 Firmware SHA-256 depends on the compiler; use the value printed by the test
@@ -164,6 +165,7 @@ retest. Do not substitute software passes for actual device acceptance.
 | [PROJECT.md](docs/forge/PROJECT.md) | Corrected goal, scope and later directions |
 | [ARCHITECTURE.md](docs/forge/ARCHITECTURE.md) | Ownership and processing boundaries |
 | [PROTOCOL.md](docs/forge/PROTOCOL.md) | Exact v1/v2/v3 wire layout and recovery semantics |
+| [COMPATIBILITY.md](docs/forge/COMPATIBILITY.md) | Forge vs stock TAPE/TEMPO/WAVE: bootloader, memory, MIDI, keybed and CPU benchmark |
 | [DEVELOPMENT.md](docs/forge/DEVELOPMENT.md) | Build, test and packaging workflow |
 | [HANDOFF.md](docs/forge/HANDOFF.md) | Current milestone summary and evidence |
 | [CHANGELOG.md](docs/forge/CHANGELOG.md) | Development history |

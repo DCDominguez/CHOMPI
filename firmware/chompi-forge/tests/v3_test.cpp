@@ -3,7 +3,9 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <algorithm>
 #include <iostream>
+#include <limits>
 #include <vector>
 #include "../core/runtime.h"
 using namespace forge;
@@ -182,6 +184,23 @@ void ReverbTail() {
     }
     assert(last < 0.01 * first);                                               // it decays
 }
+void ReverbIgnoresUninitializedMemory() {
+    // Firmware places reverb memory in DTCM, which is not zeroed at boot. Garbage
+    // (NaN, huge values) must never reach the output: the result has to match
+    // zeroed memory exactly, before and after a panic.
+    Rig clean, dirty;
+    std::fill(dirty.rv.begin(), dirty.rv.end(), std::numeric_limits<float>::quiet_NaN());
+    for(size_t i = 0; i < dirty.rv.size(); i += 3) dirty.rv[i] = 1e30f;
+    assert(dirty.engine.Init(kRate, dirty.l.data(), dirty.r.data(), dirty.l.size(), dirty.rv.data(), dirty.rv.size()));
+    for(Rig* rig : {&clean, &dirty}) assert(rig->engine.ApplyPatch(ReverbPatch(1, 0.2f)));
+    std::vector<float> a, b, c, d;
+    clean.Impulse(a, b, 48000); dirty.Impulse(c, d, 48000);
+    assert(a == c && b == d);
+    clean.engine.Panic(); dirty.engine.Panic();
+    clean.Impulse(a, b, 48000); dirty.Impulse(c, d, 48000);
+    assert(a == c && b == d);
+    for(float v : c) assert(std::isfinite(v));
+}
 void ReverbMixAndCompatibility() {
     // Reverb mix 0 is exactly the dry path; no reverb memory is exactly dry too.
     for(int variant = 0; variant < 2; ++variant) {
@@ -237,6 +256,7 @@ void StructuralChangesAndFuzz() {
 }
 int main() {
     NeutralV3IsAPlainVoice(); SecondOscillatorAndNoise(); ResonantFilterAndEnvelope(); LfoAndModWheel();
-    VoiceLimitAndGlide(); ReverbTail(); ReverbMixAndCompatibility(); StructuralChangesAndFuzz();
+    VoiceLimitAndGlide(); ReverbTail(); ReverbIgnoresUninitializedMemory(); ReverbMixAndCompatibility();
+    StructuralChangesAndFuzz();
     std::cout << "PASS: v3 oscillators/noise, resonant filter + envelope, LFO/mod wheel, voices/glide, reverb, compatibility, fuzz\n";
 }

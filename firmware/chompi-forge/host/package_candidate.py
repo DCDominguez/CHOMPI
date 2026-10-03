@@ -41,6 +41,7 @@ def main():
         "docs/LIVE_AI_TEST.md": (REPO / "docs/forge/LIVE_AI_TEST.md").read_bytes(),
         "docs/PROTOCOL.md": (REPO / "docs/forge/PROTOCOL.md").read_bytes(),
         "docs/HANDOFF.md": (REPO / "docs/forge/HANDOFF.md").read_bytes(),
+        "docs/COMPATIBILITY.md": (REPO / "docs/forge/COMPATIBILITY.md").read_bytes(),
         "LICENSE": (REPO / "LICENSE").read_bytes(),
         "THIRD_PARTY.md": (REPO / "THIRD_PARTY.md").read_bytes(),
         "TRADEMARKS.md": (REPO / "TRADEMARKS.md").read_bytes(),
