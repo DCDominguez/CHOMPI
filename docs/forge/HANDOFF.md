@@ -17,8 +17,8 @@ live checkpoint with claim levels, what changed and prioritized next actions.
   (xPack GCC 10.3.1; the pinned Arm archive was unreachable).
 - Stock comparison and CPU benchmark: [COMPATIBILITY.md](COMPATIBILITY.md)
   (`make bench`).
-- QA bundle: see CONTINUE.md "Next actions"; the `aa5df9e` ZIP predates
-  device presets.
+- QA bundle: `Forge-0.4-test-4fec6ac` (includes device presets); checksums in
+  CONTINUE.md "Next actions". Older ZIPs are stale.
 - Not verified: anything on hardware; any live OpenAI/Gemini request; device CPU.
 - Next for the agent: roadmap item 4 (sampling), design first; open DC
   decisions are listed in CONTINUE.md. QA for DC later:

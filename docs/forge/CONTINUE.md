@@ -294,6 +294,8 @@ KEY_16/17 banks; CHOMPI confirms; SMT LED 25 − slot# under white keys,
 3. Agent: roadmap item 4, sampling. Design first (SDRAM buffers, SD streaming
    like TAPE's FileStreamingManager, sample maps in v4 patches, AI schema),
    then confirm scope with DC.
-4. Bundle: regenerate before QA (firmware changed since `aa5df9e`).
+4. Bundle: `Forge-0.4-test-4fec6ac` built from `4fec6ac` (xPack GCC 10.3.1,
+   zip sha256 `c1ee9eb1…f2f18aa`, FORGE.bin sha256 `6bfc4925…02dcc6b`,
+   `verify_bundle.py`: 43 files OK). Regenerate if firmware changes again.
 5. DC (later, per feature): LIVE_AI_TEST.md, then TEST_SESSION.md; record in
    TEST_RESULTS.md. Agent then fixes only what QA finds.
