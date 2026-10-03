@@ -8,7 +8,7 @@ DC wants an **AI-programmable playable instrument**, not effects-only: describe 
 sound → AI configures installed modules → play keys/MIDI → adjust → save/recall.
 Patch changes need no recompile; new DSP algorithms need firmware work; AI never
 generates executable effects. Sampling, looping, sequencing, more engines/effects,
-flexible routing and SD presets are future work. ONE consolidated hardware session.
+flexible routing are future work (SD presets exist since 0.4). ONE consolidated hardware session.
 No main merge, flashing or real-key API calls by agents.
 
 ## Branch and publishing
@@ -44,7 +44,7 @@ All rerun from tree `cf807ad0…`, not copied from earlier notes:
 | Level | What |
 | --- | --- |
 | Implemented | Everything in README feature table, plus the items below |
-| Software-tested | 4 native C++ suites (core, protocol incl. v3, synth, v3), 42 Python tests, 4 ASan/UBSan suites, 9 real-Chromium browser tests, ARM build (xPack GCC 10.3.1), `make bench` (emulated instruction counts vs stock firmware) — all pass 2026-10-03 UTC at firmware 0.4 |
+| Software-tested | 5 native C++ suites (core, protocol incl. v3, synth, v3, preset), 48 Python tests, 5 ASan/UBSan suites, 10 real-Chromium browser tests, ARM build (xPack GCC 10.3.1), `make bench` (emulated instruction counts vs stock firmware) — all pass 2026-10-03 UTC at firmware 0.4 with device presets |
 | Hardware-verified | **Nothing.** No flash, audio, keybed, MIDI transport, CPU or battery test |
 | Live AI | **Not run.** Formats checked against provider docs 2026-10-03; mocks only |
 
@@ -248,26 +248,52 @@ Full write-up: [COMPATIBILITY.md](COMPATIBILITY.md). Key facts for agents:
   FORGE.bin unchanged in size, DTCM 26.6 %; test
   `ReverbIgnoresUninitializedMemory`. The 66af4c5 bundle is now stale.
 
+### Roadmap item 3: device presets on the SD card (implemented; software-tested)
+
+DC chose "key and encoder combo similar to TAPE" (2026-10-03). TAPE's menu
+was read from chompi-tape NormalPage.h / MenuPage.h / ui.h: toggle + CHOMPI key
+opens it; white keys = slots (KeyToSlot); KEY_23/24/25 erase/copy/save;
+KEY_16/17 banks; CHOMPI confirms; SMT LED 25 − slot# under white keys,
+0–9 under black keys KEY_16..KEY_25.
+
+- `core/preset_store.h`: Storage interface; record `'F''P' fmt len DATA crc16`;
+  `PresetStore` (save with read-back, load, erase, copy, occupancy, Rescan).
+- `core/preset_menu.h`: `PresetMenu` (audio-owner FSM) + `RenderMenuLeds`.
+  Bank persists between openings; encoder 1 clamps (1–8), bank keys wrap; a
+  selection keeps its bank if the bank changes before confirming.
+- `core/protocol.h`: `EncodePatchData`/`DecodePatchData` shared by SysEx,
+  status and records; opcodes 04–07, replies 42 (12 B) / 43 (33 B), errors 7–9.
+- `core/midi_framer.h` + `TranslateChannel`: program change → silent recall.
+- `core/runtime.h`: Store → Snapshot response; silent Patch (no reply);
+  `StoreReply`/`EraseReply`/`ListReply`/`RecallRequest` shared by firmware and
+  `host/forge_probe.cpp` (in-memory card).
+- Firmware: `src/fatfs_storage.h`, SD mount at boot (as TAPE), 1 s card
+  watch, `RunPanelActions`, `DrawLeds` (30 Hz; panel LED 0 flash), `USE_FATFS = 1`
+  (comment on its own line: trailing spaces broke `ifeq`). FatFS objects must
+  stay out of DTCM (SD DMA) — they are globals in D1 SRAM.
+- Host: `preset_message`, decode 42/43, CLI `store|recall|erase|slots`
+  (1-based), `/api/preset`, webapp Device presets panel (Erase = 2 presses).
+- Tests: `tests/preset_test.cpp`, `tests/test_presets.py`, web + browser
+  tests. Mutations caught: releases consumed, no toggle needed, slot map off
+  by one, no read-back, CRC ignored, save into the wrong bank, silent recall
+  replying.
+- ARM: FORGE.bin 187,592 bytes, SRAM_EXEC 78.96 %, SRAM 22.96 %, DTCM
+  26.56 %, RAM_D2 72.63 %; no Forge warnings.
+- QA: TEST_SESSION 3.17–3.27. Unverified: SD timing (main-loop stall while
+  writing), card swap, LED colours/positions, which toggle position TAPE calls
+  "menu" (Forge reuses `GetToggleState()` exactly as TAPE does).
+- Known limits: no names on the device; boot still starts in dry aux (no
+  auto-recall); mono mode note stack still missing.
+
 ## Next actions (priority order)
 
-1. DC decision: MIDI compatibility with stock. Options: (a) keep Forge's
-   CC24 bypass / CC25 cutoff; (b) follow stock "CC20+n = encoder n" (CC24 →
-   SW5 cutoff, CC25 → SW6 level, bypass moves elsewhere); also whether to add a
-   configurable input channel. Changing CCs updates PROTOCOL, TEST_SESSION
-   2.4/3.x and tests.
-2. Agent: roadmap item 3, SD preset banks. Design first: on-device storage
-   format (reuse the v1–v3 wire DATA as the stored record), SD access only
-   from the main loop (never the audio callback), recall via UI and MIDI
-   (program change?), host commands to list/store/recall, failure handling
-   for missing/corrupt cards, and coexistence with the bootloader's SD update
-   (it loads the first `*.bin` on the root, so presets must never be `.bin`).
-   Confirm with DC before choosing a physical UI for recall.
-3. Bundle: current QA bundle `Forge_0.4_Test_Candidate.zip` from `aa5df9e`
-   (tree `fcb38f19`), xPack 10.3.1 (`built_with_pinned_compiler: false`),
-   FORGE.bin sha256
-   `a40fcbe604a0e5971e8a18e1e0b22d80ae89dee20eeb949ae65da40a93a7a622`,
-   verify_bundle.py OK (43 files); given to DC in chat, not committed.
-   Regenerate after any later firmware change, and with the pinned Arm
-   compiler if developer.arm.com becomes reachable.
-4. DC (later, per feature): LIVE_AI_TEST.md, then TEST_SESSION.md; record in
+1. DC decision (still open): MIDI CC24/25 alignment with stock and a
+   configurable input channel (see COMPATIBILITY.md §4).
+2. DC decision: boot behaviour — keep dry aux, or recall the last-used preset
+   at power-up (TAPE restores its state).
+3. Agent: roadmap item 4, sampling. Design first (SDRAM buffers, SD streaming
+   like TAPE's FileStreamingManager, sample maps in v4 patches, AI schema),
+   then confirm scope with DC.
+4. Bundle: regenerate before QA (firmware changed since `aa5df9e`).
+5. DC (later, per feature): LIVE_AI_TEST.md, then TEST_SESSION.md; record in
    TEST_RESULTS.md. Agent then fixes only what QA finds.

@@ -36,7 +36,7 @@ read and maintain [CONTINUE.md](CONTINUE.md) at each checkpoint.
 
 This is a bounded module format, **not a general-purpose modular graph**. No
 sampler, recorder, looper, sequencer, custom modulation graph, FM, onboard
-AI, SD preset bank, Wi-Fi or Tab5 integration yet. Stock TAPE features are not
+AI, Wi-Fi or Tab5 integration yet (SD preset banks exist as of 0.4). Stock TAPE features are not
 available inside Forge. Upstream sources remain separate and unmodified.
 
 ## Architecture and acceptance
@@ -67,7 +67,10 @@ unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
    resonant filter with its own envelope, LFO + mod wheel, voices/glide, reverb
    (done, software-tested; firmware 0.4). Saw/square anti-aliasing beyond
    2-point polyBLEP waits for a device CPU figure (TEST_SESSION 6.2b).
-3. **SD preset banks** — device-side save/recall without a computer.
+3. **SD preset banks** — device-side save/recall without a computer (done,
+   software-tested): 8 × 15 slots, TAPE-style key + encoder menu, program
+   change, host CLI and webapp. Candidates: names on the device, recall the
+   last preset at boot, preset import from TAPE/WAVE cards.
 4. **Sampling** — recording and playable sample maps (SDRAM + SD).
 5. **Looping** — capture, overdub, manipulation on the sampling buffers.
 6. **Dedicated/networked controllers** (Tab5) — optional, last.

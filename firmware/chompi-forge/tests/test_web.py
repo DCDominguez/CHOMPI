@@ -178,6 +178,23 @@ class WebTests(unittest.TestCase):
         bad = copy.deepcopy(PRESET); bad["parameters"]["mix"] = 2
         self.assertEqual(self.request("/api/upgrade", {"patch": bad})[0], 400)
 
+    def test_preset_endpoint_validates_before_any_midi(self):
+        ports = {"input": "in", "output": "out"}
+        with patch.object(forge_host, "exchange") as exchange:
+            for body in ({**ports, "action": "format"}, {**ports, "action": "store", "bank": 9, "slot": 1},
+                         {**ports, "action": "recall", "bank": 1}, {"action": "list"}):
+                status, _, data = self.request("/api/preset", body)
+                self.assertEqual(status, 400, body)
+            exchange.assert_not_called()
+            exchange.return_value = {"sequence": 1, "occupied": {}}
+            status, _, data = self.request("/api/preset", {**ports, "action": "list"})
+            self.assertEqual(status, 200)
+            self.assertEqual(exchange.call_args.args[0][4], 7)
+            exchange.side_effect = RuntimeError("Device rejected request: that preset slot is empty")
+            status, _, data = self.request("/api/preset", {**ports, "action": "recall", "bank": 1, "slot": 2})
+            self.assertEqual(status, 502)
+            self.assertIn("slot is empty", json.loads(data)["error"])
+
     def test_validation_and_malformed_request_bodies(self):
         self.assertEqual(self.request("/api/validate", {"patch": PRESET})[0], 200)
         for raw in (b'{"patch":{},"patch":{}}', b"[]", b'{"patch":NaN}', b"x" * 65537):

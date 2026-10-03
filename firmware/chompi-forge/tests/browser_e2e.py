@@ -276,6 +276,36 @@ class BrowserTests(unittest.TestCase):
         p.click("#status"); self.wait_idle()
         self.assertIn("editor patch is unchanged", self.notice())
 
+    def test_device_presets_store_recall_erase(self):
+        p = self.page
+        self.assertEqual(p.locator("#slots button").count(), 15)
+        p.click("#slot-recall"); self.wait_idle()
+        self.assertIn("Choose a slot", self.notice())
+        p.click("#ports"); self.wait_idle()
+        p.select_option("#input-port", sim_device.INPUT); p.select_option("#output-port", sim_device.OUTPUT)
+        self.choose_preset("Acid Bass"); sent = self.json(); p.click("#send"); self.wait_idle()
+        p.select_option("#bank", "2"); p.click("#slot-4")
+        self.assertEqual(p.get_attribute("#slot-4", "aria-pressed"), "true")
+        p.click("#slot-store"); self.wait_idle()
+        self.assertIn("bank 2 slot 4", self.notice())
+        expect(p.locator("#slot-4")).to_have_class("filled")
+        self.choose_preset("Dry routing check"); p.click("#send"); self.wait_idle()       # device now plays something else
+        p.click("#slot-recall"); self.wait_idle()
+        recalled = self.json()
+        self.assertEqual(recalled["name"], "Bank 2 slot 4")
+        self.assertEqual(recalled["modules"]["synth"]["voices"], sent["modules"]["synth"]["voices"])
+        self.assertAlmostEqual(recalled["modules"]["filter"]["cutoff_hz"], sent["modules"]["filter"]["cutoff_hz"], delta=1)
+        # Erase needs a second click.
+        p.click("#slot-erase"); self.wait_idle()
+        self.assertIn("again within 4 seconds", self.notice())
+        expect(p.locator("#slot-4")).to_have_class("filled")
+        p.click("#slot-erase"); self.wait_idle()
+        self.assertIn("erased", self.notice())
+        expect(p.locator("#slot-4")).not_to_have_class("filled")
+        p.click("#slot-recall"); self.wait_idle()
+        self.assertIn("slot is empty", self.notice())
+        p.select_option("#bank", "1"); self.assertEqual(p.get_attribute("#slot-4", "aria-pressed"), "false")
+
     def test_missing_ports_and_lost_reply(self):
         p = self.page
         p.click("#send"); self.wait_idle()

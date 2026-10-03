@@ -100,7 +100,7 @@ class Handler(BaseHTTPRequestHandler):
                 finally:
                     body.pop("api_key", None)
                     self.server.ai_lock.release()
-            elif self.path in ("/api/ports", "/api/status", "/api/send", "/api/panic"):
+            elif self.path in ("/api/ports", "/api/status", "/api/send", "/api/panic", "/api/preset"):
                 if not self.server.midi_lock.acquire(blocking=False):
                     return self.reply(409, {"error": "A MIDI request is already in progress"})
                 try:
@@ -112,8 +112,14 @@ class Handler(BaseHTTPRequestHandler):
                             if not isinstance(body.get(key), str) or not body[key]:
                                 raise ValueError("Select both MIDI input and output ports")
                         seq = secrets.randbelow(16384)
-                        payload = (host.encode_patch(body.get("patch"), seq) if self.path == "/api/send"
-                                   else host.message(3 if self.path == "/api/panic" else 2, seq))
+                        if self.path == "/api/preset":
+                            opcodes = {"store": 4, "recall": 5, "erase": 6, "list": 7}
+                            if body.get("action") not in opcodes:
+                                raise ValueError("Choose store, recall, erase or list")
+                            payload = host.preset_message(opcodes[body["action"]], seq, body.get("bank"), body.get("slot"))
+                        else:
+                            payload = (host.encode_patch(body.get("patch"), seq) if self.path == "/api/send"
+                                       else host.message(3 if self.path == "/api/panic" else 2, seq))
                         result = host.exchange(payload, body["input"], body["output"])
                 finally:
                     self.server.midi_lock.release()

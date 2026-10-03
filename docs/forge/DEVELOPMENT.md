@@ -42,7 +42,7 @@ make -C firmware/chompi-forge test
 make -C firmware/chompi-forge sanitize
 ```
 
-`test` builds the DSP/queue, protocol, synth and v3 suites and the offline harness, then runs
+`test` builds the DSP/queue, protocol, synth, v3 and preset suites and the offline harness, then runs
 Python integration tests. `make -C firmware/chompi-forge browser-test` drives the
 real webapp in Chromium (Playwright) against `tests/sim_device.py`, a stateful
 stand-in that routes SysEx through the same C++ runtime; screenshots land in
@@ -148,7 +148,7 @@ offline; physical claims remain pending until recorded in the consolidated
 session. Do not change the bootloader as a routine Forge development step.
 
 Instrument development starts with [CONTINUE.md](CONTINUE.md). `make test` runs
-four native suites (core, protocol, synth, v3) and the Python tests, including
+five native suites (core, protocol, synth, v3, preset) and the Python tests, including
 v1/v2/v3 round trips through the C++ codec. When changing the v3 layout, edit
 `V3Fields` (core/protocol.h) and `V3_FIELDS` (host/forge_host.py) together.
 Any v1/v2 DSP change must keep their output bit-exact or be called out as a

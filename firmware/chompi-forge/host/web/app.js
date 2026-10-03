@@ -80,6 +80,7 @@ function updateButtons() {
     const off = !patch || !path(c, patch.version);
     $(c.id).disabled = off; if ($(`${c.id}-range`)) $(`${c.id}-range`).disabled = off;
   }
+  document.querySelectorAll("#slots button").forEach(button => { button.disabled = busy; });
   for (const [group] of GROUPS) $(`group-${group}`).classList.toggle("unavailable", !!patch && !CONTROLS.some(c => c.g === group && path(c, patch.version)));
   for (const id of ["kind", "provider", "model", "api-key", "prompt", "preset", "import", "input-port", "output-port"]) $(id).disabled = busy;
 }
@@ -202,6 +203,51 @@ $("send").addEventListener("click", () => run("Sending patch and waiting for ack
 $("panic").addEventListener("click", () => run("Silencing CHOMPI…", async () => {
   const result = await api("panic", ports()); deviceStatus(result); notice("Panic acknowledged. Voices, delay and reverb tails stopped; retrigger notes to play.");
 }));
+// Device presets (SD card): bank 1-8, slot 1-15, as on the panel.
+let occupied = {}, selectedSlot = 0, eraseArmed = null;   // eraseArmed: {key, at} after the first Erase click
+for (let bank = 1; bank <= 8; ++bank) $("bank").add(new Option(`Bank ${bank}`, String(bank)));
+function drawSlots() {
+  const bank = Number($("bank").value), filled = occupied[bank] || [];
+  $("slots").replaceChildren(...Array.from({length: 15}, (_, i) => {
+    const slot = i + 1, button = document.createElement("button");
+    button.type = "button"; button.id = `slot-${slot}`; button.textContent = String(slot);
+    button.classList.toggle("filled", filled.includes(slot));
+    button.setAttribute("aria-pressed", String(slot === selectedSlot));
+    button.setAttribute("aria-label", `Slot ${slot}${filled.includes(slot) ? ", stored" : ", empty"}`);
+    button.disabled = busy;
+    button.addEventListener("click", () => { selectedSlot = slot; eraseArmed = null; drawSlots(); });
+    return button;
+  }));
+}
+$("bank").addEventListener("change", () => { selectedSlot = 0; eraseArmed = null; drawSlots(); });
+function slotTarget() {
+  if (!selectedSlot) throw new Error("Choose a slot first.");
+  return {...ports(), bank: Number($("bank").value), slot: selectedSlot};
+}
+async function readSlots() { occupied = (await api("preset", {...ports(), action: "list"})).occupied; drawSlots(); }
+$("slots-read").addEventListener("click", () => run("Reading device presets…", async () => {
+  await readSlots(); notice("Device preset slots read from the SD card.");
+}));
+$("slot-recall").addEventListener("click", () => run("Recalling device preset…", async () => {
+  const target = slotTarget(), result = await api("preset", {...target, action: "recall"});
+  deviceStatus(result); loadPatch({...result.patch, name: `Bank ${target.bank} slot ${target.slot}`}); $("preset").value = "";
+  notice(`Bank ${target.bank} slot ${target.slot} is playing on CHOMPI and loaded into the editor.`);
+}));
+$("slot-store").addEventListener("click", () => run("Storing the device's current sound…", async () => {
+  const target = slotTarget(); await api("preset", {...target, action: "store"}); await readSlots();
+  notice(`CHOMPI's current sound saved to bank ${target.bank} slot ${target.slot} on the SD card.`);
+}));
+$("slot-erase").addEventListener("click", () => run("Erasing device preset…", async () => {
+  const target = slotTarget(), key = `${target.bank}:${target.slot}`;
+  if (!eraseArmed || eraseArmed.key !== key || Date.now() - eraseArmed.at > 4000) {
+    eraseArmed = {key, at: Date.now()};
+    notice(`Press Erase slot again within 4 seconds to delete bank ${target.bank} slot ${target.slot}.`);
+    return;
+  }
+  eraseArmed = null;
+  await api("preset", {...target, action: "erase"}); await readSlots();
+  notice(`Bank ${target.bank} slot ${target.slot} erased.`);
+}));
 async function start() {
   busy = true; updateButtons();
   try {
@@ -209,6 +255,7 @@ async function start() {
     const session = await response.json(); token = session.token; presets = session.presets;
     presets.forEach((item, index) => $("preset").add(new Option(item.name, String(index))));
     if (presets.length) { const initial = Math.max(0, presets.findIndex(item => item.version === 3)); loadPatch(presets[initial]); $("preset").value = String(initial); }
+    drawSlots();
     notice("Ready. Start with AI, a preset, or an imported patch.");
   } catch (error) { notice(error.message, true); }
   finally { busy = false; updateButtons(); }

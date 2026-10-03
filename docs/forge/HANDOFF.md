@@ -11,14 +11,16 @@ live checkpoint with claim levels, what changed and prioritized next actions.
 - Plan: develop roadmap features first (PROJECT.md order), QA each later.
 - Firmware changes since the integration checkpoint: sound fixes (`0a605f6`),
   sustain pedal + pitch bend (roadmap item 1, `0f4290e`), v3 instrument
-  palette (roadmap item 2, firmware 0.4: `91c11c2`, `79c5d9f`).
+  palette (roadmap item 2, firmware 0.4: `91c11c2`, `79c5d9f`), device presets
+  on the SD card with a TAPE-style key + encoder menu (roadmap item 3).
 - Software-tested: native, Python, sanitizer, real-Chromium browser and ARM build
   (xPack GCC 10.3.1; the pinned Arm archive was unreachable).
 - Stock comparison and CPU benchmark: [COMPATIBILITY.md](COMPATIBILITY.md)
   (`make bench`).
-- Current QA bundle: Forge 0.4 from `aa5df9e`, FORGE.bin sha256
-  `a40fcbe6…a622`, xPack compiler. Older ZIPs (incl. `66af4c5`) are stale.
+- QA bundle: see CONTINUE.md "Next actions"; the `aa5df9e` ZIP predates
+  device presets.
 - Not verified: anything on hardware; any live OpenAI/Gemini request; device CPU.
-- Next for the agent: roadmap item 3 (SD preset banks), design first. QA for DC later:
+- Next for the agent: roadmap item 4 (sampling), design first; open DC
+  decisions are listed in CONTINUE.md. QA for DC later:
   [LIVE_AI_TEST.md](LIVE_AI_TEST.md), then [TEST_SESSION.md](TEST_SESSION.md);
   record results in TEST_RESULTS.md only after running them.

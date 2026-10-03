@@ -1,5 +1,21 @@
 # Forge changelog
 
+## 0.4 device presets on the SD card — 2026-10-03
+
+- 8 banks × 15 slots in `FORGE/B<bank>S<slot>.FPR` (CRC-checked wire DATA,
+  temp + rename, read-back). Never `.bin`, so the bootloader ignores them.
+- TAPE-style panel menu: toggle + CHOMPI key; white keys recall; KEY_16/17
+  and encoder 1 select banks; KEY_25 save, KEY_24 copy, KEY_23 erase,
+  confirmed with CHOMPI; key LEDs show occupancy, selection and mode.
+- MIDI program change 0–119 recalls; SysEx opcodes 04–07 (store, recall,
+  erase, list) with replies 42/43 and errors 7–9; `forge_host.py
+  store|recall|erase|slots`; webapp Device presets panel.
+- Shared patch DATA codec (`EncodePatchData`/`DecodePatchData`) used by SysEx,
+  status replies and SD records.
+- Tests: new native preset suite (records, card faults, menu, LEDs, protocol,
+  runtime), 6 Python and 1 browser test; 7 code mutations each caught.
+  SD card, LEDs and timing are hardware-unverified.
+
 ## 0.4 stock-firmware comparison and CPU benchmark — 2026-10-03
 
 - New docs/forge/COMPATIBILITY.md: bootloader acceptance (FORGE.bin layout

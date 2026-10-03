@@ -51,8 +51,8 @@ installed synth/delay modules; it does not contain executable DSP.
 | Presets | Host JSON save/capture and atomic recall | Audible transitions and capture/recall on the unit |
 | Diagnostics | Callback CPU average/peak, drop/reject counters | Measured device performance under normal use |
 | AI authoring | OpenAI/Gemini webapp and Ollama CLI; strict validation and saved JSON | Live model availability, latency and musical interpretation |
-| Persistence | Files saved on the computer | Device-side SD preset storage is outside this candidate |
-| Expansion | Versioned patch formats (v1–v3) and roadmap in PROJECT.md | SD presets, sampler/looper, more effects, general graphs, Tab5 and Wi-Fi are not implemented |
+| Persistence | JSON files on the computer; device presets on the SD card (panel menu, program change, host) | SD timing, card swap and LED feedback on the unit |
+| Expansion | Versioned patch formats (v1–v3) and roadmap in PROJECT.md | Sampler/looper, more effects, general graphs, Tab5 and Wi-Fi are not implemented |
 
 The repository contains source and documentation. Generated test bundles remain
 separate; their manifests identify the exact source commit/tree and file hashes.

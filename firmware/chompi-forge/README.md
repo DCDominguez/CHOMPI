@@ -112,6 +112,29 @@ TEST_SESSION 6.2b measures the v3 worst case (`presets/10-cpu-stress.json`).
 Startup remains dry aux v1 for compatibility. Send an instrument preset to play.
 No automatic mode detection. Knobs 1–4 still control delay/output, not ADSR.
 
+## Device presets (SD card)
+
+Same gestures as TAPE's preset menu: with the toggle in TAPE's menu position,
+press the CHOMPI key. While the menu is open the keys select presets instead of
+playing:
+
+| Keys | Action |
+| --- | --- |
+| Hold CHOMPI + white key 1–15 | Recall that slot of the current bank |
+| KEY_16 / KEY_17 (black), or turn encoder 1 | Bank down / up (8 banks, each with its own LED colour) |
+| KEY_25 → white key → CHOMPI | Save the current sound to that slot |
+| KEY_24 → source → destination → CHOMPI | Copy (destination may be another bank) |
+| KEY_23 → white key → CHOMPI | Erase |
+| The same mode key again | Cancel |
+
+Release CHOMPI with nothing pending, or move the toggle back, to close the
+menu. MIDI program change n (channel 1) recalls bank n / 15, slot n % 15.
+Files live in `FORGE/` on the card (`B1S01.FPR` …), never `.bin`, so they
+coexist with the firmware file the bootloader loads. The record format and
+LED colours are in [PROTOCOL.md](../../docs/forge/PROTOCOL.md). All SD access
+is in the main loop; the audio callback only runs the menu state machine.
+Without a card the menu shows red keys and everything else works.
+
 ## Implementation boundaries
 
 `core/` is hardware-independent and allocation-free. Main-loop MIDI processing
@@ -126,8 +149,10 @@ DSP and parameter state belong to the audio callback after initialization;
 physical encoder changes apply after MIDI changes in each block. JSON files,
 validation, saving/capture, an OpenAI/Gemini webapp and optional Ollama CLI
 authoring live on the host. See the host guide for launch and key handling.
-The device stores one volatile patch and resets to defaults on reboot. It does
-not access SD files, run AI/networking, or load new DSP/graphs. The stock
+The active patch is volatile and the device boots into dry aux defaults. Sounds
+can be stored on the SD card as device presets (8 banks × 15 slots) and
+recalled from the panel, MIDI program change or the host; see "Device presets"
+below. It does not run AI/networking or load new DSP/graphs. The stock
 bootloader is still needed to load the app. Building alone cannot establish
 CPU headroom, USB enumeration, routing, electrical levels, or device recovery.
 

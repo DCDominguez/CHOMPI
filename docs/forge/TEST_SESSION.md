@@ -73,6 +73,25 @@ Keep monitoring volume low. Avoid audio feedback loops. The mic is unused.
 | 3.15 | Webapp: load Soft Pad (v2), **Convert to v3 instrument**, Send | Sounds close to the v2 Soft Pad (filter slightly steeper); no error |
 | 3.16 | Send a v2 preset, then a v3 preset, while holding a note | Sound stops cleanly at the format change (like a route change); next note plays |
 
+## 3C. Device presets on the SD card (TAPE-style keys + encoder)
+
+Use the test card from 1.1 (it may be otherwise empty). "Menu position" means the
+toggle position in which TAPE's CHOMPI key opens its menu; note which way that is.
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.17 | Toggle to menu position, hold the CHOMPI key | Key LEDs light: bank keys (KEY_16/17) in bank 1's colour, save/copy/erase dim blue/green/red, white keys off (empty card); playing keys makes no sound while held |
+| 3.18 | `H send presets/07-warm-pad.json`. Menu: press SAVE (KEY_25), release CHOMPI, press white key 1 (it turns blue), press CHOMPI | Panel LED flashes green; white key 1 now dim (occupied). `FORGE/B1S01.FPR` exists on the card afterwards |
+| 3.19 | Send `08-acid-bass.json`, save it to slot 2 the same way. Release CHOMPI | Menu closes; keys play Acid Bass again |
+| 3.20 | Hold CHOMPI (menu), press white key 1, release CHOMPI, play | Warm Pad plays; key 1 shows white while the menu is open. Repeat with key 2 → Acid Bass |
+| 3.21 | Menu: turn encoder 1 and press KEY_17 / KEY_16 | Bank colour changes on the bank keys; encoder stops at banks 1 and 8, keys wrap. Mix (encoder 1's normal job) does not change while the menu is open |
+| 3.22 | Menu: COPY (KEY_24), white key 1 (green), KEY_17 to bank 2, white key 5 (blue), CHOMPI | Green flash; bank 2 key 5 occupied. ERASE (KEY_23), key 5, CHOMPI → key 5 empty |
+| 3.23 | Send MIDI program change 1 on channel 1 from a keyboard or DAW | Acid Bass (bank 1 slot 2) loads; program 0 → Warm Pad |
+| 3.24 | `H slots ...`, `H recall 1 1 ...`, `H store 1 3 ...`, `H erase 1 3 ...` | JSON lists occupied slots; recall returns the patch; store/erase acknowledged |
+| 3.25 | Webapp Device presets: Read slots, select bank 1 slot 2, Recall; then Store into slot 4; Erase slot 4 (press twice) | Slot buttons show stored slots; recall loads the sound into the editor; erase asks for a second press |
+| 3.26 | Power off and on; open the menu | Slots 1 and 2 still occupied and recall correctly (boot itself still starts in dry aux) |
+| 3.27 | Optional: power off, remove the card, power on, open the menu; reinsert the card | White keys red without a card; nothing crashes; within ~1 s of reinserting, slots show again |
+
 ## 4. Panic and recovery
 
 | # | Do | Pass when |
@@ -112,6 +131,7 @@ Board / bootloader / stock firmware / OS / Python / MIDI connection:
 2 Aux path 2.1–2.5:
 3 Instrument 3.1–3.9 (note clicks/aliasing, sustain, bend here):
 3B v3 modules 3.10–3.16 (incl. loudness vs stock reference):
+3C Device presets 3.17–3.27 (note the toggle "menu position"):
 4 Panic & recovery 4.1–4.3:
 5 Webapp (+ AI provider/model/seconds or "not run"):
 6 Sustained: minutes / avg CPU / peak CPU / dropped / rejected; reboot; restore:

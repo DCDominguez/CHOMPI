@@ -6,7 +6,7 @@ namespace forge {
 // Largest SysEx payload accepted (F0/F7 excluded); v3 apply requests are 69.
 constexpr unsigned kMaxSysEx = 72;
 struct MidiFrame {
-    enum class Kind : uint8_t { CC, SysEx, NoteOn, NoteOff, PitchBend };
+    enum class Kind : uint8_t { CC, SysEx, NoteOn, NoteOff, PitchBend, ProgramChange };
     Kind kind = Kind::CC;
     uint8_t data[kMaxSysEx]{};
     uint8_t size = 0;
@@ -34,7 +34,7 @@ public:
         if(byte & 0x80) {
             Reset();
             const uint8_t type = byte & 0xf0;
-            if(type == 0xb0 || type == 0x90 || type == 0x80 || type == 0xe0) status_ = byte;
+            if(type == 0xb0 || type == 0x90 || type == 0x80 || type == 0xe0 || type == 0xc0) status_ = byte;
             return false;
         }
         if(sysex_) {
@@ -44,8 +44,13 @@ public:
         }
         if(status_) {
             cc_[cc_used_++] = byte;
+            const uint8_t type = status_ & 0xf0;
+            if(type == 0xc0) {                 // program change: one data byte
+                out.kind = MidiFrame::Kind::ProgramChange; out.size = 2;
+                out.data[0] = status_ & 0x0f; out.data[1] = cc_[0]; out.data[2] = 0;
+                cc_used_ = 0; return true;
+            }
             if(cc_used_ == 2) {
-                const uint8_t type = status_ & 0xf0;
                 out.kind = type == 0xb0 ? MidiFrame::Kind::CC : type == 0x90 ? MidiFrame::Kind::NoteOn
                     : type == 0xe0 ? MidiFrame::Kind::PitchBend : MidiFrame::Kind::NoteOff;
                 out.size = 3;

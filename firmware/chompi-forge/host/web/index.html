@@ -38,13 +38,20 @@
       </fieldset>
       <div class="button-row"><button id="download" disabled>Save JSON</button><label class="file-button" for="import">Import JSON<input id="import" type="file" accept=".json,application/json"></label></div>
       <details><summary>Inspect patch JSON</summary><pre id="json">No patch loaded.</pre></details>
-      <p class="footnote">Edits stay here until you send. v3 instruments need firmware 0.4; v1 and v2 presets still work. Controls a preset's format lacks are greyed out. Saved presets live on your computer; CHOMPI resets to defaults on reboot.</p>
+      <p class="footnote">Edits stay here until you send. v3 instruments need firmware 0.4; v1 and v2 presets still work. Controls a preset's format lacks are greyed out. Save JSON keeps presets on your computer; Device presets (below) keep sounds on CHOMPI's SD card. CHOMPI boots into defaults.</p>
     </section>
     <section class="card device" aria-labelledby="device-heading">
       <div><p class="eyebrow">03 / PLAY</p><h2 id="device-heading">Connect to CHOMPI.</h2><p class="hint">Choose both MIDI ports. Keep monitoring volume low for the first test.</p></div>
       <div class="ports"><div><label for="input-port">MIDI input (replies)</label><select id="input-port"><option value="">Refresh ports first</option></select></div><div><label for="output-port">MIDI output (to CHOMPI)</label><select id="output-port"><option value="">Refresh ports first</option></select></div></div>
       <div class="button-row"><button id="ports">Refresh ports</button><button id="status">Read device status</button><button id="capture">Capture to editor</button><button id="send" class="primary" disabled>Send to CHOMPI</button><button id="panic">Panic / stop sound</button></div>
       <p id="device-state" role="status">No device status read. You can author and save patches without hardware.</p>
+      <div id="device-presets">
+        <p class="group">Device presets · SD card</p>
+        <p class="hint">The same 8 banks × 15 slots as the panel menu (toggle + CHOMPI key, as in TAPE) and MIDI program change 0–119 (program = (bank − 1) × 15 + slot − 1). Store saves the sound CHOMPI is playing now, so Send your patch first. The card keeps sounds, not names.</p>
+        <label for="bank">Bank</label><select id="bank"></select>
+        <div id="slots" class="slots" role="group" aria-label="Preset slots"></div>
+        <div class="button-row"><button id="slots-read">Read slots</button><button id="slot-recall">Recall slot</button><button id="slot-store">Store device sound</button><button id="slot-erase">Erase slot</button></div>
+      </div>
     </section>
   </div>
   <footer>FORGE / INSTRUMENT CANDIDATE 0.4 <span>Play with CHOMPI keys or MIDI channel 1.</span></footer>

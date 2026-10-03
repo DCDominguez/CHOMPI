@@ -67,3 +67,4 @@ class SimulatedMido:
         if self.process.poll() is None:
             self.process.stdin.close()
             self.process.wait(timeout=5)
+        self.process.stdout.close()

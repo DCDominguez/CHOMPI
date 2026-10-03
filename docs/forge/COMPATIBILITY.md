@@ -86,6 +86,12 @@ never reaches the output.
 A controller template built for stock CHOMPI works for CC20–23 but differs on
 CC24/25. Aligning these is a product decision (see CONTINUE "Next actions").
 
+Device presets (0.4) follow TAPE's panel gestures: toggle in TAPE's menu
+position + CHOMPI key opens the menu; white keys select slots; KEY_23/24/25
+are erase/copy/save; CHOMPI confirms. KEY_16/17 select banks and encoder 1
+also turns banks. TAPE's own files (`presets.json`, samples) are not read or
+written; Forge's live in `FORGE/` and are never `.bin`.
+
 ## 5. Upstream build reproducibility
 
 The stock sources were built in a scratch copy with the same xPack GCC

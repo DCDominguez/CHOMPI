@@ -147,8 +147,25 @@ Neither acknowledgement nor CPU values replace listening during the test.
 
 Capture writes the current targets as a new host file, including physical
 knob changes. Existing files are not overwritten. Recall with `send`. Saving
-and recall do not write the CHOMPI SD card. Reboot returns to firmware defaults;
+and recall use files on the computer. To keep sounds on CHOMPI itself, use device
+presets (below). Reboot returns to firmware defaults;
 send a saved patch again to restore it. Patch transfer uses 14-bit quantization.
+
+## Device presets on the SD card
+
+```sh
+python host/forge_host.py slots --input "IN" --output "OUT"          # occupied slots per bank
+python host/forge_host.py store 1 3 --input "IN" --output "OUT"      # save the device's current sound
+python host/forge_host.py recall 1 3 --input "IN" --output "OUT"     # load it (prints the patch)
+python host/forge_host.py erase 1 3 --input "IN" --output "OUT"
+```
+
+Banks 1–8 and slots 1–15, numbered as on the panel; MIDI program change n
+recalls bank n / 15 + 1, slot n % 15 + 1. `store` saves what CHOMPI is playing
+now, so `send` a patch first. The card keeps sounds, not names. In the webapp
+the same actions are under **Device presets · SD card** (Erase needs a second
+press within 4 seconds). On the instrument itself use the TAPE-style menu
+(firmware guide).
 
 ## Optional local-model authoring
 

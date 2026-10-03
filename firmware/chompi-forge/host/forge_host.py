@@ -12,7 +12,10 @@ import urllib.request
 
 PREFIX = [0x7D, 0x46, 0x47, 1]
 ERRORS = {1: "invalid length", 2: "unsupported version", 3: "checksum mismatch",
-          4: "invalid patch", 5: "unknown operation", 6: "device queue busy"}
+          4: "invalid patch or preset address", 5: "unknown operation", 6: "device queue busy",
+          7: "that preset slot is empty", 8: "SD card missing or preset storage failed",
+          9: "preset storage busy"}
+PRESET_BANKS, PRESET_SLOTS = 8, 15
 LIMITS = {"mix": (0, 1), "time_ms": (10, 1000), "feedback": (0, 0.85), "level": (0, 1)}
 SCHEMA = {
     "$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object",
@@ -334,6 +337,19 @@ def decode_response(data, sequence):
         raise ValueError("Invalid reply checksum")
     if data[4] == 0x41 and len(data) == 9:
         raise RuntimeError("Device rejected request: " + ERRORS.get(data[7], "unknown error"))
+    if data[4] == 0x42:
+        if len(data) != 12 or data[7] != 0 or data[8] not in (1, 2) or data[9] >= PRESET_BANKS or data[10] >= PRESET_SLOTS:
+            raise ValueError("Invalid preset acknowledgement")
+        return {"sequence": sequence, "action": "stored" if data[8] == 1 else "erased",
+                "bank": data[9] + 1, "slot": data[10] + 1}
+    if data[4] == 0x43:
+        if len(data) != 33 or data[7] != 0 or any(data[10 + 3 * b] > 1 for b in range(PRESET_BANKS)):
+            raise ValueError("Invalid preset list")
+        banks = {}
+        for b in range(PRESET_BANKS):
+            bits = data[8 + 3 * b] | data[9 + 3 * b] << 7 | data[10 + 3 * b] << 14
+            banks[b + 1] = [s + 1 for s in range(PRESET_SLOTS) if bits >> s & 1]
+        return {"sequence": sequence, "occupied": banks}
     if len(data) not in (30, 42, 81) or data[4] != 0x40 or data[7] != 0 or data[8] not in (1, 2, 3) or data[17] > 1:
         raise ValueError("Invalid Forge status payload")
     patch = {"version": 1, "name": "Captured from Forge", "engine": "stereo_delay", "parameters": {
@@ -394,6 +410,15 @@ def decode_v3(data, name):
         modules[module][key] = value
     ordered = {module: {key: modules[module][key] for key in fields} for module, fields in V3_MODULES.items()}
     return {"version": 3, "name": name, "engine": "instrument", "routing": ROUTES3[data[18]], "modules": ordered}
+
+
+def preset_message(opcode, sequence, bank=None, slot=None):
+    """Device-preset request. bank 1-8 and slot 1-15 as printed on the panel."""
+    if opcode == 7:
+        return message(7, sequence)
+    if type(bank) is not int or type(slot) is not int or not 1 <= bank <= PRESET_BANKS or not 1 <= slot <= PRESET_SLOTS:
+        raise ValueError(f"Bank must be 1-{PRESET_BANKS} and slot 1-{PRESET_SLOTS}")
+    return message(opcode, sequence, [bank - 1, slot - 1])
 
 
 def midi_module():
@@ -523,10 +548,15 @@ def cli(argv=None):
     upgrade.add_argument("patch"); upgrade.add_argument("out")
     encode = commands.add_parser("encode", help="Print SysEx bytes without using MIDI")
     encode.add_argument("patch"); encode.add_argument("--sequence", type=int, default=1)
-    for name in ("send", "status", "capture", "panic"):
-        command = commands.add_parser(name)
+    preset_help = {"store": "Save the device's current sound to an SD preset slot",
+                   "recall": "Load an SD preset slot into the device (same as the panel/program change)",
+                   "erase": "Delete an SD preset slot", "slots": "List occupied SD preset slots"}
+    for name in ("send", "status", "capture", "panic", "store", "recall", "erase", "slots"):
+        command = commands.add_parser(name, help=preset_help.get(name))
         if name == "send": command.add_argument("patch")
         if name == "capture": command.add_argument("file")
+        if name in ("store", "recall", "erase"):
+            command.add_argument("bank", type=int, help="1-8"); command.add_argument("slot", type=int, help="1-15")
         command.add_argument("--input", required=True); command.add_argument("--output", required=True)
         command.add_argument("--timeout", type=float, default=2.0)
     cc = commands.add_parser("cc", help="Send one channel-1 control change (e.g. 24 127 = wet bypass on, 123 0 = panic)")
@@ -563,7 +593,11 @@ def cli(argv=None):
         print(json.dumps(patch, indent=2))
     else:
         sequence = secrets.randbelow(16384)
-        payload = encode_patch(load_patch(args.patch), sequence) if args.command == "send" else message(3 if args.command == "panic" else 2, sequence)
+        if args.command in ("store", "recall", "erase", "slots"):
+            opcode = {"store": 4, "recall": 5, "erase": 6, "slots": 7}[args.command]
+            payload = preset_message(opcode, sequence, getattr(args, "bank", None), getattr(args, "slot", None))
+        else:
+            payload = encode_patch(load_patch(args.patch), sequence) if args.command == "send" else message(3 if args.command == "panic" else 2, sequence)
         result = exchange(payload, args.input, args.output, args.timeout)
         if args.command == "capture": save_patch(result["patch"], args.file)
         print(json.dumps(result, indent=2))

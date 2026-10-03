@@ -86,6 +86,19 @@ executes everything else, so notes sent after an emergency are never lost
 waiting for the queue to drain. Keybed notes and SW5 act directly in the
 callback and bypass the gate.
 
+## Device presets (SD card)
+
+The audio callback runs the TAPE-style `PresetMenu` state machine (no I/O): it
+reads the toggle and CHOMPI key, swallows key presses while the menu is open,
+and queues actions with a parameter snapshot (`panel_actions`, audio → main).
+The main loop owns the SD card (`FatFsStorage`, libDaisy FatFS) and
+`PresetStore`. It writes, erases and copies, and turns recalls into ordinary
+patch requests (silent for the panel and program change). Host store requests
+go through the audio owner once for a snapshot (`ResponseKind::Snapshot`), then
+the main loop writes and replies. Key LEDs are drawn by the main loop at
+~30 Hz from the menu's packed state, the bank occupancy and the last recalled
+slot. Card removal is polled once a second; reinsertion remounts and rescans.
+
 ## Patch lifecycle
 
 1. A user edits JSON or an optional model returns it. The host strictly validates
@@ -135,6 +148,9 @@ Paths below are relative to `firmware/chompi-forge/`.
 | `core/midi_framer.h` | Byte framing, running status, overflow and resynchronization |
 | `core/protocol.h` | Request validation, patch encoding fields, status/error replies |
 | `core/usb_packets.h` | Complete-SysEx USB-MIDI packetization |
+| `core/preset_store.h` | Storage interface, SD record format (CRC), PresetStore save/load/erase/copy/occupancy |
+| `core/preset_menu.h` | TAPE-style panel preset menu state machine and its key-LED model |
+| `src/fatfs_storage.h` | Storage on the SD card via FatFS (temp file + rename) |
 | `core/synth.h` | Up to four voices: two band-limited oscillators, noise, amp/filter envelopes, per-voice resonant SVF (v3) or shared one-pole (v1/v2), LFO, glide, pedal/bend/wheel, click-free voice reuse and ownership |
 | `host/forge_host.py` | Python CLI, JSON schema, preset files, MIDI exchange, optional Ollama adapter |
 | `host/forge_ai.py` | OpenAI/Gemini HTTPS adapters, structured output and independent validation |

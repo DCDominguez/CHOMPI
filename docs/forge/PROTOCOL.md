@@ -20,8 +20,14 @@ Every payload byte is 7-bit. Words are little-endian base 128. Sequence is
 | 01 | 18 for v1, 30 for v2, 69 for v3 | Apply complete patch |
 | 02 | 8 | Read current patch and status |
 | 03 | 8 | Panic: silence all synth voices and clear old delay tail; return status |
+| 04 | 10 | Store the current device patch to SD preset (bank 0–7 at 7, slot 0–14 at 8); reply 42 |
+| 05 | 10 | Recall SD preset (bank, slot): applied like 01; reply 40 with the recalled patch |
+| 06 | 10 | Erase SD preset (bank, slot); reply 42 |
+| 07 | 8 | List occupied SD presets; reply 43 |
 | 40 | 30 for v1, 42 for v2, 81 for v3 | Success/current targets plus diagnostics |
 | 41 | 9 | Rejection; error code at index 7, checksum at 8 |
+| 42 | 12 | Preset done: index 8 = 1 stored / 2 erased, 9 bank, 10 slot |
+| 43 | 33 | Occupancy: per bank (0–7) 3 bytes at 8 + 3·bank = 15-bit slot mask, 7 + 7 + 1 bits |
 
 ## Apply request layout
 
@@ -114,9 +120,10 @@ CPU resolution is 0.1 percentage point; max 1638.3%. Readings are from completed
 callbacks before the snapshot, not total scheduling/interrupt-mask time. Offline
 harness readings are synthetic zero and say nothing about device headroom.
 
-Errors: 1 length, 2 protocol/patch version, 3 checksum, 4 patch fields, 5 opcode,
-6 queue busy. Foreign SysEx/replies are ignored. Framing discards may be silent
-and are not included in rejected recognized-request counts.
+Errors: 1 length, 2 protocol/patch version, 3 checksum, 4 patch fields or
+preset address, 5 opcode, 6 queue busy, 7 empty preset slot, 8 SD card missing
+or storage failed, 9 storage busy. Foreign SysEx/replies are ignored. Framing
+discards may be silent and are not included in rejected recognized-request counts.
 
 ## Notes, controls and recovery
 
@@ -192,3 +199,43 @@ subscriptions, sessions or authentication. One host, one acknowledged exchange
 at a time. Old 0.2 hosts cannot decode v2 status and 0.3 hosts cannot decode
 v3 status; use the matching 0.4 host. Old firmware rejects newer patch versions
 (error 2) and 0.2 rejects panic rather than executing them.
+
+## Device presets (SD card), firmware 0.4
+
+8 banks × 15 slots. Panel numbers are 1-based (bank 1–8, slot 1–15); the wire
+uses 0-based bytes. One file per slot: `FORGE/B1S01.FPR` … `FORGE/B8S15.FPR`
+(never `.bin`, so the bootloader ignores them). Record: `'F' 'P'`, format 1,
+DATA length, the patch DATA exactly as in an apply request (indexes 7 up to the
+checksum), then CRC-16/CCITT (big-endian) over everything before it. A file
+that fails the CRC or the patch decoder reads as an empty slot. Writes go to
+`FORGE/TMP.FPR`, are synced, then renamed over the slot, and are read back
+before success is reported. Names are not stored; they stay in host JSON.
+
+Ways to recall the same slots:
+- **Panel menu (as in TAPE):** with the toggle in TAPE's menu position, press
+  the CHOMPI key. While the menu is open, keys select presets instead of
+  playing. White keys 1–15 recall slot 1–15 of the current bank (hold CHOMPI).
+  Black KEY_16 / KEY_17 step the bank down / up, and turning encoder 1 also
+  selects the bank. Save is KEY_25, erase KEY_23, copy KEY_24 (source, then
+  destination, any bank). Choose the mode, press a white key, press CHOMPI to
+  confirm; pressing the mode key again cancels. Releasing CHOMPI with nothing
+  pending, or moving the toggle back, closes the menu.
+- **MIDI program change** on channel 1: program = bank × 15 + slot (0-based),
+  0–119; higher programs are ignored. No reply.
+- **Host opcodes 04–07** above (`forge_host.py store|recall|erase|slots`, webapp
+  Device presets).
+
+Key LEDs while the menu is open: occupied slots dim, the last recalled slot
+white, empty slots off, bank keys in the bank's colour (8 colours), save blue,
+erase red, copy green (bright while that mode is active). Selections show
+blue (save/copy target), red (erase) or green (copy source); occupied slots
+blink while choosing. All white keys red: no usable SD card. Panel LED 0
+flashes green or red after a panel/program-change action.
+
+SD access runs only in the main loop, never in the audio callback. A store first
+takes the audio owner's current patch through the request queue. Saving blocks
+the main loop for the SD write (typically a few to tens of ms); incoming MIDI
+waits in the 16-frame ingress queues meanwhile. A recalled patch is applied
+atomically like any patch request. **Hardware-unverified:** SD timing,
+card-swap remount, LED colours and positions.
+

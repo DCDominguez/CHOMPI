@@ -282,7 +282,14 @@ void ChannelTranslation() {
     assert(feed({0xe1, 0, 0}) && TranslateChannel(frame, 0, request) == Ingress::Ignore);
     assert(feed({0x80, 60, 30}) && TranslateChannel(frame, 2, request) == Ingress::Critical
            && request.kind == RequestKind::Note && request.velocity == 0);
-    assert(!feed({0xc0, 5}));                                               // program change: dropped
+    // Program change n = bank n / 15, slot n % 15 (device presets), silent recall.
+    assert(feed({0xc0, 17}) && TranslateChannel(frame, 1, request) == Ingress::Storage
+           && request.kind == RequestKind::Recall && request.bank == 1 && request.slot == 2 && request.silent);
+    assert(feed({119}) && TranslateChannel(frame, 1, request) == Ingress::Storage            // running status
+           && request.bank == 7 && request.slot == 14);
+    assert(feed({120}) && TranslateChannel(frame, 1, request) == Ingress::Ignore);            // beyond 8 x 15
+    assert(feed({0xc1, 3}) && TranslateChannel(frame, 1, request) == Ingress::Ignore);        // channel 2
+    assert(!feed({0xd0, 5}));                                               // channel pressure: dropped
     // Stale pedal/bend/reset are dropped by the recovery gate like notes.
     std::vector<float> l(48002), r(48002); Engine engine; assert(engine.Init(48000, l.data(), r.data(), l.size()));
     RecoveryGate gate; gate.Observe(1, engine);

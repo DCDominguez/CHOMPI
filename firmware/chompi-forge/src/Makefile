@@ -7,6 +7,8 @@ LIBDAISY_DIR = $(WAVE)/libs/libDaisy
 LIBDIR = -L../build/libdaisy
 LDSCRIPT = $(WAVE)/src/chompi_sram.lds
 CPP_SOURCES = forge_main.cpp $(WAVE)/src/encoder.cpp
+# Device presets on the SD card.
+USE_FATFS = 1
 C_INCLUDES += -I$(WAVE)/src -I../core
 C_INCLUDES += -I$(LIBDAISY_DIR)/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc
 SYSTEM_FILES_DIR = $(LIBDAISY_DIR)/core

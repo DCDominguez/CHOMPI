@@ -6,13 +6,19 @@
 namespace forge {
 constexpr uint8_t kProtocolVersion = 1, kPatchVersion = 1;
 constexpr uint8_t kFirmwareMinor = 4; // 0.4: v3 instrument patches
-enum class Error : uint8_t { None, Length, Version, Checksum, Patch, Opcode, Busy };
+// 7-9 are device-preset (SD) errors: empty slot, no/failed card, storage busy.
+enum class Error : uint8_t { None, Length, Version, Checksum, Patch, Opcode, Busy, Empty, Storage, StorageBusy };
+// Device presets: 8 banks x 15 slots on the SD card (see preset_store.h).
+constexpr uint8_t kPresetBanks = 8, kPresetSlots = 15;
 // Request/reply sizes exclude F0/F7. v3 is the largest: 69-byte apply request,
 // 81-byte status reply. Transport buffers are sized from these constants.
 constexpr size_t kMaxRequest = 69, kMaxReply = 81;
 // Note, Pedal (CC64), Bend, ModWheel (CC1) and ResetControllers (CC121) are
 // channel-1 performance events: no reply, dropped if queued before an emergency.
-enum class RequestKind : uint8_t { Parameter, Patch, Status, Note, Panic, Pedal, Bend, ResetControllers, ModWheel };
+// Store/Recall/Erase/List are host requests for device presets; the main loop
+// performs SD I/O (Store first takes a parameter snapshot from the audio owner).
+enum class RequestKind : uint8_t { Parameter, Patch, Status, Note, Panic, Pedal, Bend, ResetControllers, ModWheel,
+                                   Store, Recall, Erase, List };
 struct Request {
     RequestKind kind = RequestKind::Status;
     uint8_t note = 0, velocity = 0;
@@ -22,8 +28,16 @@ struct Request {
     uint16_t sequence = 0;
     uint8_t source = 0;
     uint8_t epoch = 0; // main-loop emergency count when queued; never on the wire
+    uint8_t bank = 0, slot = 0; // device preset address (Store/Recall/Erase), 0-based
+    bool silent = false;        // apply without a reply (on-device recall)
 };
+// Status: current patch + diagnostics (op 0x40). Stored/Erased: 0x42 storage ack.
+// Occupancy: 0x43 bank bitmaps. Snapshot: internal only (audio -> main for Store).
+enum class ResponseKind : uint8_t { Status, Stored, Erased, Occupancy, Snapshot };
 struct Response {
+    ResponseKind kind = ResponseKind::Status;
+    uint8_t bank = 0, slot = 0;
+    uint16_t occupancy[kPresetBanks]{};
     Error error = Error::None;
     Parameters patch{};
     uint16_t sequence = 0;
@@ -59,6 +73,48 @@ inline const V3Field* V3Fields(size_t& count) {
     count = sizeof(fields) / sizeof(fields[0]);
     return fields;
 }
+// Patch DATA: the version byte and fields after the 7-byte header of an apply
+// request (request index i is DATA index i - 7; replies carry it from index 8).
+// Shared by SysEx requests, status replies and SD preset records.
+inline size_t PatchDataSize(uint8_t version) {
+    return version == 1 ? 10 : version == 2 ? 22 : version == 3 ? kMaxRequest - 8 : 0;
+}
+inline Error DecodePatchData(const uint8_t* data, size_t size, Parameters& out) {
+    if(!size || data[0] < 1 || data[0] > 3) return Error::Version;
+    if(size != PatchDataSize(data[0])) return Error::Length;
+    for(size_t i = 0; i < size; ++i) if(data[i] > 127) return Error::Patch;
+    auto at = [data](size_t request_index) { return data + request_index - 7; };
+    Parameters p;
+    p.version = data[0];
+    if(*at(16) > 1) return Error::Patch;
+    p.mix = Read14(at(8)) / 16383.f;
+    p.time = Read14(at(10)) / 16383.f;
+    p.feedback = Read14(at(12)) / 16383.f;
+    p.level = Read14(at(14)) / 16383.f;
+    p.bypass = *at(16) != 0;
+    if(p.version >= 2) {
+        if(*at(17) > 1 || *at(18) > 3) return Error::Patch;
+        p.synth = *at(17) != 0; p.waveform = *at(18);
+        p.attack = Read14(at(19)) / 16383.f;
+        p.decay = Read14(at(21)) / 16383.f;
+        p.sustain = Read14(at(23)) / 16383.f;
+        p.release = Read14(at(25)) / 16383.f;
+        p.cutoff = Read14(at(27)) / 16383.f;
+    }
+    if(p.version == 3) {
+        size_t count; const V3Field* fields = V3Fields(count);
+        for(size_t i = 0; i < count; ++i) {
+            const V3Field& f = fields[i];
+            if(f.kind == 0) p.*f.unit = Read14(at(f.index)) / 16383.f;
+            else if(*at(f.index) > f.max) return Error::Patch;
+            else p.*f.byte = *at(f.index);
+        }
+        if(*at(58) > 1 || *at(59) < 1 || *at(59) > 4) return Error::Patch;
+        p.lfo_wheel = *at(58) != 0; p.voices = *at(59);
+    }
+    out = p;
+    return Error::None;
+}
 inline bool IsRequest(const uint8_t* bytes, size_t size) {
     return size >= 7 && bytes[0] == 0x7d && bytes[1] == 'F'
         && bytes[2] == 'G' && bytes[4] < 0x40;
@@ -72,35 +128,18 @@ inline Error DecodeRequest(const uint8_t* bytes, size_t size, Request& out) {
     candidate.sequence = Read14(bytes + 5);
     if(bytes[4] == 1) {
         if(bytes[7] < 1 || bytes[7] > 3) return Error::Version;
-        if(size != (bytes[7] == 1 ? 18u : bytes[7] == 2 ? 30u : kMaxRequest)) return Error::Length;
-        candidate.patch.version = bytes[7];
-        if(bytes[16] > 1) return Error::Patch;
+        if(size != 8 + PatchDataSize(bytes[7])) return Error::Length;
+        const Error error = DecodePatchData(bytes + 7, size - 8, candidate.patch);
+        if(error != Error::None) return error;
         candidate.kind = RequestKind::Patch;
-        candidate.patch.mix = Read14(bytes + 8) / 16383.f;
-        candidate.patch.time = Read14(bytes + 10) / 16383.f;
-        candidate.patch.feedback = Read14(bytes + 12) / 16383.f;
-        candidate.patch.level = Read14(bytes + 14) / 16383.f;
-        candidate.patch.bypass = bytes[16] != 0;
-        if(bytes[7] >= 2) {
-            if(bytes[17] > 1 || bytes[18] > 3) return Error::Patch;
-            candidate.patch.synth = bytes[17] != 0; candidate.patch.waveform = bytes[18];
-            candidate.patch.attack = Read14(bytes + 19) / 16383.f;
-            candidate.patch.decay = Read14(bytes + 21) / 16383.f;
-            candidate.patch.sustain = Read14(bytes + 23) / 16383.f;
-            candidate.patch.release = Read14(bytes + 25) / 16383.f;
-            candidate.patch.cutoff = Read14(bytes + 27) / 16383.f;
-        }
-        if(bytes[7] == 3) {
-            size_t count; const V3Field* fields = V3Fields(count);
-            for(size_t i = 0; i < count; ++i) {
-                const V3Field& f = fields[i];
-                if(f.kind == 0) candidate.patch.*f.unit = Read14(bytes + f.index) / 16383.f;
-                else if(bytes[f.index] > f.max) return Error::Patch;
-                else candidate.patch.*f.byte = bytes[f.index];
-            }
-            if(bytes[58] > 1 || bytes[59] < 1 || bytes[59] > 4) return Error::Patch;
-            candidate.patch.lfo_wheel = bytes[58] != 0; candidate.patch.voices = bytes[59];
-        }
+    } else if(bytes[4] >= 4 && bytes[4] <= 6) {      // store / recall / erase (bank, slot)
+        if(size != 10) return Error::Length;
+        if(bytes[7] >= kPresetBanks || bytes[8] >= kPresetSlots) return Error::Patch;
+        candidate.kind = bytes[4] == 4 ? RequestKind::Store : bytes[4] == 5 ? RequestKind::Recall : RequestKind::Erase;
+        candidate.bank = bytes[7]; candidate.slot = bytes[8];
+    } else if(bytes[4] == 7) {                       // list occupied slots
+        if(size != 8) return Error::Length;
+        candidate.kind = RequestKind::List;
     } else if(bytes[4] == 2) {
         if(size != 8) return Error::Length;
         candidate.kind = RequestKind::Status;
@@ -129,39 +168,60 @@ inline size_t EncodeError(uint16_t sequence, Error error, uint8_t* bytes) {
     return 9;
 }
 // All sizes here exclude MIDI's F0/F7 envelope. Caller supplies >= kMaxReply bytes.
-inline size_t EncodeResponse(const Response& response, uint32_t dropped,
-                             uint32_t rejected, uint8_t* bytes) {
-    if(response.error != Error::None) return EncodeError(response.sequence, response.error, bytes);
-    Header(bytes, 0x40, response.sequence);
-    bytes[7] = 0; bytes[8] = response.patch.version;
-    WriteNormalized(bytes + 9, response.patch.mix);
-    WriteNormalized(bytes + 11, response.patch.time);
-    WriteNormalized(bytes + 13, response.patch.feedback);
-    WriteNormalized(bytes + 15, response.patch.level);
-    bytes[17] = response.patch.bypass ? 1 : 0;
-    const auto cpu = [](float value) -> unsigned {
-        return std::isfinite(value) ? static_cast<unsigned>(Clamp(value * 1000.f, 0.f, 16383.f)) : 0;
-    };
-    size_t offset = 18;
-    if(response.patch.version >= 2) {
-        bytes[18] = response.patch.synth ? 1 : 0; bytes[19] = response.patch.waveform;
-        WriteNormalized(bytes + 20, response.patch.attack);
-        WriteNormalized(bytes + 22, response.patch.decay);
-        WriteNormalized(bytes + 24, response.patch.sustain);
-        WriteNormalized(bytes + 26, response.patch.release);
-        WriteNormalized(bytes + 28, response.patch.cutoff);
-        offset = 30;
+// Writes patch DATA (see DecodePatchData); returns its size.
+inline size_t EncodePatchData(const Parameters& p, uint8_t* data) {
+    auto at = [data](size_t request_index) { return data + request_index - 7; };
+    data[0] = p.version;
+    WriteNormalized(at(8), p.mix);
+    WriteNormalized(at(10), p.time);
+    WriteNormalized(at(12), p.feedback);
+    WriteNormalized(at(14), p.level);
+    *at(16) = p.bypass ? 1 : 0;
+    if(p.version >= 2) {
+        *at(17) = p.synth ? 1 : 0; *at(18) = p.waveform;
+        WriteNormalized(at(19), p.attack);
+        WriteNormalized(at(21), p.decay);
+        WriteNormalized(at(23), p.sustain);
+        WriteNormalized(at(25), p.release);
+        WriteNormalized(at(27), p.cutoff);
     }
-    if(response.patch.version == 3) {
+    if(p.version == 3) {
         size_t count; const V3Field* fields = V3Fields(count);
         for(size_t i = 0; i < count; ++i) {
             const V3Field& f = fields[i];
-            if(f.kind == 0) WriteNormalized(bytes + f.index + 1, response.patch.*f.unit);
-            else bytes[f.index + 1] = response.patch.*f.byte;
+            if(f.kind == 0) WriteNormalized(at(f.index), p.*f.unit);
+            else *at(f.index) = p.*f.byte;
         }
-        bytes[59] = response.patch.lfo_wheel ? 1 : 0; bytes[60] = response.patch.voices;
-        offset = 69;
+        *at(58) = p.lfo_wheel ? 1 : 0; *at(59) = p.voices;
     }
+    return PatchDataSize(p.version);
+}
+inline size_t EncodeResponse(const Response& response, uint32_t dropped,
+                             uint32_t rejected, uint8_t* bytes) {
+    if(response.error != Error::None) return EncodeError(response.sequence, response.error, bytes);
+    if(response.kind == ResponseKind::Stored || response.kind == ResponseKind::Erased) {
+        Header(bytes, 0x42, response.sequence);
+        bytes[7] = 0; bytes[8] = response.kind == ResponseKind::Stored ? 1 : 2;
+        bytes[9] = response.bank; bytes[10] = response.slot;
+        bytes[11] = Checksum(bytes, 11);
+        return 12;
+    }
+    if(response.kind == ResponseKind::Occupancy) {
+        Header(bytes, 0x43, response.sequence);
+        bytes[7] = 0;
+        for(unsigned b = 0; b < kPresetBanks; ++b) {
+            const uint16_t bits = response.occupancy[b];
+            bytes[8 + 3 * b] = bits & 127; bytes[9 + 3 * b] = (bits >> 7) & 127; bytes[10 + 3 * b] = (bits >> 14) & 1;
+        }
+        bytes[32] = Checksum(bytes, 32);
+        return 33;
+    }
+    Header(bytes, 0x40, response.sequence);
+    bytes[7] = 0;
+    const size_t offset = 8 + EncodePatchData(response.patch, bytes + 8);
+    const auto cpu = [](float value) -> unsigned {
+        return std::isfinite(value) ? static_cast<unsigned>(Clamp(value * 1000.f, 0.f, 16383.f)) : 0;
+    };
     Write14(bytes + offset, cpu(response.cpu_average));
     Write14(bytes + offset + 2, cpu(response.cpu_max));
     Write21(bytes + offset + 4, dropped); Write21(bytes + offset + 7, rejected);

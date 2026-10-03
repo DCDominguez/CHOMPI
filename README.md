@@ -36,7 +36,8 @@ The original upstream TAPE/WAVE/TEMPO and bootloader sources remain separate.
 | Recovery | SW5 press, CC120/123, host panic; silence voices and delay/reverb tails; note-overflow recovery |
 | Patch format | v3 named synth/filter/lfo/delay/reverb/output modules with two supported routes; v1 delay and v2 instrument files still work and convert to v3 |
 | Presets | Ten: Dry, Slap, Long Echo (v1); Glass Keys, Soft Pad, Saw Bass (v2); Warm Pad, Acid Bass, Bell Keys, CPU Stress test (v3) |
-| Computer persistence | Save/import/export JSON, capture device targets and recall; no SD-card writes |
+| Computer persistence | Save/import/export JSON, capture device targets and recall |
+| Device presets | 8 banks × 15 slots on the SD card; TAPE-style panel menu (toggle + CHOMPI key, white keys, bank keys/encoder 1, save/copy/erase), MIDI program change, host CLI and webapp |
 | Webapp | Instrument/effect authoring selector, provider/model/key input, editor for every module (greys out what a v1/v2 preset lacks), convert-to-v3 |
 | AI providers | OpenAI and Gemini structured output (v3 instruments, v1 delay) plus independent validation; Ollama CLI for v1 delay only |
 | Key handling | Ephemeral page/request memory; no keys in presets, browser storage, source or logs |
@@ -95,7 +96,8 @@ then generate. Edit and save without hardware, or select MIDI ports and send to
 CHOMPI. Play its keys or a MIDI keyboard. No Node build is required. The local
 Python bridge is required; this is not a publicly hosted or phone/LAN app.
 
-CLI remains available for ports, validate, encode, send, status, capture, panic
+CLI remains available for ports, validate, encode, send, status, capture, panic,
+store/recall/erase/slots (device presets)
 and Ollama authoring. See [host guide](firmware/chompi-forge/host/README.md) for
 commands, credentials, compatibility, privacy and provider references.
 
@@ -114,13 +116,13 @@ verified archive hash. No upstream sources or bootloader were changed.
 
 | Check | Recorded evidence |
 | --- | --- |
-| Native suites | Four suites pass: DSP/queue, MIDI/protocol (incl. v3 round trip and bounds), synth (steal clicks, triangle aliasing, recovery, sustain, bend, translation) and v3 (oscillators, resonant filter and envelope, LFO/mod wheel, voices/glide, reverb, fuzz) |
+| Native suites | Five suites pass: DSP/queue, MIDI/protocol (incl. v3 round trip and bounds), synth (steal clicks, triangle aliasing, recovery, sustain, bend, translation), v3 (oscillators, resonant filter and envelope, LFO/mod wheel, voices/glide, reverb, fuzz) and presets (SD records under card faults, TAPE-style menu, LEDs, storage protocol) |
 | Compatibility | v1/v2 audio output bit-exact against the 0.3 core over 384,000 stereo samples (one-off check, see CONTINUE) |
-| Python | 42 tests pass; includes 250 v1, 200 v2 and 200 v3 randomized protocol round trips through the C++ codec, v3 upgrade and mocked providers |
-| Sanitizers | Four C++ suites pass ASan/UBSan; LeakSanitizer disabled for environment limitations |
-| Web | 9 real-Chromium tests (`make browser-test`): v1/v2/v3 editing and import, convert-to-v3, mocked AI, send/capture/panic via simulated device, phone/tablet layout |
-| ARM | BOOT_SRAM build succeeds with xPack GCC 10.3.1 (pinned Arm archive unreachable in agent environment); FORGE.bin 142,520 bytes |
-| Link allocations | SRAM_EXEC 59.99%; SRAM 21.20%; DTCM 26.56% (reverb); RAM_D2 68.07%; SDRAM 0.57% |
+| Python | 48 tests pass; includes 250 v1, 200 v2 and 200 v3 randomized protocol round trips through the C++ codec, v3 upgrade, device-preset store/recall/erase via the simulated device, and mocked providers |
+| Sanitizers | Five C++ suites pass ASan/UBSan; LeakSanitizer disabled for environment limitations |
+| Web | 10 real-Chromium tests (`make browser-test`): v1/v2/v3 editing and import, convert-to-v3, mocked AI, send/capture/panic and device presets via simulated device, phone/tablet layout |
+| ARM | BOOT_SRAM build succeeds with xPack GCC 10.3.1 (pinned Arm archive unreachable in agent environment); FORGE.bin 187,592 bytes (with FatFS) |
+| Link allocations | SRAM_EXEC 78.96%; SRAM 22.96%; DTCM 26.56% (reverb); RAM_D2 72.63%; SDRAM 0.57% |
 | CPU benchmark | `make bench`: worst Forge preset ~1,430 ARM instructions/sample vs ~2,700 for stock WAVE's 8-voice engine (emulated counts, not cycles; see COMPATIBILITY) |
 | Hardware / AI | No flash, listening, physical I/O, actual CPU measurement, or live provider request performed |
 
@@ -151,7 +153,7 @@ retest. Do not substitute software passes for actual device acceptance.
 - Sampling, recording, looping, sequencing or stock TAPE performance functionality.
 - Further effects (chorus, distortion, EQ), FM synthesis, multiple LFOs/envelopes, or arbitrary routing/modulation graphs.
 - Aftertouch/MPE, clock sync, arpeggiator, octave controls, configurable bend range, mono note-priority stack or note output.
-- Device-side preset banks, SD saves or automatic recall after reboot.
+- Preset names on the device, automatic recall after reboot, or importing TAPE/WAVE presets.
 - Onboard AI, generated DSP code, plugins or runtime executable loading.
 - Tab5 integration, Wi-Fi, public web hosting or phone remote control.
 - Auto MIDI retries, unsolicited parameter streaming or protocol authentication.

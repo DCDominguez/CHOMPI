@@ -2,7 +2,9 @@
 // Optional --render writes four seconds of a synthetic stereo pluck through
 // the SAME Engine as firmware. Diagnostics here are synthetic zero readings.
 #include <cmath>
+#include <cstring>
 #include <fstream>
+#include <map>
 #include <iomanip>
 #include <iostream>
 #include <string>
@@ -10,6 +12,18 @@
 #include "../core/midi_framer.h"
 #include "../core/runtime.h"
 
+// In-memory SD card for device-preset requests (lives as long as the probe).
+struct MemoryCard : forge::Storage {
+    std::map<std::string, std::vector<uint8_t>> files;
+    bool Ready() override { return true; }
+    bool Read(const char* path, uint8_t* buffer, size_t capacity, size_t& size) override {
+        auto it = files.find(path);
+        if(it == files.end() || it->second.size() > capacity) return false;
+        size = it->second.size(); std::memcpy(buffer, it->second.data(), size); return true;
+    }
+    bool Write(const char* path, const uint8_t* data, size_t size) override { files[path].assign(data, data + size); return true; }
+    bool Remove(const char* path) override { files.erase(path); return true; }
+};
 void Word(std::ostream& out, uint32_t value, unsigned bytes) {
     for(unsigned i = 0; i < bytes; ++i) out.put(static_cast<char>((value >> (8 * i)) & 255));
 }
@@ -41,6 +55,7 @@ int main(int argc, char** argv) {
     if(argc != 1 && !(argc == 3 && std::string(argv[1]) == "--render")) return 2;
     forge::Engine engine; std::vector<float> l(48002), r(48002), reverb(forge::Reverb::Required(48000));
     if(!engine.Init(48000, l.data(), r.data(), l.size(), reverb.data(), reverb.size())) return 2;
+    MemoryCard card; forge::PresetStore store(card); store.Rescan();
     forge::MidiFramer parser; forge::MidiFrame frame;
     unsigned byte, replies = 0;
     while(std::cin >> std::hex >> byte) {
@@ -49,11 +64,22 @@ int main(int argc, char** argv) {
         if(frame.kind != forge::MidiFrame::Kind::SysEx || !forge::IsRequest(frame.data, frame.size)) continue;
         forge::Request request; uint8_t reply[forge::kMaxReply]; size_t size;
         auto error = forge::DecodeRequest(frame.data, frame.size, request);
-        if(error != forge::Error::None) size = forge::EncodeError(forge::Read14(frame.data + 5), error, reply);
-        else {
-            forge::Response response; forge::ExecuteRequest(request, engine, response);
-            size = forge::EncodeResponse(response, 0, 0, reply);
+        forge::Response response;
+        // Device presets: the same main-loop helpers the firmware uses.
+        if(error == forge::Error::None && request.kind == forge::RequestKind::Recall) {
+            forge::Request apply;
+            error = forge::RecallRequest(store, request, apply);
+            if(error == forge::Error::None) request = apply;
         }
+        if(error == forge::Error::None && request.kind == forge::RequestKind::Erase) response = forge::EraseReply(store, request);
+        else if(error == forge::Error::None && request.kind == forge::RequestKind::List) response = forge::ListReply(store, request);
+        else if(error == forge::Error::None) {
+            forge::ExecuteRequest(request, engine, response);
+            if(response.kind == forge::ResponseKind::Snapshot)
+                response = forge::StoreReply(store, response.sequence, 0, response.bank, response.slot, response.patch);
+        }
+        if(error != forge::Error::None) size = forge::EncodeError(forge::Read14(frame.data + 5), error, reply);
+        else size = forge::EncodeResponse(response, 0, 0, reply);
         for(size_t i = 0; i < size; ++i) std::cout << std::hex << std::setw(2) << std::setfill('0') << unsigned(reply[i]) << ' ';
         std::cout << std::endl; ++replies; // flush: lets a host keep one stateful probe open
     }
