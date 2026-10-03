@@ -5,7 +5,7 @@ import re
 import urllib.error
 import urllib.request
 
-from forge_host import SCHEMA, SCHEMA2, parse_json, validate_patch
+from forge_host import SCHEMA, SCHEMA3, parse_json, validate_patch
 
 SYSTEM = (
     "Author a Forge v1 stereo_delay JSON preset matching the schema. Only mix, "
@@ -25,15 +25,22 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 UNITS = {"time_ms": "milliseconds", "attack_ms": "milliseconds", "decay_ms": "milliseconds",
-         "release_ms": "milliseconds", "cutoff_hz": "hertz, low-pass cutoff", "mix": "wet fraction",
-         "feedback": "echo feedback fraction", "level": "output gain fraction", "sustain": "envelope level fraction"}
+         "release_ms": "milliseconds", "cutoff_hz": "hertz, resonant low-pass cutoff", "mix": "wet fraction",
+         "feedback": "echo feedback fraction", "level": "output gain fraction", "sustain": "envelope level fraction",
+         "osc2_level": "second oscillator level relative to the first", "osc2_semitones": "second oscillator interval in semitones",
+         "osc2_detune_cents": "second oscillator detune in cents", "noise": "white noise level",
+         "voices": "polyphony; 1 = monophonic", "glide_ms": "portamento time in milliseconds, 0 = off",
+         "resonance": "filter resonance fraction", "env_octaves": "filter envelope amount in octaves (negative closes)",
+         "rate_hz": "LFO rate in hertz", "pitch_cents": "LFO vibrato depth in cents",
+         "filter_octaves": "LFO filter sweep depth in octaves", "amp_depth": "LFO tremolo depth fraction",
+         "size": "reverb size/decay fraction", "damping": "reverb high-frequency damping fraction"}
 
 
 def describe(node, key=None):
     """Mirror numeric ranges into descriptions. Providers whose strict mode ignores or
     limits range keywords still see them; local validation remains the authority."""
     if isinstance(node, dict):
-        if node.get("type") == "number" and "minimum" in node and "maximum" in node:
+        if node.get("type") in ("number", "integer") and "minimum" in node and "maximum" in node:
             node["description"] = f"{UNITS.get(key, 'value')}; must be between {node['minimum']} and {node['maximum']}"
         for name, child in node.get("properties", {}).items():
             describe(child, name)
@@ -51,17 +58,21 @@ def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay"):
     if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 4000:
         raise ValueError("Describe your sound in 1–4000 characters")
     if kind not in ("delay", "instrument"): raise ValueError("Unknown authoring mode")
-    schema = copy.deepcopy(SCHEMA2 if kind == "instrument" else SCHEMA)
+    schema = copy.deepcopy(SCHEMA3 if kind == "instrument" else SCHEMA)
     schema.pop("$schema", None)
     system = SYSTEM if kind == "delay" else (
-        "Author a Forge v2 instrument patch. Modules: four-voice synth with sine, triangle, saw or square, "
-        "ADSR amplitude envelope, one-pole lowpass cutoff; stereo delay; output gain. "
-        "Use synth>delay>output for playable sounds, aux>delay>output for external audio. "
-        "All module settings are required. No sampler, FM, reverb, custom code or other routing exists. "
-        "Approximate the request only using available modules. Default output level 0.25. Return JSON only.")
+        "Author a Forge v3 instrument patch. Installed modules only: synth (up to four voices; main "
+        "oscillator sine/triangle/saw/square; second oscillator with its own waveform, level, semitone "
+        "interval and detune; white noise; amplitude ADSR; voices 1-4; glide), filter (resonant low-pass "
+        "with its own ADSR and envelope amount in octaves), lfo (sine/triangle/square/sample_hold to pitch, "
+        "filter and amplitude; mod_wheel true makes the wheel control depth), stereo delay, reverb and "
+        "output gain. Use synth>delay>reverb>output for playable sounds, aux>delay>reverb>output for "
+        "external audio. All settings are required; set unused modules neutral (levels/depths 0, "
+        "env_octaves 0). No sampler, FM, arbitrary routing or custom code exists. Approximate the request "
+        "only with these modules. Default output level 0.25. Return JSON only.")
     describe(schema)
     # Explicit types and enums work across both providers' JSON Schema subsets.
-    schema["properties"]["version"] = {"type": "integer", "enum": [2 if kind == "instrument" else 1]}
+    schema["properties"]["version"] = {"type": "integer", "enum": [3 if kind == "instrument" else 1]}
     schema["properties"]["engine"] = {"type": "string", "enum": ["instrument" if kind == "instrument" else "stereo_delay"]}
     headers = {"Content-Type": "application/json"}
     if provider == "openai":
@@ -109,7 +120,7 @@ def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay"):
             content = "".join(part["text"] for part in candidate["content"]["parts"]
                               if "text" in part and not part.get("thought"))
         patch = validate_patch(parse_json(content))
-        if patch["version"] != (2 if kind == "instrument" else 1):
+        if patch["version"] != (3 if kind == "instrument" else 1):
             raise ValueError("Wrong patch format for authoring mode")
         return patch
     except (ValueError, KeyError, TypeError, IndexError, AttributeError):

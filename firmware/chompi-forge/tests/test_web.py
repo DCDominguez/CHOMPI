@@ -139,7 +139,7 @@ class WebTests(unittest.TestCase):
             self.assertEqual(status, 200)
             self.assertEqual(headers["Cache-Control"], "no-store")
             self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
-        self.assertEqual(len(json.loads(data)["presets"]), 6)
+        self.assertEqual(len(json.loads(data)["presets"]), 9)
         for path in ("/../forge_ai.py", "/forge_web.py", "/?api_key=secret"):
             self.assertEqual(self.request(path)[0], 404)
 
@@ -168,6 +168,15 @@ class WebTests(unittest.TestCase):
             status, _, data = self.request("/api/status", {"input": "in", "output": "out"})
             self.assertEqual(status, 502)
             self.assertIn("queue busy", json.loads(data)["error"])
+
+    def test_upgrade_endpoint_converts_validates_and_needs_the_token(self):
+        status, _, data = self.request("/api/upgrade", {"patch": PRESET})
+        self.assertEqual(status, 200)
+        upgraded = json.loads(data)["patch"]
+        self.assertEqual((upgraded["version"], upgraded["routing"]), (3, "aux>delay>reverb>output"))
+        self.assertEqual(self.request("/api/upgrade", {"patch": PRESET}, {"X-Forge-Token": "wrong"})[0], 403)
+        bad = copy.deepcopy(PRESET); bad["parameters"]["mix"] = 2
+        self.assertEqual(self.request("/api/upgrade", {"patch": bad})[0], 400)
 
     def test_validation_and_malformed_request_bodies(self):
         self.assertEqual(self.request("/api/validate", {"patch": PRESET})[0], 200)

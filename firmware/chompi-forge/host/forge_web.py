@@ -89,6 +89,8 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("Request must be an object")
             if self.path == "/api/validate":
                 result = {"patch": host.validate_patch(body.get("patch"))}
+            elif self.path == "/api/upgrade":
+                result = {"patch": host.upgrade_patch(body.get("patch"))}
             elif self.path == "/api/generate":
                 if not self.server.ai_lock.acquire(blocking=False):
                     return self.reply(409, {"error": "A generation is already in progress"})

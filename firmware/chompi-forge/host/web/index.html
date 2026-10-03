@@ -21,23 +21,24 @@
         <p class="hint">Use a text model with structured JSON output. Model access depends on your API account.</p>
         <label for="api-key">Your API key</label><div class="key-row"><input id="api-key" type="password" required maxlength="512" autocomplete="off" spellcheck="false"><button id="clear-key" type="button" class="quiet">Clear</button></div>
         <p class="hint">Kept in this page’s memory. Sent through your local bridge only to the selected provider. Never saved by Forge. Provider API usage may be billed.</p>
-        <label for="prompt">Describe the sound</label><textarea id="prompt" required maxlength="4000" rows="4" placeholder="Soft triangle-wave keys with a slow release and gentle echoes. Output at 25%." spellcheck="true"></textarea>
+        <label for="prompt">Describe the sound</label><textarea id="prompt" required maxlength="4000" rows="4" placeholder="Warm detuned saw pad with a slow filter swell, gentle vibrato and a big reverb. Output at 25%." spellcheck="true"></textarea>
         <button id="generate" class="primary" type="submit">Generate a patch <span aria-hidden="true">↗</span></button>
       </form>
-      <p class="footnote">Available: four-voice synth, ADSR envelope, low-pass tone and stereo delay. Sampling and looping are not implemented. Generation never sends a patch to the device.</p>
+      <p class="footnote">Available: up to four voices with two oscillators and noise, amplitude envelope, resonant filter with its own envelope, LFO (mod wheel), glide, stereo delay and reverb. AI chooses settings for these installed modules only. Sampling and looping are not implemented. Generation never sends a patch to the device.</p>
     </section>
     <section class="card" aria-labelledby="patch-heading">
       <p class="eyebrow">02 / REFINE</p><h2 id="patch-heading">Your patch, your call.</h2>
       <label for="preset">Start from a preset</label><select id="preset"><option value="">Choose a starting point</option></select>
       <fieldset id="editor" disabled>
         <label for="patch-name">Patch name</label><input id="patch-name" maxlength="80" required>
-        <fieldset id="synth-editor"><legend class="group">Source · four-voice synth</legend><label for="routing">Signal path</label><select id="routing"><option value="synth>delay>output">Synth → Delay → Output</option><option value="aux>delay>output">Aux input → Delay → Output</option></select><label for="waveform">Oscillator</label><select id="waveform"><option>sine</option><option>triangle</option><option>saw</option><option>square</option></select><div id="synth-controls"></div></fieldset>
-        <p class="group">Stereo delay · output</p><div id="controls"></div>
-        <label class="check"><input id="bypass" type="checkbox"> Bypass wet signal</label>
+        <p class="hint" id="version-note"></p>
+        <div class="button-row"><button id="upgrade" type="button">Convert to v3 instrument</button></div>
+        <label for="routing">Signal path</label><select id="routing"></select>
+        <div id="groups"></div>
       </fieldset>
       <div class="button-row"><button id="download" disabled>Save JSON</button><label class="file-button" for="import">Import JSON<input id="import" type="file" accept=".json,application/json"></label></div>
       <details><summary>Inspect patch JSON</summary><pre id="json">No patch loaded.</pre></details>
-      <p class="footnote">Edits stay here until you send. Instrument controls require a v2 preset and firmware 0.3. Saved presets live on your computer; CHOMPI resets to defaults on reboot.</p>
+      <p class="footnote">Edits stay here until you send. v3 instruments need firmware 0.4; v1 and v2 presets still work. Controls a preset's format lacks are greyed out. Saved presets live on your computer; CHOMPI resets to defaults on reboot.</p>
     </section>
     <section class="card device" aria-labelledby="device-heading">
       <div><p class="eyebrow">03 / PLAY</p><h2 id="device-heading">Connect to CHOMPI.</h2><p class="hint">Choose both MIDI ports. Keep monitoring volume low for the first test.</p></div>
@@ -46,6 +47,6 @@
       <p id="device-state" role="status">No device status read. You can author and save patches without hardware.</p>
     </section>
   </div>
-  <footer>FORGE / INSTRUMENT CANDIDATE 0.3 <span>Play with CHOMPI keys or MIDI channel 1.</span></footer>
+  <footer>FORGE / INSTRUMENT CANDIDATE 0.4 <span>Play with CHOMPI keys or MIDI channel 1.</span></footer>
 </main>
 </body></html>

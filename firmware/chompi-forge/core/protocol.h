@@ -5,7 +5,7 @@
 
 namespace forge {
 constexpr uint8_t kProtocolVersion = 1, kPatchVersion = 1;
-constexpr uint8_t kFirmwareMinor = 3;
+constexpr uint8_t kFirmwareMinor = 4; // 0.4: v3 instrument patches
 enum class Error : uint8_t { None, Length, Version, Checksum, Patch, Opcode, Busy };
 // Request/reply sizes exclude F0/F7. v3 is the largest: 69-byte apply request,
 // 81-byte status reply. Transport buffers are sized from these constants.

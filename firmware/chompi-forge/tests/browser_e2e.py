@@ -108,39 +108,69 @@ class BrowserTests(unittest.TestCase):
 
     def test_initial_render_and_instrument_editing(self):
         p = self.page
-        self.assertEqual(p.locator("#preset option").count(), 7)
+        self.assertEqual(p.locator("#preset option").count(), 10)
         patch_json = self.json()
-        self.assertEqual(patch_json["version"], 2)
-        self.assertFalse(p.is_disabled("#waveform"))
+        self.assertEqual(patch_json["version"], 3)                  # starts on the first v3 preset
+        self.assertTrue(p.is_disabled("#upgrade"))
+        for control in ("#synth-waveform", "#filter-resonance", "#lfo-rate_hz", "#reverb-mix", "#lfo-mod_wheel"):
+            self.assertFalse(p.is_disabled(control), control)
         self.assertEqual(p.input_value("#routing"), patch_json["routing"])
-        p.select_option("#waveform", "saw"); p.select_option("#routing", "aux>delay>output")
-        p.fill("#attack_ms", "250"); p.fill("#cutoff_hz", "1200"); p.check("#bypass")
+        p.select_option("#synth-waveform", "square"); p.select_option("#routing", "aux>delay>reverb>output")
+        p.select_option("#lfo-waveform", "sample_hold"); p.select_option("#synth-osc2_waveform", "triangle")
+        p.fill("#synth-attack_ms", "250"); p.fill("#filter-cutoff_hz", "1200"); p.check("#delay-bypass")
+        p.fill("#synth-voices", "1"); p.fill("#synth-osc2_semitones", "-12"); p.fill("#filter-env_octaves", "-2.5")
+        p.check("#lfo-mod_wheel"); p.fill("#reverb-size", "0.9")
+        # Same key in two modules: filter attack must not overwrite synth attack.
+        p.fill("#filter-attack_ms", "33")
         p.fill("#patch-name", "Edited in Chromium")
-        edited = self.json()
-        self.assertEqual(edited["modules"]["synth"]["waveform"], "saw")
-        self.assertEqual(edited["routing"], "aux>delay>output")
-        self.assertEqual(edited["modules"]["synth"]["attack_ms"], 250)
-        self.assertEqual(edited["modules"]["synth"]["cutoff_hz"], 1200)
-        self.assertTrue(edited["modules"]["delay"]["bypass"])
+        edited = self.json(); m = edited["modules"]
+        self.assertEqual((m["synth"]["waveform"], m["synth"]["osc2_waveform"], m["lfo"]["waveform"]), ("square", "triangle", "sample_hold"))
+        self.assertEqual(edited["routing"], "aux>delay>reverb>output")
+        self.assertEqual((m["synth"]["attack_ms"], m["filter"]["attack_ms"]), (250, 33))
+        self.assertEqual((m["filter"]["cutoff_hz"], m["synth"]["voices"], m["synth"]["osc2_semitones"]), (1200, 1, -12))
+        self.assertEqual((m["filter"]["env_octaves"], m["reverb"]["size"]), (-2.5, 0.9))
+        self.assertTrue(m["delay"]["bypass"]); self.assertTrue(m["lfo"]["mod_wheel"])
         self.assertEqual(edited["name"], "Edited in Chromium")
+        self.assertEqual(forge_host.validate_patch(edited), edited)
         # Range slider drives the number box and the patch.
-        p.locator("#release_ms-range").fill("900")
+        p.locator("#synth-release_ms-range").fill("900")
         self.assertEqual(self.json()["modules"]["synth"]["release_ms"], 900)
-        self.assertEqual(p.input_value("#release_ms"), "900")
-        # Tone slider is logarithmic like the firmware: midpoint = 40 * 400**0.5 = 800 Hz.
-        p.locator("#cutoff_hz-range").fill("500")
-        self.assertEqual(self.json()["modules"]["synth"]["cutoff_hz"], 800)
-        p.fill("#cutoff_hz", "16000")
-        self.assertEqual(p.input_value("#cutoff_hz-range"), "1000")
+        self.assertEqual(p.input_value("#synth-release_ms"), "900")
+        # Log sliders match the firmware curve: cutoff midpoint 40 * 400**0.5 = 800 Hz, LFO 0.05 * 400**0.5 = 1 Hz.
+        p.locator("#filter-cutoff_hz-range").fill("500")
+        self.assertEqual(self.json()["modules"]["filter"]["cutoff_hz"], 800)
+        p.locator("#lfo-rate_hz-range").fill("500")
+        self.assertEqual(self.json()["modules"]["lfo"]["rate_hz"], 1)
+        p.fill("#filter-cutoff_hz", "16000")
+        self.assertEqual(p.input_value("#filter-cutoff_hz-range"), "1000")
         p.screenshot(path=str(SHOTS / "desktop-instrument.png"), full_page=True)
+
+    def test_v2_controls_map_to_v2_fields_and_convert_to_v3(self):
+        p = self.page
+        self.choose_preset("Soft Pad")
+        self.assertEqual(self.json()["version"], 2)
+        self.assertFalse(p.is_disabled("#filter-cutoff_hz"))         # v2 cutoff lives in synth
+        for control in ("#filter-resonance", "#synth-osc2_level", "#lfo-rate_hz", "#reverb-mix", "#synth-voices"):
+            self.assertTrue(p.is_disabled(control), control)
+        p.fill("#filter-cutoff_hz", "1500")
+        self.assertEqual(self.json()["modules"]["synth"]["cutoff_hz"], 1500)
+        self.assertNotIn("filter", self.json()["modules"])
+        before = self.json()
+        p.click("#upgrade"); self.wait_idle()
+        self.assertIn("Converted to v3", self.notice())
+        upgraded = self.json()
+        self.assertEqual(upgraded, forge_host.upgrade_patch(before))
+        self.assertEqual((upgraded["version"], upgraded["routing"]), (3, "synth>delay>reverb>output"))
+        self.assertEqual(upgraded["modules"]["filter"]["cutoff_hz"], 1500)
+        self.assertFalse(p.is_disabled("#reverb-mix")); self.assertTrue(p.is_disabled("#upgrade"))
 
     def test_save_validates_and_reports_field_errors(self):
         p = self.page
-        p.fill("#attack_ms", "5000")
+        p.fill("#synth-attack_ms", "5000")
         p.click("#download")
         expect(p.locator("#notice")).to_have_class("error")
-        self.assertIn("attack_ms", self.notice())
-        p.fill("#attack_ms", "20")
+        self.assertIn("synth.attack_ms", self.notice())
+        p.fill("#synth-attack_ms", "20")
         with p.expect_download() as info:
             p.click("#download")
         saved = json.loads(Path(info.value.path()).read_text())
@@ -148,14 +178,15 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(saved["modules"]["synth"]["attack_ms"], 20)
         self.assertNotIn("api_key", json.dumps(saved))
 
-    def test_import_v1_v2_and_rejects_bad_files(self):
+    def test_import_v1_v2_v3_and_rejects_bad_files(self):
         p = self.page
         with tempfile.TemporaryDirectory() as folder:
             v1 = ROOT / "presets" / "02-slap.json"
             p.set_input_files("#import", str(v1)); self.wait_idle()
             self.assertEqual(self.json()["version"], 1)
-            self.assertTrue(p.is_disabled("#waveform"), "v1 delay patch must not expose synth controls")
-            self.assertEqual(p.input_value("#attack_ms"), "")
+            self.assertTrue(p.is_disabled("#synth-waveform"), "v1 delay patch must not expose synth controls")
+            self.assertTrue(p.is_disabled("#routing")); self.assertFalse(p.is_disabled("#delay-mix"))
+            self.assertEqual(p.input_value("#synth-attack_ms"), "")
             dup = Path(folder) / "dup.json"; dup.write_text('{"version":1,"version":1}')
             p.set_input_files("#import", str(dup)); self.wait_idle()
             self.assertIn("error", p.get_attribute("#notice", "class"))
@@ -163,11 +194,15 @@ class BrowserTests(unittest.TestCase):
             v2 = ROOT / "presets" / "05-soft-pad.json"
             p.set_input_files("#import", str(v2)); self.wait_idle()
             self.assertEqual(self.json(), forge_host.load_patch(v2))
-            self.assertFalse(p.is_disabled("#waveform"))
+            self.assertFalse(p.is_disabled("#synth-waveform"))
+            v3 = ROOT / "presets" / "08-acid-bass.json"
+            p.set_input_files("#import", str(v3)); self.wait_idle()
+            self.assertEqual(self.json(), forge_host.load_patch(v3))
+            self.assertEqual(p.input_value("#synth-voices"), "1")
 
     def test_generate_with_mock_provider_keeps_key_ephemeral(self):
         p, provider = self.page, self.provider
-        provider.status, provider.patch = 200, forge_host.load_patch(ROOT / "presets" / "06-saw-bass.json")
+        provider.status, provider.patch = 200, forge_host.load_patch(ROOT / "presets" / "08-acid-bass.json")
         provider.requests.clear()
         for name in ("openai", "gemini"):
             p.select_option("#provider", name)
@@ -181,7 +216,7 @@ class BrowserTests(unittest.TestCase):
             self.assertIn(FAKE_KEY, json.dumps(dict(request.header_items())))
             self.assertEqual(json.loads(request.data)["text"]["format"]["schema"]["properties"]["version"]["enum"]
                              if name == "openai" else
-                             json.loads(request.data)["generationConfig"]["responseFormat"]["text"]["schema"]["properties"]["version"]["enum"], [2])
+                             json.loads(request.data)["generationConfig"]["responseFormat"]["text"]["schema"]["properties"]["version"]["enum"], [3])
         # storage_state() reads cookies/localStorage without page eval (blocked by the CSP).
         self.assertNotIn(FAKE_KEY, json.dumps(self.context.storage_state()))
         self.assertNotIn(FAKE_KEY, p.inner_text("#json"))
@@ -199,7 +234,7 @@ class BrowserTests(unittest.TestCase):
         self.assertIn("error", p.get_attribute("#notice", "class"))
         provider.status = 200
 
-    def test_device_round_trip_v2_v1_capture_and_panic(self):
+    def test_device_round_trip_v2_v1_v3_capture_and_panic(self):
         p = self.page
         p.click("#ports"); self.wait_idle()
         p.select_option("#input-port", sim_device.INPUT); p.select_option("#output-port", sim_device.OUTPUT)
@@ -207,7 +242,7 @@ class BrowserTests(unittest.TestCase):
         sent = self.json()
         p.click("#send"); self.wait_idle()
         self.assertIn("acknowledged", self.notice())
-        self.assertIn("Firmware 0.3", p.inner_text("#device-state"))
+        self.assertIn("Firmware 0.4", p.inner_text("#device-state"))
         # Legacy v1 delay patch switches device to aux path.
         self.choose_preset("Short slap"); p.click("#send"); self.wait_idle()
         p.click("#capture"); self.wait_idle()
@@ -222,6 +257,19 @@ class BrowserTests(unittest.TestCase):
         for key, value in sent["modules"]["synth"].items():
             if key == "waveform": self.assertEqual(captured["modules"]["synth"][key], value)
             else: self.assertAlmostEqual(captured["modules"]["synth"][key], value, delta=max(1, value * 0.001))
+        # v3 instrument: every module survives send -> capture within quantization.
+        self.choose_preset("Warm Pad"); sent = self.json(); p.click("#send"); self.wait_idle()
+        self.assertIn("acknowledged", self.notice())
+        p.click("#capture"); self.wait_idle()
+        captured = self.json()
+        self.assertEqual((captured["version"], captured["routing"]), (3, sent["routing"]))
+        for module, fields in sent["modules"].items():
+            for key, value in fields.items():
+                got = captured["modules"][module][key]
+                if isinstance(value, (bool, str)) or isinstance(value, int) and key in ("voices", "osc2_semitones"):
+                    self.assertEqual(got, value, f"{module}.{key}")
+                else:
+                    self.assertAlmostEqual(got, value, delta=max(0.01, abs(value) * 0.002), msg=f"{module}.{key}")
         p.click("#panic"); self.wait_idle()
         self.assertIn("Panic acknowledged", self.notice())
         # Panic must not change targets.

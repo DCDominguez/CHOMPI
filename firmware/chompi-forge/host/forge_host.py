@@ -46,6 +46,144 @@ SCHEMA2 = object_schema({
         "output": object_schema({"level": {"type": "number", "minimum": 0, "maximum": 1}})})})
 
 
+# ---- Version 3 instrument -------------------------------------------------
+LFO_WAVEFORMS = ("sine", "triangle", "square", "sample_hold")
+ROUTES3 = ("aux>delay>reverb>output", "synth>delay>reverb>output")
+AMP_LIMITS = {key: SYNTH_LIMITS[key] for key in ("attack_ms", "decay_ms", "sustain", "release_ms")}
+# Wire order after the shared v2 fields (request indexes 29..67), mirroring
+# V3Fields in core/protocol.h. Codec: ("lin"|"log", low, high), ("enum", names),
+# ("int", low, high, byte_offset) or ("bool",).
+V3_FIELDS = (
+    ("synth", "osc2_waveform", ("enum", WAVEFORMS)),
+    ("synth", "osc2_level", ("lin", 0, 1)),
+    ("synth", "osc2_semitones", ("int", -24, 24, 24)),
+    ("synth", "osc2_detune_cents", ("lin", -50, 50)),
+    ("synth", "noise", ("lin", 0, 1)),
+    ("filter", "resonance", ("lin", 0, 1)),
+    ("filter", "env_octaves", ("lin", -6, 6)),
+    ("filter", "attack_ms", ("lin", 1, 2000)),
+    ("filter", "decay_ms", ("lin", 1, 2000)),
+    ("filter", "sustain", ("lin", 0, 1)),
+    ("filter", "release_ms", ("lin", 5, 5000)),
+    ("lfo", "waveform", ("enum", LFO_WAVEFORMS)),
+    ("lfo", "rate_hz", ("log", 0.05, 20)),
+    ("lfo", "pitch_cents", ("lin", 0, 200)),
+    ("lfo", "filter_octaves", ("lin", 0, 4)),
+    ("lfo", "amp_depth", ("lin", 0, 1)),
+    ("lfo", "mod_wheel", ("bool",)),
+    ("synth", "voices", ("int", 1, 4, 0)),
+    ("synth", "glide_ms", ("lin", 0, 2000)),
+    ("reverb", "mix", ("lin", 0, 1)),
+    ("reverb", "size", ("lin", 0, 1)),
+    ("reverb", "damping", ("lin", 0, 1)),
+)
+
+
+def field_schema(codec):
+    if codec[0] in ("lin", "log"): return {"type": "number", "minimum": codec[1], "maximum": codec[2]}
+    if codec[0] == "enum": return {"type": "string", "enum": list(codec[1])}
+    if codec[0] == "int": return {"type": "integer", "minimum": codec[1], "maximum": codec[2]}
+    return {"type": "boolean"}
+
+
+def v3_module_fields():
+    """Ordered {module: {key: codec}} for every v3 module, including shared v2 fields."""
+    number = lambda low, high: ("lin", low, high)
+    modules = {
+        "synth": {"waveform": ("enum", WAVEFORMS), **{k: number(*b) for k, b in AMP_LIMITS.items()}},
+        "filter": {"cutoff_hz": ("log", 40, 16000)}, "lfo": {},
+        "delay": {"mix": number(0, 1), "time_ms": number(10, 1000), "feedback": number(0, 0.85), "bypass": ("bool",)},
+        "reverb": {}, "output": {"level": number(0, 1)}}
+    for module, key, codec in V3_FIELDS:
+        modules[module][key] = codec
+    return modules
+
+
+V3_MODULES = v3_module_fields()
+SCHEMA3 = object_schema({
+    "version": {"type": "integer", "enum": [3]},
+    "name": {"type": "string", "minLength": 1, "maxLength": 80},
+    "engine": {"type": "string", "enum": ["instrument"]},
+    "routing": {"type": "string", "enum": list(ROUTES3)},
+    "modules": object_schema({module: object_schema({key: field_schema(codec) for key, codec in fields.items()})
+                              for module, fields in V3_MODULES.items()})})
+
+
+def check_value(path, value, codec):
+    kind = codec[0]
+    if kind in ("lin", "log"):
+        if type(value) not in (float, int) or not math.isfinite(value) or not codec[1] <= value <= codec[2]:
+            raise ValueError(f"{path} must be a number in [{codec[1]}, {codec[2]}]")
+    elif kind == "enum":
+        if value not in codec[1]: raise ValueError(f"{path} must be one of {', '.join(codec[1])}")
+    elif kind == "int":
+        if type(value) is not int or not codec[1] <= value <= codec[2]:
+            raise ValueError(f"{path} must be an integer in [{codec[1]}, {codec[2]}]")
+    elif type(value) is not bool:
+        raise ValueError(f"{path} must be true or false")
+
+
+def validate_instrument3(patch):
+    if set(patch) != {"version", "name", "engine", "routing", "modules"} or type(patch["version"]) is not int:
+        raise ValueError("Invalid instrument fields")
+    if patch["engine"] != "instrument" or patch["routing"] not in ROUTES3:
+        raise ValueError("Unsupported engine or routing")
+    if not isinstance(patch["name"], str) or not 1 <= len(patch["name"].strip()) <= 80 or len(patch["name"]) > 80:
+        raise ValueError("Patch name must contain 1–80 characters")
+    modules = patch["modules"]
+    if not isinstance(modules, dict) or set(modules) != set(V3_MODULES):
+        raise ValueError("Expected modules: " + ", ".join(V3_MODULES))
+    for module, fields in V3_MODULES.items():
+        if not isinstance(modules[module], dict) or set(modules[module]) != set(fields):
+            raise ValueError(f"{module} module needs exactly: {', '.join(fields)}")
+        for key, codec in fields.items():
+            check_value(f"{module}.{key}", modules[module][key], codec)
+    return patch
+
+
+def to_unit(value, codec):
+    if codec[0] == "log": return math.log(value / codec[1]) / math.log(codec[2] / codec[1])
+    return (value - codec[1]) / (codec[2] - codec[1])
+
+
+def from_unit(unit, codec):
+    if codec[0] == "log": return codec[1] * (codec[2] / codec[1]) ** unit
+    return codec[1] + (codec[2] - codec[1]) * unit
+
+
+def encode_word(value, codec):
+    # Clamp guards float rounding at range ends; 16384 would wrap to 0 in 14 bits.
+    return word14(int(min(max(to_unit(value, codec), 0.0), 1.0) * 16383 + 0.5))
+
+
+def upgrade_patch(patch):
+    """Return a v3 patch with the same delay/output (and v2 synth) settings; new
+    modules start neutral (osc2/noise/LFO depths/reverb mix 0, filter envelope 0).
+    The v3 filter is a steeper resonant low-pass, so tone can differ slightly."""
+    patch = validate_patch(patch)
+    if patch["version"] == 3: return patch
+    source = effect_patch(patch)["parameters"]
+    v2 = patch["version"] == 2
+    old_synth = patch["modules"]["synth"] if v2 else {
+        "waveform": "sine", "attack_ms": 5, "decay_ms": 300, "sustain": 0.6, "release_ms": 300, "cutoff_hz": 8000}
+    synth = {"waveform": old_synth["waveform"], **{key: old_synth[key] for key in AMP_LIMITS},
+             "osc2_waveform": old_synth["waveform"], "osc2_level": 0, "osc2_semitones": 0,
+             "osc2_detune_cents": 0, "noise": 0, "voices": 4, "glide_ms": 0}
+    routing = ("synth>delay>reverb>output" if v2 and patch["routing"] == "synth>delay>output"
+               else "aux>delay>reverb>output")
+    upgraded = {"version": 3, "name": patch["name"], "engine": "instrument", "routing": routing, "modules": {
+        "synth": synth,
+        "filter": {"cutoff_hz": old_synth["cutoff_hz"], "resonance": 0, "env_octaves": 0,
+                   "attack_ms": 10, "decay_ms": 300, "sustain": 0, "release_ms": 300},
+        "lfo": {"waveform": "sine", "rate_hz": 5, "pitch_cents": 0, "filter_octaves": 0, "amp_depth": 0, "mod_wheel": False},
+        "delay": {key: source[key] for key in ("mix", "time_ms", "feedback", "bypass")},
+        "reverb": {"mix": 0, "size": 0.5, "damping": 0.5},
+        "output": {"level": source["level"]}}}
+    upgraded["modules"] = {module: {key: upgraded["modules"][module][key] for key in fields}
+                           for module, fields in V3_MODULES.items()}
+    return validate_patch(upgraded)
+
+
 def effect_patch(patch):
     if patch["version"] == 1: return patch
     return {"version": 1, "name": patch["name"], "engine": "stereo_delay",
@@ -77,6 +215,10 @@ def validate_instrument(patch):
 def validate_patch(patch):
     if isinstance(patch, dict) and patch.get("version") == 2:
         return validate_instrument(patch)
+    if isinstance(patch, dict) and patch.get("version") == 3:
+        validate_instrument3(patch)
+        validate_patch(effect_patch(patch))
+        return patch
     if not isinstance(patch, dict) or set(patch) != {"version", "name", "engine", "parameters"}:
         raise ValueError("Patch requires exactly version, name, engine and parameters")
     if type(patch["version"]) is not int or patch["version"] != 1:
@@ -166,6 +308,19 @@ def encode_patch(patch, sequence):
             value = (math.log(synth[key] / low) / math.log(high / low) if key == "cutoff_hz"
                      else (synth[key] - low) / (high - low))
             data.extend(word14(int(min(max(value, 0.0), 1.0) * 16383 + 0.5)))
+    elif patch["version"] == 3:
+        data[0] = 3
+        modules = patch["modules"]
+        data.extend([ROUTES3.index(patch["routing"]), WAVEFORMS.index(modules["synth"]["waveform"])])
+        for key, codec in V3_MODULES["synth"].items():
+            if key in AMP_LIMITS: data.extend(encode_word(modules["synth"][key], codec))
+        data.extend(encode_word(modules["filter"]["cutoff_hz"], V3_MODULES["filter"]["cutoff_hz"]))
+        for module, key, codec in V3_FIELDS:
+            value = modules[module][key]
+            if codec[0] == "enum": data.append(codec[1].index(value))
+            elif codec[0] == "int": data.append(value + codec[3])
+            elif codec[0] == "bool": data.append(int(value))
+            else: data.extend(encode_word(value, codec))
     return message(1, sequence, data)
 
 
@@ -179,7 +334,7 @@ def decode_response(data, sequence):
         raise ValueError("Invalid reply checksum")
     if data[4] == 0x41 and len(data) == 9:
         raise RuntimeError("Device rejected request: " + ERRORS.get(data[7], "unknown error"))
-    if len(data) not in (30, 42) or data[4] != 0x40 or data[7] != 0 or data[8] not in (1, 2) or data[17] > 1:
+    if len(data) not in (30, 42, 81) or data[4] != 0x40 or data[7] != 0 or data[8] not in (1, 2, 3) or data[17] > 1:
         raise ValueError("Invalid Forge status payload")
     patch = {"version": 1, "name": "Captured from Forge", "engine": "stereo_delay", "parameters": {
         "mix": read14(data, 9) / 16383,
@@ -187,7 +342,9 @@ def decode_response(data, sequence):
         "feedback": 0.85 * read14(data, 13) / 16383,
         "level": read14(data, 15) / 16383, "bypass": bool(data[17])}}
     offset = 18
-    if data[8] == 2:
+    if data[8] == 3:
+        patch, offset = decode_v3(data, patch["name"]), 69
+    elif data[8] == 2:
         if len(data) != 42 or data[18] > 1 or data[19] > 3:
             raise ValueError("Invalid instrument status")
         synth = {"waveform": WAVEFORMS[data[19]]}
@@ -205,6 +362,38 @@ def decode_response(data, sequence):
             "cpu_max_percent": read14(data, offset + 2) / 10,
             "dropped": read14(data, offset + 4) | data[offset + 6] << 14,
             "rejected": read14(data, offset + 7) | data[offset + 9] << 14}
+
+
+def decode_v3(data, name):
+    """Inverse of the v3 part of encode_patch for an 81-byte status reply."""
+    if len(data) != 81 or data[18] > 1 or data[19] > 3:
+        raise ValueError("Invalid v3 instrument status")
+    modules = {module: {} for module in V3_MODULES}
+    modules["delay"] = {"mix": read14(data, 9) / 16383, "time_ms": 10 + 990 * read14(data, 11) / 16383,
+                        "feedback": 0.85 * read14(data, 13) / 16383, "bypass": bool(data[17])}
+    modules["output"] = {"level": read14(data, 15) / 16383}
+    modules["synth"]["waveform"] = WAVEFORMS[data[19]]
+    index = 20
+    for key, codec in AMP_LIMITS.items():
+        modules["synth"][key] = from_unit(read14(data, index) / 16383, ("lin", *codec)); index += 2
+    modules["filter"]["cutoff_hz"] = from_unit(read14(data, index) / 16383, ("log", 40, 16000)); index += 2
+    for module, key, codec in V3_FIELDS:
+        if codec[0] in ("enum", "int", "bool"):
+            raw = data[index]; index += 1
+            if codec[0] == "enum":
+                if raw >= len(codec[1]): raise ValueError("Invalid v3 enum in status")
+                value = codec[1][raw]
+            elif codec[0] == "int":
+                value = raw - codec[3]
+                if not codec[1] <= value <= codec[2]: raise ValueError("Invalid v3 integer in status")
+            else:
+                if raw > 1: raise ValueError("Invalid v3 flag in status")
+                value = bool(raw)
+        else:
+            value = from_unit(read14(data, index) / 16383, codec); index += 2
+        modules[module][key] = value
+    ordered = {module: {key: modules[module][key] for key in fields} for module, fields in V3_MODULES.items()}
+    return {"version": 3, "name": name, "engine": "instrument", "routing": ROUTES3[data[18]], "modules": ordered}
 
 
 def midi_module():
@@ -326,9 +515,12 @@ def generate_patch(prompt, model, endpoint="http://127.0.0.1:11434/api/chat", op
 def cli(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("schema", help="Print the authoring JSON schema")
+    schema = commands.add_parser("schema", help="Print an authoring JSON schema (v1 delay by default)")
+    schema.add_argument("--instrument", action="store_true", help="Print the v3 instrument schema")
     commands.add_parser("ports", help="List MIDI ports")
     validate = commands.add_parser("validate"); validate.add_argument("patch")
+    upgrade = commands.add_parser("upgrade", help="Convert a v1/v2 patch file to a new v3 instrument file")
+    upgrade.add_argument("patch"); upgrade.add_argument("out")
     encode = commands.add_parser("encode", help="Print SysEx bytes without using MIDI")
     encode.add_argument("patch"); encode.add_argument("--sequence", type=int, default=1)
     for name in ("send", "status", "capture", "panic"):
@@ -350,11 +542,13 @@ def cli(argv=None):
     ai.add_argument("--endpoint", default="http://127.0.0.1:11434/api/chat")
     ai.add_argument("--out", required=True)
     args = parser.parse_args(argv)
-    if args.command == "schema": print(json.dumps(SCHEMA, indent=2))
+    if args.command == "schema": print(json.dumps(SCHEMA3 if args.instrument else SCHEMA, indent=2))
     elif args.command == "ports":
         midi = midi_module()
         print(json.dumps({"inputs": midi.get_input_names(), "outputs": midi.get_output_names()}, indent=2))
     elif args.command == "validate": print(json.dumps(load_patch(args.patch), indent=2))
+    elif args.command == "upgrade":
+        save_patch(upgrade_patch(load_patch(args.patch)), args.out); print(f"wrote {args.out}")
     elif args.command == "encode":
         print(bytes([0xF0, *encode_patch(load_patch(args.patch), args.sequence), 0xF7]).hex(" "))
     elif args.command == "cc":

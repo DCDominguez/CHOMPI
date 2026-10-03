@@ -1,26 +1,66 @@
 "use strict";
 const $ = id => document.getElementById(id);
-const fields = {mix: [0, 1, .01, "Wet / dry", "0–1"], time_ms: [10, 1000, 1, "Delay time", "ms"],
-  feedback: [0, .85, .01, "Feedback", "0–0.85"], level: [0, 1, .01, "Output level", "0–1"]};
-const synthFields = {attack_ms: [1,2000,1,"Attack","ms"], decay_ms: [1,2000,1,"Decay","ms"],
-  sustain: [0,1,.01,"Sustain","0–1"], release_ms: [5,5000,1,"Release","ms"], cutoff_hz: [40,16000,1,"Tone cutoff","Hz · log"]};
-// Sliders for logarithmic controls run 0–1000 and map to the same curve the firmware uses.
-const logFields = new Set(["cutoff_hz"]);
-function toSlider(key, value) {
-  const [min, max] = synthFields[key] || fields[key];
-  if (value === null || value === undefined || value === "") return logFields.has(key) ? 500 : min;
-  return logFields.has(key) ? Math.round(1000 * Math.log(value / min) / Math.log(max / min)) : value;
+const WAVES = ["sine", "triangle", "saw", "square"], LFO_WAVES = ["sine", "triangle", "square", "sample_hold"];
+const ROUTES = {2: [["synth>delay>output", "Synth → Delay → Output"], ["aux>delay>output", "Aux input → Delay → Output"]],
+  3: [["synth>delay>reverb>output", "Synth → Delay → Reverb → Output"], ["aux>delay>reverb>output", "Aux input → Delay → Reverb → Output"]]};
+// One row per editor control. m/k = v3 module/key; id = `${m}-${k}`. type: number (default), select, check.
+// v = patch versions that have the field. log = slider runs 0–1000 on the firmware's log curve.
+const GROUPS = [
+  ["source", "Source · oscillators"], ["amp", "Amplitude · voices"], ["filter", "Filter"], ["lfo", "LFO · mod wheel"],
+  ["delay", "Stereo delay"], ["reverb", "Reverb"], ["output", "Output"]];
+const CONTROLS = [
+  {g: "source", m: "synth", k: "waveform", label: "Oscillator", type: "select", options: WAVES, v: [2, 3]},
+  {g: "source", m: "synth", k: "osc2_waveform", label: "Oscillator 2", type: "select", options: WAVES, v: [3]},
+  {g: "source", m: "synth", k: "osc2_level", label: "Oscillator 2 level", unit: "0–1", min: 0, max: 1, step: .01, v: [3]},
+  {g: "source", m: "synth", k: "osc2_semitones", label: "Oscillator 2 interval", unit: "semitones", min: -24, max: 24, step: 1, v: [3]},
+  {g: "source", m: "synth", k: "osc2_detune_cents", label: "Oscillator 2 detune", unit: "cents", min: -50, max: 50, step: 1, v: [3]},
+  {g: "source", m: "synth", k: "noise", label: "Noise", unit: "0–1", min: 0, max: 1, step: .01, v: [3]},
+  {g: "amp", m: "synth", k: "attack_ms", label: "Attack", unit: "ms", min: 1, max: 2000, step: 1, v: [2, 3]},
+  {g: "amp", m: "synth", k: "decay_ms", label: "Decay", unit: "ms", min: 1, max: 2000, step: 1, v: [2, 3]},
+  {g: "amp", m: "synth", k: "sustain", label: "Sustain", unit: "0–1", min: 0, max: 1, step: .01, v: [2, 3]},
+  {g: "amp", m: "synth", k: "release_ms", label: "Release", unit: "ms", min: 5, max: 5000, step: 1, v: [2, 3]},
+  {g: "amp", m: "synth", k: "voices", label: "Voices", unit: "1 = mono", min: 1, max: 4, step: 1, v: [3]},
+  {g: "amp", m: "synth", k: "glide_ms", label: "Glide", unit: "ms", min: 0, max: 2000, step: 1, v: [3]},
+  {g: "filter", m: "filter", k: "cutoff_hz", label: "Cutoff", unit: "Hz · log", min: 40, max: 16000, step: 1, log: true, v: [2, 3]},
+  {g: "filter", m: "filter", k: "resonance", label: "Resonance", unit: "0–1", min: 0, max: 1, step: .01, v: [3]},
+  {g: "filter", m: "filter", k: "env_octaves", label: "Envelope amount", unit: "octaves ±6", min: -6, max: 6, step: .1, v: [3]},
+  {g: "filter", m: "filter", k: "attack_ms", label: "Filter attack", unit: "ms", min: 1, max: 2000, step: 1, v: [3]},
+  {g: "filter", m: "filter", k: "decay_ms", label: "Filter decay", unit: "ms", min: 1, max: 2000, step: 1, v: [3]},
+  {g: "filter", m: "filter", k: "sustain", label: "Filter sustain", unit: "0–1", min: 0, max: 1, step: .01, v: [3]},
+  {g: "filter", m: "filter", k: "release_ms", label: "Filter release", unit: "ms", min: 5, max: 5000, step: 1, v: [3]},
+  {g: "lfo", m: "lfo", k: "waveform", label: "LFO shape", type: "select", options: LFO_WAVES, v: [3]},
+  {g: "lfo", m: "lfo", k: "rate_hz", label: "LFO rate", unit: "Hz · log", min: .05, max: 20, step: .01, log: true, v: [3]},
+  {g: "lfo", m: "lfo", k: "pitch_cents", label: "Vibrato depth", unit: "cents", min: 0, max: 200, step: 1, v: [3]},
+  {g: "lfo", m: "lfo", k: "filter_octaves", label: "Filter sweep", unit: "octaves", min: 0, max: 4, step: .1, v: [3]},
+  {g: "lfo", m: "lfo", k: "amp_depth", label: "Tremolo depth", unit: "0–1", min: 0, max: 1, step: .01, v: [3]},
+  {g: "lfo", m: "lfo", k: "mod_wheel", label: "Mod wheel (CC1) controls LFO depth", type: "check", v: [3]},
+  {g: "delay", m: "delay", k: "mix", label: "Wet / dry", unit: "0–1", min: 0, max: 1, step: .01, v: [1, 2, 3]},
+  {g: "delay", m: "delay", k: "time_ms", label: "Delay time", unit: "ms", min: 10, max: 1000, step: 1, v: [1, 2, 3]},
+  {g: "delay", m: "delay", k: "feedback", label: "Feedback", unit: "0–0.85", min: 0, max: .85, step: .01, v: [1, 2, 3]},
+  {g: "delay", m: "delay", k: "bypass", label: "Bypass wet signal", type: "check", v: [1, 2, 3]},
+  {g: "reverb", m: "reverb", k: "mix", label: "Reverb mix", unit: "0–1", min: 0, max: 1, step: .01, v: [3]},
+  {g: "reverb", m: "reverb", k: "size", label: "Size / decay", unit: "0–1", min: 0, max: 1, step: .01, v: [3]},
+  {g: "reverb", m: "reverb", k: "damping", label: "Damping", unit: "0–1", min: 0, max: 1, step: .01, v: [3]},
+  {g: "output", m: "output", k: "level", label: "Output level", unit: "0–1", min: 0, max: 1, step: .01, v: [1, 2, 3]},
+];
+for (const c of CONTROLS) c.id = `${c.m}-${c.k}`;
+// Where a control lives in a patch of the given version (null: not in that format).
+function path(c, version) {
+  if (!c.v.includes(version)) return null;
+  if (version === 1) return ["parameters", c.k];
+  if (version === 2 && c.m === "filter") return ["modules", "synth", c.k];
+  return ["modules", c.m, c.k];
 }
-function fromSlider(key, raw) {
-  const [min, max] = synthFields[key] || fields[key];
-  return logFields.has(key) ? Math.round(min * (max / min) ** (Number(raw) / 1000)) : Number(raw);
+function read(c) { const p = path(c, patch.version); return p ? p.reduce((node, key) => node[key], patch) : undefined; }
+function write(c, value) { const p = path(c, patch.version); if (p) p.slice(0, -1).reduce((node, key) => node[key], patch)[p.at(-1)] = value; }
+function toSlider(c, value) {
+  if (value === null || value === undefined || value === "") return c.log ? 500 : c.min;
+  return c.log ? Math.round(1000 * Math.log(value / c.min) / Math.log(c.max / c.min)) : value;
 }
-function params() { return patch.version === 1 ? patch.parameters : {...patch.modules.delay, ...patch.modules.output, ...patch.modules.synth}; }
-function setParam(key, value) {
-  if (patch.version === 1) patch.parameters[key] = value;
-  else if (key === "level") patch.modules.output[key] = value;
-  else if (key in synthFields || key === "waveform") patch.modules.synth[key] = value;
-  else patch.modules.delay[key] = value;
+function fromSlider(c, raw) {
+  if (!c.log) return Number(raw);
+  const value = c.min * (c.max / c.min) ** (Number(raw) / 1000);
+  return c.step >= 1 ? Math.round(value) : Math.round(value * 100) / 100;
 }
 let token = "", patch = null, presets = [], busy = false;
 function notice(message, error = false) { $("notice").textContent = message; $("notice").classList.toggle("error", error); }
@@ -33,8 +73,14 @@ async function api(path, body) {
 function updateButtons() {
   document.querySelectorAll("button").forEach(button => { button.disabled = busy; });
   for (const id of ["download", "send"]) $(id).disabled = busy || !patch;
+  $("upgrade").disabled = busy || !patch || patch.version === 3;
   $("editor").disabled = busy || !patch;
-  $("synth-editor").disabled = busy || !patch || patch.version !== 2;
+  $("routing").disabled = !patch || patch.version === 1;
+  for (const c of CONTROLS) {
+    const off = !patch || !path(c, patch.version);
+    $(c.id).disabled = off; if ($(`${c.id}-range`)) $(`${c.id}-range`).disabled = off;
+  }
+  for (const [group] of GROUPS) $(`group-${group}`).classList.toggle("unavailable", !!patch && !CONTROLS.some(c => c.g === group && path(c, patch.version)));
   for (const id of ["kind", "provider", "model", "api-key", "prompt", "preset", "import", "input-port", "output-port"]) $(id).disabled = busy;
 }
 async function run(message, action) {
@@ -46,27 +92,65 @@ async function run(message, action) {
 function showJSON() { $("json").textContent = JSON.stringify(patch, null, 2); }
 function loadPatch(value) {
   patch = structuredClone(value); $("patch-name").value = patch.name;
-  const values = params();
-  for (const key of Object.keys({...fields, ...synthFields})) {
-    $(key).value = values[key] ?? ""; $(`${key}-range`).value = toSlider(key, values[key]);
+  const routes = ROUTES[patch.version] || [];
+  $("routing").replaceChildren(...routes.map(([value, label]) => new Option(label, value)));
+  if (routes.length) $("routing").value = patch.routing;
+  for (const c of CONTROLS) {
+    const value = read(c);
+    if (c.type === "check") $(c.id).checked = !!value;
+    else if (c.type === "select") $(c.id).value = value ?? c.options[0];
+    else { $(c.id).value = value ?? ""; $(`${c.id}-range`).value = toSlider(c, value); }
   }
-  $("routing").value = patch.routing || "aux>delay>output";
-  $("waveform").value = patch.modules?.synth.waveform || "sine";
-  $("bypass").checked = params().bypass; showJSON(); updateButtons();
+  $("version-note").textContent = {1: "v1 delay preset: external audio through the delay. Convert to v3 to add synth, filter, LFO and reverb.",
+    2: "v2 instrument preset (firmware 0.3 format). Convert to v3 for the second oscillator, resonant filter, LFO and reverb.",
+    3: "v3 instrument: all installed modules available (firmware 0.4)."}[patch.version];
+  showJSON(); updateButtons();
 }
-for (const [key, [min, max, step, label, unit]] of Object.entries({...fields, ...synthFields})) {
-  const row = document.createElement("div"); row.className = "control";
-  // All interpolated values in this template are fixed local constants.
-  const [sliderMin, sliderMax, sliderStep] = logFields.has(key) ? [0, 1000, 1] : [min, max, step];
-  row.innerHTML = `<label for="${key}">${label}<span class="unit">${unit}</span></label><input id="${key}-range" type="range" min="${sliderMin}" max="${sliderMax}" step="${sliderStep}" aria-label="${label} slider"><input id="${key}" type="number" min="${min}" max="${max}" step="any" required>`;
-  $(key in synthFields ? "synth-controls" : "controls").append(row);
-  $(key).addEventListener("input", () => { if (!patch) return; setParam(key, $(key).value === "" ? null : Number($(key).value)); $(`${key}-range`).value = toSlider(key, params()[key]); showJSON(); });
-  $(`${key}-range`).addEventListener("input", () => { $(key).value = fromSlider(key, $(`${key}-range`).value); $(key).dispatchEvent(new Event("input")); });
+function build() {
+  for (const [group, legend] of GROUPS) {
+    const set = document.createElement("fieldset"); set.id = `group-${group}`; set.className = "group-set";
+    const title = document.createElement("legend"); title.className = "group"; title.textContent = legend;
+    set.append(title); $("groups").append(set);
+  }
+  for (const c of CONTROLS) {
+    const holder = $(`group-${c.g}`);
+    if (c.type === "check") {
+      const label = document.createElement("label"); label.className = "check";
+      const box = document.createElement("input"); box.type = "checkbox"; box.id = c.id;
+      label.append(box, " " + c.label); holder.append(label);
+      box.addEventListener("change", () => { if (patch) { write(c, box.checked); showJSON(); } });
+      continue;
+    }
+    const label = document.createElement("label"); label.htmlFor = c.id; label.textContent = c.label;
+    if (c.type === "select") {
+      const select = document.createElement("select"); select.id = c.id;
+      for (const option of c.options) select.add(new Option(option.replace("_", " & "), option));
+      holder.append(label, select);
+      select.addEventListener("change", () => { if (patch) { write(c, select.value); showJSON(); } });
+      continue;
+    }
+    const row = document.createElement("div"); row.className = "control";
+    const unit = document.createElement("span"); unit.className = "unit"; unit.textContent = c.unit; label.append(unit);
+    const range = document.createElement("input"); range.type = "range"; range.id = `${c.id}-range`;
+    [range.min, range.max, range.step] = c.log ? [0, 1000, 1] : [c.min, c.max, c.step];
+    range.setAttribute("aria-label", `${c.label} slider`);
+    const number = document.createElement("input"); number.type = "number"; number.id = c.id;
+    number.min = c.min; number.max = c.max; number.step = "any"; number.required = true;
+    row.append(label, range, number); holder.append(row);
+    number.addEventListener("input", () => {
+      if (!patch) return;
+      write(c, number.value === "" ? null : Number(number.value)); range.value = toSlider(c, read(c)); showJSON();
+    });
+    range.addEventListener("input", () => { number.value = fromSlider(c, range.value); number.dispatchEvent(new Event("input")); });
+  }
 }
+build();
 $("patch-name").addEventListener("input", () => { if (patch) { patch.name = $("patch-name").value; showJSON(); } });
-$("bypass").addEventListener("change", () => { if (patch) { setParam("bypass", $("bypass").checked); showJSON(); } });
-$("routing").addEventListener("change", () => { if (patch?.version === 2) { patch.routing = $("routing").value; showJSON(); } });
-$("waveform").addEventListener("change", () => { if (patch?.version === 2) { setParam("waveform", $("waveform").value); showJSON(); } });
+$("routing").addEventListener("change", () => { if (patch && patch.version !== 1) { patch.routing = $("routing").value; showJSON(); } });
+$("upgrade").addEventListener("click", () => run("Converting to a v3 instrument…", async () => {
+  const result = await api("upgrade", {patch}); loadPatch(result.patch); $("preset").value = "";
+  notice("Converted to v3. New modules start neutral; the v3 filter is steeper, so tone may differ slightly. Nothing sent to CHOMPI.");
+}));
 $("clear-key").addEventListener("click", () => { $("api-key").value = ""; notice("API key cleared from the form."); });
 $("provider").addEventListener("change", () => { $("api-key").value = ""; $("model").value = ""; notice("Provider changed. Enter its model ID and API key."); });
 window.addEventListener("pagehide", () => { $("api-key").value = ""; });
@@ -116,7 +200,7 @@ $("send").addEventListener("click", () => run("Sending patch and waiting for ack
   notice("CHOMPI acknowledged the requested patch. Device values use 14-bit precision.");
 }));
 $("panic").addEventListener("click", () => run("Silencing CHOMPI…", async () => {
-  const result = await api("panic", ports()); deviceStatus(result); notice("Panic acknowledged. Voices and delay tail stopped; retrigger notes to play.");
+  const result = await api("panic", ports()); deviceStatus(result); notice("Panic acknowledged. Voices, delay and reverb tails stopped; retrigger notes to play.");
 }));
 async function start() {
   busy = true; updateButtons();
@@ -124,7 +208,7 @@ async function start() {
     const response = await fetch("/api/session"); if (!response.ok) throw new Error("Could not start a local session. Reload the URL printed by Forge.");
     const session = await response.json(); token = session.token; presets = session.presets;
     presets.forEach((item, index) => $("preset").add(new Option(item.name, String(index))));
-    if (presets.length) { const initial = Math.max(0, presets.findIndex(item => item.version === 2)); loadPatch(presets[initial]); $("preset").value = String(initial); }
+    if (presets.length) { const initial = Math.max(0, presets.findIndex(item => item.version === 3)); loadPatch(presets[initial]); $("preset").value = String(initial); }
     notice("Ready. Start with AI, a preset, or an imported patch.");
   } catch (error) { notice(error.message, true); }
   finally { busy = false; updateButtons(); }
