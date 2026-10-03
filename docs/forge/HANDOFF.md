@@ -20,6 +20,7 @@ live checkpoint with claim levels, what changed and prioritized next actions.
 - QA bundle: `Forge-0.4-test-4fec6ac` (includes device presets); checksums in
   CONTINUE.md "Next actions". Older ZIPs are stale.
 - Not verified: anything on hardware; any live OpenAI/Gemini request; device CPU.
+- Current state and remaining work: CONTINUE.md "Checkpoint summary".
 - Next for the agent: roadmap item 4 (sampling), design first; open DC
   decisions are listed in CONTINUE.md. QA for DC later:
   [LIVE_AI_TEST.md](LIVE_AI_TEST.md), then [TEST_SESSION.md](TEST_SESSION.md);

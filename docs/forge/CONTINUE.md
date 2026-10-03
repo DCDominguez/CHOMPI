@@ -1,6 +1,7 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-03 (UTC), candidate 0.4 (v3 instrument) checkpoint. Read this first.
+Updated 2026-10-03 (UTC), checkpoint after roadmap items 1–3 and the stock
+comparison refresh (head `cd8d6df` + this checkpoint commit). Read this first.
 
 ## Scope (unchanged, authoritative)
 
@@ -10,6 +11,33 @@ Patch changes need no recompile; new DSP algorithms need firmware work; AI never
 generates executable effects. Sampling, looping, sequencing, more engines/effects,
 flexible routing are future work (SD presets exist since 0.4). ONE consolidated hardware session.
 No main merge, flashing or real-key API calls by agents.
+
+## Checkpoint summary (2026-10-03)
+
+**Where we are.** Forge 0.4 on `forge/foundation`, software-tested only:
+- Instrument: 4-voice synth (v1/v2 legacy bit-exact; v3 palette with osc2,
+  noise, resonant filter + envelope, LFO/mod wheel, voices/glide, reverb),
+  delay, keybed + MIDI (sustain, bend, mod wheel, program change).
+- Patches: versioned SysEx v1/v2/v3, host CLI, AI webapp (OpenAI/Gemini,
+  mocked only), v2→v3 upgrade.
+- Device presets: 8 × 15 SD slots, TAPE-style key + encoder menu.
+- Stock comparison: bootloader layout, keybed, SD setup match stock; CPU
+  worst case ~53 % of WAVE's engine; ~48 KB code headroom; xPack 10.3 proven
+  equivalent to Arm 10.3 for libDaisy/DaisySP (COMPATIBILITY.md).
+- QA bundle `Forge-0.4-test-4fec6ac` is current (firmware unchanged since).
+
+**What's left.**
+- DC decisions: CC24/25 alignment + configurable MIDI channel; boot
+  behaviour (dry aux vs recall last preset); where to host QA bundles.
+- Features (PROJECT.md roadmap): 4 sampling (design first, confirm scope),
+  5 looping, 6 Tab5 controllers (optional). Smaller candidates: preset names,
+  boot recall, mono note stack, octave shift, bend range, TAPE/WAVE preset
+  import, cheaper sine for Bell Keys.
+- QA (DC, later, per feature): LIVE_AI_TEST.md (own key, own terminal), then
+  TEST_SESSION.md in one hardware session; record in TEST_RESULTS.md.
+- Hardware-unverified risks: device CPU, SD write stalls/card swap, LED
+  positions/colours, UART/USB reply timing, v3 loudness by ear, line-out vs
+  headphone level vs stock.
 
 ## Branch and publishing
 
@@ -23,8 +51,9 @@ SHA is identical, so the content is exactly that checkpoint. Verified by an
 agent on 2026-10-02 (UTC). Later commits on top: `716c6bc` (SHA record),
 `e24015c` (mitigation proposal), `0a605f6` (sound fixes, the bundle source),
 `3ea7529` (bundle record), `66b72a7` (documentation audit), `0f4290e`
-(sustain/bend), `91c11c2` (v3 engine), `79c5d9f` (v3 host/webapp), then v3
-docs. Use `git log` for the current head.
+(sustain/bend), `91c11c2` (v3 engine), `79c5d9f` (v3 host/webapp), v3
+docs, `4fec6ac` (device presets), `aef8c7c` (bundle record), `cd8d6df`
+(stock comparison refresh). Use `git log` for the current head.
 
 ### Independent reproduction, 2026-10-02 (UTC), fresh container
 
@@ -305,6 +334,8 @@ KEY_16/17 banks; CHOMPI confirms; SMT LED 25 − slot# under white keys,
    configurable input channel (see COMPATIBILITY.md §4).
 2. DC decision: boot behaviour — keep dry aux, or recall the last-used preset
    at power-up (TAPE restores its state).
+   Also pending (DC, no rush): where to host QA bundles (not in git; a
+   GitHub release attachment is one option).
 3. Agent: roadmap item 4, sampling. Design first (SDRAM buffers, SD streaming
    like TAPE's FileStreamingManager, sample maps in v4 patches, AI schema),
    then confirm scope with DC.
