@@ -11,14 +11,13 @@ Starting remote head was verified as `7e8fd1955872ed91fba9a44b76dbb145b93f677b`.
 Work stays on `forge/foundation`; PR #1 remains draft, main untouched, no flash.
 
 Publishing checkpoint: implementation commit `e1723a5d7dfd7b94ebe865c1a1e07ecfa80a3582`
-is local only. The push was rejected by GitHub with “Invalid username or token.”
-After that failure the remote still pointed to the supplied `7e8fd195…` head;
-main remained `a73d732613da684e4de844619b690776f0f50ccf`. No callable GitHub
-connector write tools were available in this chat. Repair write authentication
-before pushing; do not reset or overwrite a remote that has advanced. The exact
-development firmware, report and source patch are preserved in this chat's
-outputs; the local checkout contains the tested implementation. No remote
-publication success is claimed.
+and checkpoint commit `9e3bbf758e3e30a099285356913908731cd586e1` were published
+to `forge/foundation` after the user refreshed GitHub authentication. The remote
+was rechecked at the supplied `7e8fd195…` head before the normal fast-forward
+push; PR #1 was verified open and draft at `9e3bbf7…`. Main remained
+`a73d732613da684e4de844619b690776f0f50ccf`. No force push or merge occurred.
+The exact development firmware, report and source patch are preserved in this
+chat's outputs. Hardware verification remains pending.
 
 - [INSPECTOR.md](INSPECTOR.md) contains the audit, field availability, ownership,
   exact checks, memory measurements and the exact next physical test.
