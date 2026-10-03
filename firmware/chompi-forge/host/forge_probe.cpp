@@ -39,15 +39,15 @@ void Render(forge::Engine& engine, const char* path) {
 }
 int main(int argc, char** argv) {
     if(argc != 1 && !(argc == 3 && std::string(argv[1]) == "--render")) return 2;
-    forge::Engine engine; std::vector<float> l(48002), r(48002);
-    if(!engine.Init(48000, l.data(), r.data(), l.size())) return 2;
+    forge::Engine engine; std::vector<float> l(48002), r(48002), reverb(forge::Reverb::Required(48000));
+    if(!engine.Init(48000, l.data(), r.data(), l.size(), reverb.data(), reverb.size())) return 2;
     forge::MidiFramer parser; forge::MidiFrame frame;
     unsigned byte, replies = 0;
     while(std::cin >> std::hex >> byte) {
         if(byte > 255) return 2;
         if(!parser.Feed(static_cast<uint8_t>(byte), frame)) continue;
         if(frame.kind != forge::MidiFrame::Kind::SysEx || !forge::IsRequest(frame.data, frame.size)) continue;
-        forge::Request request; uint8_t reply[42]; size_t size;
+        forge::Request request; uint8_t reply[forge::kMaxReply]; size_t size;
         auto error = forge::DecodeRequest(frame.data, frame.size, request);
         if(error != forge::Error::None) size = forge::EncodeError(forge::Read14(frame.data + 5), error, reply);
         else {

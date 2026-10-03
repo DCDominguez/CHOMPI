@@ -37,13 +37,67 @@ void ProtocolAndAtomicity() {
         assert(DecodeRequest(packet.data(), size, request) != Error::None);
     packet[16] = 2; packet[17] = Checksum(packet.data(), 17);
     assert(DecodeRequest(packet.data(), packet.size(), request) == Error::Patch);
-    packet = Patch(); packet[7] = 3; packet[17] = Checksum(packet.data(), 17);
+    packet = Patch(); packet[7] = 4; packet[17] = Checksum(packet.data(), 17);
     assert(DecodeRequest(packet.data(), packet.size(), request) == Error::Version);
-    uint8_t reply[30]; response.error = Error::None;
+    packet = Patch(); packet[7] = 3; packet[17] = Checksum(packet.data(), 17);
+    assert(DecodeRequest(packet.data(), packet.size(), request) == Error::Length); // v3 needs 69 bytes
+    uint8_t reply[kMaxReply]; response.error = Error::None;
     response.cpu_average = 0.254f; response.cpu_max = 1.1f;
     assert(EncodeResponse(response, 99999999, 9, reply) == 30);
     assert(Checksum(reply, 30) == 0 && Read14(reply + 18) == 254);
     assert(reply[22] == 127 && reply[23] == 127 && reply[24] == 127);
+}
+// A v3 apply request with every field set to a distinct, valid value.
+std::vector<uint8_t> PatchV3() {
+    std::vector<uint8_t> packet(kMaxRequest);
+    Header(packet.data(), 1, 77); packet[7] = 3;
+    for(unsigned i = 8; i < 16; i += 2) Write14(packet.data() + i, 1000 + i * 100);
+    packet[16] = 0; packet[17] = 1; packet[18] = 2;
+    for(unsigned i = 19; i < 29; i += 2) Write14(packet.data() + i, 2000 + i * 100);
+    size_t count; const V3Field* fields = V3Fields(count);
+    for(size_t i = 0; i < count; ++i) {
+        if(fields[i].kind == 0) Write14(packet.data() + fields[i].index, 300 + 500 * unsigned(i));
+        else packet[fields[i].index] = fields[i].max;
+    }
+    packet[58] = 1; packet[59] = 2;
+    packet[68] = Checksum(packet.data(), 68);
+    return packet;
+}
+void ProtocolV3() {
+    auto packet = PatchV3(); Request request;
+    assert(DecodeRequest(packet.data(), packet.size(), request) == Error::None);
+    const Parameters& p = request.patch;
+    assert(p.version == 3 && p.synth && p.waveform == 2 && p.osc2_waveform == 3 && p.osc2_semitones == 48
+           && p.lfo_waveform == 3 && p.lfo_wheel && p.voices == 2 && p.Valid());
+    // Every v3 field must survive decode -> engine -> status encode unchanged.
+    std::vector<float> l(48002), r(48002), rv(Reverb::Required(48000)); Engine engine;
+    assert(engine.Init(48000.f, l.data(), r.data(), l.size(), rv.data(), rv.size()));
+    Response response; assert(ExecuteRequest(request, engine, response) && response.error == Error::None);
+    uint8_t reply[kMaxReply];
+    assert(EncodeResponse(response, 0, 0, reply) == kMaxReply && Checksum(reply, kMaxReply) == 0);
+    for(size_t i = 7; i < 68; ++i) assert(reply[i + 1] == packet[i]);
+    assert(reply[79] == kFirmwareMinor);
+    // Each byte field rejects one past its maximum; voices also rejects 0.
+    for(auto bad : std::vector<std::pair<unsigned, uint8_t>>{{29, 4}, {32, 49}, {49, 4}, {58, 2}, {59, 0}, {59, 5}}) {
+        auto broken = PatchV3(); broken[bad.first] = bad.second; broken[68] = Checksum(broken.data(), 68);
+        Request untouched; untouched.sequence = 5;
+        assert(DecodeRequest(broken.data(), broken.size(), untouched) == Error::Patch && untouched.sequence == 5);
+    }
+    auto shortened = PatchV3(); shortened.pop_back();
+    shortened.back() = Checksum(shortened.data(), shortened.size() - 1); // valid checksum, 68 bytes
+    assert(DecodeRequest(shortened.data(), shortened.size(), request) == Error::Length);
+    // The framer accepts a whole v3 request and rejects anything longer than kMaxSysEx.
+    MidiFramer parser; MidiFrame frame;
+    parser.Feed(0xf0, frame); for(auto b : packet) assert(!parser.Feed(b, frame));
+    assert(parser.Feed(0xf7, frame) && frame.size == packet.size());
+    parser.Feed(0xf0, frame); for(unsigned i = 0; i <= kMaxSysEx; ++i) parser.Feed(1, frame);
+    assert(!parser.Feed(0xf7, frame));
+    // The largest reply fits the firmware's USB packet buffer size.
+    uint8_t envelope[kMaxReply + 2]; envelope[0] = 0xf0; envelope[kMaxReply + 1] = 0xf7;
+    for(size_t i = 0; i < kMaxReply; ++i) envelope[i + 1] = reply[i];
+    uint8_t usb[((kMaxReply + 2 + 2) / 3) * 4];
+    assert(PackUsbSysEx(envelope, sizeof(envelope), usb, sizeof(usb)) == sizeof(usb));
+    assert(PackUsbSysEx(envelope, sizeof(envelope), usb, sizeof(usb) - 1) == 0);
 }
 void Framing() {
     MidiFramer parser; MidiFrame frame;
@@ -93,7 +147,7 @@ void UsbPacketization() {
         assert(PackUsbSysEx(message.data(), message.size(), output.data(), size - 1) == 0);
     }
 }
-int main() {
+int main() { ProtocolV3();
     ProtocolAndAtomicity(); Framing(); UsbPacketization();
-    std::cout << "PASS: protocol rejection/atomicity, MIDI real-time/resync/fuzz, USB packet endings\n";
+    std::cout << "PASS: protocol rejection/atomicity, v3 round trip/bounds, MIDI real-time/resync/fuzz, USB packet endings\n";
 }

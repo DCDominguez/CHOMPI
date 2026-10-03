@@ -40,7 +40,12 @@ void ParametersAndMidi() {
         assert(static_cast<unsigned>(command.parameter) == cc - 20u);
     }
     assert(!DecodeCC(1, 20, 127, command));
-    assert(!DecodeCC(0, 26, 127, command));
+    assert(DecodeCC(0, 26, 127, command) && command.parameter == Parameter::Resonance);
+    assert(DecodeCC(0, 27, 127, command) && command.parameter == Parameter::ReverbMix);
+    assert(!DecodeCC(0, 28, 127, command));
+    // CC26/27 are v3-only: a v1/v2 patch cannot report them in status, so they are refused.
+    Parameters legacy; assert(DecodeCC(0, 27, 100, command) && !legacy.Apply(command) && legacy.reverb_mix == 0.f);
+    Parameters v3; v3.version = 3; assert(v3.Apply(command) && v3.reverb_mix > 0.78f);
     assert(!DecodeCC(0, 20, 128, command));
     assert(DecodeCC(0, 24, 63, command) && p.Apply(command) && !p.bypass);
     assert(DecodeCC(0, 24, 64, command) && p.Apply(command) && p.bypass);

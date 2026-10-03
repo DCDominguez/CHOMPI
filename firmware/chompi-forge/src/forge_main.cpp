@@ -40,8 +40,10 @@ CpuLoadMeter cpu;
 UsbHandle usb_sender;
 // libDaisy exposes the configured device and CDC state used by its MIDI mode.
 // Keep TX memory alive until USB completion, and never rewrite it while busy.
-uint8_t usb_tx_packets[64];
-struct Outgoing { uint8_t source = 0; uint8_t bytes[44]{}; size_t size = 0; };
+// Largest reply (v3 status, 83 bytes with F0/F7) packs into 28 USB-MIDI events.
+constexpr size_t kMaxEnvelope = forge::kMaxReply + 2;
+uint8_t usb_tx_packets[((kMaxEnvelope + 2) / 3) * 4];
+struct Outgoing { uint8_t source = 0; uint8_t bytes[kMaxEnvelope]{}; size_t size = 0; };
 forge::SpscQueue<Outgoing, 32> outgoing; // producer and consumer both main loop
 Outgoing pending;
 bool has_pending = false;
@@ -56,6 +58,8 @@ forge::SpscQueue<forge::Response, 64> responses;
 constexpr size_t kDelayCapacity = 48002;
 float DSY_SDRAM_BSS delay_left[kDelayCapacity];
 float DSY_SDRAM_BSS delay_right[kDelayCapacity];
+constexpr size_t kReverbCapacity = 8704; // >= Reverb::Required(48000) = 8606
+float DSY_SDRAM_BSS reverb_memory[kReverbCapacity];
 uint32_t dropped_commands = 0, rejected_messages = 0; // main-loop owned
 
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size) {
@@ -123,9 +127,11 @@ void TransmitPending() {
     }
     bool sent = false;
     if(pending.source == 0) {
-        // A 44-byte v2 status reply takes 14.08 ms at 31250 baud; the upstream
-        // PollTx wrapper's 10 ms timeout is too short. Audio remains interrupt-driven.
-        sent = uart_midi.transport.GetUartHandle().BlockingTransmit(pending.bytes, pending.size, 25)
+        // 0.32 ms per byte at 31250 baud (83-byte v3 reply: 26.6 ms) plus 5 ms
+        // margin; the upstream PollTx wrapper's 10 ms timeout is too short.
+        // Audio remains interrupt-driven while this blocks the main loop.
+        const uint32_t timeout_ms = static_cast<uint32_t>((pending.size * 320 + 999) / 1000 + 5);
+        sent = uart_midi.transport.GetUartHandle().BlockingTransmit(pending.bytes, pending.size, timeout_ms)
             == UartHandler::Result::OK;
         if(!sent) { ++dropped_commands; has_pending = false; }
     } else {
@@ -177,7 +183,7 @@ template<typename Midi> void PollMidi(Midi& midi, uint8_t source) {
         }
         if(error != forge::Error::None) {
             ++rejected_messages;
-            uint8_t envelope[44];
+            uint8_t envelope[kMaxEnvelope];
             const size_t size = forge::EncodeError(forge::Read14(frame.data + 5), error, envelope + 1);
             Send(source, envelope, size);
         }
@@ -189,7 +195,7 @@ void SendResponses() {
     for(unsigned i = 0; i < 4 && outgoing.HasSpace() && responses.Pop(response); ++i) {
         const uint32_t dropped = dropped_commands + uart_midi.dropped.load(std::memory_order_relaxed)
             + usb_midi.dropped.load(std::memory_order_relaxed);
-        uint8_t envelope[44];
+        uint8_t envelope[kMaxEnvelope];
         const size_t size = forge::EncodeResponse(response, dropped, rejected_messages, envelope + 1);
         Send(response.source, envelope, size);
     }
@@ -220,7 +226,8 @@ int main() {
     usb_midi.transport.Init(usb_config);
     usb_midi.Listen();
 
-    if(!engine.Init(hw.seed.AudioSampleRate(), delay_left, delay_right, kDelayCapacity)) {
+    if(!engine.Init(hw.seed.AudioSampleRate(), delay_left, delay_right, kDelayCapacity,
+                    reverb_memory, kReverbCapacity)) {
         SetPthLedFloat(0, 0.1f, 0.f, 0.f);
         fill_led_data();
         while(true) { hw.LowBatteryLockoutCheck(); System::Delay(20); }

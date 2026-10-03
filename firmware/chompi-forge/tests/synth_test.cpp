@@ -275,7 +275,9 @@ void ChannelTranslation() {
     assert(feed({120, 0}) && TranslateChannel(frame, 0, request) == Ingress::Emergency);
     assert(feed({25, 127}) && TranslateChannel(frame, 0, request) == Ingress::Control
            && request.kind == RequestKind::Parameter && request.command.parameter == Parameter::Cutoff);
-    assert(feed({1, 64}) && TranslateChannel(frame, 0, request) == Ingress::Ignore);   // mod wheel: not yet
+    assert(feed({1, 64}) && TranslateChannel(frame, 0, request) == Ingress::Control
+           && request.kind == RequestKind::ModWheel && request.value == 64);
+    assert(feed({2, 64}) && TranslateChannel(frame, 0, request) == Ingress::Ignore);   // breath: unmapped
     assert(feed({0x91, 60, 100}) && TranslateChannel(frame, 0, request) == Ingress::Ignore); // channel 2
     assert(feed({0xe1, 0, 0}) && TranslateChannel(frame, 0, request) == Ingress::Ignore);
     assert(feed({0x80, 60, 30}) && TranslateChannel(frame, 2, request) == Ingress::Critical
@@ -284,7 +286,7 @@ void ChannelTranslation() {
     // Stale pedal/bend/reset are dropped by the recovery gate like notes.
     std::vector<float> l(48002), r(48002); Engine engine; assert(engine.Init(48000, l.data(), r.data(), l.size()));
     RecoveryGate gate; gate.Observe(1, engine);
-    for(auto kind : {RequestKind::Note, RequestKind::Pedal, RequestKind::Bend, RequestKind::ResetControllers}) {
+    for(auto kind : {RequestKind::Note, RequestKind::Pedal, RequestKind::Bend, RequestKind::ResetControllers, RequestKind::ModWheel}) {
         Request q; q.kind = kind; q.epoch = 0; assert(!gate.Admit(q, engine));
     }
     Request param; param.kind = RequestKind::Parameter; param.epoch = 0; assert(gate.Admit(param, engine));

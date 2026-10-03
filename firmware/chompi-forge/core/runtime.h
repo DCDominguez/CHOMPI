@@ -16,6 +16,7 @@ inline bool ExecuteRequest(const Request& request, Engine& engine, Response& res
     if(request.kind == RequestKind::Pedal) { engine.Pedal(request.source, request.value != 0); return false; }
     if(request.kind == RequestKind::Bend) { engine.Bend(request.source, request.value); return false; }
     if(request.kind == RequestKind::ResetControllers) { engine.ResetControllers(request.source); return false; }
+    if(request.kind == RequestKind::ModWheel) { engine.ModWheel(static_cast<uint8_t>(request.value)); return false; }
     response = Response{};
     response.sequence = request.sequence; response.source = request.source;
     if(request.kind == RequestKind::Patch) {
@@ -27,7 +28,7 @@ inline bool ExecuteRequest(const Request& request, Engine& engine, Response& res
 }
 inline bool IsPerformance(RequestKind kind) {
     return kind == RequestKind::Note || kind == RequestKind::Pedal || kind == RequestKind::Bend
-        || kind == RequestKind::ResetControllers;
+        || kind == RequestKind::ResetControllers || kind == RequestKind::ModWheel;
 }
 // What the main loop does with a decoded channel message (firmware and tests).
 enum class Ingress : uint8_t {
@@ -35,7 +36,7 @@ enum class Ingress : uint8_t {
     Emergency,  // CC120/123: global silence, nothing queued
     Critical,   // note/pedal/reset: losing it could leave sound stuck, so a
                 // full queue raises an emergency
-    Control,    // CC parameter or bend: a full queue only counts a drop
+    Control,    // CC parameter, bend or mod wheel: a full queue only counts a drop
 };
 inline Ingress TranslateChannel(const MidiFrame& frame, uint8_t source, Request& request) {
     request = Request{}; request.source = source;
@@ -53,6 +54,7 @@ inline Ingress TranslateChannel(const MidiFrame& frame, uint8_t source, Request&
             if(a == 120 || a == 123) return Ingress::Emergency;
             if(a == 64) { request.kind = RequestKind::Pedal; request.value = b >= 64; return Ingress::Critical; }
             if(a == 121) { request.kind = RequestKind::ResetControllers; return Ingress::Critical; }
+            if(a == 1) { request.kind = RequestKind::ModWheel; request.value = b; return Ingress::Control; }
             if(!DecodeCC(0, a, b, request.command)) return Ingress::Ignore;
             request.kind = RequestKind::Parameter;
             return Ingress::Control;

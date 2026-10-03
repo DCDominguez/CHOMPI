@@ -3,10 +3,12 @@
 #include <cstdint>
 
 namespace forge {
+// Largest SysEx payload accepted (F0/F7 excluded); v3 apply requests are 69.
+constexpr unsigned kMaxSysEx = 72;
 struct MidiFrame {
     enum class Kind : uint8_t { CC, SysEx, NoteOn, NoteOff, PitchBend };
     Kind kind = Kind::CC;
-    uint8_t data[48]{};
+    uint8_t data[kMaxSysEx]{};
     uint8_t size = 0;
 };
 
@@ -55,7 +57,7 @@ public:
         return false;
     }
 private:
-    uint8_t bytes_[48]{}, cc_[2]{};
+    uint8_t bytes_[kMaxSysEx]{}, cc_[2]{};
     uint8_t used_ = 0, status_ = 0, cc_used_ = 0;
     bool sysex_ = false, overflow_ = false;
 };
