@@ -15,8 +15,9 @@ live checkpoint with claim levels, what changed and prioritized next actions.
 - Software-tested: native, Python, sanitizer, real-Chromium browser and ARM build
   (xPack GCC 10.3.1; the pinned Arm archive was unreachable).
 - Stock comparison and CPU benchmark: [COMPATIBILITY.md](COMPATIBILITY.md)
-  (`make bench`). Reverb moved to DTCM afterwards, so the `66af4c5` bundle is
-  stale; regenerate before QA.
+  (`make bench`).
+- Current QA bundle: Forge 0.4 from `aa5df9e`, FORGE.bin sha256
+  `a40fcbe6…a622`, xPack compiler. Older ZIPs (incl. `66af4c5`) are stale.
 - Not verified: anything on hardware; any live OpenAI/Gemini request; device CPU.
 - Next for the agent: roadmap item 3 (SD preset banks), design first. QA for DC later:
   [LIVE_AI_TEST.md](LIVE_AI_TEST.md), then [TEST_SESSION.md](TEST_SESSION.md);

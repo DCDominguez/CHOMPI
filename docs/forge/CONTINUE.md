@@ -262,7 +262,12 @@ Full write-up: [COMPATIBILITY.md](COMPATIBILITY.md). Key facts for agents:
    for missing/corrupt cards, and coexistence with the bootloader's SD update
    (it loads the first `*.bin` on the root, so presets must never be `.bin`).
    Confirm with DC before choosing a physical UI for recall.
-3. Bundle: regenerate before QA (firmware changed since `66af4c5`), with the
-   pinned Arm compiler if developer.arm.com becomes reachable.
+3. Bundle: current QA bundle `Forge_0.4_Test_Candidate.zip` from `aa5df9e`
+   (tree `fcb38f19`), xPack 10.3.1 (`built_with_pinned_compiler: false`),
+   FORGE.bin sha256
+   `a40fcbe604a0e5971e8a18e1e0b22d80ae89dee20eeb949ae65da40a93a7a622`,
+   verify_bundle.py OK (43 files); given to DC in chat, not committed.
+   Regenerate after any later firmware change, and with the pinned Arm
+   compiler if developer.arm.com becomes reachable.
 4. DC (later, per feature): LIVE_AI_TEST.md, then TEST_SESSION.md; record in
    TEST_RESULTS.md. Agent then fixes only what QA finds.
