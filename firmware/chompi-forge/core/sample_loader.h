@@ -1,7 +1,6 @@
 #pragma once
 #include <atomic>
 #include <cstdint>
-#include <cstdio>
 #include <cstring>
 #include "recorder.h"
 #include "sample_table.h"
@@ -10,7 +9,15 @@
 namespace forge {
 // ---- TAPE file names: <jammi|cubbi>_<a-e><1-14>[_double].wav in the SD root ----
 inline void SamplePath(uint8_t mode, uint8_t bank, uint8_t slot, bool twice, char (&out)[24]) {
-    std::snprintf(out, sizeof out, "%s_%c%u%s.wav", mode ? "cubbi" : "jammi", 'a' + bank, slot + 1u, twice ? "_double" : "");
+    // Hand-formatted: snprintf would pull ~1.5 KB of newlib into the firmware.
+    std::memcpy(out, mode ? "cubbi_" : "jammi_", 6);
+    size_t n = 6;
+    out[n++] = static_cast<char>('a' + bank);
+    const unsigned number = slot + 1u;
+    if(number >= 10) out[n++] = static_cast<char>('0' + number / 10);
+    out[n++] = static_cast<char>('0' + number % 10);
+    if(twice) { std::memcpy(out + n, "_double", 7); n += 7; }
+    std::memcpy(out + n, ".wav", 5);
 }
 inline bool ParseSampleName(const char* name, uint8_t& mode, uint8_t& bank, uint8_t& slot) {
     char lower[32];
@@ -111,7 +118,7 @@ public:
     }
     // One step. `wanted` comes from PackSelection; `recording` is the RAM
     // slot's data for Save jobs. Returns true with `event` when a job ends.
-    bool Poll(SampleFiles& files, uint32_t wanted, const int16_t* recording, SampleEvent& event) {
+    FORGE_NOINLINE bool Poll(SampleFiles& files, uint32_t wanted, const int16_t* recording, SampleEvent& event) {
         const bool ready = files.Ready();
         if(!ready) {
             if(scanned_) { std::memset(occupancy_, 0, sizeof occupancy_); scanned_ = false; }
@@ -173,7 +180,7 @@ private:
         s.loaded.store(0, std::memory_order_release);
         s.channels = 0; s.frames = 0; s.partial = false; s.gain = 1.f; s.rate_ratio = 1.f; s.data = nullptr;
     }
-    void Scan(SampleFiles& files) {
+    FORGE_NOINLINE void Scan(SampleFiles& files) {
         std::memset(occupancy_, 0, sizeof occupancy_);
         scanned_ = files.ListRoot([](void* context, const char* name) {
             auto* self = static_cast<SampleLoader*>(context);
@@ -181,7 +188,7 @@ private:
             if(ParseSampleName(name, mode, bank, slot)) self->occupancy_[mode][bank] |= uint16_t(1u << slot);
         }, this);
     }
-    void Header(SampleFiles& files, uint8_t slot) {
+    FORGE_NOINLINE void Header(SampleFiles& files, uint8_t slot) {
         const uint8_t mode = (target_ >> 1) & 1u, bank = (target_ >> 2) & 7u;
         char path[24]; SamplePath(mode, bank, slot, false, path);
         uint32_t size = 0, got = 0;
@@ -199,7 +206,7 @@ private:
         s.partial = frames < info.Frames(); s.rate_ratio = info.rate / 48000.f; s.gain = 1.f;
         cursor_ += frames * info.channels;
     }
-    void Stream(SampleFiles& files) {
+    FORGE_NOINLINE void Stream(SampleFiles& files) {
         while(index_ < count_ && !table_->slots[list_[index_]].frames) ++index_;   // skipped headers
         if(index_ >= count_) { state_ = State::Idle; current_ = target_; return; }
         const uint8_t slot = list_[index_];
@@ -227,7 +234,7 @@ private:
         if(done + frames >= s.frames) NextSlot(files);
     }
     void NextSlot(SampleFiles& files) { files.CloseRead(); open_ = false; ++index_; }
-    void StartJob(SampleFiles& files, const int16_t* recording, SampleEvent& event) {
+    FORGE_NOINLINE void StartJob(SampleFiles& files, const int16_t* recording, SampleEvent& event) {
         job_ = jobs_[tail_]; tail_ = (tail_ + 1) % kJobs;
         progress_ = 0;
         if(job_.kind == SampleJob::Kind::Erase) {
@@ -249,7 +256,7 @@ private:
         }
         state_ = State::Job;
     }
-    bool StepJob(SampleFiles& files, const int16_t* recording, SampleEvent& event) {
+    FORGE_NOINLINE bool StepJob(SampleFiles& files, const int16_t* recording, SampleEvent& event) {
         uint32_t bytes = 0;
         if(job_.kind == SampleJob::Kind::Save) {
             const uint32_t frames_left = job_.frames - progress_;

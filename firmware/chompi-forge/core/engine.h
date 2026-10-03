@@ -73,7 +73,7 @@ public:
     unsigned ActiveVoices() const { return synth_.Active(); }
     // Called only by the audio owner, between blocks. Validate before mutation;
     // smoothing and delay state continue uninterrupted across a patch change.
-    bool ApplyPatch(const Parameters& patch) {
+    FORGE_NOINLINE bool ApplyPatch(const Parameters& patch) {
         if(!patch.Valid()) return false;
         // Structural changes (route, waveform, v1/v2 <-> v3 voice architecture) silence.
         if(patch.synth != parameters_.synth || patch.waveform != parameters_.waveform

@@ -9,6 +9,7 @@
 #include "../core/recorder.h"
 #include "../core/sample_loader.h"
 #include "sample_card.h"
+#include "../core/sampler_runtime.h"
 
 using namespace forge;
 
@@ -568,14 +569,61 @@ void SaveCopyErase() {
     rig.card.ready = false; assert(rig.loader.Queue(save)); rig.Step(); rig.Step();
     assert(!rig.events.back().ok && rig.events.size() == 7);
 }
+
+void SamplerRequests() {
+    // Opcode 08 (list) and 09 (job) decode with strict bounds.
+    uint8_t list[8]; Header(list, 8, 21); list[7] = Checksum(list, 7);
+    Request r; assert(DecodeRequest(list, 8, r) == Error::None && r.kind == RequestKind::SampleList);
+    uint8_t job[15]; Header(job, 9, 22);
+    const uint8_t fields[7] = {2, 1, 4, 13, 0, 3, 0};
+    std::memcpy(job + 7, fields, 7); job[14] = Checksum(job, 14);
+    assert(DecodeRequest(job, 15, r) == Error::None && r.kind == RequestKind::SampleJob && r.action == SampleAction::Copy
+           && r.mode == 1 && r.bank == 4 && r.slot == 13 && r.to_mode == 0 && r.to_bank == 3 && r.to_slot == 0);
+    for(auto bad : std::vector<std::pair<unsigned, uint8_t>>{{7, 3}, {8, 2}, {9, 5}, {10, 14}, {11, 2}, {12, 5}, {13, 14}}) {
+        uint8_t broken[15]; std::memcpy(broken, job, 15); broken[bad.first] = bad.second; broken[14] = Checksum(broken, 14);
+        assert(DecodeRequest(broken, 15, r) == Error::Patch);
+    }
+    uint8_t truncated[14]; std::memcpy(truncated, job, 13); truncated[13] = Checksum(truncated, 13);
+    assert(DecodeRequest(truncated, 14, r) == Error::Length);
+    // Replies: 0x44 occupancy and 0x45 job acknowledgement.
+    LoaderRig rig; rig.card.files["cubbi_e14.wav"] = TapeWav(100, 1); rig.card.files["jammi_a1.wav"] = TapeWav(100, 1); rig.Step();
+    rig.recorder.Start(); for(int i = 0; i < 4800; ++i) rig.recorder.Write(0.1f, 0.1f); rig.recorder.Stop();
+    Request list_request; list_request.sequence = 21; list_request.source = 1;
+    Response reply = SampleListReply(rig.loader, true, rig.table.slots[kRamSlot], 48000, list_request);
+    uint8_t bytes[kMaxReply]; assert(EncodeResponse(reply, 0, 0, bytes) == 36 && Checksum(bytes, 36) == 0 && bytes[4] == 0x44);
+    assert(Read14(bytes + 8) == 1 && Read14(bytes + 8 + 2 * 9) == (1u << 13) && bytes[28] == (kSampleCardReady | kSampleRecording));
+    assert((Read14(bytes + 29) | (bytes[31] << 14)) == 100 && (Read14(bytes + 32) | (bytes[34] << 14)) == 1000);
+    // Host save: locked by the audio owner (refused while recording or with no take).
+    Request save; save.kind = RequestKind::SampleJob; save.action = SampleAction::Save; save.mode = 0; save.bank = 2; save.slot = 6;
+    save.sequence = 30; save.source = 0;
+    Response locked = LockForSave(rig.recorder, save);
+    assert(locked.kind == ResponseKind::SampleSnapshot && locked.frames == 4800 && rig.recorder.Locked() && !rig.recorder.Start());
+    assert(rig.loader.Queue(SaveJob(locked))); rig.Settle(); rig.recorder.Unlock();
+    const Response done = SampleDoneReply(rig.events.back());
+    assert(done.error == Error::None && EncodeResponse(done, 0, 0, bytes) == 13 && bytes[4] == 0x45 && bytes[8] == 0
+           && bytes[9] == 0 && bytes[10] == 2 && bytes[11] == 6 && rig.card.Has("jammi_c7.wav"));
+    rig.recorder.Start(); assert(LockForSave(rig.recorder, save).error == Error::Busy); rig.recorder.Stop();
+    Recorder empty; std::vector<int16_t> m(8); SampleSlot s; empty.Init(m.data(), 4, &s, 48000.f);
+    assert(LockForSave(empty, save).error == Error::Empty);
+    // Erase/copy jobs: copy from an empty slot is refused before queueing.
+    Request copy = r; SampleJob file_job;
+    assert(FileJob(rig.loader, copy, file_job) == Error::None && file_job.kind == SampleJob::Kind::Copy);
+    copy.bank = 0; assert(FileJob(rig.loader, copy, file_job) == Error::Empty);
+    // Selecting a sample turns any patch into a sampler patch that sounds as recorded.
+    Parameters v1; const Parameters sel = SelectSample(v1, 0, 3, kRamSlot);
+    assert(sel.Valid() && sel.Sampler() && sel.sample_slot == kRamSlot && sel.sample_bank == 3 && sel.cutoff == 1.f && sel.sustain == 1.f);
+    Parameters tuned = sel; tuned.cutoff = 0.3f;
+    const Parameters kit = SelectSample(tuned, 1, 2, 5);
+    assert(kit.sample_mode == 1 && kit.sample_bank == 2 && kit.sample_slot == kRamSlot && kit.cutoff == 0.3f);  // sampler settings kept
+}
 } // namespace
 
 int main() {
     WavFormats(); WavRejections(); HeaderRoundTrip(); FactoryTapeFiles();
     ProtocolV4(); ChromaticPitch(); KitMapping(); OneShotLoopReverse(); GateAndTrigger(); LoadingAndHandoff();
     StereoVoicesAndCompatibility(); RetriggerAndFuzz();
-    Recording(); Names(); ChromaticAndKitLoading(); ProgressiveAndDetach(); PoolLimitsAndCardRemoval(); SaveCopyErase();
+    Recording(); Names(); ChromaticAndKitLoading(); ProgressiveAndDetach(); PoolLimitsAndCardRemoval(); SaveCopyErase(); SamplerRequests();
     std::cout << "PASS: WAV formats/rejections/header, factory TAPE files, v4 protocol, chromatic pitch, kit map, "
                  "one-shot/loop/reverse, gate/trigger, loading/handoff, stereo/voices/compatibility, retrigger/fuzz, "
-                 "recorder, TAPE names, chromatic/kit loading, progressive/detach, pool limits/card removal, save/copy/erase\n";
+                 "recorder, TAPE names, chromatic/kit loading, progressive/detach, pool limits/card removal, save/copy/erase, sampler requests\n";
 }

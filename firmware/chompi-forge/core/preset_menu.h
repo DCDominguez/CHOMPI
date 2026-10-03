@@ -78,7 +78,7 @@ public:
     // Key edge. Returns true if the menu consumed it (the caller must not play
     // a note). Releases are never consumed, so notes held before the menu opened
     // still end.
-    bool Key(uint8_t button, bool pressed) {
+    FORGE_NOINLINE bool Key(uint8_t button, bool pressed) {
         if(!active_ || !pressed) return false;
         if(button == panel::kPage) {
             page_ = page_ == MenuPage::Presets ? MenuPage::Samples : MenuPage::Presets;
@@ -144,7 +144,7 @@ private:
     static constexpr unsigned kActions = 4;
     bool BlackKey(uint8_t button) { return panel::BlackLed(button) != 0xff; }  // other black keys: swallowed
     void Close() { active_ = false; mode_ = MenuMode::None; selected_ = source_ = panel::kNoSlot; }
-    bool SampleKey(uint8_t button, uint8_t slot) {
+    FORGE_NOINLINE bool SampleKey(uint8_t button, uint8_t slot) {
         if(slot != panel::kNoSlot) {
             if(mode_ == MenuMode::None) {
                 if(sample_mode_ == 0) chromatic_slot_ = slot;
@@ -195,7 +195,7 @@ private:
                 source_ = slot; source_bank_ = bank_; mode_ = MenuMode::CopyDest; selected_ = panel::kNoSlot; break;
         }
     }
-    void Confirm() {
+    FORGE_NOINLINE void Confirm() {
         if(selected_ == panel::kNoSlot) return;
         if(page_ == MenuPage::Samples) {
             MenuAction a; a.mode = selected_mode_; a.bank = selected_bank_; a.slot = selected_;
@@ -252,7 +252,7 @@ private:
 
 // LED colours for the 25 key LEDs while the menu is open (main loop, pure).
 struct Rgb { float r = 0, g = 0, b = 0; };
-inline void RenderMenuLeds(uint32_t packed, uint16_t occupancy, bool card_ready, uint8_t last_bank,
+FORGE_NOINLINE inline void RenderMenuLeds(uint32_t packed, uint16_t occupancy, bool card_ready, uint8_t last_bank,
                            uint8_t last_slot, bool blink_on, Rgb (&leds)[25]) {
     for(auto& led : leds) led = Rgb{};
     if(!(packed & 1u)) return;
@@ -280,7 +280,7 @@ inline void RenderMenuLeds(uint32_t packed, uint16_t occupancy, bool card_ready,
 }
 // Samples page LEDs. occupancy: file slots of the shown mode/bank; recording:
 // the RAM slot holds a take; live: PackSelection of the playing patch.
-inline void RenderSampleLeds(uint32_t packed, uint16_t occupancy, bool card_ready, bool recording, uint32_t live,
+FORGE_NOINLINE inline void RenderSampleLeds(uint32_t packed, uint16_t occupancy, bool card_ready, bool recording, uint32_t live,
                              bool blink_on, Rgb (&leds)[25]) {
     for(auto& led : leds) led = Rgb{};
     if(!(packed & 1u)) return;

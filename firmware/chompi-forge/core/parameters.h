@@ -56,7 +56,7 @@ struct Parameters {
     bool Sampler() const { return version >= 4 && source == 1; }
     uint8_t MaxVoices() const { return version >= 4 ? 7 : 4; }
 
-    bool Valid() const {
+    FORGE_NOINLINE bool Valid() const {
         return version >= 1 && version <= 4 && waveform < 4 && !(version == 1 && synth)
             && Unit(attack) && Unit(decay) && Unit(sustain) && Unit(release) && Unit(cutoff)
             && Unit(mix) && Unit(time) && Unit(feedback) && Unit(level)
@@ -90,7 +90,7 @@ struct Parameters {
             default: return 0.f;
         }
     }
-    bool Apply(Command command) {
+    FORGE_NOINLINE bool Apply(Command command) {
         if(!std::isfinite(command.value)) return false;
         if(command.parameter >= Parameter::Knob1 && command.parameter <= Parameter::Knob4)
             command.parameter = KnobParameter(static_cast<unsigned>(command.parameter) - static_cast<unsigned>(Parameter::Knob1));

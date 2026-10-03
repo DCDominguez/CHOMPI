@@ -7,7 +7,7 @@
 namespace forge {
 // Audio-owner operation shared with the offline integration harness.
 // True means a reply is required. CPU stats are supplied by the caller.
-inline bool ExecuteRequest(const Request& request, Engine& engine, Response& response) {
+FORGE_NOINLINE inline bool ExecuteRequest(const Request& request, Engine& engine, Response& response) {
     if(request.kind == RequestKind::Parameter) {
         engine.Apply(request.command); return false;
     }

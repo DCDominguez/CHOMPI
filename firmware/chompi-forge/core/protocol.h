@@ -17,8 +17,11 @@ constexpr size_t kV3Request = 69, kMaxRequest = 84, kMaxReply = 96;
 // channel-1 performance events: no reply, dropped if queued before an emergency.
 // Store/Recall/Erase/List are host requests for device presets; the main loop
 // performs SD I/O (Store first takes a parameter snapshot from the audio owner).
+// SampleList/SampleJob (opcodes 08/09) are sampler requests: the main loop
+// answers lists and runs erase/copy; a save first locks the recording (audio).
 enum class RequestKind : uint8_t { Parameter, Patch, Status, Note, Panic, Pedal, Bend, ResetControllers, ModWheel,
-                                   Store, Recall, Erase, List };
+                                   Store, Recall, Erase, List, SampleList, SampleJob };
+enum class SampleAction : uint8_t { Save, Erase, Copy };   // opcode 09 byte 7
 struct Request {
     RequestKind kind = RequestKind::Status;
     uint8_t note = 0, velocity = 0;
@@ -30,14 +33,26 @@ struct Request {
     uint8_t epoch = 0; // main-loop emergency count when queued; never on the wire
     uint8_t bank = 0, slot = 0; // device preset address (Store/Recall/Erase), 0-based
     bool silent = false;        // apply without a reply (on-device recall)
+    // SampleJob: action, source mode/bank/slot (bank/slot above) and copy destination.
+    SampleAction action = SampleAction::Save;
+    uint8_t mode = 0, to_mode = 0, to_bank = 0, to_slot = 0;
 };
 // Status: current patch + diagnostics (op 0x40). Stored/Erased: 0x42 storage ack.
 // Occupancy: 0x43 bank bitmaps. Snapshot: internal only (audio -> main for Store).
-enum class ResponseKind : uint8_t { Status, Stored, Erased, Occupancy, Snapshot };
+// SampleOccupancy: 0x44 sample slots + recording. SampleDone: 0x45 sample job ack.
+// SampleSnapshot: internal (audio locked the recording for a host save).
+enum class ResponseKind : uint8_t { Status, Stored, Erased, Occupancy, Snapshot, SampleOccupancy, SampleDone, SampleSnapshot };
+constexpr uint8_t kSampleCardReady = 1, kSampleRecording = 2, kSampleBusy = 4;   // 0x44 flags
 struct Response {
     ResponseKind kind = ResponseKind::Status;
     uint8_t bank = 0, slot = 0;
     uint16_t occupancy[kPresetBanks]{};
+    // Sampler replies.
+    uint16_t samples[2][kSampleBanks]{};
+    uint8_t flags = 0, mode = 0;
+    SampleAction action = SampleAction::Save;
+    uint32_t record_ms = 0, capacity_ms = 0, frames = 0;
+    float gain = 1.f;
     Error error = Error::None;
     Parameters patch{};
     uint16_t sequence = 0;
@@ -84,7 +99,7 @@ inline const V3Field* V3Fields(size_t& count) {
 inline size_t PatchDataSize(uint8_t version) {
     return version == 1 ? 10 : version == 2 ? 22 : version == 3 ? kV3Request - 8 : version == 4 ? kMaxRequest - 8 : 0;
 }
-inline Error DecodePatchData(const uint8_t* data, size_t size, Parameters& out) {
+FORGE_NOINLINE inline Error DecodePatchData(const uint8_t* data, size_t size, Parameters& out) {
     if(!size || data[0] < 1 || data[0] > 4) return Error::Version;
     if(size != PatchDataSize(data[0])) return Error::Length;
     for(size_t i = 0; i < size; ++i) if(data[i] > 127) return Error::Patch;
@@ -130,7 +145,7 @@ inline bool IsRequest(const uint8_t* bytes, size_t size) {
     return size >= 7 && bytes[0] == 0x7d && bytes[1] == 'F'
         && bytes[2] == 'G' && bytes[4] < 0x40;
 }
-inline Error DecodeRequest(const uint8_t* bytes, size_t size, Request& out) {
+FORGE_NOINLINE inline Error DecodeRequest(const uint8_t* bytes, size_t size, Request& out) {
     if(!IsRequest(bytes, size) || size < 8) return Error::Length;
     for(size_t i = 0; i < size; ++i) if(bytes[i] > 127) return Error::Patch;
     if(bytes[3] != kProtocolVersion) return Error::Version;
@@ -151,6 +166,16 @@ inline Error DecodeRequest(const uint8_t* bytes, size_t size, Request& out) {
     } else if(bytes[4] == 7) {                       // list occupied slots
         if(size != 8) return Error::Length;
         candidate.kind = RequestKind::List;
+    } else if(bytes[4] == 8) {                       // list samples
+        if(size != 8) return Error::Length;
+        candidate.kind = RequestKind::SampleList;
+    } else if(bytes[4] == 9) {                       // sample job: action, mode, bank, slot, to mode/bank/slot
+        if(size != 15) return Error::Length;
+        if(bytes[7] > 2 || bytes[8] > 1 || bytes[9] >= kSampleBanks || bytes[10] >= kRamSlot
+           || bytes[11] > 1 || bytes[12] >= kSampleBanks || bytes[13] >= kRamSlot) return Error::Patch;
+        candidate.kind = RequestKind::SampleJob; candidate.action = static_cast<SampleAction>(bytes[7]);
+        candidate.mode = bytes[8]; candidate.bank = bytes[9]; candidate.slot = bytes[10];
+        candidate.to_mode = bytes[11]; candidate.to_bank = bytes[12]; candidate.to_slot = bytes[13];
     } else if(bytes[4] == 2) {
         if(size != 8) return Error::Length;
         candidate.kind = RequestKind::Status;
@@ -180,7 +205,7 @@ inline size_t EncodeError(uint16_t sequence, Error error, uint8_t* bytes) {
 }
 // All sizes here exclude MIDI's F0/F7 envelope. Caller supplies >= kMaxReply bytes.
 // Writes patch DATA (see DecodePatchData); returns its size.
-inline size_t EncodePatchData(const Parameters& p, uint8_t* data) {
+FORGE_NOINLINE inline size_t EncodePatchData(const Parameters& p, uint8_t* data) {
     auto at = [data](size_t request_index) { return data + request_index - 7; };
     data[0] = p.version;
     WriteNormalized(at(8), p.mix);
@@ -211,7 +236,7 @@ inline size_t EncodePatchData(const Parameters& p, uint8_t* data) {
     }
     return PatchDataSize(p.version);
 }
-inline size_t EncodeResponse(const Response& response, uint32_t dropped,
+FORGE_NOINLINE inline size_t EncodeResponse(const Response& response, uint32_t dropped,
                              uint32_t rejected, uint8_t* bytes) {
     if(response.error != Error::None) return EncodeError(response.sequence, response.error, bytes);
     if(response.kind == ResponseKind::Stored || response.kind == ResponseKind::Erased) {
@@ -220,6 +245,23 @@ inline size_t EncodeResponse(const Response& response, uint32_t dropped,
         bytes[9] = response.bank; bytes[10] = response.slot;
         bytes[11] = Checksum(bytes, 11);
         return 12;
+    }
+    if(response.kind == ResponseKind::SampleOccupancy) {
+        Header(bytes, 0x44, response.sequence);
+        bytes[7] = 0;
+        for(unsigned m = 0; m < 2; ++m) for(unsigned b = 0; b < kSampleBanks; ++b)
+            Write14(bytes + 8 + 2 * (m * kSampleBanks + b), response.samples[m][b] & 0x3fff);
+        bytes[28] = response.flags & 7u;
+        Write21(bytes + 29, response.record_ms); Write21(bytes + 32, response.capacity_ms);
+        bytes[35] = Checksum(bytes, 35);
+        return 36;
+    }
+    if(response.kind == ResponseKind::SampleDone) {
+        Header(bytes, 0x45, response.sequence);
+        bytes[7] = 0; bytes[8] = static_cast<uint8_t>(response.action);
+        bytes[9] = response.mode; bytes[10] = response.bank; bytes[11] = response.slot;
+        bytes[12] = Checksum(bytes, 12);
+        return 13;
     }
     if(response.kind == ResponseKind::Occupancy) {
         Header(bytes, 0x43, response.sequence);

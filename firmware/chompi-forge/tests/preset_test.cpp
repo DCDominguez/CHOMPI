@@ -261,7 +261,7 @@ void Protocol() {
     m = make(4, {8, 0}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Patch);
     m = make(5, {0, 15}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Patch);
     m = make(4, {0}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Length);
-    m = make(8, {}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Opcode);
+    m = make(10, {}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Opcode);   // 08/09 are sampler opcodes
     // Replies.
     uint8_t out[kMaxReply];
     Response ack; ack.kind = ResponseKind::Stored; ack.sequence = 99; ack.bank = 3; ack.slot = 4;

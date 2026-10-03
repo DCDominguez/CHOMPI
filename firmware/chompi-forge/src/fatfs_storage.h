@@ -3,6 +3,7 @@
 #include "fatfs.h"
 #include "diskio.h"
 #include "../core/preset_store.h"
+#include "../core/sample_loader.h"
 
 // forge::Storage on the CHOMPI SD card via libDaisy FatFS. Main loop only.
 // Writes go to FORGE/TMP.FPR, are synced, then renamed over the slot file, so
@@ -40,4 +41,65 @@ public:
 private:
     FIL file_;
     bool mounted_ = false;
+};
+
+// forge::SampleFiles on the same mounted card (main loop only): one read and
+// one write handle, root listing for TAPE's sample names. Callers' buffers
+// must be DMA-reachable (D1 SRAM, not DTCM).
+class FatFsSampleFiles : public forge::SampleFiles {
+public:
+    explicit FatFsSampleFiles(FatFsStorage& mount) : mount_(mount) {}
+    bool Ready() override { return mount_.Ready(); }
+    bool OpenRead(const char* path, uint32_t& size) override {
+        if(!Ready() || reading_ || f_open(&read_, path, FA_OPEN_EXISTING | FA_READ) != FR_OK) return false;
+        reading_ = true; size = static_cast<uint32_t>(f_size(&read_));
+        return true;
+    }
+    bool ReadAt(uint32_t offset, uint8_t* buffer, uint32_t size, uint32_t& got) override {
+        if(!reading_ || (f_tell(&read_) != offset && f_lseek(&read_, offset) != FR_OK)) return false;
+        UINT read = 0;
+        if(f_read(&read_, buffer, size, &read) != FR_OK) return false;
+        got = read;
+        return true;
+    }
+    void CloseRead() override { if(reading_) { f_close(&read_); reading_ = false; } }
+    bool OpenWrite(const char* temp) override {
+        if(!Ready() || writing_ || f_open(&write_, temp, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) return false;
+        writing_ = true;
+        return true;
+    }
+    bool Append(const uint8_t* data, uint32_t size) override {
+        UINT written = 0;
+        return writing_ && f_write(&write_, data, size, &written) == FR_OK && written == size;
+    }
+    bool FinishWrite(const char* temp, const char* final_path) override {
+        if(!writing_) return false;
+        writing_ = false;
+        const bool synced = f_sync(&write_) == FR_OK;
+        f_close(&write_);
+        if(!synced) { f_unlink(temp); return false; }
+        f_unlink(final_path);              // FatFS rename does not replace
+        return f_rename(temp, final_path) == FR_OK;
+    }
+    void AbortWrite(const char* temp) override {
+        if(writing_) { f_close(&write_); writing_ = false; }
+        f_unlink(temp);
+    }
+    bool Remove(const char* path) override {
+        if(!Ready()) return false;
+        const FRESULT result = f_unlink(path);
+        return result == FR_OK || result == FR_NO_FILE;
+    }
+    bool ListRoot(void (*visit)(void*, const char*), void* context) override {
+        DIR dir; FILINFO info;
+        if(!Ready() || f_opendir(&dir, "/") != FR_OK) return false;
+        while(f_readdir(&dir, &info) == FR_OK && info.fname[0])
+            if(!(info.fattrib & (AM_DIR | AM_HID))) visit(context, info.fname);
+        f_closedir(&dir);
+        return true;
+    }
+private:
+    FatFsStorage& mount_;
+    FIL read_, write_;
+    bool reading_ = false, writing_ = false;
 };
