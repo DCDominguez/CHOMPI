@@ -24,10 +24,21 @@ Checks 2026-10-03: `make test` 9 native suites PASS, Python tests OK; `make
 sanitize` 9 PASS (detect_leaks=0); `make browser-test` OK; `make bench
 --check` PASS (looper worst case 2,555 ≤ WAVE 2,695); ARM release 223,444 B
 (77.4 %) and development 239,632 B with the layout check; SDRAM 99.4 %.
-Exact figures in the commit messages. Hardware: none. Risks: real CPU of 7
-voices + looper (6.2d decides the cap), SDRAM bandwidth, KEY_27/28 and LEDs
-7/8 (taken from TAPE's source), loudness of overdub stacking.
+Exact figures in the commit messages. Hardware: none.
 
+Kits from `b7d098b` (xPack GCC 10.3.1), both `verify_bundle.py` OK and both
+images pass the layout check. **Use these for the hardware session**; older
+kits lack the looper (1d1618e) or the boot fix (50cdc4b, b7a504a):
+- `Forge-Bridge-dev-b7d098b.zip` 26,351,953 B, sha256 `e7044fc0…bbd42ad41`,
+  FORGE.bin (development) `8f680063…361e29`, 1,290 files.
+- `Forge-0.5-test-b7d098b.zip` 3,526,677 B, sha256 `12ed81f4…a31c268e`,
+  FORGE.bin (release) `2181994c…b3f23a`, 65 files.
+
+Risks: real CPU of 7 voices + looper (6.2d decides the cap), SDRAM
+bandwidth, KEY_27/28 and LEDs 7/8 (taken from TAPE's source), loudness of
+overdub stacking.
+
+## Previous checkpoint: boot fix and cleanup, 2026-10-03
 
 DC asked to review the new community CHOMPI firmware forks (sfaber02,
 lnetzel, ugrossek, xNeoclox, sthompsonjr; upstream CHOMPI-Club unchanged) and
