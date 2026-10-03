@@ -5,7 +5,8 @@ APP_TYPE = BOOT_SRAM
 WAVE = ../../chompi-wave/code
 LIBDAISY_DIR = $(WAVE)/libs/libDaisy
 LIBDIR = -L../build/libdaisy
-LDSCRIPT = $(WAVE)/src/chompi_sram.lds
+# TEMPO's code/data split (see forge_sram.lds).
+LDSCRIPT = forge_sram.lds
 CPP_SOURCES = forge_main.cpp $(WAVE)/src/encoder.cpp
 # Device presets on the SD card.
 USE_FATFS = 1

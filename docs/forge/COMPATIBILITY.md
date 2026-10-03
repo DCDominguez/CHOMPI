@@ -54,9 +54,10 @@ All four apps link as BOOT_SRAM into the 512 KB D1 SRAM, split differently:
 | --- | --- | --- | --- |
 | TAPE | 235.25 KB | 276.75 KB | Factory image leaves 376 B of code space |
 | TEMPO | 282 KB | 230 KB | xPack build: 89.5 % code, 70 % data, 50 % DTCM, 11 % SDRAM |
-| WAVE | 232 KB | 280 KB | Forge uses this linker script |
+| WAVE | 232 KB | 280 KB | Forge used this linker script until 0.5 |
 | Forge 0.4 (`4fec6ac`) | 232 KB (79 % used) | 280 KB (23 %) | ~48 KB code headroom; DTCM 27 %, SDRAM 0.6 % |
 | Forge 0.5 (sampler) | 232 KB (89.7 % used) | 280 KB (32 %) | ~24 KB code headroom; SDRAM 88 % (40 MB pool + 16 MB recording; TAPE uses ~64 MB the same way) |
+| Forge 0.5, TEMPO split (`src/forge_sram.lds`) | 282 KB (73.8 %) | 230 KB (39 %) | ~75 KB code headroom; same image layout and entry rules; bootloader v6.2 copies images up to 480 KB |
 
 The stock apps keep their reverb in DTCM (`DSY_DTCMRAM_BSS`). Forge now does
 the same: its 34 KB reverb moved from SDRAM to DTCM (26.6 % of DTCM), because

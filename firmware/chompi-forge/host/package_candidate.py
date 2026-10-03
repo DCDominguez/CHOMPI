@@ -26,7 +26,8 @@ def main():
     if len(commit) != 40 or any(c not in "0123456789abcdef" for c in commit):
         raise SystemExit("Invalid source commit")
     elf, binary = ROOT / "src/build/FORGE.elf", ROOT / "src/build/FORGE.bin"
-    sources = [*(ROOT / "core").glob("*.h"), ROOT / "src/forge_main.cpp", ROOT / "src/Makefile"]
+    sources = [*(ROOT / "core").glob("*.h"), ROOT / "src/forge_main.cpp", ROOT / "src/Makefile",
+               ROOT / "src/forge_sram.lds", ROOT / "src/fatfs_storage.h"]
     if not binary.is_file() or binary.stat().st_mtime < max(p.stat().st_mtime for p in sources):
         raise SystemExit("FORGE.bin is missing or older than firmware sources; run make firmware first")
     # Record the compiler that actually built this binary (GCC writes it into .comment).
