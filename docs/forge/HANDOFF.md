@@ -4,7 +4,10 @@ Updated 2026-10-03 (UTC). **Read [CONTINUE.md](CONTINUE.md) first**; it is the
 live checkpoint with claim levels, what changed and prioritized next actions.
 
 Latest addition: [Forge Inspector](INSPECTOR.md), development-only shared telemetry
-and read-only host viewer. See CONTINUE's current checkpoint for the 8 native
+and the [browser hardware test bridge](BRIDGE.md), with guided checks, controls,
+session exports and a Windows launcher. Latest host validation: 73 Python and
+14 real Chromium tests pass. Firmware is unchanged by the bridge increment.
+See CONTINUE's prior checkpoint for the 8 native
 passes, 61/62 Windows Python result (baseline-reproduced HTTP-body failure), ARM
 builds, release byte-identity and pending physical tests. No hardware was tested.
 

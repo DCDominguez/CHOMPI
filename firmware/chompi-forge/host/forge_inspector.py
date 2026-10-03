@@ -183,7 +183,7 @@ def collect(fetch, cursor=0):
                         "sample_pool_capacity_bytes":pages[5]["pool_capacity_bytes"],
                         "record_buffer_capacity_bytes":pages[5]["record_capacity_frames"]*4}
     modules=patch.get("modules",{})
-    sampler=modules.get("sampler",{}) if patch.get("routing",[""])[0]=="sampler" else {}
+    sampler=modules.get("sampler",{}) if patch.get("routing","").split(">")[0]=="sampler" else {}
     pages[3]["logical_parameters"]=(
         {"knob1_pitch_semitones":sampler.get("pitch_semitones"),"knob2_start":sampler.get("start"),
          "knob3_end":sampler.get("end"),"knob4_mix":modules.get("delay",{}).get("mix")}
@@ -202,7 +202,7 @@ def collect(fetch, cursor=0):
 def display(s, recent=()):
     sys,panel,engine,storage=(s[k] for k in ("system","panel","engine","storage"))
     cpu="unavailable" if sys["cpu_average_percent"] is None else f'{sys["cpu_average_percent"]:.1f}% avg / {sys["cpu_peak_percent"]:.1f}% peak'
-    mode=engine["patch"].get("routing",["aux"])[0]
+    mode=engine["patch"].get("routing","aux").split(">")[0]
     lines=[f'Forge Inspector v1 | snapshot {s["generation"]} | {"SIMULATION" if sys["simulated"] else "DEVICE"}',
            f'SYSTEM  firmware {sys["firmware"]}, protocol {sys["protocol"]}, uptime {sys["uptime_ms"]/1000:.1f}s',
            f'        audio {cpu}; state age {(sys["uptime_ms"]-sys["audio_time_ms"])&0xffffffff}ms; underruns unavailable',

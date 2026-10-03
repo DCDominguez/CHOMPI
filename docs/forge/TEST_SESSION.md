@@ -44,6 +44,13 @@ when recording from it (3D); keep headphones on so the speaker cannot feed back.
 
 ## 1A. Inspector development candidate (before the normal audio checks)
 
+The [hardware test bridge](BRIDGE.md) provides this checklist in the browser,
+with observations, state evidence and exports. Start `python host/forge_web.py
+--open` (one line), select ports and Connect. Enable test controls only for
+explicit actions. It coordinates polling with its own patch/MIDI/storage tests.
+Disconnect before running the separate `H` CLI commands below. The terminal
+Inspector remains an alternative; do not run both clients together.
+
 Use the development `src/build-dev/FORGE.bin` for this session if inspecting
 hardware. Release rejects probe reads; keep the two candidates separate and
 record the exact binary hash. [Inspector guide](INSPECTOR.md) explains the

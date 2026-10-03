@@ -18,6 +18,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output")
     parser.add_argument("--source-commit", help="Remote commit when uploaded through the GitHub connector")
+    parser.add_argument("--development", action="store_true", help="Package the Inspector development firmware")
+    parser.add_argument("--include-probe", action="store_true", help="Include this platform's simulation executable")
     args = parser.parse_args()
     if subprocess.check_output(["git", "status", "--porcelain"], cwd=REPO, text=True).strip():
         raise SystemExit("Commit the tested source before packaging")
@@ -25,7 +27,8 @@ def main():
     commit = args.source_commit or subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip()
     if len(commit) != 40 or any(c not in "0123456789abcdef" for c in commit):
         raise SystemExit("Invalid source commit")
-    elf, binary = ROOT / "src/build/FORGE.elf", ROOT / "src/build/FORGE.bin"
+    build_dir = ROOT / ("src/build-dev" if args.development else "src/build")
+    elf, binary = build_dir / "FORGE.elf", build_dir / "FORGE.bin"
     sources = [*(ROOT / "core").glob("*.h"), ROOT / "src/forge_main.cpp", ROOT / "src/Makefile",
                ROOT / "src/forge_sram.lds", ROOT / "src/fatfs_storage.h"]
     if not binary.is_file() or binary.stat().st_mtime < max(p.stat().st_mtime for p in sources):
@@ -36,7 +39,7 @@ def main():
         raise SystemExit("Cannot identify the compiler in FORGE.elf")
     compiler = elf.read_bytes()[marker:marker + 120].split(b"\0")[0].decode("ascii", "replace")
     files = {
-        "README.md": (REPO / "docs/forge/TEST_SESSION.md").read_bytes(),
+        "README.md": (REPO / ("docs/forge/BRIDGE.md" if args.development else "docs/forge/TEST_SESSION.md")).read_bytes(),
         "firmware/FORGE.bin": binary.read_bytes(),
         "verify_bundle.py": (ROOT / "host/verify_bundle.py").read_bytes(),
         "docs/LIVE_AI_TEST.md": (REPO / "docs/forge/LIVE_AI_TEST.md").read_bytes(),
@@ -48,8 +51,14 @@ def main():
         "THIRD_PARTY.md": (REPO / "THIRD_PARTY.md").read_bytes(),
         "TRADEMARKS.md": (REPO / "TRADEMARKS.md").read_bytes(),
     }
-    for name in ("forge_host.py", "forge_ai.py", "forge_ai_check.py", "forge_web.py", "requirements.txt", "README.md"):
+    for name in ("forge_host.py", "forge_ai.py", "forge_ai_check.py", "forge_web.py", "forge_bridge.py",
+                 "forge_inspector.py", "bridge_checks.json", "start_bridge.cmd", "requirements.txt", "README.md"):
         files["host/" + name] = (ROOT / "host" / name).read_bytes()
+    for name in ("BRIDGE.md", "INSPECTOR.md", "TEST_SESSION.md"):
+        files["docs/" + name] = (REPO / "docs/forge" / name).read_bytes()
+    probe = ROOT / "build" / ("forge_probe.exe" if sys.platform == "win32" else "forge_probe")
+    if args.include_probe:
+        files["build/" + probe.name] = probe.read_bytes()
     for path in sorted((ROOT / "host/web").iterdir()):
         if path.is_file():
             files["host/web/" + path.name] = path.read_bytes()
@@ -63,10 +72,12 @@ def main():
         files["presets/" + path.name] = path.read_bytes()
         render = ROOT / "build" / (path.stem + "-simulated.wav")
         midi = bytes([0xF0, *forge_host.encode_patch(patch, 1), 0xF7]).hex(" ")
-        subprocess.run([str(ROOT / "build/forge_probe"), "--render", str(render)],
+        subprocess.run([str(probe), "--render", str(render)],
                        input=midi, text=True, check=True, capture_output=True, timeout=10)
         files["audio-reference/" + render.name] = render.read_bytes()
-    manifest = {"candidate": "Forge 0.5", "hardware_verified": False,
+    manifest = {"candidate": "Forge Bridge 0.5 development" if args.development else "Forge 0.5", "hardware_verified": False,
+                "development_hooks": args.development,
+                "simulation_platform": sys.platform if args.include_probe else None,
                 "source_commit": commit, "source_tree": source_tree,
                 "source_url": f"https://github.com/DCDominguez/CHOMPI/tree/{commit}",
                 "compiler": compiler,
@@ -78,9 +89,10 @@ def main():
     files["manifest.json"] = (json.dumps(manifest, indent=2) + "\n").encode()
     with zipfile.ZipFile(args.output, "x", compression=zipfile.ZIP_DEFLATED) as archive:
         for name, data in sorted(files.items()):
-            info = zipfile.ZipInfo(f"Forge-0.5-test-{commit[:7]}/" + name, date_time=(2026, 10, 2, 0, 0, 0))
+            prefix = "Forge-Bridge-dev" if args.development else "Forge-0.5-test"
+            info = zipfile.ZipInfo(f"{prefix}-{commit[:7]}/" + name, date_time=(2026, 10, 3, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
-            info.external_attr = 0o100644 << 16
+            info.external_attr = (0o100755 if name.startswith("build/") else 0o100644) << 16
             archive.writestr(info, data)
     print(json.dumps({"file": str(Path(args.output).resolve()), "source_tree": source_tree,
                       "firmware_sha256": manifest["files"]["firmware/FORGE.bin"]["sha256"]}))

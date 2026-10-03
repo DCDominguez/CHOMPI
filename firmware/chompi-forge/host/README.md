@@ -6,6 +6,11 @@ Use `python3` instead of `python` if that is your Python executable.
 
 ## Development Forge Inspector
 
+For the complete browser test workflow, use `python host/forge_web.py --open`
+and open `/inspector`, or double-click `host/start_bridge.cmd` on Windows.
+The [bridge guide](../../../docs/forge/BRIDGE.md) covers live state, test controls,
+the 62 physical checks, session reports and optional C++ simulation.
+
 For the physical hardware test, build `firmware-dev` and run
 `python host/forge_inspector.py --input "IN" --output "OUT" --watch --record session.jsonl`.
 This read-only viewer shows SYSTEM, PANEL, ENGINE, STORAGE and a retained event

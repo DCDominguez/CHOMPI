@@ -23,6 +23,10 @@ the separate recording buffer. A partly loaded slot can already play.
 
 ## Run the Inspector
 
+The [browser hardware test bridge](BRIDGE.md) now provides a dashboard, explicit
+test controls, guided checks and report export using this same telemetry model.
+The read-only terminal workflow below remains available.
+
 Build the development firmware with `make -C firmware/chompi-forge firmware-dev`
 and the documented GCC_PATH. The Inspector requires this build; release firmware
 rejects development opcodes. The development binary is

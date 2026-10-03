@@ -6,13 +6,19 @@ import json
 from pathlib import Path
 import secrets
 import threading
+import time
+import webbrowser
 
 import forge_ai
 import forge_host as host
+import forge_bridge
 
 ROOT = Path(__file__).resolve().parent
 ASSETS = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"),
-          "/style.css": ("style.css", "text/css")}
+          "/style.css": ("style.css", "text/css"),
+          "/inspector": ("inspector.html", "text/html"),
+          "/inspector.js": ("inspector.js", "text/javascript"),
+          "/inspector.css": ("inspector.css", "text/css")}
 
 
 def validate_samples(samples):
@@ -33,7 +39,7 @@ def validate_samples(samples):
 class ForgeServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, port=8765):
+    def __init__(self, port=8765, probe=None):
         super().__init__(("127.0.0.1", port), Handler)
         self.authority = f"127.0.0.1:{self.server_port}"
         self.origin = "http://" + self.authority
@@ -42,6 +48,11 @@ class ForgeServer(ThreadingHTTPServer):
         self.token = secrets.token_urlsafe(32)
         self.midi_lock = threading.Lock()
         self.ai_lock = threading.Lock()
+        self.bridge = forge_bridge.Bridge(self.midi_lock, probe)
+
+    def server_close(self):
+        self.bridge.close()
+        super().server_close()
 
     def handle_error(self, request, client_address):
         # Never dump request bodies, provider responses or credentials to stderr.
@@ -71,6 +82,20 @@ class Handler(BaseHTTPRequestHandler):
                          "frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
         self.end_headers()
         self.wfile.write(data)
+        # Closing a Windows socket with unread POST bytes can reset the connection
+        # before the client receives the rejection. Drain a bounded amount only,
+        # after sending the response; never parse rejected bodies or log them.
+        if status >= 400 and self.command == "POST" and not getattr(self, "body_read", False):
+            try:
+                remaining = min(max(0, int(self.headers.get("Content-Length", "0"))), 65537)
+                deadline = time.monotonic() + .25
+                while remaining > 0 and time.monotonic() < deadline:
+                    self.connection.settimeout(max(.001, deadline-time.monotonic()))
+                    chunk = self.rfile.read1(min(remaining, 16384))
+                    if not chunk: break
+                    remaining -= len(chunk)
+            except (ValueError, OSError):
+                pass
 
     def allowed(self):
         host = self.headers.get("Host")
@@ -86,7 +111,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, (ROOT / "web" / filename).read_bytes(), mime)
         if self.path == "/api/session":
             return self.reply(200, {"token": self.server.token,
-                "presets": [host.load_patch(p) for p in sorted((ROOT.parent / "presets").glob("*.json"))]})
+                "presets": [host.load_patch(p) for p in sorted((ROOT.parent / "presets").glob("*.json"))],
+                "checks": forge_bridge.CHECKS, "simulation_available": bool(self.server.bridge.probe)})
         return self.reply(404, {"error": "Not found"})
 
     def do_POST(self):
@@ -99,10 +125,14 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", "0"))
             if not 0 < length <= 65536:
                 raise ValueError("Request must be 1–65536 bytes")
-            body = host.parse_json(self.rfile.read(length).decode("utf-8"))
+            raw_body = self.rfile.read(length)
+            self.body_read = True
+            body = host.parse_json(raw_body.decode("utf-8"))
             if not isinstance(body, dict):
                 raise ValueError("Request must be an object")
-            if self.path == "/api/validate":
+            if self.path.startswith("/api/bridge/"):
+                result = self.server.bridge.request(self.path.removeprefix("/api/bridge/"), body)
+            elif self.path == "/api/validate":
                 result = {"patch": host.validate_patch(body.get("patch"))}
             elif self.path == "/api/upgrade":
                 to = body.get("to", 3)
@@ -171,11 +201,16 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--probe", type=Path, help="Enable labelled simulation using a local forge_probe executable")
+    parser.add_argument("--open", action="store_true", help="Open the hardware test bridge in your browser")
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error("port must be 1–65535")
-    with ForgeServer(args.port) as server:
+    if args.probe and not args.probe.is_file(): parser.error("Probe executable does not exist")
+    with ForgeServer(args.port, args.probe.resolve() if args.probe else None) as server:
         print(f"Forge: {server.origin} (Ctrl+C to stop)", flush=True)
+        print(f"Hardware test bridge: {server.origin}/inspector", flush=True)
+        if args.open: webbrowser.open(server.origin + "/inspector")
         try:
             server.serve_forever()
         except KeyboardInterrupt:

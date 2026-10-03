@@ -5,6 +5,40 @@ firmware 0.5). Read this first.
 
 ## Current checkpoint: Forge Inspector, 2026-10-03
 
+### Browser hardware test bridge (supersedes terminal-only delivery below)
+
+Starting head `4aa4d82da7f778d42f6e586b2904e1eb5625fb3e` was confirmed remotely.
+The user requested the full test workflow. [BRIDGE.md](BRIDGE.md) describes the
+new `/inspector` page and Windows launcher: four live state groups, physical and
+logical keys, encoders, LED shadow, voices, events, explicit patch/panel/MIDI/
+storage controls, 62 guided hardware checks, notes and JSON/JSONL session export.
+One server session owns MIDI for all pages/actions; timeout disconnects without
+retry. Override/pedal cleanup is best-effort on disconnect or browser expiry.
+Reports retain 1,200 trace records plus all check evidence, and expose omissions.
+Simulation uses the same C++ probe and decoder, remains visibly labelled, and
+never establishes a physical pass. The same browser tab can recover reports
+after reload. The Windows launcher creates an ignored local Python environment
+and uses OS certificate trust when installing pinned MIDI dependencies.
+
+Host fixes: correctly parse string routing for sampler knob labels; bounded
+draining of rejected HTTP bodies resolves Windows resets without weakening the
+existing 400/403 assertions. The original terminal-only checkpoint's HTTP test
+failure is now fixed. No firmware/protocol/DSP changes in this increment.
+
+Validation: 73/73 Python tests PASS (11 bridge tests); 3/3 new Chromium bridge
+tests and 11/11 existing workshop Chromium tests PASS. Desktop/mobile layouts,
+injection versus physical labels, report downloads/reload, MIDI cleanup,
+exclusive access, storage writes, timeout and bounded retention exercised with
+the real C++ simulator. No live AI or physical CHOMPI test was performed.
+Firmware hashes remain unchanged: development `c2a4fb3dc91b6e7046a45be31cb02ddd010ee5c7c903e3ed748c162ca3ee87df`,
+release `f0a18b13d95a328f92b060f35d746ae7f4b32781959d25a17e0954d5b7b682e1`.
+No ARM rebuild required for host-only work; earlier build evidence remains valid.
+Development footprint 229,912 B / D1 SRAM 96,564 B; release 213,952 B / 92,588 B.
+Next: try the labelled simulation UI, then run the consolidated physical session
+with the development candidate, starting with C3 and SW4, followed by Glass Keys.
+
+### Prior telemetry implementation and validation
+
 This checkpoint supersedes the earlier validation/size figures below.
 User scope for this session was observability, with no new musical/DSP features.
 Starting remote head was verified as `7e8fd1955872ed91fba9a44b76dbb145b93f677b`.

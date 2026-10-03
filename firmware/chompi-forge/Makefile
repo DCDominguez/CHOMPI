@@ -70,6 +70,7 @@ firmware-dev: libdaisy
 # Needs: pip install playwright && python3 -m playwright install chromium
 browser-test: build/forge_probe
 	python3 tests/browser_e2e.py
+	python3 tests/bridge_browser_e2e.py
 
 # CPU benchmark: Forge vs stock TAPE / TEMPO / WAVE DSP, as ARM instruction
 # counts in an emulator (see bench/run_bench.py for what this does and does not

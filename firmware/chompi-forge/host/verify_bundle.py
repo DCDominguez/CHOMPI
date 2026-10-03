@@ -20,7 +20,8 @@ def verify(folder):
         if len(data) != expected["bytes"] or hashlib.sha256(data).hexdigest() != expected["sha256"]:
             problems.append(f"changed: {name}")
     extra = {p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file()} - listed - {"manifest.json"}
-    problems += [f"unlisted: {name}" for name in sorted(extra) if "__pycache__" not in name]
+    problems += [f"unlisted: {name}" for name in sorted(extra)
+                 if "__pycache__" not in name and not name.startswith("host/.bridge-venv/")]
     return manifest, problems
 
 
