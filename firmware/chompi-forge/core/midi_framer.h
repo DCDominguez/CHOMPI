@@ -4,7 +4,7 @@
 
 namespace forge {
 // Largest SysEx payload accepted (F0/F7 excluded); v3 apply requests are 69.
-constexpr unsigned kMaxSysEx = 72;
+constexpr unsigned kMaxSysEx = 88;   // v4 apply request (84) + margin
 struct MidiFrame {
     enum class Kind : uint8_t { CC, SysEx, NoteOn, NoteOff, PitchBend, ProgramChange };
     Kind kind = Kind::CC;

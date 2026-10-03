@@ -45,10 +45,16 @@ public:
     }
     bool Apply(Command command) {
         if(!parameters_.Apply(command)) return false;
-        if(command.parameter == Parameter::Cutoff || command.parameter == Parameter::Resonance)
-            synth_.Configure(parameters_);
+        if(command.parameter != Parameter::Mix && command.parameter != Parameter::Time
+           && command.parameter != Parameter::Feedback && command.parameter != Parameter::Level
+           && command.parameter != Parameter::Bypass && command.parameter != Parameter::ReverbMix)
+            synth_.Configure(parameters_);   // cutoff, resonance, sampler pitch/start/end (knobs resolve inside)
         return true;
     }
+    // Sampler memory (v4); see sample_table.h. May be set before or after Init.
+    void SetSamples(const SampleTable* table) { synth_.SetSamples(table); }
+    void ReleaseSampleVoices(bool include_recording) { synth_.ReleaseSampleVoices(include_recording); }
+    bool SampleVoicesActive(bool include_recording) const { return synth_.SampleVoicesActive(include_recording); }
     void Note(uint8_t note, uint8_t velocity, uint8_t source) {
         if(parameters_.synth) synth_.Note(note, velocity, source);
     }
@@ -70,7 +76,8 @@ public:
         if(!patch.Valid()) return false;
         // Structural changes (route, waveform, v1/v2 <-> v3 voice architecture) silence.
         if(patch.synth != parameters_.synth || patch.waveform != parameters_.waveform
-           || (patch.version >= 3) != (parameters_.version >= 3)) Panic();
+           || (patch.version >= 3) != (parameters_.version >= 3) || patch.Sampler() != parameters_.Sampler()
+           || (patch.Sampler() && patch.sample_mode != parameters_.sample_mode)) Panic();
         parameters_ = patch;
         synth_.Configure(parameters_);
         if(has_reverb_) reverb_.Configure(parameters_.reverb_size, parameters_.reverb_damping);
@@ -82,7 +89,7 @@ public:
         if(!ready_) { out_left = out_right = 0.f; return; }
         left = Sanitize(left);
         right = Sanitize(right);
-        if(parameters_.synth) left = right = synth_.Process();
+        if(parameters_.synth) synth_.Process(left, right);
         Smooth(mix_, parameters_.bypass ? 0.f : parameters_.mix);
         Smooth(feedback_, parameters_.feedback * 0.85f);
         Smooth(level_, parameters_.level);

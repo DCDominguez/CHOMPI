@@ -37,7 +37,7 @@ void ProtocolAndAtomicity() {
         assert(DecodeRequest(packet.data(), size, request) != Error::None);
     packet[16] = 2; packet[17] = Checksum(packet.data(), 17);
     assert(DecodeRequest(packet.data(), packet.size(), request) == Error::Patch);
-    packet = Patch(); packet[7] = 4; packet[17] = Checksum(packet.data(), 17);
+    packet = Patch(); packet[7] = 5; packet[17] = Checksum(packet.data(), 17);
     assert(DecodeRequest(packet.data(), packet.size(), request) == Error::Version);
     packet = Patch(); packet[7] = 3; packet[17] = Checksum(packet.data(), 17);
     assert(DecodeRequest(packet.data(), packet.size(), request) == Error::Length); // v3 needs 69 bytes
@@ -49,13 +49,14 @@ void ProtocolAndAtomicity() {
 }
 // A v3 apply request with every field set to a distinct, valid value.
 std::vector<uint8_t> PatchV3() {
-    std::vector<uint8_t> packet(kMaxRequest);
+    std::vector<uint8_t> packet(kV3Request);
     Header(packet.data(), 1, 77); packet[7] = 3;
     for(unsigned i = 8; i < 16; i += 2) Write14(packet.data() + i, 1000 + i * 100);
     packet[16] = 0; packet[17] = 1; packet[18] = 2;
     for(unsigned i = 19; i < 29; i += 2) Write14(packet.data() + i, 2000 + i * 100);
     size_t count; const V3Field* fields = V3Fields(count);
     for(size_t i = 0; i < count; ++i) {
+        if(fields[i].index >= kV3Request - 1) continue;          // v4 sampler fields
         if(fields[i].kind == 0) Write14(packet.data() + fields[i].index, 300 + 500 * unsigned(i));
         else packet[fields[i].index] = fields[i].max;
     }
@@ -74,7 +75,7 @@ void ProtocolV3() {
     assert(engine.Init(48000.f, l.data(), r.data(), l.size(), rv.data(), rv.size()));
     Response response; assert(ExecuteRequest(request, engine, response) && response.error == Error::None);
     uint8_t reply[kMaxReply];
-    assert(EncodeResponse(response, 0, 0, reply) == kMaxReply && Checksum(reply, kMaxReply) == 0);
+    assert(EncodeResponse(response, 0, 0, reply) == kV3Request + 12 && Checksum(reply, kV3Request + 12) == 0);
     for(size_t i = 7; i < 68; ++i) assert(reply[i + 1] == packet[i]);
     assert(reply[79] == kFirmwareMinor);
     // Each byte field rejects one past its maximum; voices also rejects 0.
@@ -92,7 +93,9 @@ void ProtocolV3() {
     assert(parser.Feed(0xf7, frame) && frame.size == packet.size());
     parser.Feed(0xf0, frame); for(unsigned i = 0; i <= kMaxSysEx; ++i) parser.Feed(1, frame);
     assert(!parser.Feed(0xf7, frame));
-    // The largest reply fits the firmware's USB packet buffer size.
+    // The largest reply (a v4 status) fits the firmware's USB packet buffer size.
+    response.patch.version = 4;
+    assert(EncodeResponse(response, 0, 0, reply) == kMaxReply);
     uint8_t envelope[kMaxReply + 2]; envelope[0] = 0xf0; envelope[kMaxReply + 1] = 0xf7;
     for(size_t i = 0; i < kMaxReply; ++i) envelope[i + 1] = reply[i];
     uint8_t usb[((kMaxReply + 2 + 2) / 3) * 4];

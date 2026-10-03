@@ -34,8 +34,8 @@ void ParametersAndMidi() {
     assert(!p.Apply({static_cast<Parameter>(255), 0.f}));
     assert(p.mix == 1.f);
     Command command{Parameter::Mix, -1.f};
-    // Stock convention: CC20+n = encoder n (SW1..SW6).
-    const Parameter stock[] = {Parameter::Mix, Parameter::Time, Parameter::Feedback, Parameter::Level,
+    // Stock convention: CC20+n = logical knob n (knobs 1-4, SW5, SW6).
+    const Parameter stock[] = {Parameter::Knob1, Parameter::Knob2, Parameter::Knob3, Parameter::Knob4,
                                Parameter::Cutoff, Parameter::Level};
     for(uint8_t cc = 20; cc <= 25; ++cc) {
         assert(DecodeCC(0, cc, 0, command) && command.value == 0.f);

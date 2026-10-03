@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include "../core/runtime.h"
 #include "../core/wav.h"
 
 using namespace forge;
@@ -113,9 +114,252 @@ void FactoryTapeFiles() {
     }
     std::cout << "  factory TAPE files checked: " << checked << "\n";
 }
+
+// ---- v4 sampler voices ----
+struct Rig {
+    std::vector<float> l = std::vector<float>(48002), r = std::vector<float>(48002), rv = std::vector<float>(Reverb::Required(48000));
+    std::vector<int16_t> memory[kSampleSlots];
+    SampleTable table;
+    Engine engine;
+    Rig() { assert(engine.Init(48000.f, l.data(), r.data(), l.size(), rv.data(), rv.size())); engine.SetSamples(&table); }
+    // Fill a slot from a function of (frame, channel) and publish it whole.
+    template<class F> void Fill(uint8_t slot, uint32_t frames, uint8_t channels, F f, float ratio = 1.f) {
+        memory[slot].assign(size_t(frames) * channels, 0);
+        for(uint32_t i = 0; i < frames; ++i) for(uint8_t c = 0; c < channels; ++c)
+            memory[slot][size_t(i) * channels + c] = static_cast<int16_t>(f(i, c));
+        SampleSlot& s = table.slots[slot];
+        s.data = memory[slot].data(); s.frames = frames; s.channels = channels; s.rate_ratio = ratio; s.gain = 1.f;
+        s.loaded.store(frames, std::memory_order_release);
+    }
+    void Sine(uint8_t slot, uint32_t frames, float period, uint8_t channels = 1, float ratio = 1.f) {
+        Fill(slot, frames, channels, [period](uint32_t i, uint8_t c) {
+            return (c ? -20000.f : 20000.f) * std::sin(6.2831853f * i / period); }, ratio);
+    }
+    float Run(unsigned samples, float* last_left = nullptr, float* right_out = nullptr) {
+        float peak = 0, L = 0, R = 0;
+        for(unsigned i = 0; i < samples; ++i) { engine.Process(0, 0, L, R); peak = std::max(peak, std::fabs(L)); }
+        if(last_left) *last_left = L;
+        if(right_out) *right_out = R;
+        return peak;
+    }
+    // Zero crossings (rising) of the left output over `samples` -> frequency.
+    float Frequency(unsigned samples) {
+        float L, R, prior = 0; unsigned crossings = 0;
+        for(unsigned i = 0; i < samples; ++i) { engine.Process(0, 0, L, R); if(prior <= 0 && L > 0) ++crossings; prior = L; }
+        return crossings * 48000.f / samples;
+    }
+};
+Parameters SamplerPatch() {
+    Parameters p; p.version = 4; p.synth = true; p.source = 1; p.level = 1.f; p.mix = 0.f;
+    p.cutoff = 1.f; p.attack = 0.f; p.release = 0.f; p.sustain = 1.f; p.voices = 7;
+    return p;
+}
+
+void ProtocolV4() {
+    Parameters p = SamplerPatch();
+    p.sample_mode = 1; p.sample_bank = 4; p.sample_slot = 14; p.sample_pitch = 0.75f; p.sample_start = 0.125f;
+    p.sample_end = 0.875f; p.sample_xfade = 0.3f; p.sample_loop = true; p.sample_gate = false; p.sample_reverse = true;
+    p.resonance = 0.4f; p.reverb_mix = 0.2f;
+    uint8_t request[kMaxRequest]; Header(request, 1, 9);
+    assert(EncodePatchData(p, request + 7) == kMaxRequest - 8);
+    request[kMaxRequest - 1] = Checksum(request, kMaxRequest - 1);
+    Request decoded; assert(DecodeRequest(request, kMaxRequest, decoded) == Error::None);
+    const Parameters& q = decoded.patch;
+    assert(q.version == 4 && q.source == 1 && q.sample_mode == 1 && q.sample_bank == 4 && q.sample_slot == 14
+           && q.sample_loop && !q.sample_gate && q.sample_reverse && q.voices == 7
+           && std::fabs(q.sample_pitch - 0.75f) < 1e-4f && std::fabs(q.sample_start - 0.125f) < 1e-4f
+           && std::fabs(q.sample_end - 0.875f) < 1e-4f && std::fabs(q.sample_xfade - 0.3f) < 1e-4f);
+    // Status echoes the same DATA bytes.
+    Rig rig; Response response; assert(ExecuteRequest(decoded, rig.engine, response) && response.error == Error::None);
+    uint8_t reply[kMaxReply]; assert(EncodeResponse(response, 0, 0, reply) == kMaxReply);
+    for(size_t i = 7; i < kMaxRequest - 1; ++i) assert(reply[i + 1] == request[i]);
+    // Byte limits, bools and start < end are enforced atomically.
+    for(auto bad : std::vector<std::pair<unsigned, uint8_t>>{{68, 2}, {69, 2}, {70, 5}, {71, 15}, {78, 2}, {79, 2}, {80, 2}, {59, 8}, {59, 0}}) {
+        uint8_t broken[kMaxRequest]; std::memcpy(broken, request, kMaxRequest);
+        broken[bad.first] = bad.second; broken[kMaxRequest - 1] = Checksum(broken, kMaxRequest - 1);
+        Request untouched; untouched.sequence = 3;
+        assert(DecodeRequest(broken, kMaxRequest, untouched) == Error::Patch && untouched.sequence == 3);
+    }
+    uint8_t inverted[kMaxRequest]; std::memcpy(inverted, request, kMaxRequest);
+    Write14(inverted + 74, 9000); Write14(inverted + 76, 9000); inverted[kMaxRequest - 1] = Checksum(inverted, kMaxRequest - 1);
+    assert(DecodeRequest(inverted, kMaxRequest, decoded) == Error::Patch);
+    // v3 keeps its 4-voice limit; v4 allows 7.
+    Parameters v3; v3.version = 3; v3.synth = true; v3.voices = 5; assert(!v3.Valid());
+    v3.version = 4; assert(v3.Valid());
+}
+
+void ChromaticPitch() {
+    Rig rig; rig.Sine(0, 48000, 100.f);                     // 480 Hz at unity
+    Parameters p = SamplerPatch(); p.sample_loop = true; assert(rig.engine.ApplyPatch(p));
+    rig.engine.Note(60, 127, 0); rig.Run(480);
+    assert(std::fabs(rig.Frequency(24000) - 480.f) < 6.f);
+    rig.engine.Note(60, 0, 0); rig.engine.Note(72, 127, 0); rig.Run(480);   // octave up
+    assert(std::fabs(rig.Frequency(24000) - 960.f) < 8.f);
+    rig.engine.Apply({Parameter::Knob1, 0.25f}); rig.Run(4800);             // knob 1 = pitch, -12 st
+    assert(std::fabs(rig.Frequency(24000) - 480.f) < 6.f);
+    assert(std::fabs(rig.engine.GetParameters().sample_pitch - 0.25f) < 1e-6f && rig.engine.GetParameters().mix == 0.f);
+    // A 24 kHz file plays at its own pitch.
+    Rig half; half.Sine(0, 24000, 50.f, 1, 0.5f); assert(half.engine.ApplyPatch(p));
+    half.engine.Note(60, 127, 0); half.Run(480);
+    assert(std::fabs(half.Frequency(24000) - 480.f) < 6.f);
+}
+
+void KitMapping() {
+    const int expected[25] = {0, -1, 1, -1, 2, 3, -1, 4, -1, 5, -1, 6, 7, -1, 8, -1, 9, 10, -1, 11, -1, 12, -1, 13, 14};
+    for(int n = 0; n < 25; ++n) assert(Synth::KitSlot(static_cast<uint8_t>(48 + n)) == expected[n]);
+    assert(Synth::KitSlot(47) == -1 && Synth::KitSlot(73) == -1);
+    Rig rig;
+    for(uint8_t s = 0; s < kSampleSlots; ++s) rig.Fill(s, 4800, 1, [s](uint32_t, uint8_t) { return 1000 * (s + 1); });
+    Parameters p = SamplerPatch(); p.sample_mode = 1; assert(rig.engine.ApplyPatch(p));
+    rig.Run(9600);                                                            // output level fade-in settles
+    float left;
+    rig.engine.Note(52, 127, 2); rig.Run(200, &left);                         // E3 -> slot 2 (3000)
+    assert(std::fabs(left - 0.5f * 3000.f / 32768.f) < 1e-3f);
+    rig.engine.Note(61, 127, 2); assert(rig.engine.ActiveVoices() == 1);      // black key: nothing
+    rig.engine.Note(72, 127, 2); rig.Run(200, &left);                         // C5 -> slot 14 (recording)
+    assert(std::fabs(left - 0.5f * (3000.f + 15000.f) / 32768.f) < 2e-3f && rig.engine.ActiveVoices() == 2);
+    // An empty slot plays nothing.
+    rig.table.slots[5].channels = 0; rig.engine.Note(57, 127, 2); assert(rig.engine.ActiveVoices() == 2);
+}
+
+void OneShotLoopReverse() {
+    // One-shot: ends by itself, fading to zero (no jump at the end).
+    Rig rig; rig.Fill(0, 2400, 1, [](uint32_t, uint8_t) { return 20000; });
+    Parameters p = SamplerPatch(); assert(rig.engine.ApplyPatch(p));
+    rig.engine.Note(60, 127, 0);
+    float L, R, prior = 0, jump = 0; unsigned sounding = 0;
+    for(unsigned i = 0; i < 4800; ++i) {
+        rig.engine.Process(0, 0, L, R);
+        if(i > 100) jump = std::max(jump, std::fabs(L - prior));
+        prior = L; if(L > 1e-6f) ++sounding;
+    }
+    assert(rig.engine.ActiveVoices() == 0 && sounding > 2300 && sounding < 2420 && jump < 0.01f);
+    // Loop with crossfade: a 15.25-period window (a quarter-period mismatch at
+    // the wrap, i.e. a full-scale jump without a crossfade) stays continuous.
+    Rig loop; loop.Sine(0, 48000, 100.f);
+    p.sample_loop = true; p.sample_start = 0.25f; p.sample_end = 0.25f + 1525.f / 48000.f; p.sample_xfade = 0.02f; // 5 ms
+    assert(loop.engine.ApplyPatch(p)); loop.engine.Note(60, 127, 0); loop.Run(200);
+    prior = 0; jump = 0;
+    for(unsigned i = 0; i < 9600; ++i) { loop.engine.Process(0, 0, L, R); if(i) jump = std::max(jump, std::fabs(L - prior)); prior = L; }
+    const float sine_step = 0.5f * 20000.f / 32768.f * 6.2831853f / 100.f;   // steepest slope of the sine itself
+    assert(loop.engine.ActiveVoices() == 1 && jump < 1.6f * sine_step);
+    // ... and keeps its level through the wrap (a dip would fall to about half
+    // in the period around it; two quarter-shifted sines crossfade to >= 0.71).
+    float lowest = 1.f, steady = 0.f;
+    for(unsigned block = 0; block < 96; ++block) {
+        float peak = 0.f;
+        for(unsigned i = 0; i < 100; ++i) { loop.engine.Process(0, 0, L, R); peak = std::max(peak, std::fabs(L)); }
+        lowest = std::min(lowest, peak); steady = std::max(steady, peak);
+    }
+    assert(lowest > 0.65f * steady);
+    // Same window without room for a crossfade (start at 0): a dip, still no hard jump.
+    p.sample_start = 0.f; p.sample_end = 1525.f / 48000.f; assert(loop.engine.ApplyPatch(p));
+    loop.engine.Note(60, 0, 0); loop.Run(4800); loop.engine.Note(60, 127, 0); loop.Run(200);
+    prior = 0; jump = 0;
+    for(unsigned i = 0; i < 9600; ++i) { loop.engine.Process(0, 0, L, R); if(i) jump = std::max(jump, std::fabs(L - prior)); prior = L; }
+    assert(jump < 3.f * sine_step);                                           // a 2 ms dip, not a 0.3 jump
+    // Reverse: a rising ramp plays falling.
+    Rig rev; rev.Fill(0, 9600, 1, [](uint32_t i, uint8_t) { return static_cast<int>(i * 3) - 14400; });
+    p = SamplerPatch(); p.sample_reverse = true; assert(rev.engine.ApplyPatch(p)); rev.Run(9600);
+    rev.engine.Note(60, 127, 0); rev.Run(100, &L);
+    float later; rev.Run(2000, &later);
+    assert(later < L - 0.05f);
+}
+
+void GateAndTrigger() {
+    Rig rig; rig.Sine(0, 48000, 100.f);
+    Parameters p = SamplerPatch(); p.sample_loop = true; p.attack = 0.01f; p.release = 0.02f; assert(rig.engine.ApplyPatch(p));
+    rig.engine.Note(60, 127, 0); rig.Run(9600);
+    assert(rig.engine.ActiveVoices() == 1);                                  // gate: held
+    rig.engine.Note(60, 0, 0); rig.Run(9600); assert(rig.engine.ActiveVoices() == 0);
+    p.sample_gate = false; assert(rig.engine.ApplyPatch(p));                 // trigger: releases after the attack
+    rig.engine.Note(60, 127, 0); rig.Run(2400);
+    assert(rig.engine.ActiveVoices() == 1);                                  // still in its ~100 ms release
+    rig.Run(9600); assert(rig.engine.ActiveVoices() == 0);
+    rig.engine.Note(62, 127, 0); rig.engine.Note(62, 0, 0); rig.Run(480);     // key-up ignored
+    assert(rig.engine.ActiveVoices() == 1);
+}
+
+void LoadingAndHandoff() {
+    Rig rig; rig.Sine(0, 48000, 100.f); rig.Sine(kRamSlot, 48000, 100.f);
+    rig.table.slots[0].loaded.store(0);
+    Parameters p = SamplerPatch(); p.sample_loop = true; assert(rig.engine.ApplyPatch(p));
+    rig.engine.Note(60, 127, 0);
+    assert(rig.Run(2400) == 0.f && rig.engine.ActiveVoices() == 1);          // nothing readable yet: silence
+    rig.table.slots[0].loaded.store(48000, std::memory_order_release);
+    assert(rig.Run(2400) > 0.2f);                                             // plays once loaded
+    // Detach file voices; the recording keeps playing unless included.
+    p.sample_slot = kRamSlot; assert(rig.engine.ApplyPatch(p)); rig.engine.Note(64, 127, 0);
+    rig.engine.ReleaseSampleVoices(false); rig.Run(200);
+    assert(!rig.engine.SampleVoicesActive(false) && rig.engine.SampleVoicesActive(true));
+    rig.engine.ReleaseSampleVoices(true); rig.Run(200); assert(!rig.engine.SampleVoicesActive(true));
+}
+
+void StereoVoicesAndCompatibility() {
+    Rig rig; rig.Sine(0, 48000, 100.f, 2);                                    // R = -L
+    Parameters p = SamplerPatch(); p.sample_loop = true; assert(rig.engine.ApplyPatch(p));
+    rig.engine.Note(60, 127, 0);
+    float L, R; double correlation = 0;
+    for(unsigned i = 0; i < 4800; ++i) { rig.engine.Process(0, 0, L, R); correlation += L * R; }
+    assert(correlation < -1.0);
+    for(uint8_t n = 61; n < 68; ++n) rig.engine.Note(n, 127, 0);
+    assert(rig.engine.ActiveVoices() == 7);
+    // Samples go through the per-voice filter: a 4.8 kHz sample at 40 Hz cutoff is nearly silent.
+    Rig bright, dark; bright.Sine(0, 48000, 10.f); dark.Sine(0, 48000, 10.f);
+    Parameters open = SamplerPatch(); open.sample_loop = true; Parameters closed = open; closed.cutoff = 0.f;
+    assert(bright.engine.ApplyPatch(open) && dark.engine.ApplyPatch(closed));
+    bright.Run(9600); dark.Run(9600); bright.engine.Note(60, 127, 0); dark.engine.Note(60, 127, 0);
+    bright.Run(4800); dark.Run(4800);
+    assert(dark.Run(4800) < 0.01f * bright.Run(4800));
+    // v4 with the oscillator source renders exactly like the same v3 patch.
+    Rig a, b; Parameters v3; v3.version = 3; v3.synth = true; v3.waveform = 2; v3.osc2_level = 0.4f; v3.resonance = 0.5f;
+    v3.lfo_pitch = 0.2f; v3.reverb_mix = 0.3f; Parameters v4 = v3; v4.version = 4;
+    assert(a.engine.ApplyPatch(v3) && b.engine.ApplyPatch(v4));
+    a.engine.Note(57, 90, 1); b.engine.Note(57, 90, 1);
+    for(unsigned i = 0; i < 9600; ++i) {
+        float al, ar, bl, br; a.engine.Process(0.1f, 0.1f, al, ar); b.engine.Process(0.1f, 0.1f, bl, br);
+        assert(al == bl && ar == br);
+    }
+    // Switching between oscillators and sampler silences (different voice architecture).
+    v4.source = 1; assert(b.engine.ApplyPatch(v4) && b.engine.ActiveVoices() == 0);
+    // Knobs: sampler start/end keep start < end; v3 refuses sampler parameters.
+    assert(b.engine.Apply({Parameter::Knob2, 0.9f}) && b.engine.Apply({Parameter::Knob3, 0.2f}));
+    assert(b.engine.GetParameters().sample_start == 0.9f && b.engine.GetParameters().sample_end > 0.9f);
+    assert(!a.engine.Apply({Parameter::SampleStart, 0.5f}) && a.engine.Apply({Parameter::Knob2, 0.5f})
+           && a.engine.GetParameters().time == 0.5f);
+}
+
+void RetriggerAndFuzz() {
+    // Restarting a loud voice keeps a short decaying tail: no full-scale jump.
+    Rig rig; rig.Fill(0, 48000, 1, [](uint32_t i, uint8_t) { return i < 24000 ? 25000 : -25000; });
+    Parameters p = SamplerPatch(); assert(rig.engine.ApplyPatch(p));
+    rig.engine.Note(60, 127, 0); rig.Run(30000);                              // now playing the -25000 half
+    float L, R, prior; rig.engine.Process(0, 0, prior, R);
+    rig.engine.Note(60, 127, 0);
+    float jump = 0;
+    for(unsigned i = 0; i < 480; ++i) { rig.engine.Process(0, 0, L, R); jump = std::max(jump, std::fabs(L - prior)); prior = L; }
+    assert(jump < 0.1f);
+    // Random patches and notes never produce NaN or out-of-range output.
+    uint32_t seed = 7; auto rnd = [&seed]() { seed = seed * 1664525u + 1013904223u; return (seed >> 8) / 16777216.f; };
+    Rig fuzz; fuzz.Sine(0, 3000, 37.f, 2, 0.6f); fuzz.Sine(3, 50, 7.f, 1, 2.f); fuzz.Sine(kRamSlot, 900, 11.f, 2);
+    for(unsigned trial = 0; trial < 40; ++trial) {
+        Parameters f = SamplerPatch();
+        f.sample_mode = rnd() < 0.5f; f.sample_slot = static_cast<uint8_t>(rnd() * 15); f.sample_pitch = rnd();
+        f.sample_start = rnd() * 0.9f; f.sample_end = f.sample_start + 0.01f + rnd() * (0.99f - f.sample_start);
+        f.sample_xfade = rnd(); f.sample_loop = rnd() < 0.5f; f.sample_gate = rnd() < 0.5f; f.sample_reverse = rnd() < 0.5f;
+        f.glide = rnd(); f.resonance = rnd(); f.lfo_pitch = rnd(); f.attack = rnd() * 0.1f; f.release = rnd() * 0.1f;
+        assert(fuzz.engine.ApplyPatch(f));
+        for(unsigned k = 0; k < 6; ++k) fuzz.engine.Note(static_cast<uint8_t>(40 + rnd() * 40), static_cast<uint8_t>(1 + rnd() * 126), k % 3);
+        fuzz.engine.Bend(0, static_cast<uint16_t>(rnd() * 16383));
+        for(unsigned i = 0; i < 2400; ++i) { fuzz.engine.Process(0, 0, L, R); assert(std::isfinite(L) && std::isfinite(R) && std::fabs(L) <= 1.f); }
+    }
+}
 } // namespace
 
 int main() {
     WavFormats(); WavRejections(); HeaderRoundTrip(); FactoryTapeFiles();
-    std::cout << "PASS: WAV formats/rejections/header, factory TAPE files\n";
+    ProtocolV4(); ChromaticPitch(); KitMapping(); OneShotLoopReverse(); GateAndTrigger(); LoadingAndHandoff();
+    StereoVoicesAndCompatibility(); RetriggerAndFuzz();
+    std::cout << "PASS: WAV formats/rejections/header, factory TAPE files, v4 protocol, chromatic pitch, kit map, "
+                 "one-shot/loop/reverse, gate/trigger, loading/handoff, stereo/voices/compatibility, retrigger/fuzz\n";
 }
