@@ -24,7 +24,7 @@
         <label for="prompt">Describe the sound</label><textarea id="prompt" required maxlength="4000" rows="4" placeholder="Warm detuned saw pad with a slow filter swell, gentle vibrato and a big reverb. Output at 25%." spellcheck="true"></textarea>
         <button id="generate" class="primary" type="submit">Generate a patch <span aria-hidden="true">↗</span></button>
       </form>
-      <p class="footnote">Available: up to four voices with two oscillators and noise, amplitude envelope, resonant filter with its own envelope, LFO (mod wheel), glide, stereo delay and reverb. AI chooses settings for these installed modules only. Sampling and looping are not implemented. Generation never sends a patch to the device.</p>
+      <p class="footnote">Available: two oscillators and noise, a sampler for the WAV files on CHOMPI's SD card (TAPE layout) and its recording, up to seven voices, amplitude envelope, resonant filter with its own envelope, LFO (mod wheel), glide, stereo delay and reverb. AI chooses settings for these installed modules only and can use only the samples read from the device (Device samples, below). It cannot create audio. Looping is not implemented. Generation never sends a patch to the device.</p>
     </section>
     <section class="card" aria-labelledby="patch-heading">
       <p class="eyebrow">02 / REFINE</p><h2 id="patch-heading">Your patch, your call.</h2>
@@ -32,13 +32,13 @@
       <fieldset id="editor" disabled>
         <label for="patch-name">Patch name</label><input id="patch-name" maxlength="80" required>
         <p class="hint" id="version-note"></p>
-        <div class="button-row"><button id="upgrade" type="button">Convert to v3 instrument</button></div>
+        <div class="button-row"><button id="upgrade" type="button">Convert to v4 instrument</button></div>
         <label for="routing">Signal path</label><select id="routing"></select>
         <div id="groups"></div>
       </fieldset>
       <div class="button-row"><button id="download" disabled>Save JSON</button><label class="file-button" for="import">Import JSON<input id="import" type="file" accept=".json,application/json"></label></div>
       <details><summary>Inspect patch JSON</summary><pre id="json">No patch loaded.</pre></details>
-      <p class="footnote">Edits stay here until you send. v3 instruments need firmware 0.4; v1 and v2 presets still work. Controls a preset's format lacks are greyed out. Save JSON keeps presets on your computer; Device presets (below) keep sounds on CHOMPI's SD card. CHOMPI boots into defaults.</p>
+      <p class="footnote">Edits stay here until you send. v4 instruments need firmware 0.5 (v3: 0.4); v1–v3 presets still work. Controls a preset's format lacks are greyed out. Save JSON keeps presets on your computer; Device presets (below) keep sounds on CHOMPI's SD card. CHOMPI boots into defaults.</p>
     </section>
     <section class="card device" aria-labelledby="device-heading">
       <div><p class="eyebrow">03 / PLAY</p><h2 id="device-heading">Connect to CHOMPI.</h2><p class="hint">Choose both MIDI ports. Keep monitoring volume low for the first test.</p></div>
@@ -52,8 +52,16 @@
         <div id="slots" class="slots" role="group" aria-label="Preset slots"></div>
         <div class="button-row"><button id="slots-read">Read slots</button><button id="slot-recall">Recall slot</button><button id="slot-store">Store device sound</button><button id="slot-erase">Erase slot</button></div>
       </div>
+      <div id="device-samples">
+        <p class="group">Device samples · SD card</p>
+        <p class="hint">TAPE's files: jammi_&lt;bank&gt;&lt;slot&gt;.wav (chromatic) and cubbi_… (kit), banks A–E, slots 1–14; REC is the recording (toggle down + hold CHOMPI). A TAPE card's samples play here, and saved recordings play in TAPE. WAV 16/24-bit or float, mono or stereo, any rate.</p>
+        <div class="ports"><div><label for="sample-mode">Mode</label><select id="sample-mode"></select></div><div><label for="sample-bank">Bank</label><select id="sample-bank"></select></div></div>
+        <div id="sample-slots" class="slots" role="group" aria-label="Sample slots"></div>
+        <p id="sample-state" class="hint">Samples not read yet.</p>
+        <div class="button-row"><button id="samples-read">Read samples</button><button id="sample-use">Use in patch</button><button id="sample-save">Save recording here</button><button id="sample-erase">Erase sample</button></div>
+      </div>
     </section>
   </div>
-  <footer>FORGE / INSTRUMENT CANDIDATE 0.4 <span>Play with CHOMPI keys or MIDI channel 1.</span></footer>
+  <footer>FORGE / INSTRUMENT CANDIDATE 0.5 <span>Play with CHOMPI keys or MIDI channel 1.</span></footer>
 </main>
 </body></html>

@@ -6,8 +6,10 @@
 // (code space is the firmware's tightest budget; see COMPATIBILITY.md §2).
 #if defined(__GNUC__)
 #define FORGE_NOINLINE __attribute__((noinline))
+#define FORGE_INLINE inline __attribute__((always_inline))
 #else
 #define FORGE_NOINLINE
+#define FORGE_INLINE inline
 #endif
 
 namespace forge {

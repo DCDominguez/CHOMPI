@@ -28,7 +28,7 @@ build/preset_test: tests/preset_test.cpp $(HEADERS)
 build/sampler_test: tests/sampler_test.cpp $(HEADERS)
 	mkdir -p build
 	$(CXX) $(HOST_FLAGS) -O2 tests/sampler_test.cpp -o $@
-build/forge_probe: host/forge_probe.cpp $(HEADERS)
+build/forge_probe: host/forge_probe.cpp tests/sample_card.h $(HEADERS)
 	mkdir -p build
 	$(CXX) $(HOST_FLAGS) -O2 host/forge_probe.cpp -o $@
 sanitize:

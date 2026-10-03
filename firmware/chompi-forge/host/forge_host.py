@@ -13,8 +13,8 @@ import urllib.request
 PREFIX = [0x7D, 0x46, 0x47, 1]
 ERRORS = {1: "invalid length", 2: "unsupported version", 3: "checksum mismatch",
           4: "invalid patch or preset address", 5: "unknown operation", 6: "device queue busy",
-          7: "that preset slot is empty", 8: "SD card missing or preset storage failed",
-          9: "preset storage busy"}
+          7: "that slot is empty (preset, sample or recording)", 8: "SD card missing or storage failed",
+          9: "storage busy"}
 PRESET_BANKS, PRESET_SLOTS = 8, 15
 LIMITS = {"mix": (0, 1), "time_ms": (10, 1000), "feedback": (0, 0.85), "level": (0, 1)}
 SCHEMA = {
@@ -112,6 +112,40 @@ SCHEMA3 = object_schema({
                               for module, fields in V3_MODULES.items()})})
 
 
+# ---- Version 4: sampler (TAPE-compatible sample slots) ---------------------
+SAMPLE_MODES = ("chromatic", "kit")
+SAMPLE_BANKS = ("a", "b", "c", "d", "e")
+SAMPLE_SLOTS = 14          # files per bank; slot 15 is the recording (RAM)
+ROUTES4 = (*ROUTES3, "sampler>delay>reverb>output")
+# Wire order after the v3 fields (request indexes 69..82), mirroring the v4
+# entries of V3Fields in core/protocol.h. Index 68 (source) comes from routing.
+V4_SAMPLER = (
+    ("mode", ("enum", SAMPLE_MODES)),
+    ("bank", ("enum", SAMPLE_BANKS)),
+    ("slot", ("int", 1, 15, -1)),            # 15 = the recording
+    ("pitch_semitones", ("lin", -24, 24)),
+    ("start", ("lin", 0, 1)),
+    ("end", ("lin", 0, 1)),
+    ("loop", ("bool",)),
+    ("hold", ("bool",)),                     # true: plays while held (TAPE sustain); false: one-shot trigger
+    ("reverse", ("bool",)),
+    ("crossfade_ms", ("lin", 0, 250)),
+)
+V4_MODULES = {module: dict(fields) for module, fields in V3_MODULES.items()}
+V4_MODULES["synth"]["voices"] = ("int", 1, 7, 0)
+V4_MODULES = {**{k: V4_MODULES[k] for k in ("synth", "filter", "lfo")}, "sampler": dict(V4_SAMPLER),
+              **{k: V4_MODULES[k] for k in ("delay", "reverb", "output")}}
+SCHEMA4 = object_schema({
+    "version": {"type": "integer", "enum": [4]},
+    "name": {"type": "string", "minLength": 1, "maxLength": 80},
+    "engine": {"type": "string", "enum": ["instrument"]},
+    "routing": {"type": "string", "enum": list(ROUTES4)},
+    "modules": object_schema({module: object_schema({key: field_schema(codec) for key, codec in fields.items()})
+                              for module, fields in V4_MODULES.items()})})
+SAMPLER_DEFAULTS = {"mode": "chromatic", "bank": "a", "slot": 1, "pitch_semitones": 0, "start": 0, "end": 1,
+                    "loop": False, "hold": True, "reverse": False, "crossfade_ms": 10}
+
+
 def check_value(path, value, codec):
     kind = codec[0]
     if kind in ("lin", "log"):
@@ -129,18 +163,22 @@ def check_value(path, value, codec):
 def validate_instrument3(patch):
     if set(patch) != {"version", "name", "engine", "routing", "modules"} or type(patch["version"]) is not int:
         raise ValueError("Invalid instrument fields")
-    if patch["engine"] != "instrument" or patch["routing"] not in ROUTES3:
+    v4 = patch["version"] == 4
+    spec = V4_MODULES if v4 else V3_MODULES
+    if patch["engine"] != "instrument" or patch["routing"] not in (ROUTES4 if v4 else ROUTES3):
         raise ValueError("Unsupported engine or routing")
     if not isinstance(patch["name"], str) or not 1 <= len(patch["name"].strip()) <= 80 or len(patch["name"]) > 80:
         raise ValueError("Patch name must contain 1–80 characters")
     modules = patch["modules"]
-    if not isinstance(modules, dict) or set(modules) != set(V3_MODULES):
-        raise ValueError("Expected modules: " + ", ".join(V3_MODULES))
-    for module, fields in V3_MODULES.items():
+    if not isinstance(modules, dict) or set(modules) != set(spec):
+        raise ValueError("Expected modules: " + ", ".join(spec))
+    for module, fields in spec.items():
         if not isinstance(modules[module], dict) or set(modules[module]) != set(fields):
             raise ValueError(f"{module} module needs exactly: {', '.join(fields)}")
         for key, codec in fields.items():
             check_value(f"{module}.{key}", modules[module][key], codec)
+    if v4 and not modules["sampler"]["start"] < modules["sampler"]["end"]:
+        raise ValueError("sampler.start must be less than sampler.end")
     return patch
 
 
@@ -159,12 +197,18 @@ def encode_word(value, codec):
     return word14(int(min(max(to_unit(value, codec), 0.0), 1.0) * 16383 + 0.5))
 
 
-def upgrade_patch(patch):
-    """Return a v3 patch with the same delay/output (and v2 synth) settings; new
-    modules start neutral (osc2/noise/LFO depths/reverb mix 0, filter envelope 0).
-    The v3 filter is a steeper resonant low-pass, so tone can differ slightly."""
+def upgrade_patch(patch, to=3):
+    """Return a v3 (or v4) patch with the same delay/output (and v2 synth)
+    settings; new modules start neutral (osc2/noise/LFO depths/reverb mix 0,
+    filter envelope 0; v4 adds the sampler module, unused until routing selects
+    it). The v3 filter is a steeper resonant low-pass, so tone can differ slightly."""
     patch = validate_patch(patch)
-    if patch["version"] == 3: return patch
+    if to not in (3, 4) or patch["version"] > to: raise ValueError("Upgrade target must be 3 or 4 and not older")
+    if patch["version"] == to: return patch
+    if patch["version"] == 3:
+        modules = {**json.loads(json.dumps(patch["modules"])), "sampler": dict(SAMPLER_DEFAULTS)}   # deep copy
+        return validate_patch({**patch, "version": 4,
+                               "modules": {module: modules[module] for module in V4_MODULES}})
     source = effect_patch(patch)["parameters"]
     v2 = patch["version"] == 2
     old_synth = patch["modules"]["synth"] if v2 else {
@@ -184,7 +228,7 @@ def upgrade_patch(patch):
         "output": {"level": source["level"]}}}
     upgraded["modules"] = {module: {key: upgraded["modules"][module][key] for key in fields}
                            for module, fields in V3_MODULES.items()}
-    return validate_patch(upgraded)
+    return upgrade_patch(validate_patch(upgraded), to) if to == 4 else validate_patch(upgraded)
 
 
 def effect_patch(patch):
@@ -218,7 +262,7 @@ def validate_instrument(patch):
 def validate_patch(patch):
     if isinstance(patch, dict) and patch.get("version") == 2:
         return validate_instrument(patch)
-    if isinstance(patch, dict) and patch.get("version") == 3:
+    if isinstance(patch, dict) and patch.get("version") in (3, 4):
         validate_instrument3(patch)
         validate_patch(effect_patch(patch))
         return patch
@@ -311,10 +355,11 @@ def encode_patch(patch, sequence):
             value = (math.log(synth[key] / low) / math.log(high / low) if key == "cutoff_hz"
                      else (synth[key] - low) / (high - low))
             data.extend(word14(int(min(max(value, 0.0), 1.0) * 16383 + 0.5)))
-    elif patch["version"] == 3:
-        data[0] = 3
+    elif patch["version"] in (3, 4):
+        data[0] = patch["version"]
         modules = patch["modules"]
-        data.extend([ROUTES3.index(patch["routing"]), WAVEFORMS.index(modules["synth"]["waveform"])])
+        route = (ROUTES4 if patch["version"] == 4 else ROUTES3).index(patch["routing"])
+        data.extend([min(route, 1), WAVEFORMS.index(modules["synth"]["waveform"])])
         for key, codec in V3_MODULES["synth"].items():
             if key in AMP_LIMITS: data.extend(encode_word(modules["synth"][key], codec))
         data.extend(encode_word(modules["filter"]["cutoff_hz"], V3_MODULES["filter"]["cutoff_hz"]))
@@ -324,7 +369,18 @@ def encode_patch(patch, sequence):
             elif codec[0] == "int": data.append(value + codec[3])
             elif codec[0] == "bool": data.append(int(value))
             else: data.extend(encode_word(value, codec))
+        if patch["version"] == 4:
+            data.append(int(route == 2))                 # source: sampler
+            for key, codec in V4_SAMPLER:
+                data.extend(encode_value(modules["sampler"][key], codec))
     return message(1, sequence, data)
+
+
+def encode_value(value, codec):
+    if codec[0] == "enum": return [codec[1].index(value)]
+    if codec[0] == "int": return [value + codec[3]]
+    if codec[0] == "bool": return [int(value)]
+    return encode_word(value, codec)
 
 
 def decode_response(data, sequence):
@@ -350,7 +406,21 @@ def decode_response(data, sequence):
             bits = data[8 + 3 * b] | data[9 + 3 * b] << 7 | data[10 + 3 * b] << 14
             banks[b + 1] = [s + 1 for s in range(PRESET_SLOTS) if bits >> s & 1]
         return {"sequence": sequence, "occupied": banks}
-    if len(data) not in (30, 42, 81) or data[4] != 0x40 or data[7] != 0 or data[8] not in (1, 2, 3) or data[17] > 1:
+    if data[4] == 0x44:
+        if len(data) != 36 or data[7] != 0 or data[28] > 7:
+            raise ValueError("Invalid sample list")
+        samples = {mode: {bank: [s + 1 for s in range(SAMPLE_SLOTS) if read14(data, 8 + 2 * (m * 5 + b)) >> s & 1]
+                          for b, bank in enumerate(SAMPLE_BANKS)} for m, mode in enumerate(SAMPLE_MODES)}
+        return {"sequence": sequence, "samples": samples, "card": bool(data[28] & 1), "recording": bool(data[28] & 2),
+                "busy": bool(data[28] & 4),
+                "recording_seconds": (read14(data, 29) | data[31] << 14) / 1000,
+                "capacity_seconds": (read14(data, 32) | data[34] << 14) / 1000}
+    if data[4] == 0x45:
+        if len(data) != 13 or data[7] != 0 or data[8] > 2 or data[9] > 1 or data[10] > 4 or data[11] >= SAMPLE_SLOTS:
+            raise ValueError("Invalid sample acknowledgement")
+        return {"sequence": sequence, "action": ("saved", "erased", "copied")[data[8]],
+                "mode": SAMPLE_MODES[data[9]], "bank": SAMPLE_BANKS[data[10]], "slot": data[11] + 1}
+    if len(data) not in (30, 42, 81, 96) or data[4] != 0x40 or data[7] != 0 or data[8] not in (1, 2, 3, 4) or data[17] > 1:
         raise ValueError("Invalid Forge status payload")
     patch = {"version": 1, "name": "Captured from Forge", "engine": "stereo_delay", "parameters": {
         "mix": read14(data, 9) / 16383,
@@ -358,8 +428,8 @@ def decode_response(data, sequence):
         "feedback": 0.85 * read14(data, 13) / 16383,
         "level": read14(data, 15) / 16383, "bypass": bool(data[17])}}
     offset = 18
-    if data[8] == 3:
-        patch, offset = decode_v3(data, patch["name"]), 69
+    if data[8] in (3, 4):
+        patch, offset = decode_v3(data, patch["name"]), (69 if data[8] == 3 else 84)
     elif data[8] == 2:
         if len(data) != 42 or data[18] > 1 or data[19] > 3:
             raise ValueError("Invalid instrument status")
@@ -381,10 +451,12 @@ def decode_response(data, sequence):
 
 
 def decode_v3(data, name):
-    """Inverse of the v3 part of encode_patch for an 81-byte status reply."""
-    if len(data) != 81 or data[18] > 1 or data[19] > 3:
-        raise ValueError("Invalid v3 instrument status")
-    modules = {module: {} for module in V3_MODULES}
+    """Inverse of the v3/v4 part of encode_patch for an 81/96-byte status reply."""
+    v4 = data[8] == 4
+    spec = V4_MODULES if v4 else V3_MODULES
+    if len(data) != (96 if v4 else 81) or data[18] > 1 or data[19] > 3:
+        raise ValueError("Invalid v3/v4 instrument status")
+    modules = {module: {} for module in spec}
     modules["delay"] = {"mix": read14(data, 9) / 16383, "time_ms": 10 + 990 * read14(data, 11) / 16383,
                         "feedback": 0.85 * read14(data, 13) / 16383, "bypass": bool(data[17])}
     modules["output"] = {"level": read14(data, 15) / 16383}
@@ -401,15 +473,37 @@ def decode_v3(data, name):
                 value = codec[1][raw]
             elif codec[0] == "int":
                 value = raw - codec[3]
-                if not codec[1] <= value <= codec[2]: raise ValueError("Invalid v3 integer in status")
+                high = 7 if v4 and key == "voices" else codec[2]
+                if not codec[1] <= value <= high: raise ValueError("Invalid v3 integer in status")
             else:
                 if raw > 1: raise ValueError("Invalid v3 flag in status")
                 value = bool(raw)
         else:
             value = from_unit(read14(data, index) / 16383, codec); index += 2
         modules[module][key] = value
-    ordered = {module: {key: modules[module][key] for key in fields} for module, fields in V3_MODULES.items()}
-    return {"version": 3, "name": name, "engine": "instrument", "routing": ROUTES3[data[18]], "modules": ordered}
+    route = data[18]
+    if v4:
+        if index != 69 or data[69] > 1: raise ValueError("Invalid v4 source in status")
+        route = 2 if data[69] and data[18] else data[18]   # reply index = request index + 1
+        index = 70
+        for key, codec in V4_SAMPLER:
+            if codec[0] in ("enum", "int", "bool"):
+                raw = data[index]; index += 1
+                if codec[0] == "enum":
+                    if raw >= len(codec[1]): raise ValueError("Invalid v4 enum in status")
+                    value = codec[1][raw]
+                elif codec[0] == "int":
+                    value = raw - codec[3]
+                    if not codec[1] <= value <= codec[2]: raise ValueError("Invalid v4 slot in status")
+                else:
+                    if raw > 1: raise ValueError("Invalid v4 flag in status")
+                    value = bool(raw)
+            else:
+                value = from_unit(read14(data, index) / 16383, codec); index += 2
+            modules["sampler"][key] = value
+    ordered = {module: {key: modules[module][key] for key in fields} for module, fields in spec.items()}
+    return {"version": data[8], "name": name, "engine": "instrument",
+            "routing": (ROUTES4 if v4 else ROUTES3)[route], "modules": ordered}
 
 
 def preset_message(opcode, sequence, bank=None, slot=None):
@@ -419,6 +513,23 @@ def preset_message(opcode, sequence, bank=None, slot=None):
     if type(bank) is not int or type(slot) is not int or not 1 <= bank <= PRESET_BANKS or not 1 <= slot <= PRESET_SLOTS:
         raise ValueError(f"Bank must be 1-{PRESET_BANKS} and slot 1-{PRESET_SLOTS}")
     return message(opcode, sequence, [bank - 1, slot - 1])
+
+
+def sample_message(opcode, sequence, action=None, mode=None, bank=None, slot=None,
+                   to_mode=None, to_bank=None, to_slot=None):
+    """Sampler requests: opcode 8 lists samples; 9 saves the recording into, erases
+    or copies a TAPE sample slot (mode chromatic/kit, bank a-e, slot 1-14)."""
+    if opcode == 8:
+        return message(8, sequence)
+    actions = ("save", "erase", "copy")
+    if action not in actions: raise ValueError("Action must be save, erase or copy")
+    def address(m, b, s):
+        if m not in SAMPLE_MODES or b not in SAMPLE_BANKS or type(s) is not int or not 1 <= s <= SAMPLE_SLOTS:
+            raise ValueError(f"Mode must be chromatic/kit, bank a-e and slot 1-{SAMPLE_SLOTS}")
+        return [SAMPLE_MODES.index(m), SAMPLE_BANKS.index(b), s - 1]
+    source = address(mode, bank, slot)
+    target = address(to_mode, to_bank, to_slot) if action == "copy" else [0, 0, 0]
+    return message(9, sequence, [actions.index(action), *source, *target])
 
 
 def midi_module():
@@ -541,22 +652,32 @@ def cli(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     schema = commands.add_parser("schema", help="Print an authoring JSON schema (v1 delay by default)")
-    schema.add_argument("--instrument", action="store_true", help="Print the v3 instrument schema")
+    schema.add_argument("--instrument", action="store_true", help="Print the v4 instrument schema (with sampler)")
     commands.add_parser("ports", help="List MIDI ports")
     validate = commands.add_parser("validate"); validate.add_argument("patch")
-    upgrade = commands.add_parser("upgrade", help="Convert a v1/v2 patch file to a new v3 instrument file")
-    upgrade.add_argument("patch"); upgrade.add_argument("out")
+    upgrade = commands.add_parser("upgrade", help="Convert an older patch file to a new v3 (or --to 4) instrument file")
+    upgrade.add_argument("patch"); upgrade.add_argument("out"); upgrade.add_argument("--to", type=int, default=3, choices=(3, 4))
     encode = commands.add_parser("encode", help="Print SysEx bytes without using MIDI")
     encode.add_argument("patch"); encode.add_argument("--sequence", type=int, default=1)
     preset_help = {"store": "Save the device's current sound to an SD preset slot",
                    "recall": "Load an SD preset slot into the device (same as the panel/program change)",
-                   "erase": "Delete an SD preset slot", "slots": "List occupied SD preset slots"}
-    for name in ("send", "status", "capture", "panic", "store", "recall", "erase", "slots"):
+                   "erase": "Delete an SD preset slot", "slots": "List occupied SD preset slots",
+                   "samples": "List TAPE sample slots on the card and the recording",
+                   "sample-save": "Save the device's recording as a TAPE sample file",
+                   "sample-erase": "Delete a TAPE sample file (and its _double)",
+                   "sample-copy": "Copy a TAPE sample file to another slot"}
+    for name in ("send", "status", "capture", "panic", "store", "recall", "erase", "slots",
+                 "samples", "sample-save", "sample-erase", "sample-copy"):
         command = commands.add_parser(name, help=preset_help.get(name))
         if name == "send": command.add_argument("patch")
         if name == "capture": command.add_argument("file")
         if name in ("store", "recall", "erase"):
             command.add_argument("bank", type=int, help="1-8"); command.add_argument("slot", type=int, help="1-15")
+        if name.startswith("sample-"):
+            for prefix in ("", "to_") if name == "sample-copy" else ("",):
+                command.add_argument(prefix + "mode", choices=SAMPLE_MODES)
+                command.add_argument(prefix + "bank", choices=SAMPLE_BANKS)
+                command.add_argument(prefix + "slot", type=int, help=f"1-{SAMPLE_SLOTS}")
         command.add_argument("--input", required=True); command.add_argument("--output", required=True)
         command.add_argument("--timeout", type=float, default=2.0)
     cc = commands.add_parser("cc", help="Send one channel-1 control change (e.g. 85 127 = wet bypass on, 123 0 = panic)")
@@ -572,13 +693,13 @@ def cli(argv=None):
     ai.add_argument("--endpoint", default="http://127.0.0.1:11434/api/chat")
     ai.add_argument("--out", required=True)
     args = parser.parse_args(argv)
-    if args.command == "schema": print(json.dumps(SCHEMA3 if args.instrument else SCHEMA, indent=2))
+    if args.command == "schema": print(json.dumps(SCHEMA4 if args.instrument else SCHEMA, indent=2))
     elif args.command == "ports":
         midi = midi_module()
         print(json.dumps({"inputs": midi.get_input_names(), "outputs": midi.get_output_names()}, indent=2))
     elif args.command == "validate": print(json.dumps(load_patch(args.patch), indent=2))
     elif args.command == "upgrade":
-        save_patch(upgrade_patch(load_patch(args.patch)), args.out); print(f"wrote {args.out}")
+        save_patch(upgrade_patch(load_patch(args.patch), args.to), args.out); print(f"wrote {args.out}")
     elif args.command == "encode":
         print(bytes([0xF0, *encode_patch(load_patch(args.patch), args.sequence), 0xF7]).hex(" "))
     elif args.command == "cc":
@@ -593,7 +714,12 @@ def cli(argv=None):
         print(json.dumps(patch, indent=2))
     else:
         sequence = secrets.randbelow(16384)
-        if args.command in ("store", "recall", "erase", "slots"):
+        if args.command == "samples" or args.command.startswith("sample-"):
+            payload = (sample_message(8, sequence) if args.command == "samples" else
+                       sample_message(9, sequence, args.command[7:], args.mode, args.bank, args.slot,
+                                      getattr(args, "to_mode", None), getattr(args, "to_bank", None),
+                                      getattr(args, "to_slot", None)))
+        elif args.command in ("store", "recall", "erase", "slots"):
             opcode = {"store": 4, "recall": 5, "erase": 6, "slots": 7}[args.command]
             payload = preset_message(opcode, sequence, getattr(args, "bank", None), getattr(args, "slot", None))
         else:

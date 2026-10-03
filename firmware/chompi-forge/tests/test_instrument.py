@@ -54,27 +54,29 @@ class InstrumentTests(unittest.TestCase):
 
     def test_cloud_instrument_schema_and_response(self):
         v3 = host.load_patch(ROOT / "presets/07-warm-pad.json")
+        v4 = host.upgrade_patch(v3, 4)
         for provider in ("openai","gemini"):
-            content=json.dumps(v3)
+            content=json.dumps(v4)
             envelope=({"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":content}]}]}
                 if provider == "openai" else {"candidates":[{"finishReason":"STOP","content":{"parts":[{"text":content}]}}]})
             def opener(request,timeout):
                 body=json.loads(request.data)
                 schema=body["text"]["format"]["schema"] if provider == "openai" else body["generationConfig"]["responseFormat"]["text"]["schema"]
-                self.assertEqual(schema["properties"]["version"]["enum"],[3])
+                self.assertEqual(schema["properties"]["version"]["enum"],[4])
                 modules = schema["properties"]["modules"]["properties"]
-                self.assertEqual(list(modules), ["synth","filter","lfo","delay","reverb","output"])
+                self.assertEqual(list(modules), ["synth","filter","lfo","sampler","delay","reverb","output"])
                 voices = modules["synth"]["properties"]["voices"]
-                self.assertEqual((voices["type"], voices["minimum"], voices["maximum"]), ("integer", 1, 4))
-                self.assertIn("between 1 and 4", voices["description"])   # ranges mirrored for strict modes
+                self.assertEqual((voices["type"], voices["minimum"], voices["maximum"]), ("integer", 1, 7))
+                self.assertIn("between 1 and 7", voices["description"])   # ranges mirrored for strict modes
                 return io.BytesIO(json.dumps(envelope).encode())
-            self.assertEqual(forge_ai.generate_patch(provider,"fake-key","model","Soft keys",opener,kind="instrument"), v3)
-            # A v2 reply is the wrong format for instrument mode now and is refused.
-            content = json.dumps(self.patch)
-            envelope=({"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":content}]}]}
-                if provider == "openai" else {"candidates":[{"finishReason":"STOP","content":{"parts":[{"text":content}]}}]})
-            with self.assertRaises(forge_ai.ProviderError):
-                forge_ai.generate_patch(provider,"fake-key","model","Soft keys",lambda r,timeout: io.BytesIO(json.dumps(envelope).encode()),kind="instrument")
+            self.assertEqual(forge_ai.generate_patch(provider,"fake-key","model","Soft keys",opener,kind="instrument"), v4)
+            # v2 and v3 replies are the wrong format for instrument mode now and are refused.
+            for old in (self.patch, v3):
+              content = json.dumps(old)
+              envelope=({"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":content}]}]}
+                  if provider == "openai" else {"candidates":[{"finishReason":"STOP","content":{"parts":[{"text":content}]}}]})
+              with self.assertRaises(forge_ai.ProviderError):
+                  forge_ai.generate_patch(provider,"fake-key","model","Soft keys",lambda r,timeout: io.BytesIO(json.dumps(envelope).encode()),kind="instrument")
 
     def random_v3(self, rng, index):
         p = host.load_patch(ROOT / "presets/07-warm-pad.json")

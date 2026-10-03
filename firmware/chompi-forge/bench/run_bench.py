@@ -127,7 +127,10 @@ def forge_runs():
              ("Forge v3 Warm Pad, 4 voices", "07-warm-pad.json", 4),
              ("Forge v3 Acid Bass, mono", "08-acid-bass.json", 4),
              ("Forge v3 Bell Keys, 4 voices", "09-bell-keys.json", 4),
-             ("Forge v3 CPU Stress, 4 voices (worst case)", "10-cpu-stress.json", 4))
+             ("Forge v3 CPU Stress, 4 voices (worst case)", "10-cpu-stress.json", 4),
+             ("Forge v4 Recorded Keys, sampler, 7 voices", "11-recorded-keys.json", 7),
+             ("Forge v4 TAPE Kit A, sampler, 7 one-shots", "12-tape-kit-a.json", 7),
+             ("Forge v4 Sampler Stress, 7 voices (worst case)", "13-sampler-stress.json", 7))
     for label, preset, notes in cases:
         patch = forge_host.load_patch(ROOT / "presets" / preset)
         payload = forge_host.encode_patch(patch, 1)

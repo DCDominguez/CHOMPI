@@ -15,6 +15,21 @@ ASSETS = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascri
           "/style.css": ("style.css", "text/css")}
 
 
+def validate_samples(samples):
+    """The client echoes a sample list it read; check its shape before it reaches a prompt."""
+    try:
+        clean = {"samples": {mode: {bank: [s for s in samples["samples"][mode][bank]] for bank in host.SAMPLE_BANKS}
+                             for mode in host.SAMPLE_MODES},
+                 "recording": samples.get("recording") is True,
+                 "recording_seconds": float(samples.get("recording_seconds", 0))}
+        if any(type(s) is not int or not 1 <= s <= host.SAMPLE_SLOTS for mode in clean["samples"].values()
+               for slots in mode.values() for s in slots) or not 0 <= clean["recording_seconds"] < 10000:
+            raise ValueError
+        return clean
+    except (KeyError, TypeError, AttributeError, ValueError):
+        raise ValueError("Invalid sample list") from None
+
+
 class ForgeServer(ThreadingHTTPServer):
     daemon_threads = True
 
@@ -90,17 +105,21 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/api/validate":
                 result = {"patch": host.validate_patch(body.get("patch"))}
             elif self.path == "/api/upgrade":
-                result = {"patch": host.upgrade_patch(body.get("patch"))}
+                to = body.get("to", 3)
+                if to not in (3, 4): raise ValueError("Upgrade target must be 3 or 4")
+                result = {"patch": host.upgrade_patch(body.get("patch"), to)}
             elif self.path == "/api/generate":
                 if not self.server.ai_lock.acquire(blocking=False):
                     return self.reply(409, {"error": "A generation is already in progress"})
                 try:
+                    samples = body.get("samples")
+                    if samples is not None: samples = validate_samples(samples)
                     result = {"patch": forge_ai.generate_patch(body.get("provider"), body.get("api_key"),
-                                body.get("model"), body.get("prompt"), kind=body.get("kind", "delay"))}
+                                body.get("model"), body.get("prompt"), kind=body.get("kind", "delay"), samples=samples)}
                 finally:
                     body.pop("api_key", None)
                     self.server.ai_lock.release()
-            elif self.path in ("/api/ports", "/api/status", "/api/send", "/api/panic", "/api/preset"):
+            elif self.path in ("/api/ports", "/api/status", "/api/send", "/api/panic", "/api/preset", "/api/samples"):
                 if not self.server.midi_lock.acquire(blocking=False):
                     return self.reply(409, {"error": "A MIDI request is already in progress"})
                 try:
@@ -112,7 +131,14 @@ class Handler(BaseHTTPRequestHandler):
                             if not isinstance(body.get(key), str) or not body[key]:
                                 raise ValueError("Select both MIDI input and output ports")
                         seq = secrets.randbelow(16384)
-                        if self.path == "/api/preset":
+                        if self.path == "/api/samples":
+                            action = body.get("action")
+                            if action not in ("list", "save", "erase", "copy"):
+                                raise ValueError("Choose list, save, erase or copy")
+                            payload = (host.sample_message(8, seq) if action == "list" else
+                                       host.sample_message(9, seq, action, body.get("mode"), body.get("bank"), body.get("slot"),
+                                                           body.get("to_mode"), body.get("to_bank"), body.get("to_slot")))
+                        elif self.path == "/api/preset":
                             opcodes = {"store": 4, "recall": 5, "erase": 6, "list": 7}
                             if body.get("action") not in opcodes:
                                 raise ValueError("Choose store, recall, erase or list")

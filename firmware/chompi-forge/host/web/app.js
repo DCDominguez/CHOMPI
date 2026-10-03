@@ -1,47 +1,60 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const WAVES = ["sine", "triangle", "saw", "square"], LFO_WAVES = ["sine", "triangle", "square", "sample_hold"];
+const SAMPLE_MODES = ["chromatic", "kit"], SAMPLE_BANKS = ["a", "b", "c", "d", "e"];
 const ROUTES = {2: [["synth>delay>output", "Synth → Delay → Output"], ["aux>delay>output", "Aux input → Delay → Output"]],
-  3: [["synth>delay>reverb>output", "Synth → Delay → Reverb → Output"], ["aux>delay>reverb>output", "Aux input → Delay → Reverb → Output"]]};
+  3: [["synth>delay>reverb>output", "Synth → Delay → Reverb → Output"], ["aux>delay>reverb>output", "Aux input → Delay → Reverb → Output"]],
+  4: [["synth>delay>reverb>output", "Synth → Delay → Reverb → Output"], ["sampler>delay>reverb>output", "Sampler → Delay → Reverb → Output"],
+      ["aux>delay>reverb>output", "Aux input → Delay → Reverb → Output"]]};
 // One row per editor control. m/k = v3 module/key; id = `${m}-${k}`. type: number (default), select, check.
 // v = patch versions that have the field. log = slider runs 0–1000 on the firmware's log curve.
 const GROUPS = [
-  ["source", "Source · oscillators"], ["amp", "Amplitude · voices"], ["filter", "Filter"], ["lfo", "LFO · mod wheel"],
+  ["source", "Source · oscillators"], ["sampler", "Sampler · TAPE sample slots"], ["amp", "Amplitude · voices"], ["filter", "Filter"], ["lfo", "LFO · mod wheel"],
   ["delay", "Stereo delay"], ["reverb", "Reverb"], ["output", "Output"]];
 const CONTROLS = [
-  {g: "source", m: "synth", k: "waveform", label: "Oscillator", type: "select", options: WAVES, v: [2, 3]},
-  {g: "source", m: "synth", k: "osc2_waveform", label: "Oscillator 2", type: "select", options: WAVES, v: [3]},
-  {g: "source", m: "synth", k: "osc2_level", label: "Oscillator 2 level", unit: "0–1", min: 0, max: 1, step: .01, v: [3]},
-  {g: "source", m: "synth", k: "osc2_semitones", label: "Oscillator 2 interval", unit: "semitones", min: -24, max: 24, step: 1, v: [3]},
-  {g: "source", m: "synth", k: "osc2_detune_cents", label: "Oscillator 2 detune", unit: "cents", min: -50, max: 50, step: 1, v: [3]},
-  {g: "source", m: "synth", k: "noise", label: "Noise", unit: "0–1", min: 0, max: 1, step: .01, v: [3]},
-  {g: "amp", m: "synth", k: "attack_ms", label: "Attack", unit: "ms", min: 1, max: 2000, step: 1, v: [2, 3]},
-  {g: "amp", m: "synth", k: "decay_ms", label: "Decay", unit: "ms", min: 1, max: 2000, step: 1, v: [2, 3]},
-  {g: "amp", m: "synth", k: "sustain", label: "Sustain", unit: "0–1", min: 0, max: 1, step: .01, v: [2, 3]},
-  {g: "amp", m: "synth", k: "release_ms", label: "Release", unit: "ms", min: 5, max: 5000, step: 1, v: [2, 3]},
-  {g: "amp", m: "synth", k: "voices", label: "Voices", unit: "1 = mono", min: 1, max: 4, step: 1, v: [3]},
-  {g: "amp", m: "synth", k: "glide_ms", label: "Glide", unit: "ms", min: 0, max: 2000, step: 1, v: [3]},
-  {g: "filter", m: "filter", k: "cutoff_hz", label: "Cutoff", unit: "Hz · log", min: 40, max: 16000, step: 1, log: true, v: [2, 3]},
-  {g: "filter", m: "filter", k: "resonance", label: "Resonance", unit: "0–1", min: 0, max: 1, step: .01, v: [3]},
-  {g: "filter", m: "filter", k: "env_octaves", label: "Envelope amount", unit: "octaves ±6", min: -6, max: 6, step: .1, v: [3]},
-  {g: "filter", m: "filter", k: "attack_ms", label: "Filter attack", unit: "ms", min: 1, max: 2000, step: 1, v: [3]},
-  {g: "filter", m: "filter", k: "decay_ms", label: "Filter decay", unit: "ms", min: 1, max: 2000, step: 1, v: [3]},
-  {g: "filter", m: "filter", k: "sustain", label: "Filter sustain", unit: "0–1", min: 0, max: 1, step: .01, v: [3]},
-  {g: "filter", m: "filter", k: "release_ms", label: "Filter release", unit: "ms", min: 5, max: 5000, step: 1, v: [3]},
-  {g: "lfo", m: "lfo", k: "waveform", label: "LFO shape", type: "select", options: LFO_WAVES, v: [3]},
-  {g: "lfo", m: "lfo", k: "rate_hz", label: "LFO rate", unit: "Hz · log", min: .05, max: 20, step: .01, log: true, v: [3]},
-  {g: "lfo", m: "lfo", k: "pitch_cents", label: "Vibrato depth", unit: "cents", min: 0, max: 200, step: 1, v: [3]},
-  {g: "lfo", m: "lfo", k: "filter_octaves", label: "Filter sweep", unit: "octaves", min: 0, max: 4, step: .1, v: [3]},
-  {g: "lfo", m: "lfo", k: "amp_depth", label: "Tremolo depth", unit: "0–1", min: 0, max: 1, step: .01, v: [3]},
-  {g: "lfo", m: "lfo", k: "mod_wheel", label: "Mod wheel (CC1) controls LFO depth", type: "check", v: [3]},
-  {g: "delay", m: "delay", k: "mix", label: "Wet / dry", unit: "0–1", min: 0, max: 1, step: .01, v: [1, 2, 3]},
-  {g: "delay", m: "delay", k: "time_ms", label: "Delay time", unit: "ms", min: 10, max: 1000, step: 1, v: [1, 2, 3]},
-  {g: "delay", m: "delay", k: "feedback", label: "Feedback", unit: "0–0.85", min: 0, max: .85, step: .01, v: [1, 2, 3]},
-  {g: "delay", m: "delay", k: "bypass", label: "Bypass wet signal", type: "check", v: [1, 2, 3]},
-  {g: "reverb", m: "reverb", k: "mix", label: "Reverb mix", unit: "0–1", min: 0, max: 1, step: .01, v: [3]},
-  {g: "reverb", m: "reverb", k: "size", label: "Size / decay", unit: "0–1", min: 0, max: 1, step: .01, v: [3]},
-  {g: "reverb", m: "reverb", k: "damping", label: "Damping", unit: "0–1", min: 0, max: 1, step: .01, v: [3]},
-  {g: "output", m: "output", k: "level", label: "Output level", unit: "0–1", min: 0, max: 1, step: .01, v: [1, 2, 3]},
+  {g: "source", m: "synth", k: "waveform", label: "Oscillator", type: "select", options: WAVES, v: [2, 3, 4]},
+  {g: "source", m: "synth", k: "osc2_waveform", label: "Oscillator 2", type: "select", options: WAVES, v: [3, 4]},
+  {g: "source", m: "synth", k: "osc2_level", label: "Oscillator 2 level", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4]},
+  {g: "source", m: "synth", k: "osc2_semitones", label: "Oscillator 2 interval", unit: "semitones", min: -24, max: 24, step: 1, v: [3, 4]},
+  {g: "source", m: "synth", k: "osc2_detune_cents", label: "Oscillator 2 detune", unit: "cents", min: -50, max: 50, step: 1, v: [3, 4]},
+  {g: "source", m: "synth", k: "noise", label: "Noise", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4]},
+  {g: "sampler", m: "sampler", k: "mode", label: "Mode (chromatic: one sample on all keys · kit: one per white key)", type: "select", options: SAMPLE_MODES, v: [4]},
+  {g: "sampler", m: "sampler", k: "bank", label: "Bank", type: "select", options: SAMPLE_BANKS, v: [4]},
+  {g: "sampler", m: "sampler", k: "slot", label: "Slot (chromatic)", unit: "1–14 · 15 = recording", min: 1, max: 15, step: 1, v: [4]},
+  {g: "sampler", m: "sampler", k: "pitch_semitones", label: "Pitch", unit: "semitones", min: -24, max: 24, step: .1, v: [4]},
+  {g: "sampler", m: "sampler", k: "start", label: "Start", unit: "0–1 of length", min: 0, max: 1, step: .001, v: [4]},
+  {g: "sampler", m: "sampler", k: "end", label: "End", unit: "0–1 of length", min: 0, max: 1, step: .001, v: [4]},
+  {g: "sampler", m: "sampler", k: "crossfade_ms", label: "Loop crossfade", unit: "ms", min: 0, max: 250, step: 1, v: [4]},
+  {g: "sampler", m: "sampler", k: "loop", label: "Loop start → end", type: "check", v: [4]},
+  {g: "sampler", m: "sampler", k: "hold", label: "Sound while held (off: one-shot trigger)", type: "check", v: [4]},
+  {g: "sampler", m: "sampler", k: "reverse", label: "Reverse", type: "check", v: [4]},
+  {g: "amp", m: "synth", k: "attack_ms", label: "Attack", unit: "ms", min: 1, max: 2000, step: 1, v: [2, 3, 4]},
+  {g: "amp", m: "synth", k: "decay_ms", label: "Decay", unit: "ms", min: 1, max: 2000, step: 1, v: [2, 3, 4]},
+  {g: "amp", m: "synth", k: "sustain", label: "Sustain", unit: "0–1", min: 0, max: 1, step: .01, v: [2, 3, 4]},
+  {g: "amp", m: "synth", k: "release_ms", label: "Release", unit: "ms", min: 5, max: 5000, step: 1, v: [2, 3, 4]},
+  {g: "amp", m: "synth", k: "voices", label: "Voices", unit: "1 = mono · v3 max 4, v4 max 7", min: 1, max: 7, step: 1, v: [3, 4]},
+  {g: "amp", m: "synth", k: "glide_ms", label: "Glide", unit: "ms", min: 0, max: 2000, step: 1, v: [3, 4]},
+  {g: "filter", m: "filter", k: "cutoff_hz", label: "Cutoff", unit: "Hz · log", min: 40, max: 16000, step: 1, log: true, v: [2, 3, 4]},
+  {g: "filter", m: "filter", k: "resonance", label: "Resonance", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4]},
+  {g: "filter", m: "filter", k: "env_octaves", label: "Envelope amount", unit: "octaves ±6", min: -6, max: 6, step: .1, v: [3, 4]},
+  {g: "filter", m: "filter", k: "attack_ms", label: "Filter attack", unit: "ms", min: 1, max: 2000, step: 1, v: [3, 4]},
+  {g: "filter", m: "filter", k: "decay_ms", label: "Filter decay", unit: "ms", min: 1, max: 2000, step: 1, v: [3, 4]},
+  {g: "filter", m: "filter", k: "sustain", label: "Filter sustain", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4]},
+  {g: "filter", m: "filter", k: "release_ms", label: "Filter release", unit: "ms", min: 5, max: 5000, step: 1, v: [3, 4]},
+  {g: "lfo", m: "lfo", k: "waveform", label: "LFO shape", type: "select", options: LFO_WAVES, v: [3, 4]},
+  {g: "lfo", m: "lfo", k: "rate_hz", label: "LFO rate", unit: "Hz · log", min: .05, max: 20, step: .01, log: true, v: [3, 4]},
+  {g: "lfo", m: "lfo", k: "pitch_cents", label: "Vibrato depth", unit: "cents", min: 0, max: 200, step: 1, v: [3, 4]},
+  {g: "lfo", m: "lfo", k: "filter_octaves", label: "Filter sweep", unit: "octaves", min: 0, max: 4, step: .1, v: [3, 4]},
+  {g: "lfo", m: "lfo", k: "amp_depth", label: "Tremolo depth", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4]},
+  {g: "lfo", m: "lfo", k: "mod_wheel", label: "Mod wheel (CC1) controls LFO depth", type: "check", v: [3, 4]},
+  {g: "delay", m: "delay", k: "mix", label: "Wet / dry", unit: "0–1", min: 0, max: 1, step: .01, v: [1, 2, 3, 4]},
+  {g: "delay", m: "delay", k: "time_ms", label: "Delay time", unit: "ms", min: 10, max: 1000, step: 1, v: [1, 2, 3, 4]},
+  {g: "delay", m: "delay", k: "feedback", label: "Feedback", unit: "0–0.85", min: 0, max: .85, step: .01, v: [1, 2, 3, 4]},
+  {g: "delay", m: "delay", k: "bypass", label: "Bypass wet signal", type: "check", v: [1, 2, 3, 4]},
+  {g: "reverb", m: "reverb", k: "mix", label: "Reverb mix", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4]},
+  {g: "reverb", m: "reverb", k: "size", label: "Size / decay", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4]},
+  {g: "reverb", m: "reverb", k: "damping", label: "Damping", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4]},
+  {g: "output", m: "output", k: "level", label: "Output level", unit: "0–1", min: 0, max: 1, step: .01, v: [1, 2, 3, 4]},
 ];
 for (const c of CONTROLS) c.id = `${c.m}-${c.k}`;
 // Where a control lives in a patch of the given version (null: not in that format).
@@ -73,16 +86,16 @@ async function api(path, body) {
 function updateButtons() {
   document.querySelectorAll("button").forEach(button => { button.disabled = busy; });
   for (const id of ["download", "send"]) $(id).disabled = busy || !patch;
-  $("upgrade").disabled = busy || !patch || patch.version === 3;
+  $("upgrade").disabled = busy || !patch || patch.version === 4;
   $("editor").disabled = busy || !patch;
   $("routing").disabled = !patch || patch.version === 1;
   for (const c of CONTROLS) {
     const off = !patch || !path(c, patch.version);
     $(c.id).disabled = off; if ($(`${c.id}-range`)) $(`${c.id}-range`).disabled = off;
   }
-  document.querySelectorAll("#slots button").forEach(button => { button.disabled = busy; });
+  document.querySelectorAll("#slots button, #sample-slots button").forEach(button => { button.disabled = busy; });
   for (const [group] of GROUPS) $(`group-${group}`).classList.toggle("unavailable", !!patch && !CONTROLS.some(c => c.g === group && path(c, patch.version)));
-  for (const id of ["kind", "provider", "model", "api-key", "prompt", "preset", "import", "input-port", "output-port"]) $(id).disabled = busy;
+  for (const id of ["kind", "provider", "model", "api-key", "prompt", "preset", "import", "input-port", "output-port", "sample-mode", "sample-bank"]) $(id).disabled = busy;
 }
 async function run(message, action) {
   if (busy) return;
@@ -102,9 +115,10 @@ function loadPatch(value) {
     else if (c.type === "select") $(c.id).value = value ?? c.options[0];
     else { $(c.id).value = value ?? ""; $(`${c.id}-range`).value = toSlider(c, value); }
   }
-  $("version-note").textContent = {1: "v1 delay preset: external audio through the delay. Convert to v3 to add synth, filter, LFO and reverb.",
-    2: "v2 instrument preset (firmware 0.3 format). Convert to v3 for the second oscillator, resonant filter, LFO and reverb.",
-    3: "v3 instrument: all installed modules available (firmware 0.4)."}[patch.version];
+  $("version-note").textContent = {1: "v1 delay preset: external audio through the delay. Convert to v4 to add synth, sampler, filter, LFO and reverb.",
+    2: "v2 instrument preset (firmware 0.3 format). Convert to v4 for the second oscillator, sampler, resonant filter, LFO and reverb.",
+    3: "v3 instrument (firmware 0.4 format). Convert to v4 to add the sampler and up to 7 voices.",
+    4: "v4 instrument: all installed modules, including the sampler (firmware 0.5)."}[patch.version];
   showJSON(); updateButtons();
 }
 function build() {
@@ -148,9 +162,9 @@ function build() {
 build();
 $("patch-name").addEventListener("input", () => { if (patch) { patch.name = $("patch-name").value; showJSON(); } });
 $("routing").addEventListener("change", () => { if (patch && patch.version !== 1) { patch.routing = $("routing").value; showJSON(); } });
-$("upgrade").addEventListener("click", () => run("Converting to a v3 instrument…", async () => {
-  const result = await api("upgrade", {patch}); loadPatch(result.patch); $("preset").value = "";
-  notice("Converted to v3. New modules start neutral; the v3 filter is steeper, so tone may differ slightly. Nothing sent to CHOMPI.");
+$("upgrade").addEventListener("click", () => run("Converting to a v4 instrument…", async () => {
+  const result = await api("upgrade", {patch, to: 4}); loadPatch(result.patch); $("preset").value = "";
+  notice("Converted to v4. New modules start neutral (the sampler is used only if you choose its signal path); the filter is steeper than v1/v2, so tone may differ slightly. Nothing sent to CHOMPI.");
 }));
 $("clear-key").addEventListener("click", () => { $("api-key").value = ""; notice("API key cleared from the form."); });
 $("provider").addEventListener("change", () => { $("api-key").value = ""; $("model").value = ""; notice("Provider changed. Enter its model ID and API key."); });
@@ -158,7 +172,9 @@ window.addEventListener("pagehide", () => { $("api-key").value = ""; });
 $("generate-form").addEventListener("submit", event => {
   event.preventDefault();
   run("Generating with your selected provider…", async () => {
-    const result = await api("generate", {kind: $("kind").value, provider: $("provider").value, api_key: $("api-key").value.trim(), model: $("model").value.trim(), prompt: $("prompt").value});
+    const request = {kind: $("kind").value, provider: $("provider").value, api_key: $("api-key").value.trim(), model: $("model").value.trim(), prompt: $("prompt").value};
+    if (sampleList && request.kind === "instrument") request.samples = sampleList;   // AI may only use samples the device reported
+    const result = await api("generate", request);
     loadPatch(result.patch); $("preset").value = ""; notice("Patch generated and validated. Review it before sending to CHOMPI.");
   });
 });
@@ -248,6 +264,61 @@ $("slot-erase").addEventListener("click", () => run("Erasing device preset…", 
   await api("preset", {...target, action: "erase"}); await readSlots();
   notice(`Bank ${target.bank} slot ${target.slot} erased.`);
 }));
+// Device samples (SD card, TAPE file names): read, use in the editor, save the recording, erase.
+let sampleList = null, sampleSlot = 0, sampleEraseArmed = null;
+for (const mode of SAMPLE_MODES) $("sample-mode").add(new Option(mode === "kit" ? "Kit (CUBBI)" : "Chromatic (JAMMI)", mode));
+for (const bank of SAMPLE_BANKS) $("sample-bank").add(new Option(`Bank ${bank.toUpperCase()}`, bank));
+function drawSamples() {
+  const mode = $("sample-mode").value, bank = $("sample-bank").value;
+  const filled = sampleList ? sampleList.samples[mode][bank] : [];
+  $("sample-slots").replaceChildren(...Array.from({length: 15}, (_, i) => {
+    const slot = i + 1, button = document.createElement("button"), recording = slot === 15;
+    const has = recording ? !!(sampleList && sampleList.recording) : filled.includes(slot);
+    button.type = "button"; button.id = `sample-slot-${slot}`; button.textContent = recording ? "REC" : String(slot);
+    button.classList.toggle("filled", has);
+    button.setAttribute("aria-pressed", String(slot === sampleSlot));
+    button.setAttribute("aria-label", recording ? `Recording${has ? `, ${sampleList.recording_seconds.toFixed(1)} seconds` : ", empty"}` : `Sample slot ${slot}${has ? ", on card" : ", empty"}`);
+    button.disabled = busy;
+    button.addEventListener("click", () => { sampleSlot = slot; sampleEraseArmed = null; drawSamples(); });
+    return button;
+  }));
+  $("sample-state").textContent = !sampleList ? "Samples not read yet." : !sampleList.card ? "No SD card (the recording still works)."
+    : `Recording: ${sampleList.recording ? sampleList.recording_seconds.toFixed(1) + " s" : "none"} of ${Math.round(sampleList.capacity_seconds)} s.`;
+}
+for (const id of ["sample-mode", "sample-bank"]) $(id).addEventListener("change", () => { sampleSlot = 0; sampleEraseArmed = null; drawSamples(); });
+function sampleTarget(fileSlot = true) {
+  if (!sampleSlot || (fileSlot && sampleSlot === 15)) throw new Error(fileSlot ? "Choose a card slot 1–14 first." : "Choose a slot first.");
+  return {...ports(), mode: $("sample-mode").value, bank: $("sample-bank").value, slot: sampleSlot};
+}
+async function readSamples() { sampleList = await api("samples", {...ports(), action: "list"}); drawSamples(); }
+$("samples-read").addEventListener("click", () => run("Reading device samples…", async () => {
+  await readSamples(); notice("Sample slots read from the SD card. AI instrument patches can now use them.");
+}));
+$("sample-use").addEventListener("click", () => run("Putting the sample into the editor…", async () => {
+  if (!patch) throw new Error("Load a patch first.");
+  const mode = $("sample-mode").value;
+  if (mode === "chromatic" && !sampleSlot) throw new Error("Choose a slot first.");
+  if (patch.version !== 4) loadPatch((await api("upgrade", {patch, to: 4})).patch);
+  const sampler = patch.modules.sampler;
+  sampler.mode = mode; sampler.bank = $("sample-bank").value; if (mode === "chromatic") sampler.slot = sampleSlot;
+  patch.routing = "sampler>delay>reverb>output"; loadPatch(patch); $("preset").value = "";
+  notice("Sampler set in the editor. Send to CHOMPI to play it.");
+}));
+$("sample-save").addEventListener("click", () => run("Saving the recording to the SD card…", async () => {
+  const target = sampleTarget(); await api("samples", {...target, action: "save"}); await readSamples();
+  notice(`Recording saved as ${target.mode === "kit" ? "cubbi" : "jammi"}_${target.bank}${target.slot}.wav (TAPE format).`);
+}));
+$("sample-erase").addEventListener("click", () => run("Erasing sample…", async () => {
+  const target = sampleTarget(), key = `${target.mode}:${target.bank}:${target.slot}`;
+  if (!sampleEraseArmed || sampleEraseArmed.key !== key || Date.now() - sampleEraseArmed.at > 4000) {
+    sampleEraseArmed = {key, at: Date.now()};
+    notice(`Press Erase sample again within 4 seconds to delete ${target.mode} ${target.bank}${target.slot} from the card.`);
+    return;
+  }
+  sampleEraseArmed = null;
+  await api("samples", {...target, action: "erase"}); await readSamples();
+  notice(`Sample ${target.mode} ${target.bank}${target.slot} erased from the card.`);
+}));
 async function start() {
   busy = true; updateButtons();
   try {
@@ -255,7 +326,7 @@ async function start() {
     const session = await response.json(); token = session.token; presets = session.presets;
     presets.forEach((item, index) => $("preset").add(new Option(item.name, String(index))));
     if (presets.length) { const initial = Math.max(0, presets.findIndex(item => item.version === 3)); loadPatch(presets[initial]); $("preset").value = String(initial); }
-    drawSlots();
+    drawSlots(); drawSamples();
     notice("Ready. Start with AI, a preset, or an imported patch.");
   } catch (error) { notice(error.message, true); }
   finally { busy = false; updateButtons(); }
