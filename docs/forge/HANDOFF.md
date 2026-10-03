@@ -14,8 +14,8 @@ live checkpoint with claim levels, what changed and prioritized next actions.
   palette (roadmap item 2, firmware 0.4: `91c11c2`, `79c5d9f`).
 - Software-tested: native, Python, sanitizer, real-Chromium browser and ARM build
   (xPack GCC 10.3.1; the pinned Arm archive was unreachable).
-- Bundles: see CONTINUE.md "Next actions"; any ZIP older than the current
-  firmware commit (including the `0a605f6` one) is stale.
+- Current bundle: Forge 0.4 from `66af4c5`, FORGE.bin sha256
+  `2ce4b7fc…1505`, xPack compiler. Older ZIPs (0.2, 0.3, `0a605f6`) are stale.
 - Not verified: anything on hardware; any live OpenAI/Gemini request; device CPU.
 - Next for the agent: roadmap item 3 (SD preset banks), design first. QA for DC later:
   [LIVE_AI_TEST.md](LIVE_AI_TEST.md), then [TEST_SESSION.md](TEST_SESSION.md);

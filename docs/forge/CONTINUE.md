@@ -216,6 +216,12 @@ AI, webapp, presets), then docs.
   27 ms UART reply blocking are hardware-unverified; live AI with the larger
   v3 schema unverified (strict-mode providers may reject a keyword — relax
   only that keyword).
+- Loudness (simulated renders, same 0.25 level): v3 presets peak 0.02–0.05
+  vs 0.07–0.08 for v2. Causes: resonance gain compensation 1/sqrt(Q/0.707)
+  (Acid Bass at resonance 0.8 → ×0.34), reverb crossfades dry→wet, osc2/noise
+  normalization. Deliberately conservative (no clipping at max resonance);
+  revisit after listening (TEST_SESSION 3.10–3.13), e.g. partial compensation
+  or higher preset levels.
 
 ## Next actions (priority order)
 
@@ -225,7 +231,12 @@ AI, webapp, presets), then docs.
    (program change?), host commands to list/store/recall, failure handling
    for missing/corrupt cards, and how this coexists with the bootloader's
    SD update. Confirm with DC before choosing a physical UI for recall.
-2. Agent: before QA, regenerate the bundle from a clean committed tree
-   (pinned Arm compiler if developer.arm.com becomes reachable, else xPack).
+2. Bundle: `Forge_0.4_Test_Candidate.zip` built 2026-10-03 from commit
+   `66af4c5` (tree `bc6909df`), xPack 10.3.1 (`built_with_pinned_compiler:
+   false`), FORGE.bin sha256
+   `2ce4b7fcf6cdfccc1fde7491cb07a2e1d7753adaef3d08668daf29e971d71505`;
+   verify_bundle.py OK (42 files); given to DC in chat, not committed.
+   Regenerate after any later firmware change, and with the pinned Arm
+   compiler if developer.arm.com becomes reachable.
 3. DC (later, per feature): LIVE_AI_TEST.md, then TEST_SESSION.md; record in
    TEST_RESULTS.md. Agent then fixes only what QA finds.
