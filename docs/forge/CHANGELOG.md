@@ -1,5 +1,14 @@
 # Forge changelog
 
+## 0.4 stock comparison refresh — 2026-10-03
+
+- COMPATIBILITY.md refreshed for `4fec6ac`: SD card coexistence section,
+  toolchain provenance (TEMPO is a GCC 13 build), proof that xPack 10.3.1
+  generates the same libDaisy/DaisySP code as Arm 10.3-2021.10, corrected
+  factory rebuild deltas, current Forge size and headroom.
+- `make bench`: `TEMPO_GCC_PATH` builds TEMPO with its own compiler;
+  TEMPO FX+output 1,352 instructions/sample with GCC 13.3.
+
 ## 0.4 device presets on the SD card — 2026-10-03
 
 - 8 banks × 15 slots in `FORGE/B<bank>S<slot>.FPR` (CRC-checked wire DATA,

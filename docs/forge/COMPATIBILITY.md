@@ -1,6 +1,6 @@
 # Forge vs stock TAPE / TEMPO / WAVE: compatibility and CPU benchmark
 
-Measured 2026-10-03 against the upstream sources in `firmware/chompi-tape`,
+Measured 2026-10-03 (refreshed after device presets, Forge `4fec6ac`) against the upstream sources in `firmware/chompi-tape`,
 `firmware/chompi-tempo`, `firmware/chompi-wave` (read only) and the factory card
 images in `firmware/card-profiles`. **Everything here is source analysis, builds
 and emulation. Nothing was run on CHOMPI hardware.**
@@ -14,7 +14,9 @@ and emulation. Nothing was run on CHOMPI hardware.**
 | Same keybed notes? | Yes: identical 25-key map (MIDI 48–72) to TAPE, TEMPO and WAVE |
 | Same MIDI conventions? | Partly: CC20–23 agree; CC24/CC25 differ; channel fixed to 1 (stock configurable) |
 | Is Forge's CPU load plausible? | Worst case ~1,430 instructions/sample, about half of WAVE's shipping engine (~2,700) |
-| Do stock sources rebuild like factory? | No: TAPE overflows with the xPack compiler; TEMPO builds 4.6 KB smaller |
+| Can Forge share an SD card with stock files? | Yes: same SD bus setup and FatFS config as TAPE/WAVE; stock apps ignore `FORGE/` (§3a) |
+| Is our compiler equivalent to the pinned one? | For libDaisy and DaisySP, yes: identical machine code to the shipped Arm 10.3-2021.10 objects (§5) |
+| Do stock sources rebuild like factory? | Within ~3.9 KB (TAPE, WAVE) and 388 B (TEMPO); the gap is the compiler's runtime libraries, not the source (§5) |
 
 ## 1. Bootloader acceptance
 
@@ -28,7 +30,7 @@ From `firmware/chompi-tape/code/Chompi_Bootloader/bootloader/src/bootloader.cpp`
 
 | Binary | Size | Stack pointer | Entry | Accepted |
 | --- | --- | --- | --- | --- |
-| FORGE.bin 0.4 | 142,520 | 0x20020000 (DTCM) | 0x240008DD (D1 SRAM) | yes |
+| FORGE.bin 0.4 (`4fec6ac`) | 187,592 | 0x20020000 (DTCM) | 0x240008DD (D1 SRAM) | yes |
 | TAPE 2.0 factory | 240,520 | 0x20020000 (DTCM) | 0x24001901 (D1 SRAM) | yes |
 | TEMPO 1.0 factory | 263,112 | 0x20020000 (DTCM) | 0x2400174D (D1 SRAM) | yes |
 | WAVE 1.0 factory | 200,028 | 0x20020000 (DTCM) | 0x240018F9 (D1 SRAM) | yes |
@@ -51,7 +53,7 @@ All four apps link as BOOT_SRAM into the 512 KB D1 SRAM, split differently:
 | TAPE | 235.25 KB | 276.75 KB | Factory image leaves 376 B of code space |
 | TEMPO | 282 KB | 230 KB | xPack build: 89.5 % code, 70 % data, 50 % DTCM, 11 % SDRAM |
 | WAVE | 232 KB | 280 KB | Forge uses this linker script |
-| Forge 0.4 | 232 KB (60 % used) | 280 KB (21 %) | ~92 KB code headroom |
+| Forge 0.4 (`4fec6ac`) | 232 KB (79 % used) | 280 KB (23 %) | ~48 KB code headroom; DTCM 27 %, SDRAM 0.6 % |
 
 The stock apps keep their reverb in DTCM (`DSY_DTCMRAM_BSS`). Forge now does
 the same: its 34 KB reverb moved from SDRAM to DTCM (26.6 % of DTCM), because
@@ -70,6 +72,29 @@ never reaches the output.
   step 5, records a stock loudness reference to compare.
 - **Keybed:** Forge's note table equals the stock `NormalPage::key_map` for all
   25 note keys in TAPE, TEMPO and WAVE (checked programmatically).
+
+## 3a. SD card coexistence (device presets)
+
+| | TAPE 2.0 | TEMPO 1.0 | WAVE 1.0 | Forge 0.4 |
+| --- | --- | --- | --- | --- |
+| SDMMC | FAST, 4-bit | VERY_FAST, 4-bit | FAST, 4-bit | FAST, 4-bit (TAPE's sequence) |
+| FatFS config (`ffconf.h`) | same | same | same | WAVE's libDaisy (same) |
+| What it reads | its sample names, `options.json`, `presets.json` | `/Chromatic`, `/Slice`, `/Buffer`, options/presets | root names containing `.wav` | `FORGE/BnSnn.FPR` only |
+| What it writes | presets/options in root; unlink + rename for presets | options/presets | options/presets | `FORGE/TMP.FPR`, then unlink + rename (TAPE's pattern) |
+
+- No stock app scans subdirectories other than TEMPO's three fixed ones, and
+  WAVE only takes root names containing `.wav`, so a `FORGE/` folder is
+  invisible to all three. Forge never opens stock files.
+- The bootloader only looks at root names containing `.bin`; `.FPR` records
+  and the `FORGE` directory never match.
+- The upstream build guide warns that compilers newer than 10.3 "can create
+  issues with the SD card communication". Forge's libDaisy SD/FatFS code is
+  compiled by GCC 10.3.1 and is byte-for-byte the same machine code as the
+  shipped Arm build (§5).
+- Forge sends MIDI replies with `BlockingTransmit` via `GetUartHandle()`, an
+  accessor that exists only in WAVE's/TEMPO's patched libDaisy (TAPE's copy
+  lacks it and keeps UART DMA queuing). Forge builds against WAVE's, so this is
+  consistent; it is a reason not to switch Forge to TAPE's libDaisy.
 
 ## 4. MIDI conventions
 
@@ -92,30 +117,53 @@ are erase/copy/save; CHOMPI confirms. KEY_16/17 select banks and encoder 1
 also turns banks. TAPE's own files (`presets.json`, samples) are not read or
 written; Forge's live in `FORGE/` and are never `.bin`.
 
-## 5. Upstream build reproducibility
+## 5. Toolchains and build reproducibility
 
-The stock sources were built in a scratch copy with the same xPack GCC
-10.3.1-2.3 used for Forge (the pinned Arm 10.3-2021.10 archive is unreachable
-from the agent sandbox):
+**Which compiler built what** (from strings in the factory binaries and the
+`.comment` sections of the libraries shipped in the upstream repo):
 
-- **TAPE does not build on Linux as shipped:** it includes `Limiter.h`, but the
-  file is `limiter.h` (works only on case-insensitive filesystems).
-- **TAPE overflows** SRAM_EXEC by 3,524 bytes with xPack. The factory image,
-  built with the Arm archive, fits with 376 bytes to spare.
-- **TEMPO builds 4,660 bytes smaller** than the factory image (258,452 vs
-  263,112).
+| Item | Compiler |
+| --- | --- |
+| TAPE 2.0, WAVE 1.0 factory binaries | Arm GNU Embedded 10.3-2021.10 (newlib paths from Arm's 2021-10-18 build) |
+| TEMPO 1.0 factory binary | Arm GNU Toolchain 13.x (TEMPO's README requires 13.3.rel1) |
+| Shipped `libdaisy.a` / `libdaisysp.a` (all three apps) | Arm GNU Embedded 10.3-2021.10 |
+| Forge | xPack 10.3.1-2.3 (checksum-verified; Arm's server is unreachable here) |
 
-So "repo sources + xPack" does not reproduce the factory builds. Either the
-sources differ from what shipped, or the compilers generate different code;
-the pinned archive is needed to tell which. For Forge, ~92 KB of code headroom
-makes either effect harmless, but it is one more reason to prefer the pinned
-compiler for release bundles.
+**Is xPack 10.3.1 the same compiler?** For everything that matters to Forge's
+hardware code, yes. WAVE's libDaisy rebuilt with xPack produces the same
+disassembly as the shipped Arm-built objects for **188 of 188** objects
+(including the SDMMC, FatFS, UART, I2C and audio drivers), and DaisySP matches
+for **56 of 56**. Both are GCC 10.3.1 20210824 built from the same sources.
+
+**Factory rebuilds** (scratch copies; upstream untouched; shipped libraries used):
+
+| App | Compiler used | Rebuilt | Factory | Difference |
+| --- | --- | --- | --- | --- |
+| TAPE 2.0 | xPack 10.3.1 | 244,420 (overflows SRAM_EXEC by 3,524) | 240,520 | +3,900 |
+| WAVE 1.0 | xPack 10.3.1 | 203,920 | 200,028 | +3,892 |
+| TEMPO 1.0 | xPack 13.3.1-1.1 | 263,500 | 263,112 | +388 |
+
+The TAPE and WAVE gaps are nearly identical, and the libraries are proven
+identical, so the extra ~3.9 KB comes from the compiler's own runtime
+libraries (newlib/libgcc as packaged by xPack). A string comparison of WAVE
+shows the same messages in both binaries, apart from those runtime build paths.
+TEMPO with the right compiler (13.3) lands within 388 bytes; the earlier
+"4.6 KB smaller" figure came from building it with 10.3, which TEMPO's README
+rules out.
+
+**Consequences for Forge:**
+- An Arm-10.3 build of Forge would be roughly 3.9 KB smaller; code generation
+  for its own code and libDaisy is otherwise the same. With ~48 KB of code
+  headroom this is harmless.
+- Building TAPE on Linux still needs a `Limiter.h` → `limiter.h` link
+  (case-sensitive filesystem); TAPE does not fit with xPack 10.3 at all.
 
 ## 6. CPU benchmark (`make bench`)
 
 **Method.** Each workload is compiled with the firmware's compiler and flags
 (Cortex-M7, FPv5-D16 hard float, `-O3`) against that app's own vendored
-libDaisy/DaisySP, then run in the Unicorn emulator. Every executed instruction
+libDaisy/DaisySP. TEMPO is built with GCC 13.3 (its upstream compiler,
+`TEMPO_GCC_PATH`); TAPE, WAVE and Forge with 10.3, then run in the Unicorn emulator. Every executed instruction
 of a 24-sample audio block is counted. Stock code is called unmodified:
 - **TAPE:** `DSPEngine::ApplyFx` plus the output stage, reproduced statement
   for statement with TAPE's classes.
@@ -133,7 +181,7 @@ Forge runs its real presets through the real SysEx decoder.
 | Forge v3 Bell Keys, 4 voices | 1,428 | 14.3 % |
 | Forge v3 CPU Stress, 4 voices | 1,300 | 13.0 % |
 | TAPE 2.0 FX + output (voices **not** included) | 1,249 | 12.5 % |
-| TEMPO 1.0 FX + output (sample engines **not** included) | 1,362 | 13.6 % |
+| TEMPO 1.0 FX + output (sample engines **not** included) | 1,352 | 13.5 % |
 | WAVE 1.0 engine, 8 voices + delay | 2,747 | 27.5 % |
 | WAVE 1.0 engine, 8 voices + reverb | 2,695 | 26.9 % |
 
@@ -146,6 +194,9 @@ it. `make bench` fails if any Forge scenario exceeds WAVE (`--check`).
 - These are instruction counts, not cycles. The M7 dual-issues, and cache and
   SDRAM stalls are not modelled; real CPI can be above or below 1.
 - UI, control scanning, SD streaming and MIDI are excluded for every app alike.
+  Forge's preset menu runs in the audio callback but only on key/encoder edges
+  and once per block (small; not separately measured); SD access is in the main loop.
+- Forge numbers are unchanged by device presets (DSP untouched).
 - Bell Keys is the most expensive Forge preset because its eight sine
   oscillators call `sinf` (~46 instructions each). A cheaper sine is an easy
   optimisation if CPU proves tight.

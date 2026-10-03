@@ -85,8 +85,12 @@ compiler from `FORGE.elf` and flags `built_with_pinned_compiler`.
 
 ```sh
 python3 -m pip install unicorn pyelftools
-make -C firmware/chompi-forge bench GCC_PATH=/absolute/toolchain/path/bin
+make -C firmware/chompi-forge bench GCC_PATH=/absolute/gcc-10.3/bin TEMPO_GCC_PATH=/absolute/gcc-13.3/bin
 ```
+
+TEMPO's upstream compiler is GCC 13.3.rel1, so its bench builds with
+`TEMPO_GCC_PATH` (defaults to `GCC_PATH`) into `build/bench/tempo-<version>/`.
+The checksum-verified xPack 13.3.1-1.1 works when Arm's archive is unreachable.
 
 Compiles Forge and the stock TAPE, TEMPO and WAVE DSP (their own vendored
 libraries, upstream sources read only, outputs in `build/bench/`) with the

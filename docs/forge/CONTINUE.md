@@ -236,14 +236,28 @@ Full write-up: [COMPATIBILITY.md](COMPATIBILITY.md). Key facts for agents:
   from options.json, CC input optional, notes/CCs sent out. Forge: CC24
   bypass, CC25 cutoff, fixed channel 1, no MIDI out. Open decision for DC.
 - Upstream rebuilds (scratch copy, xPack): TAPE needs a `Limiter.h` symlink
-  on Linux and then overflows SRAM_EXEC by 3,524 B; TEMPO builds 4,660 B
+  on Linux and then overflows SRAM_EXEC by 3,524 B; TEMPO (built with 10.3, superseded below) builds 4,660 B
   smaller than factory. Repo sources + xPack ≠ factory builds.
 - `make bench` (bench/): Forge presets 209–1,428 instructions/sample; TAPE
-  FX+output 1,249 and TEMPO FX+output 1,362 (voices excluded, lower bounds);
+  FX+output 1,249 and TEMPO FX+output 1,362 (10.3; 1,352 with 13.3) (voices excluded, lower bounds);
   WAVE full 8-voice engine 2,695–2,747. Gate: Forge ≤ WAVE. Emulator notes:
   A-profile "max" core (Unicorn M-profile lacks FPU enable), flush the TB
   cache after adding the counting hook, peripheral range mapped as scratch
   for TEMPO's timer init, link with `-u` roots or gc-sections drops entry points.
+- Refresh after device presets (2026-10-03, `4fec6ac`, DC's request):
+  - Toolchains: factory TAPE/WAVE and all shipped libdaisy.a/libdaisysp.a
+    are Arm 10.3-2021.10; factory TEMPO is Arm 13.x (README: 13.3.rel1).
+    The earlier TEMPO rebuild/bench used 10.3 — wrong; now 13.3 via
+    `TEMPO_GCC_PATH` (xPack 13.3.1-1.1, sha256 006c8933…81b959).
+  - xPack 10.3.1 vs Arm 10.3: libDaisy 188/188 and DaisySP 56/56 objects
+    disassemble identically (SDMMC/FatFS/UART included). The pinned-compiler
+    risk for Forge's hardware drivers is retired.
+  - Rebuilds with shipped libs: TAPE +3,900 B (overflow 3,524), WAVE
+    +3,892 B, TEMPO (13.3) +388 B vs factory. The ~3.9 KB is the xPack
+    runtime libraries, not source.
+  - SD coexistence: same SDMMC (FAST, 4-bit) and ffconf as TAPE/WAVE; no
+    stock app reads `FORGE/`; bench unchanged except TEMPO 1,352 (13.3).
+  - Forge 4fec6ac: 187,592 B, SRAM_EXEC 79 % (~48 KB headroom).
 - Firmware change from this: reverb memory SDRAM → DTCM (`.dtcmram_bss`),
   FORGE.bin unchanged in size, DTCM 26.6 %; test
   `ReverbIgnoresUninitializedMemory`. The 66af4c5 bundle is now stale.

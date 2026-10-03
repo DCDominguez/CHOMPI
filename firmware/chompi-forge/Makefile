@@ -54,7 +54,12 @@ browser-test: build/forge_probe
 # counts in an emulator (see bench/run_bench.py for what this does and does not
 # measure). Upstream sources are only read; their libraries build into build/bench.
 # Needs arm-none-eabi-gcc (GCC_PATH or PATH) and: pip install unicorn pyelftools
+# TEMPO's upstream build uses GCC 13.3.rel1 (TAPE, WAVE and Forge use 10.3), so
+# its bench builds with TEMPO_GCC_PATH when given, into its own directories.
 BENCH_CXX = $(if $(GCC_PATH),$(GCC_PATH)/,)arm-none-eabi-g++
+TEMPO_GCC_PATH ?= $(GCC_PATH)
+TEMPO_CXX = $(if $(TEMPO_GCC_PATH),$(TEMPO_GCC_PATH)/,)arm-none-eabi-g++
+TEMPO_BENCH = build/bench/tempo-$(shell $(TEMPO_CXX) -dumpfullversion 2>/dev/null || echo unknown)
 BENCH_FLAGS = -mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard -O3 -fno-exceptions -fno-rtti \
 	-ffunction-sections -fdata-sections -fno-threadsafe-statics -std=gnu++14 -w \
 	-DSTM32H750xx -DCORE_CM7 -DUSE_HAL_DRIVER -DHSE_VALUE=16000000 -DSTM32H750IB -DARM_MATH_CM7 -DUSE_FULL_LL_DRIVER
@@ -72,17 +77,17 @@ TAPE = ../chompi-tape/code
 TEMPO = ../chompi-tempo/code
 WAVE_CODE = ../chompi-wave/code
 bench: libdaisy
-	mkdir -p build/bench
+	mkdir -p build/bench $(TEMPO_BENCH)
 	$(MAKE) -C $(TAPE)/libs/DaisySP BUILD_DIR=$(abspath build/bench/tape-daisysp)
-	$(MAKE) -C $(TEMPO)/libs/DaisySP BUILD_DIR=$(abspath build/bench/tempo-daisysp)
-	$(MAKE) -C $(TEMPO)/libs/libDaisy BUILD_DIR=$(abspath build/bench/tempo-libdaisy)
+	$(MAKE) -C $(TEMPO)/libs/DaisySP BUILD_DIR=$(abspath $(TEMPO_BENCH)/daisysp) $(if $(TEMPO_GCC_PATH),GCC_PATH=$(TEMPO_GCC_PATH),)
+	$(MAKE) -C $(TEMPO)/libs/libDaisy BUILD_DIR=$(abspath $(TEMPO_BENCH)/libdaisy) $(if $(TEMPO_GCC_PATH),GCC_PATH=$(TEMPO_GCC_PATH),)
 	$(MAKE) -C $(WAVE_CODE)/libs/DaisySP BUILD_DIR=$(abspath build/bench/wave-daisysp)
 	$(BENCH_CXX) $(BENCH_FLAGS) $(BENCH_LINK) bench/forge_bench.cpp -o build/bench/forge_bench.elf -lm
 	$(BENCH_CXX) $(BENCH_FLAGS) $(call bench_includes,$(TAPE)) $(BENCH_LINK) bench/tape_bench.cpp \
 		build/bench/tape-daisysp/libdaisysp.a -o build/bench/tape_bench.elf -lm
-	$(BENCH_CXX) $(BENCH_FLAGS) $(call bench_includes,$(TEMPO)) $(BENCH_LINK) bench/tempo_bench.cpp \
-		$(TEMPO)/src/FileStreamingManager.cpp build/bench/tempo-libdaisy/libdaisy.a \
-		build/bench/tempo-daisysp/libdaisysp.a -o build/bench/tempo_bench.elf -lm
+	$(TEMPO_CXX) $(BENCH_FLAGS) $(call bench_includes,$(TEMPO)) $(BENCH_LINK) bench/tempo_bench.cpp \
+		$(TEMPO)/src/FileStreamingManager.cpp $(TEMPO_BENCH)/libdaisy/libdaisy.a \
+		$(TEMPO_BENCH)/daisysp/libdaisysp.a -o build/bench/tempo_bench.elf -lm
 	$(BENCH_CXX) $(BENCH_FLAGS) $(call bench_includes,$(WAVE_CODE)) $(BENCH_LINK) bench/wave_bench.cpp \
 		$(WAVE_CODE)/src/FileStreamingManager.cpp build/libdaisy/libdaisy.a \
 		build/bench/wave-daisysp/libdaisysp.a -o build/bench/wave_bench.elf -lm
