@@ -39,6 +39,30 @@ full runs are **21 pass, 1 fail, 5 skipped**.
   6.2c still silent (no recording; that exe predates the 6.2c sound check), so
   its 36 % is not a sampler figure.
 - Only failure: 3.29, no kit-a file on the card. Line in still unplugged.
+- Check setup (DC's paste): noise IN 1 −68.4 / IN 2 −71.2 dB RMS, outputs
+  L −20.4 / R −21.4 dB, loud chord −7.7 dB: all OK; line input FAIL (no plug).
+
+Panel walk on 0.7 (DC's paste), first time on hardware:
+- **Every key passes:** toggle up/down, white keys 1–15 (switches 15, 8–11,
+  16–20, 24–28), black keys 16–25 (7, 12–14, 21–23, 29–31), CHOMPI 5, PLAY 33,
+  LOOP 34, knob presses SW4 3, SW1 0, SW2 1, SW3 2, SW6 32. SW5 press = panic.
+  Line jack removed/inserted detected. So the key map from TAPE is right.
+- Knob turns: SW4, SW1, SW2, SW6 both ways (right +2, left −2). Failed: SW3
+  right ("encoder 1 (SW2) moved"), SW5 right and left ("encoder 2 (SW3)
+  moved"); SW3 left counted +2 and passed only because the walk did not hold it
+  to the other knobs' direction. Not conclusive: the walk blamed the
+  lowest-numbered encoder that moved at least 2 counts, not the one that moved
+  most, and SW5 is on its own GPIO pins (D0/D20), so it cannot electrically
+  move SW3's shift-register counter. Walk fixed (most-moved knob, all deltas
+  in the detail, left checked against the other knobs); re-check with
+  *Knobs only*.
+- Lights: SW4 red, SW1 green, SW2 blue, LOOP red, menu keys all as expected,
+  so the knob-light map from TAPE is right. SW3 page 1 "dim white" (12 % on
+  all three colours) looked **teal**: at low levels the red LED is weakest, a
+  real colour-balance finding. CHOMPI "dim blue" answered Blue (now
+  accepted). PLAY answered **red** during a first take (expected teal; Forge
+  drives through-hole LED 7 as TAPE's `led_map` for KEY_27): unexplained,
+  re-check with *Light questions only* and a photo.
 
 ## 2026-10-04 — first hardware session (DC), firmware 0.6 development (`131776b`)
 

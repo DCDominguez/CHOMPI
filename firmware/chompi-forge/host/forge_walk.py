@@ -13,6 +13,7 @@ BLACK = [f"KEY_{n}" for n in range(16, 26)]
 NOTES = ["C3", "D3", "E3", "F3", "G3", "A3", "B3", "C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"]
 # Logical knobs 1-4 are SW4, SW1, SW2, SW3; hardware encoder index (Inspector order) per panel name.
 ENCODER = {"SW1": 0, "SW2": 1, "SW3": 2, "SW4": 3, "SW5": 4, "SW6": 5}
+KNOB = {v: k for k, v in ENCODER.items()}
 KNOB_SWITCH = {"SW1": "ENC_1_SW", "SW2": "ENC_2_SW", "SW3": "ENC_3_SW", "SW4": "ENC_4_SW", "SW6": "ENC_6_SW"}
 COLOURS = ["Red", "Green", "Blue", "Teal", "Dim white", "Dim blue", "Off", "Something else"]
 
@@ -90,23 +91,26 @@ class Walk:
                 base = self.snap()["panel"]["raw_encoder_turns"]
                 self.prompt(f"turn.{name}", f"Turn {name}", f"Turn {name} three clicks {word}.",
                             hint="SW6 is the volume: keep the monitoring level low." if name == "SW6" else "")
-                def test(s):
-                    delta = [a - b for a, b in zip(s["panel"]["raw_encoder_turns"], base)]
-                    moved = [i for i, d in enumerate(delta) if abs(d) >= 2]
-                    return moved and (moved[0], delta[moved[0]]) or None
-                got = self.wait(test)
+                def deltas(s): return [a - b for a, b in zip(s["panel"]["raw_encoder_turns"], base)]
+                got = self.wait(lambda s: any(abs(d) >= 2 for d in deltas(s)) or None)
                 what = f"{name} turned {word.split()[0].lower()}"
                 if got == "skip": self.record(f"turn.{name}", what, "skipped"); continue
-                index, delta = got
+                time.sleep(0.4)                                         # let the rest of the turn arrive
+                delta = deltas(self.snap())
+                index = max(range(len(delta)), key=lambda i: abs(delta[i]))   # the knob that moved most
+                moved = ", ".join(f"{KNOB[i]} {d:+d}" for i, d in enumerate(delta) if d)
                 if index != ENCODER[name]:
-                    other = next(k for k, v in ENCODER.items() if v == index)
-                    self.record(f"turn.{name}", what, "fail", f"encoder {index} ({other}) moved instead"); continue
+                    self.record(f"turn.{name}", what, "fail", f"{KNOB[index]} moved most ({moved})"); continue
+                d = delta[index]
                 if word.startswith("RIGHT"):
-                    signs[name] = 1 if delta > 0 else -1
-                    self.record(f"turn.{name}", what, "pass", f"counts {delta:+d}")
-                elif name in signs and (delta > 0) == (signs[name] > 0):
-                    self.record(f"turn.{name}", what, "fail", f"counts {delta:+d}: same direction as right")
-                else: self.record(f"turn.{name}", what, "pass", f"counts {delta:+d}")
+                    signs[name] = 1 if d > 0 else -1
+                    self.record(f"turn.{name}", what, "pass", f"counts {d:+d}" + (f" (also {moved})" if moved.count(",") else ""))
+                    continue
+                # Left must count the other way from right: this knob's right turn, else the other knobs'.
+                right = signs.get(name) or (max(set(signs.values()), key=list(signs.values()).count) if signs else 0)
+                if right and (d > 0) == (right > 0):
+                    self.record(f"turn.{name}", what, "fail", f"counts {d:+d}: same direction as a right turn")
+                else: self.record(f"turn.{name}", what, "pass", f"counts {d:+d}")
         if len(set(signs.values())) > 1:
             self.record("turn.direction", "All knobs count the same way", "fail",
                         ", ".join(f"{k} {'+' if v > 0 else '-'}" for k, v in signs.items()))
@@ -164,10 +168,11 @@ class Walk:
             self.ask(f"light.{name}", f"{name} light", f"What colour is the light at {name}?", colour,
                      hint="The bridge put the four knobs on different pages.")
         self.knob_pages([1, 1, 1, 1])
-        self.ask("light.CHOMPI", "CHOMPI light", "What colour is the light at the CHOMPI key?", "Dim blue")
+        self.ask("light.CHOMPI", "CHOMPI light", "What colour is the light at the CHOMPI key?", ("Dim blue", "Blue"))
         self.tap("KEY_28"); time.sleep(0.3)                             # first take: PLAY teal, LOOP red
         self.ask("light.PLAY", "PLAY light", "What colour is the PLAY key's light?", ("Teal", "Green"),
-                 hint="The bridge started a loop recording.")
+                 hint="The bridge started a loop recording. PLAY is KEY_27 and LOOP is KEY_28 on the Panel Map; "
+                      "a photo helps.")
         self.ask("light.LOOP", "LOOP light", "What colour is the LOOP key's light?", "Red")
         self.clear_loop()
         for event in panel_gesture("toggle up") + panel_gesture("hold CHOMPI"): self.device.panel(event)
@@ -204,6 +209,8 @@ class Walk:
                 self.turns()
                 self.sw5_press()
                 self.jack()
+            if "knobs" in parts and "controls" not in parts:             # re-check the knobs only
+                self.clear_loop(); self.turns(); self.sw5_press()
             if "lights" in parts: self.lights()
             stopped = False
         except Stop:

@@ -11,7 +11,7 @@ function notice(message, error = false) { text("notice", message); $("notice").c
 function controls() {
   for (const id of ["mode", "input", "output", "metadata", "ports", "connect"]) $(id).disabled = busy || connected;
   for (const id of ["pause", "disconnect", "arm", "release", "panic", "save-check"]) $(id).disabled = busy || !connected || (jobActive && id !== "save-check");
-  for (const id of ["detect", "autorun", "setup", "walk-start", "walk-lights", "card-refresh"]) $(id).disabled = busy || !connected || jobActive;
+  for (const id of ["detect", "autorun", "setup", "walk-start", "walk-knobs", "walk-lights", "card-refresh"]) $(id).disabled = busy || !connected || jobActive;
   $("card-upload").disabled = busy || !connected || jobActive || !document.querySelector("#card-files input:checked");
   $("fw-install").disabled = busy || !connected || jobActive || !cardInfo || !cardInfo.firmware;
   $("rerun").disabled = busy || !connected || jobActive || !failedSteps().length;
@@ -245,6 +245,7 @@ bind("fw-install",async()=>{
 });
 bind("rerun",()=>startJob("autorun",{confirm:true,only:failedSteps()}));
 bind("walk-start",()=>startJob("walk"));
+bind("walk-knobs",()=>startJob("walk",{parts:["knobs"]}));
 bind("walk-lights",()=>startJob("walk",{parts:["lights"]}));
 function row(status, title, detail, extra) {
   const d=document.createElement("div"); d.className="walk-row";

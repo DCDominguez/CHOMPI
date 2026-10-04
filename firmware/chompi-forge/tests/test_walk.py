@@ -117,10 +117,35 @@ class WalkTests(unittest.TestCase):
         by = {}
         for r in result["results"]: by.setdefault(r["id"], []).append(r)
         self.assertTrue(result["stopped"])
-        self.assertIn("encoder 1 (SW2) moved instead", by["turn.SW1"][0]["detail"])
+        self.assertIn("SW2 moved most (SW2 +3)", by["turn.SW1"][0]["detail"])
         self.assertEqual([r["result"] for r in by["turn.SW2"]], ["pass", "fail"])
         self.assertTrue(all(r["result"] == "skipped" for r in by["toggle.up"]))
         self.assertNotIn("light.SW4", by)                                                    # stopped before lights
+
+
+    def test_bumped_neighbour_and_reversed_knob(self):
+        """DC's 2026-10-04 walk: a neighbour that also moves must not be blamed, and a left turn that
+        counts like a right turn fails even when that knob's right turn did not pass."""
+        def hand(device, prompt, answers):
+            ident = prompt["id"]
+            if not ident.startswith("turn."): answers.put({"value": "skip"}); return
+            index = walk.ENCODER[prompt["title"].split()[1]]
+            right = "RIGHT" in prompt["text"]
+            if ident == "turn.SW3" and right:
+                device.raw[walk.ENCODER["SW2"]] += 3                    # turned the wrong knob
+            elif ident == "turn.SW3":
+                device.raw[index] += 3                                  # counts like a right turn
+            elif ident == "turn.SW5":
+                device.raw[walk.ENCODER["SW1"]] -= 2; device.raw[index] += 4 if right else -4   # SW1 bumped too
+            else: device.raw[index] += 3 if right else -3
+        result, device, _ = self.run_walk(hand, parts=("knobs",))
+        by = {}
+        for r in result["results"]: by.setdefault(r["id"], []).append(r)
+        self.assertEqual([r["result"] for r in by["turn.SW3"]], ["fail", "fail"])
+        self.assertIn("same direction as a right turn", by["turn.SW3"][1]["detail"])
+        self.assertEqual([r["result"] for r in by["turn.SW5"]], ["pass", "pass"])
+        self.assertIn("also SW1 -2, SW5 +4", by["turn.SW5"][0]["detail"])
+        self.assertNotIn("white.1", by)                                  # knobs only: no keys asked
 
 
 class FastTime:

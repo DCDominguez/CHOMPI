@@ -414,8 +414,8 @@ class Bridge:
                 if not isinstance(only, list) or not only or any(i not in ids for i in only):
                     raise ValueError("Re-run needs step ids from the automatic checks")
         if kind == "walk" and body.get("parts") is not None and (not isinstance(body["parts"], list) or not body["parts"]
-                                                                 or any(p not in ("controls", "lights") for p in body["parts"])):
-            raise ValueError("Walk parts: controls and/or lights")
+                                                                 or any(p not in ("controls", "knobs", "lights") for p in body["parts"])):
+            raise ValueError("Walk parts: controls, knobs and/or lights")
         if kind == "walk" and self.mode == "simulation" and body.get("parts") != ["lights"]:
             raise RuntimeError("The panel walk needs your hands on a physical CHOMPI; the simulation can only show the light questions")
         if kind == "card_upload":
