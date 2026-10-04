@@ -22,7 +22,23 @@ SD streaming remains gated on physical SD measurements. Older checkpoint and
 PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
 use the latest implementation checkpoint and ledger for present capabilities/budgets.
 
-## Current checkpoint: first hardware session and bridge test tooling, 2026-10-04
+## Current checkpoint: firmware 0.7 USB loader and Forge Bridge.exe, 2026-10-04
+
+DC: "setup an executable and also firmware loader so I don't need to keep
+removing the card". Built (software-tested; nothing hardware-verified):
+- Firmware 0.7 (`0454ae8`): opcode 0C file transfer (FORGE.bin and TAPE
+  samples, staged + CRC-32, resume), install with a CHOMPI key press and a
+  restart into the bootloader. PROTOCOL "USB file transfer", TEST_SESSION 7.
+  Release 233,748 B, development 249,580 B. DC needs one last SD-card flash
+  to get 0.7 onto CHOMPI; after that, updates go over USB.
+- Host: `forge_card.py`; bridge *Card & firmware* section; kit `card` folder.
+- `Forge Bridge.exe` (`d3c8531`): GitHub Actions builds the development
+  firmware on Linux and a one-file PyInstaller program on Windows with it
+  inside, then smoke-tests it. FORGE_HOST_DIR relocates the host's files.
+Untested on hardware: USB throughput, FatFS on the real card, the bootloader
+taking the new FORGE.bin after the restart, the exe on DC's PC.
+
+## Previous checkpoint: first hardware session and bridge test tooling, 2026-10-04
 
 DC flashed the `131776b` development kit and ran automatic checks four times
 (results: [TEST_RESULTS.md](TEST_RESULTS.md)). Firmware behaved as designed

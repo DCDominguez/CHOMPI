@@ -10,6 +10,26 @@ panel presses. Hardware verification is still pending. The bridge cannot
 measure electrical levels, establish physical LED colours or verify tactile
 behaviour, and its audio measurements do not replace listening.
 
+## Easiest: Forge Bridge.exe
+
+GitHub builds one Windows program, **Forge Bridge.exe**, on every change
+(repository → Actions → *Forge Bridge (Windows exe)* → the latest green run →
+artifact *Forge-Bridge-exe*). It contains the bridge, its Python and packages,
+and the matching development firmware. Put it in a folder of its own and
+double-click it; `reports` and `card` folders appear next to it. Windows may
+warn about an unsigned program (More info → Run anyway). Command line:
+`"Forge Bridge.exe" checks` (automatic checks, no browser) and
+`"Forge Bridge.exe" card sync card` (copy samples over USB).
+
+## Firmware updates and card files without removing the card (firmware 0.7)
+
+Once CHOMPI runs 0.7 (one last SD-card flash), use the bridge's **Card &
+firmware** section: *Install this kit's firmware* copies FORGE.bin over USB,
+CHOMPI's key blinks white, you press it, CHOMPI restarts and the bootloader
+installs it (rainbow lights). Samples: put TAPE-named files in the `card`
+folder, *Refresh list*, *Copy selected to CHOMPI*. Details: PROTOCOL.md,
+"USB file transfer".
+
 ## Quick start (Windows, development kit)
 
 Nothing to install: the kit includes Python 3.12 and the MIDI and audio packages.
