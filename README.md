@@ -4,9 +4,18 @@
 Forge runs audio on CHOMPI's Daisy Seed and uses a computer webapp for AI patch
 authoring, editing and MIDI control. OpenAI and Gemini use your own API key.
 
-**Candidate 0.5 (with the TAPE-compatible sampler) is software-tested, browser-tested and builds for ARM.** Real
-CHOMPI operation, device CPU load and live provider requests remain unverified. This
-is experimental community firmware, not an official or hardware-approved release.
+**Development firmware 0.7 runs on CHOMPI.** First hardware sessions (2026-10-04,
+[TEST_RESULTS](docs/forge/TEST_RESULTS.md)): every key, knob, switch and light
+confirmed by the panel walk; pitch, keybed, synth, menu, looper states, knob pages
+and panic pass the automatic checks; worst-case synth CPU 37 %. Still unverified on
+hardware: line-in paths, the sampler with real kit files, the USB card/firmware
+loader and live AI provider requests. This is experimental community firmware, not
+an official or hardware-approved release.
+
+**Try it:** download *Forge Bridge.exe* (Windows) from the latest green
+[Forge Bridge (Windows exe)](https://github.com/DCDominguez/CHOMPI/actions/workflows/forge-bridge-exe.yml)
+run → *Artifacts*; it includes `FORGE.bin` and
+[HOME_CHECKLIST.md](docs/forge/HOME_CHECKLIST.md).
 
 [Developer resume checkpoint](docs/forge/CONTINUE.md) · [Documentation](docs/forge/README.md)
 · [Project scope](docs/forge/PROJECT.md) · [Draft PR #1](https://github.com/DCDominguez/CHOMPI/pull/1)
@@ -19,8 +28,12 @@ AI chooses settings and supported connections among installed modules. New
 patches require no recompile; new DSP algorithms still require firmware work.
 The original upstream TAPE/WAVE/TEMPO and bootloader sources remain separate.
 
-| Area | Implemented in 0.5 |
+| Area | Implemented (0.7) |
 | --- | --- |
+| Looper | TAPE-style: LOOP/PLAY keys, first take, overdub with feedback, pause/resume, clear, varispeed/reverse/scrub on SW5, save the loop to a sample slot ([LOOPING.md](docs/forge/LOOPING.md)) |
+| Knob pages | Press a knob to step its page (light shows it): patch knobs, filter/envelope, LFO/delay, reverb; v5 patches choose what page 1 controls ([KNOBS.md](docs/forge/KNOBS.md)) |
+| USB card loader | Copy TAPE samples or new firmware to the SD card over USB; firmware installs after a CHOMPI key press (no card removal) ([PROTOCOL.md](docs/forge/PROTOCOL.md)) |
+| Test bridge | *Forge Bridge.exe*: setup check, guided panel walk, automatic audio checks with per-step CPU, card and firmware loader ([BRIDGE.md](docs/forge/BRIDGE.md)) |
 | Sampler (v4) | TAPE-compatible: plays TAPE's `jammi_`/`cubbi_` WAV files from the SD card (chromatic or kit, banks a–e, 14 slots) and a recording; pitch, start/end, loop with crossfade, hold or one-shot, reverse; up to 7 stereo voices through the filter, LFO, delay and reverb; reads 16/24-bit/float, mono/stereo, any rate |
 | Recording | Toggle down + hold CHOMPI (as TAPE) from mic, line in or resample, ~87 s; edge fades and normalisation; save/copy/erase TAPE-format files from the panel menu (Samples page), CLI or webapp |
 | Synth | Up to four voices (1–4 per patch, mono with glide); two oscillators (sine, polyBLAMP triangle, polyBLEP saw/square) with interval and detune, plus white noise |
@@ -36,8 +49,8 @@ The original upstream TAPE/WAVE/TEMPO and bootloader sources remain separate.
 | Parameter handling | Delay/output smoothing; pitch glide when delay time changes; finite bounded output |
 | Live controls | Encoders (knobs 1–3 become pitch/start/end on sampler patches, as TAPE), MIDI CC20–25 as stock (CC20+n = knob n), CC71 resonance / CC91 reverb mix (v3), CC74 cutoff, CC85 bypass, CC1 mod wheel, CC64 sustain, CC121 reset controllers, pitch bend, and atomic whole-patch changes between blocks |
 | Recovery | SW5 press, CC120/123, host panic; silence voices and delay/reverb tails; note-overflow recovery |
-| Patch format | v4 named synth/filter/lfo/sampler/delay/reverb/output modules with three routes; v1–v3 files still work and convert to v4 |
-| Presets | Thirteen: Dry, Slap, Long Echo (v1); Glass Keys, Soft Pad, Saw Bass (v2); Warm Pad, Acid Bass, Bell Keys, CPU Stress test (v3); Recorded Keys, TAPE Kit A, Sampler Stress test (v4) |
+| Patch format | v5 = v4 named synth/filter/lfo/sampler/delay/reverb/output modules with three routes, plus the four page-1 knob assignments; v1–v4 files still work and convert |
+| Presets | Fourteen: Dry, Slap, Long Echo (v1); Glass Keys, Soft Pad, Saw Bass (v2); Warm Pad, Acid Bass, Bell Keys, CPU Stress test (v3); Recorded Keys, TAPE Kit A, Sampler Stress test (v4); Knob Pad (v5) |
 | Computer persistence | Save/import/export JSON, capture device targets and recall |
 | Device presets | 8 banks × 15 slots on the SD card; TAPE-style panel menu (toggle + CHOMPI key, white keys, bank keys/knob 1, save/copy/erase), MIDI program change, host CLI and webapp |
 | Webapp | Instrument/effect authoring selector, provider/model/key input, editor for every module (greys out what an older preset lacks), convert-to-v4, device presets and device samples panels |
@@ -75,7 +88,9 @@ mode on reboot. Load an instrument preset to enable synthesis.
 | Voices / glide | v3 preset or web editor | 1–4 / 0–2000 ms |
 | LFO rate | v3 preset or web editor | 0.05–20 Hz |
 
-Encoder IDs follow hardware source; printed-panel mapping is unverified. Boot
+With knob pages ([KNOBS.md](docs/forge/KNOBS.md)) the table is page 1 of a
+default patch. Encoder IDs follow hardware source; the panel walk confirmed them
+on hardware. Boot
 uses dry aux with time 257.5 ms, feedback 21.25%, level fading toward 0.25. Route
 or waveform changes silence current voices/tails; release/retrigger held keys.
 Steal clicks and triangle aliasing were reduced in simulation; saw/square can still
@@ -116,17 +131,13 @@ GNU Arm Embedded **10.3-2021.10** and vendored WAVE hardware/libDaisy. See the
 [firmware guide](firmware/chompi-forge/README.md) for the toolchain download and
 verified archive hash. No upstream sources or bootloader were changed.
 
-| Check | Recorded evidence |
+| Check | Recorded evidence (details: [CONTINUE](docs/forge/CONTINUE.md), [TEST_RESULTS](docs/forge/TEST_RESULTS.md)) |
 | --- | --- |
-| Native suites | Six suites pass: DSP/queue, MIDI/protocol (incl. v3 round trip and bounds), synth (steal clicks, triangle aliasing, recovery, sustain, bend, translation), v3 (oscillators, resonant filter and envelope, LFO/mod wheel, voices/glide, reverb, fuzz), presets (SD records under card faults, TAPE-style menu incl. samples page, LEDs, storage protocol) and sampler (WAV formats incl. real TAPE files, v4 protocol, sample voices, recorder, loader/handoff, save/copy/erase on an in-memory card) |
-| Compatibility | v1–v3 audio output bit-exact against the previous core (24 patch variants; see CONTINUE) |
-| Python | 55 tests pass; includes 250 v1, 200 v2, 200 v3 and 150 v4 randomized protocol round trips through the C++ codec, upgrades, device presets and samples via the simulated device, and mocked providers |
-| Sanitizers | Six C++ suites pass ASan/UBSan; LeakSanitizer disabled for environment limitations |
-| Web | 11 real-Chromium tests (`make browser-test`): v1–v4 editing and import, convert-to-v4, mocked AI, send/capture/panic, device presets and samples via simulated device, phone/tablet layout |
-| ARM | BOOT_SRAM build succeeds with xPack GCC 10.3.1 (same machine code as the pinned Arm compiler for libDaisy/DaisySP, see COMPATIBILITY) |
-| Link allocations | SRAM_EXEC 89.7%; SRAM 32.1%; DTCM 26.6% (reverb); RAM_D2 72.6%; SDRAM 88.1% (40 MB sample pool, 16 MB recording) |
-| CPU benchmark | `make bench`: worst Forge preset ~2,630 ARM instructions/sample (7 sampler voices with constant crossfading) vs ~2,700 for stock WAVE's 8-voice engine (emulated counts, not cycles; sample reads from SDRAM add cache misses the emulator does not model; see COMPATIBILITY) |
-| Hardware / AI | No flash, listening, physical I/O, actual CPU measurement, or live provider request performed |
+| Native suites | Ten C++ suites pass (DSP/queue, protocol, synth, v3, presets/menu, sampler, panel, Inspector, looper, USB file transfer incl. 200,000 fuzzed requests), and again under ASan/UBSan |
+| Python / web | 111 Python tests; 11 + 6 real-Chromium tests (webapp, bridge) |
+| ARM | Release 235,980 B / development 251,684 B of 282 KB executable SRAM, layout checks OK (xPack GCC 10.3.1); GitHub Actions builds the development firmware and the Windows exe on every change |
+| Hardware | Two sessions by DC on 2026-10-04: panel walk all pass; automatic checks 21 of 22 on 0.7 (the miss: no kit file on the card); line-in steps not yet run |
+| AI providers | No live provider request performed yet |
 
 Firmware SHA-256 depends on the compiler; use the value printed by the test
 bundle's `verify_bundle.py`, which also names the compiler that built it.
@@ -138,11 +149,12 @@ From a clean, committed tree after building firmware and native tests:
 
 ```sh
 cd firmware/chompi-forge
-python3 host/package_candidate.py /absolute/output/Forge_0.5_Test_Candidate.zip
+python3 host/package_candidate.py /absolute/output/Forge-test.zip          # release kit
+python3 host/package_candidate.py /absolute/output/Forge-Bridge-dev.zip --development   # test bridge kit
 ```
 
 The generator includes firmware, webapp/CLI, the JSON schemas (v1 delay, v2,
-v3 and v4 instrument), thirteen presets, simulated references, docs, licenses and
+v3, v4 and v5 instrument), fourteen presets, simulated references, docs, licenses and
 hashes/source identity. Binaries and ZIPs are generated artifacts, not tracked
 source. Earlier 0.2 and 0.3 ZIPs are obsolete and have not been silently updated.
 
@@ -152,7 +164,7 @@ retest. Do not substitute software passes for actual device acceptance.
 
 ## Not implemented yet
 
-- Looping (roadmap item 5), sequencing, TAPE's per-slot settings (`presets.json`) and its other performance functions.
+- Sequencing, TAPE's per-slot settings (`presets.json`) and its other performance functions.
 - Further effects (chorus, distortion, EQ), FM synthesis, multiple LFOs/envelopes, or arbitrary routing/modulation graphs.
 - Aftertouch/MPE, clock sync, arpeggiator, octave controls, configurable bend range, mono note-priority stack or note output.
 - Preset names on the device, automatic recall after reboot, or importing TAPE/WAVE presets.
