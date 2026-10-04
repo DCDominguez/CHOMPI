@@ -1,0 +1,1044 @@
+{
+  "schema_version": 1,
+  "review_date_utc": "2026-10-04",
+  "branch": "forge/foundation",
+  "units": "bytes; KiB=1024, MiB=1048576",
+  "toolchains": {
+    "firmware": "xPack GNU Arm Embedded GCC 10.3.1-2.3 Linux x64; -O3, BOOT_SRAM",
+    "firmware_archive_sha256": "559dcf1c2dfddac513110fe23da0ef254032c09967eaa901f075515d51818719",
+    "tempo_benchmark": "xPack GCC 13.3.1-1.1",
+    "tempo_archive_sha256": "006c89337eced277fdf4c1c3bf3aebe55c85e8d52cba8d412009717fb781b959",
+    "native": "g++ 13.3.0",
+    "python": "3.12.14",
+    "browser": "Playwright 1.56.0 / Chromium 141.0.7390.37"
+  },
+  "snapshots": [
+    {
+      "source_commit": "b7d098b7eec18e264598a4c70702462bc3e964e6",
+      "label": "handoff baseline",
+      "builds": {
+        "release": {
+          "binary_bytes": 223444,
+          "binary_sha256": "2181994cfbacb8fb6f68c8ba12d7e056e1ea5c2a3ddcb6c35bad255361b3f23a",
+          "regions": {
+            "SRAM_EXEC": {
+              "capacity_bytes": 288768,
+              "used_bytes": 223444,
+              "free_linker_bytes": 65324
+            },
+            "SRAM": {
+              "capacity_bytes": 235520,
+              "used_bytes": 92716,
+              "free_linker_bytes": 142804
+            },
+            "DTCMRAM": {
+              "capacity_bytes": 131072,
+              "used_bytes": 34816,
+              "free_linker_bytes": 96256
+            },
+            "RAM_D2": {
+              "capacity_bytes": 32768,
+              "used_bytes": 23800,
+              "free_linker_bytes": 8968
+            },
+            "RAM_D2CACHE": {
+              "capacity_bytes": 262144,
+              "used_bytes": 0,
+              "free_linker_bytes": 262144
+            },
+            "RAM_D3": {
+              "capacity_bytes": 65536,
+              "used_bytes": 0,
+              "free_linker_bytes": 65536
+            },
+            "ITCMRAM": {
+              "capacity_bytes": 65536,
+              "used_bytes": 0,
+              "free_linker_bytes": 65536
+            },
+            "SDRAM": {
+              "capacity_bytes": 67108864,
+              "used_bytes": 66715664,
+              "free_linker_bytes": 393200
+            },
+            "QSPIFLASH": {
+              "capacity_bytes": 8388608,
+              "used_bytes": 0,
+              "free_linker_bytes": 8388608
+            },
+            "BACKUP_SRAM": {
+              "capacity_bytes": 4096,
+              "used_bytes": 12,
+              "free_linker_bytes": 4084
+            },
+            "FLASH": {
+              "capacity_bytes": 131072,
+              "used_bytes": 0,
+              "free_linker_bytes": 131072
+            }
+          },
+          "allocated_sections": {
+            ".isr_vector": {
+              "size_bytes": 664,
+              "address": "0x24000000"
+            },
+            ".text": {
+              "size_bytes": 191704,
+              "address": "0x240002a0"
+            },
+            ".ARM.extab.text.sqrtf": {
+              "size_bytes": 12,
+              "address": "0x2402ef78"
+            },
+            ".ARM.extab.text.__kernel_rem_pio2f": {
+              "size_bytes": 12,
+              "address": "0x2402ef84"
+            },
+            ".ARM.extab.text.__kernel_tanf": {
+              "size_bytes": 12,
+              "address": "0x2402ef90"
+            },
+            ".exidx": {
+              "size_bytes": 208,
+              "address": "0x2402ef9c"
+            },
+            ".init_array": {
+              "size_bytes": 44,
+              "address": "0x2402f06c"
+            },
+            ".fini_array": {
+              "size_bytes": 4,
+              "address": "0x2402f098"
+            },
+            ".data": {
+              "size_bytes": 30776,
+              "address": "0x24046800"
+            },
+            ".bss": {
+              "size_bytes": 61932,
+              "address": "0x2404e040"
+            },
+            ".dtcmram_bss": {
+              "size_bytes": 34816,
+              "address": "0x20000000"
+            },
+            ".sram1_bss": {
+              "size_bytes": 23800,
+              "address": "0x30000000"
+            },
+            ".backup_sram": {
+              "size_bytes": 12,
+              "address": "0x38800000"
+            },
+            ".sdram_bss": {
+              "size_bytes": 66715664,
+              "address": "0xc0000000"
+            }
+          },
+          "queue_object_bytes": {
+            "_ZN12_GLOBAL__N_18requestsE": 11016,
+            "_ZN12_GLOBAL__N_19responsesE": 13832
+          },
+          "layout_check": "PASS"
+        },
+        "development": {
+          "binary_bytes": 239632,
+          "binary_sha256": "8f680063c053e10966d14d814cf6c93f42a8b6f153951325197241a800361e29",
+          "regions": {
+            "SRAM_EXEC": {
+              "capacity_bytes": 288768,
+              "used_bytes": 239632,
+              "free_linker_bytes": 49136
+            },
+            "SRAM": {
+              "capacity_bytes": 235520,
+              "used_bytes": 96780,
+              "free_linker_bytes": 138740
+            },
+            "DTCMRAM": {
+              "capacity_bytes": 131072,
+              "used_bytes": 34816,
+              "free_linker_bytes": 96256
+            },
+            "RAM_D2": {
+              "capacity_bytes": 32768,
+              "used_bytes": 23800,
+              "free_linker_bytes": 8968
+            },
+            "RAM_D2CACHE": {
+              "capacity_bytes": 262144,
+              "used_bytes": 0,
+              "free_linker_bytes": 262144
+            },
+            "RAM_D3": {
+              "capacity_bytes": 65536,
+              "used_bytes": 0,
+              "free_linker_bytes": 65536
+            },
+            "ITCMRAM": {
+              "capacity_bytes": 65536,
+              "used_bytes": 0,
+              "free_linker_bytes": 65536
+            },
+            "SDRAM": {
+              "capacity_bytes": 67108864,
+              "used_bytes": 66715664,
+              "free_linker_bytes": 393200
+            },
+            "QSPIFLASH": {
+              "capacity_bytes": 8388608,
+              "used_bytes": 0,
+              "free_linker_bytes": 8388608
+            },
+            "BACKUP_SRAM": {
+              "capacity_bytes": 4096,
+              "used_bytes": 12,
+              "free_linker_bytes": 4084
+            },
+            "FLASH": {
+              "capacity_bytes": 131072,
+              "used_bytes": 0,
+              "free_linker_bytes": 131072
+            }
+          },
+          "allocated_sections": {
+            ".isr_vector": {
+              "size_bytes": 664,
+              "address": "0x24000000"
+            },
+            ".text": {
+              "size_bytes": 204008,
+              "address": "0x240002a0"
+            },
+            ".ARM.extab.text.sqrtf": {
+              "size_bytes": 12,
+              "address": "0x24031f88"
+            },
+            ".ARM.extab.text.__kernel_rem_pio2f": {
+              "size_bytes": 12,
+              "address": "0x24031f94"
+            },
+            ".ARM.extab.text.__kernel_tanf": {
+              "size_bytes": 12,
+              "address": "0x24031fa0"
+            },
+            ".exidx": {
+              "size_bytes": 208,
+              "address": "0x24031fac"
+            },
+            ".init_array": {
+              "size_bytes": 44,
+              "address": "0x2403207c"
+            },
+            ".fini_array": {
+              "size_bytes": 4,
+              "address": "0x240320a8"
+            },
+            ".data": {
+              "size_bytes": 34660,
+              "address": "0x24046800"
+            },
+            ".bss": {
+              "size_bytes": 62092,
+              "address": "0x2404ef80"
+            },
+            ".dtcmram_bss": {
+              "size_bytes": 34816,
+              "address": "0x20000000"
+            },
+            ".sram1_bss": {
+              "size_bytes": 23800,
+              "address": "0x30000000"
+            },
+            ".backup_sram": {
+              "size_bytes": 12,
+              "address": "0x38800000"
+            },
+            ".sdram_bss": {
+              "size_bytes": 66715664,
+              "address": "0xc0000000"
+            }
+          },
+          "queue_object_bytes": {
+            "_ZN12_GLOBAL__N_18requestsE": 11272,
+            "_ZN12_GLOBAL__N_19responsesE": 13832
+          },
+          "layout_check": "PASS"
+        }
+      }
+    },
+    {
+      "source_commit": "fec241622a68adc52075e242941ac0f1ed293bec",
+      "label": "reviewed head; firmware source identical to 131776b4a7c04538dc52cb4dd7354d0d102a3d56",
+      "builds": {
+        "release": {
+          "binary_bytes": 227060,
+          "binary_sha256": "bce7d1f62a9a60e550833c4e2c4181de8f3deda75b5b97f03e53e7c57937602c",
+          "regions": {
+            "SRAM_EXEC": {
+              "capacity_bytes": 288768,
+              "used_bytes": 227060,
+              "free_linker_bytes": 61708
+            },
+            "SRAM": {
+              "capacity_bytes": 235520,
+              "used_bytes": 93532,
+              "free_linker_bytes": 141988
+            },
+            "DTCMRAM": {
+              "capacity_bytes": 131072,
+              "used_bytes": 34816,
+              "free_linker_bytes": 96256
+            },
+            "RAM_D2": {
+              "capacity_bytes": 32768,
+              "used_bytes": 23800,
+              "free_linker_bytes": 8968
+            },
+            "RAM_D2CACHE": {
+              "capacity_bytes": 262144,
+              "used_bytes": 0,
+              "free_linker_bytes": 262144
+            },
+            "RAM_D3": {
+              "capacity_bytes": 65536,
+              "used_bytes": 0,
+              "free_linker_bytes": 65536
+            },
+            "ITCMRAM": {
+              "capacity_bytes": 65536,
+              "used_bytes": 0,
+              "free_linker_bytes": 65536
+            },
+            "SDRAM": {
+              "capacity_bytes": 67108864,
+              "used_bytes": 66715664,
+              "free_linker_bytes": 393200
+            },
+            "QSPIFLASH": {
+              "capacity_bytes": 8388608,
+              "used_bytes": 0,
+              "free_linker_bytes": 8388608
+            },
+            "BACKUP_SRAM": {
+              "capacity_bytes": 4096,
+              "used_bytes": 12,
+              "free_linker_bytes": 4084
+            },
+            "FLASH": {
+              "capacity_bytes": 131072,
+              "used_bytes": 0,
+              "free_linker_bytes": 131072
+            }
+          },
+          "allocated_sections": {
+            ".isr_vector": {
+              "size_bytes": 664,
+              "address": "0x24000000"
+            },
+            ".text": {
+              "size_bytes": 194776,
+              "address": "0x240002a0"
+            },
+            ".ARM.extab.text.sqrtf": {
+              "size_bytes": 12,
+              "address": "0x2402fb78"
+            },
+            ".ARM.extab.text.__kernel_rem_pio2f": {
+              "size_bytes": 12,
+              "address": "0x2402fb84"
+            },
+            ".ARM.extab.text.__kernel_tanf": {
+              "size_bytes": 12,
+              "address": "0x2402fb90"
+            },
+            ".exidx": {
+              "size_bytes": 208,
+              "address": "0x2402fb9c"
+            },
+            ".init_array": {
+              "size_bytes": 44,
+              "address": "0x2402fc6c"
+            },
+            ".fini_array": {
+              "size_bytes": 4,
+              "address": "0x2402fc98"
+            },
+            ".data": {
+              "size_bytes": 31320,
+              "address": "0x24046800"
+            },
+            ".bss": {
+              "size_bytes": 62204,
+              "address": "0x2404e260"
+            },
+            ".dtcmram_bss": {
+              "size_bytes": 34816,
+              "address": "0x20000000"
+            },
+            ".sram1_bss": {
+              "size_bytes": 23800,
+              "address": "0x30000000"
+            },
+            ".backup_sram": {
+              "size_bytes": 12,
+              "address": "0x38800000"
+            },
+            ".sdram_bss": {
+              "size_bytes": 66715664,
+              "address": "0xc0000000"
+            }
+          },
+          "queue_object_bytes": {
+            "_ZN12_GLOBAL__N_18requestsE": 11272,
+            "_ZN12_GLOBAL__N_19responsesE": 14088
+          },
+          "layout_check": "PASS",
+          "delta_vs_b7d098b": {
+            "SRAM_EXEC": 3616,
+            "SRAM": 816,
+            "DTCMRAM": 0,
+            "RAM_D2": 0,
+            "RAM_D2CACHE": 0,
+            "RAM_D3": 0,
+            "ITCMRAM": 0,
+            "SDRAM": 0,
+            "QSPIFLASH": 0,
+            "BACKUP_SRAM": 0,
+            "FLASH": 0
+          }
+        },
+        "development": {
+          "binary_bytes": 242512,
+          "binary_sha256": "b663e4d99b1a7907022b7756e2c7e8908dbe7c9a96cfb6eabd6c1362d4798d0c",
+          "regions": {
+            "SRAM_EXEC": {
+              "capacity_bytes": 288768,
+              "used_bytes": 242512,
+              "free_linker_bytes": 46256
+            },
+            "SRAM": {
+              "capacity_bytes": 235520,
+              "used_bytes": 97596,
+              "free_linker_bytes": 137924
+            },
+            "DTCMRAM": {
+              "capacity_bytes": 131072,
+              "used_bytes": 34816,
+              "free_linker_bytes": 96256
+            },
+            "RAM_D2": {
+              "capacity_bytes": 32768,
+              "used_bytes": 23800,
+              "free_linker_bytes": 8968
+            },
+            "RAM_D2CACHE": {
+              "capacity_bytes": 262144,
+              "used_bytes": 0,
+              "free_linker_bytes": 262144
+            },
+            "RAM_D3": {
+              "capacity_bytes": 65536,
+              "used_bytes": 0,
+              "free_linker_bytes": 65536
+            },
+            "ITCMRAM": {
+              "capacity_bytes": 65536,
+              "used_bytes": 0,
+              "free_linker_bytes": 65536
+            },
+            "SDRAM": {
+              "capacity_bytes": 67108864,
+              "used_bytes": 66715664,
+              "free_linker_bytes": 393200
+            },
+            "QSPIFLASH": {
+              "capacity_bytes": 8388608,
+              "used_bytes": 0,
+              "free_linker_bytes": 8388608
+            },
+            "BACKUP_SRAM": {
+              "capacity_bytes": 4096,
+              "used_bytes": 12,
+              "free_linker_bytes": 4084
+            },
+            "FLASH": {
+              "capacity_bytes": 131072,
+              "used_bytes": 0,
+              "free_linker_bytes": 131072
+            }
+          },
+          "allocated_sections": {
+            ".isr_vector": {
+              "size_bytes": 664,
+              "address": "0x24000000"
+            },
+            ".text": {
+              "size_bytes": 206336,
+              "address": "0x240002a0"
+            },
+            ".ARM.extab.text.sqrtf": {
+              "size_bytes": 12,
+              "address": "0x240328a0"
+            },
+            ".ARM.extab.text.__kernel_rem_pio2f": {
+              "size_bytes": 12,
+              "address": "0x240328ac"
+            },
+            ".ARM.extab.text.__kernel_tanf": {
+              "size_bytes": 12,
+              "address": "0x240328b8"
+            },
+            ".exidx": {
+              "size_bytes": 208,
+              "address": "0x240328c4"
+            },
+            ".init_array": {
+              "size_bytes": 44,
+              "address": "0x24032994"
+            },
+            ".fini_array": {
+              "size_bytes": 4,
+              "address": "0x240329c0"
+            },
+            ".data": {
+              "size_bytes": 35212,
+              "address": "0x24046800"
+            },
+            ".bss": {
+              "size_bytes": 62364,
+              "address": "0x2404f1a0"
+            },
+            ".dtcmram_bss": {
+              "size_bytes": 34816,
+              "address": "0x20000000"
+            },
+            ".sram1_bss": {
+              "size_bytes": 23800,
+              "address": "0x30000000"
+            },
+            ".backup_sram": {
+              "size_bytes": 12,
+              "address": "0x38800000"
+            },
+            ".sdram_bss": {
+              "size_bytes": 66715664,
+              "address": "0xc0000000"
+            }
+          },
+          "queue_object_bytes": {
+            "_ZN12_GLOBAL__N_18requestsE": 11528,
+            "_ZN12_GLOBAL__N_19responsesE": 14088
+          },
+          "layout_check": "PASS",
+          "delta_vs_b7d098b": {
+            "SRAM_EXEC": 2880,
+            "SRAM": 816,
+            "DTCMRAM": 0,
+            "RAM_D2": 0,
+            "RAM_D2CACHE": 0,
+            "RAM_D3": 0,
+            "ITCMRAM": 0,
+            "SDRAM": 0,
+            "QSPIFLASH": 0,
+            "BACKUP_SRAM": 0,
+            "FLASH": 0
+          }
+        }
+      }
+    }
+  ],
+  "qa_at_reviewed_head": {
+    "native": {
+      "passed": 9
+    },
+    "python": {
+      "passed": 95
+    },
+    "asan_ubsan": {
+      "passed": 9,
+      "ASAN_OPTIONS": "detect_leaks=0",
+      "initial_attempt": "LeakSanitizer fatal: cannot read /proc task under ptrace; no leak-test pass"
+    },
+    "browser": {
+      "workshop_passed": 11,
+      "bridge_passed": 4,
+      "device": "C++ simulation; providers mocked",
+      "setup_note": "Latest Playwright Chromium archive invalid/truncated; documented 1.56.0 installed and tests passed"
+    },
+    "firmware": "release and development rebuilt at both commits; all four layout checks PASS",
+    "hardware": "NOT RUN",
+    "live_ai": "NOT RUN",
+    "cpu_benchmark": "PASS, instruction counts only; prior CPU delta is repository-reported, not independently rerun"
+  },
+  "benchmark_results": [
+    {
+      "label": "Forge v1 delay only (aux)",
+      "instructions_per_sample": 223.6,
+      "percent_of_480MHz_at_CPI_1": 2.2,
+      "output_peak": 0.0611,
+      "top_functions": [
+        [
+          "_ZN5forge6Engine7ProcessEffRfS1_",
+          206.0
+        ],
+        [
+          "bench_block",
+          17.6
+        ]
+      ]
+    },
+    {
+      "label": "Forge v1 long echo (aux)",
+      "instructions_per_sample": 223.6,
+      "percent_of_480MHz_at_CPI_1": 2.2,
+      "output_peak": 0.0367,
+      "top_functions": [
+        [
+          "_ZN5forge6Engine7ProcessEffRfS1_",
+          206.0
+        ],
+        [
+          "bench_block",
+          17.6
+        ]
+      ]
+    },
+    {
+      "label": "Forge v2 Soft Pad, 4 voices",
+      "instructions_per_sample": 682.1,
+      "percent_of_480MHz_at_CPI_1": 6.8,
+      "output_peak": 0.0141,
+      "top_functions": [
+        [
+          "_ZN5forge5Synth7ProcessEv",
+          453.5
+        ],
+        [
+          "_ZN5forge6Engine7ProcessEffRfS1_",
+          211.0
+        ],
+        [
+          "bench_block",
+          17.6
+        ]
+      ]
+    },
+    {
+      "label": "Forge v3 Warm Pad, 4 voices",
+      "instructions_per_sample": 1297.2,
+      "percent_of_480MHz_at_CPI_1": 13.0,
+      "output_peak": 0.0016,
+      "top_functions": [
+        [
+          "_ZN5forge5Synth7ProcessEv",
+          839.7
+        ],
+        [
+          "_ZN5forge6Engine7ProcessEffRfS1_",
+          363.0
+        ],
+        [
+          "exp2f",
+          40.0
+        ],
+        [
+          "sinf",
+          23.0
+        ],
+        [
+          "bench_block",
+          17.6
+        ],
+        [
+          "__kernel_tanf",
+          12.0
+        ]
+      ]
+    },
+    {
+      "label": "Forge v3 Acid Bass, mono",
+      "instructions_per_sample": 692.2,
+      "percent_of_480MHz_at_CPI_1": 6.9,
+      "output_peak": 0.0138,
+      "top_functions": [
+        [
+          "_ZN5forge6Engine7ProcessEffRfS1_",
+          363.0
+        ],
+        [
+          "_ZN5forge5Synth7ProcessEv",
+          306.1
+        ],
+        [
+          "bench_block",
+          17.6
+        ],
+        [
+          "__kernel_tanf",
+          3.0
+        ],
+        [
+          "exp2f",
+          2.0
+        ],
+        [
+          "tanf",
+          0.5
+        ]
+      ]
+    },
+    {
+      "label": "Forge v3 Bell Keys, 4 voices",
+      "instructions_per_sample": 1521.6,
+      "percent_of_480MHz_at_CPI_1": 15.2,
+      "output_peak": 0.0189,
+      "top_functions": [
+        [
+          "_ZN5forge5Synth7ProcessEv",
+          720.3
+        ],
+        [
+          "sinf",
+          366.7
+        ],
+        [
+          "_ZN5forge6Engine7ProcessEffRfS1_",
+          363.0
+        ],
+        [
+          "exp2f",
+          40.0
+        ],
+        [
+          "bench_block",
+          17.6
+        ],
+        [
+          "__kernel_tanf",
+          12.0
+        ]
+      ]
+    },
+    {
+      "label": "Forge v3 CPU Stress, 4 voices (worst case)",
+      "instructions_per_sample": 1399.8,
+      "percent_of_480MHz_at_CPI_1": 14.0,
+      "output_peak": 0.006,
+      "top_functions": [
+        [
+          "_ZN5forge5Synth7ProcessEv",
+          964.1
+        ],
+        [
+          "_ZN5forge6Engine7ProcessEffRfS1_",
+          363.0
+        ],
+        [
+          "exp2f",
+          40.0
+        ],
+        [
+          "bench_block",
+          17.6
+        ],
+        [
+          "__kernel_tanf",
+          13.1
+        ],
+        [
+          "tanf",
+          2.0
+        ]
+      ]
+    },
+    {
+      "label": "Forge v4 Recorded Keys, sampler, 7 voices",
+      "instructions_per_sample": 2279.3,
+      "percent_of_480MHz_at_CPI_1": 22.8,
+      "output_peak": 0.3586,
+      "top_functions": [
+        [
+          "_ZN5forge5Synth14ProcessSamplerERfS1_",
+          1833.3
+        ],
+        [
+          "_ZN5forge6Engine7ProcessEffRfS1_",
+          365.0
+        ],
+        [
+          "__kernel_tanf",
+          28.0
+        ],
+        [
+          "bench_block",
+          17.6
+        ],
+        [
+          "exp2f",
+          14.0
+        ],
+        [
+          "__ieee754_rem_pio2f",
+          13.1
+        ]
+      ]
+    },
+    {
+      "label": "Forge v4 TAPE Kit A, sampler, 7 one-shots",
+      "instructions_per_sample": 2147.3,
+      "percent_of_480MHz_at_CPI_1": 21.5,
+      "output_peak": 0.7564,
+      "top_functions": [
+        [
+          "_ZN5forge5Synth14ProcessSamplerERfS1_",
+          1701.3
+        ],
+        [
+          "_ZN5forge6Engine7ProcessEffRfS1_",
+          365.0
+        ],
+        [
+          "__kernel_tanf",
+          28.0
+        ],
+        [
+          "bench_block",
+          17.6
+        ],
+        [
+          "exp2f",
+          14.0
+        ],
+        [
+          "__ieee754_rem_pio2f",
+          13.1
+        ]
+      ]
+    },
+    {
+      "label": "Forge v4 Sampler Stress, 7 voices (worst case)",
+      "instructions_per_sample": 2671.0,
+      "percent_of_480MHz_at_CPI_1": 26.7,
+      "output_peak": 0.0554,
+      "top_functions": [
+        [
+          "_ZN5forge5Synth14ProcessSamplerERfS1_",
+          2190.5
+        ],
+        [
+          "_ZN5forge6Engine7ProcessEffRfS1_",
+          365.0
+        ],
+        [
+          "exp2f",
+          46.0
+        ],
+        [
+          "__kernel_tanf",
+          30.7
+        ],
+        [
+          "bench_block",
+          17.6
+        ],
+        [
+          "__ieee754_rem_pio2f",
+          12.9
+        ]
+      ]
+    },
+    {
+      "label": "Forge v4 Sampler Stress, 7 voices + looper overdub at 1.37x",
+      "instructions_per_sample": 2555.4,
+      "percent_of_480MHz_at_CPI_1": 25.6,
+      "output_peak": 0.068,
+      "top_functions": [
+        [
+          "_ZN5forge5Synth14ProcessSamplerERfS1_",
+          1920.5
+        ],
+        [
+          "_ZN5forge6Engine7ProcessEffRfS1_",
+          528.8
+        ],
+        [
+          "exp2f",
+          44.0
+        ],
+        [
+          "__kernel_tanf",
+          26.3
+        ],
+        [
+          "bench_block",
+          17.6
+        ],
+        [
+          "__ieee754_rem_pio2f",
+          11.1
+        ]
+      ]
+    },
+    {
+      "label": "Forge v3 Warm Pad, 4 voices + looper overdub at 1.37x",
+      "instructions_per_sample": 1461.0,
+      "percent_of_480MHz_at_CPI_1": 14.6,
+      "output_peak": 0.0598,
+      "top_functions": [
+        [
+          "_ZN5forge5Synth7ProcessEv",
+          839.7
+        ],
+        [
+          "_ZN5forge6Engine7ProcessEffRfS1_",
+          526.8
+        ],
+        [
+          "exp2f",
+          40.0
+        ],
+        [
+          "sinf",
+          23.0
+        ],
+        [
+          "bench_block",
+          17.6
+        ],
+        [
+          "__kernel_tanf",
+          12.0
+        ]
+      ]
+    },
+    {
+      "label": "TAPE 2.0 FX + output stage (7 voices NOT included)",
+      "instructions_per_sample": 1248.5,
+      "percent_of_480MHz_at_CPI_1": 12.5,
+      "output_peak": 0.0272,
+      "top_functions": [
+        [
+          "bench_block",
+          751.5
+        ],
+        [
+          "_ZN7daisysp6Reverb7ProcessEPfS1_",
+          302.5
+        ],
+        [
+          "powf",
+          82.0
+        ],
+        [
+          "cosf",
+          64.0
+        ],
+        [
+          "memcpy",
+          32.5
+        ],
+        [
+          "_ZN7daisysp7DcBlock7ProcessEf",
+          16.0
+        ]
+      ]
+    },
+    {
+      "label": "TEMPO 1.0 FX + output stage (sample engines NOT included)",
+      "instructions_per_sample": 1351.6,
+      "percent_of_480MHz_at_CPI_1": 13.5,
+      "output_peak": 0.3035,
+      "top_functions": [
+        [
+          "bench_block",
+          510.7
+        ],
+        [
+          "_ZN7daisysp6Reverb7ProcessEPfS1_",
+          313.5
+        ],
+        [
+          "_ZN13granularDelay12processDelayEPfS0_",
+          223.0
+        ],
+        [
+          "memset",
+          160.6
+        ],
+        [
+          "cosf",
+          64.0
+        ],
+        [
+          "_ZN6chompi9getSampleEPffS0_S0_j",
+          47.3
+        ]
+      ]
+    },
+    {
+      "label": "WAVE 1.0 synth engine, 8 voices, delay side",
+      "instructions_per_sample": 2746.9,
+      "percent_of_480MHz_at_CPI_1": 27.5,
+      "output_peak": 0.0137,
+      "top_functions": [
+        [
+          "bench_block",
+          1939.7
+        ],
+        [
+          "_ZN7daisysp6Reverb7ProcessEPfS1_",
+          302.5
+        ],
+        [
+          "powf",
+          164.0
+        ],
+        [
+          "_ZN7daisysp4Adsr7ProcessEb",
+          152.0
+        ],
+        [
+          "_ZN7daisysp10Oscillator7ProcessEv",
+          76.3
+        ],
+        [
+          "cosf",
+          64.0
+        ]
+      ]
+    },
+    {
+      "label": "WAVE 1.0 synth engine, 8 voices, reverb side",
+      "instructions_per_sample": 2694.9,
+      "percent_of_480MHz_at_CPI_1": 26.9,
+      "output_peak": 0.0667,
+      "top_functions": [
+        [
+          "bench_block",
+          1939.7
+        ],
+        [
+          "_ZN7daisysp6Reverb7ProcessEPfS1_",
+          302.5
+        ],
+        [
+          "_ZN7daisysp4Adsr7ProcessEb",
+          152.0
+        ],
+        [
+          "powf",
+          112.0
+        ],
+        [
+          "_ZN7daisysp10Oscillator7ProcessEv",
+          76.3
+        ],
+        [
+          "cosf",
+          64.0
+        ]
+      ]
+    }
+  ]
+}

@@ -3,6 +3,25 @@
 Updated 2026-10-04 (UTC), checkpoint after the knob pages (firmware 0.6).
 Read this first.
 
+## Resource/QA review, 2026-10-04 (UTC)
+
+[RESOURCE_LEDGER.md](RESOURCE_LEDGER.md) is the current resource baseline and
+update procedure. Reviewed head `fec2416` (firmware source `131776b`); independently
+rebuilt it and handoff `b7d098b` with xPack GCC 10.3.1. Current release/development
+227,060 / 242,512 B; executable headroom 61,708 / 46,256 B; SDRAM 66,715,664 B
+reserved, 393,200 B free. Current hashes match the recorded kits. Exact deltas,
+all memory regions and evidence are linked from the ledger.
+
+Independent checks: 9 native + 95 Python PASS; 9 ASan/UBSan PASS with
+`detect_leaks=0` after a container LeakSanitizer failure; 11 + 4 browser tests
+PASS; both firmware layout checks PASS; emulated CPU gate PASS (worst 2,671.0
+instructions/sample vs WAVE 2,694.9). No hardware, Windows kit or live AI run.
+No firmware changes. Next architecture investigation: initialized queue image
+cost (25,360 B footprint, savings unproven), then compact shared state/scheduler;
+SD streaming remains gated on physical SD measurements. Older checkpoint and
+PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
+use the latest implementation checkpoint and ledger for present capabilities/budgets.
+
 ## Current checkpoint: knob pages and patch knobs (firmware 0.6), 2026-10-04
 
 DC: "We haven't maximized the usage of the hardware knobs and buttons."

@@ -27,6 +27,7 @@ one consolidated hardware session.
 | [Host guide](../../firmware/chompi-forge/host/README.md) | Launch the webapp, configure providers, edit/save presets and control MIDI |
 | [Architecture](ARCHITECTURE.md) | Processing boundaries, ownership, queues, patch lifecycle and source map |
 | [Developer guide](DEVELOPMENT.md) | Checkout, dependencies, software validation, packaging and troubleshooting |
+| [Resource ledger](RESOURCE_LEDGER.md) | Current measured sizes, memory reservations, QA/CPU evidence and per-change update procedure |
 | [Protocol](PROTOCOL.md) | Exact SysEx framing, requests, replies, errors and overload semantics |
 | [Compatibility](COMPATIBILITY.md) | Comparison with stock TAPE/TEMPO/WAVE: bootloader, memory, MIDI, keybed, CPU benchmark |
 | [Looping](LOOPING.md) | Looper (roadmap item 5): TAPE behaviour, keys, memory, CPU budget, saving a loop |
