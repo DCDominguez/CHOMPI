@@ -21,7 +21,7 @@ Every payload byte is 7-bit. Words are little-endian base 128. Sequence is
 | OP | Length | Operation |
 | --- | --- | --- |
 | 01 | 18 for v1, 30 for v2, 69 for v3, 84 for v4, 88 for v5 | Apply complete patch |
-| 02 | 8 | Read current patch and status |
+| 02 | 8 or 9 | Read current patch and status. Optional byte 7 (firmware 0.7): 1 = after this reply, start a new CPU peak (per-step measurements); 0 = report only |
 | 03 | 8 | Panic: silence all synth voices and clear old delay tail; return status |
 | 04 | 10 | Store the current device patch to SD preset (bank 0–7 at 7, slot 0–14 at 8); reply 42 |
 | 05 | 10 | Recall SD preset (bank, slot): applied like 01; reply 40 with the recalled patch |
@@ -291,9 +291,9 @@ operation. **W35** = unsigned 32 bits in five 7-bit chunks, low first (fifth ≤
 | --- | --- | --- |
 | 0 begin | 8–12 size W35, 13 name length n (1–24), 14.. name (ASCII 33–126, no `/ \ :`) | Start a file: `FORGE.bin` (≤ 480 KB) or a TAPE sample `jammi_`/`cubbi_` + `a`–`e` + `1`–`14` + `.wav` (≤ 64 MB). Data goes to `FORGE/UPLOAD.TMP`; an unfinished upload is discarded |
 | 1 data | 8–12 offset W35, 13.. packed data | Up to 224 bytes as 32 groups of 8 SysEx bytes (a high-bit byte, bit i = byte i's bit 7, then up to 7 low-7-bit bytes; a final partial group has n+1 bytes). The offset must equal the bytes received so far, else error 4 (status gives the offset to resume from). Request ≤ 270 bytes |
-| 2 end | 8–12 CRC-32 W35 (IEEE, as zlib.crc32) | All bytes and the CRC match: the file replaces the target (FatFS sync, then rename). Else error 1 (short) or 3 (CRC), and the card is unchanged |
+| 2 end | 8–12 CRC-32 W35 (IEEE, as zlib.crc32) | All bytes and the CRC match: the file replaces the target (FatFS sync, then rename). Else error 1 (short) or 3 (CRC), and the card is unchanged. `FORGE.bin` must also pass the bootloader's image test (stack pointer in DTCM/D1 SRAM, Thumb entry point inside the image; else error 4) and is read back from the card and its CRC compared before it replaces the old one (else error 8). Repeating the End of the file just written (its reply was lost) succeeds again; a sample's End is refused with error 9 while the sample loader is busy (retry) |
 | 3 abort | — | Discard the upload |
-| 4 install | — | Needs `FORGE.bin` on the card and no upload in progress (error 7 / 9). Renames every other root `*.bin` to `*.bin.old`, then waits 15 s for a CHOMPI key press on the panel (its light blinks white; the press never reaches the menu or record gesture). On the press CHOMPI sends its replies and restarts; the bootloader flashes the new `FORGE.bin` from the card |
+| 4 install | — | Needs `FORGE.bin` on the card and no upload in progress (error 7 / 9; an upload untouched for 5 s is abandoned). The CHOMPI bootloader flashes the first visible root file whose name *contains* `.bin` or `.BIN`, so every other such file is renamed: each `.bin` becomes `_bin`, and a name that ended in it gains `.old` (`CHOMPI_TAPEv2_0.bin` → `CHOMPI_TAPEv2_0_bin.old`; `1_` … `9_` in front if taken; nothing is overwritten). Error 8 if any rename fails. Then it waits 15 s for a CHOMPI key press on the panel (its light blinks white; the press never reaches the menu or record gesture). On the press CHOMPI sends its replies and restarts; the bootloader flashes the new `FORGE.bin` from the card |
 | 5 status | — | Report only |
 
 Reply 48 (16 bytes): 7 zero, 8 operation, 9 flags (1 upload active, 2 waiting

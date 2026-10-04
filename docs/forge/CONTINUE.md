@@ -1,7 +1,8 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-04 (UTC), checkpoint after the knob pages (firmware 0.6).
-Read this first.
+Updated 2026-10-04 (UTC), checkpoint: firmware 0.7 loader hardened, per-step
+CPU, home checklist. Read this first; DC's next session is
+[HOME_CHECKLIST.md](HOME_CHECKLIST.md).
 
 ## Resource/QA review, 2026-10-04 (UTC)
 
@@ -22,7 +23,37 @@ SD streaming remains gated on physical SD measurements. Older checkpoint and
 PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
 use the latest implementation checkpoint and ledger for present capabilities/budgets.
 
-## Current checkpoint: firmware 0.7 USB loader and Forge Bridge.exe, 2026-10-04
+## Current checkpoint: loader stress review, per-step CPU, home checklist, 2026-10-04
+
+DC (away from the hardware): "do 1 2 and 3": stress-test the USB loader,
+per-step CPU, tidy up for the first session home. Software-tested only;
+0.7 has still never run on CHOMPI.
+- **Bug found and fixed:** the CHOMPI bootloader (v6.4 `SearchBin`) flashes the
+  first visible root file whose name *contains* `.bin`/`.BIN` (`strstr`), so
+  0.7's `TAPE.bin` → `TAPE.bin.old` set-aside still left a file it could pick
+  before FORGE.bin. Now `.bin` becomes `_bin` (+ `.old`), anything the
+  bootloader would match is renamed (no overwrite, batches until none are
+  left), and Install fails if one cannot be renamed. Same rule in the probe.
+- Device-side guards: FORGE.bin must pass the bootloader's image test (stack
+  in DTCM/D1, Thumb entry inside the image) at End; it is read back from the
+  card (size + CRC-32, 4 KB aligned buffer in D1 SRAM) before it replaces the
+  old FORGE.bin. Repeated End for the file just written succeeds (lost reply);
+  Install abandons an upload idle 5 s. `static_assert` that Data chunks stay
+  below one sector (f_write never DMAs from the DTCM stack).
+- Host: Begin/End retried on a lost reply; a failed upload sends Abort.
+- Tests: bootloader names/set-aside, image guards, card read-back corruption,
+  lossy link (40 uploads with drops, duplicates and late requests both ways),
+  200,000 fuzzed requests (4,695 complete uploads, busy-loader refusals) under
+  ASan/UBSan; Python: lost End reply, dead link leaves nothing open.
+- Per-step CPU: status (02) takes an optional flags byte, 1 = reset the peak
+  after the reply (audio callback owns the meter). The runner resets at the
+  start of every step that reads status; reports mark "since boot" on 0.6.
+- `HOME_CHECKLIST.md` (in the exe download and the development kit); the exe
+  artifact now holds `Forge Bridge.exe`, `FORGE.bin` and the checklist.
+- ARM (xPack 10.3.1): release 235,980 B (SRAM_EXEC 81.7 %), development
+  251,684 B (87.2 %); SRAM 108,196 / 112,260 B; layout checks OK.
+
+## Previous checkpoint: firmware 0.7 USB loader and Forge Bridge.exe, 2026-10-04
 
 DC: "setup an executable and also firmware loader so I don't need to keep
 removing the card". Built (software-tested; nothing hardware-verified):
@@ -682,16 +713,17 @@ webapp + bench optimisation, then docs.
 
 ## Next actions (priority order)
 
-1. Done 2026-10-03 (DC): CCs aligned with stock (COMPATIBILITY.md §4);
-   start-up stays dry aux (no boot recall); QA bundles → DC's Google Drive.
-   Open, low priority: configurable MIDI input channel (stock: options.json).
-2. Done: roadmap item 4, sampling (see "Roadmap item 4" below).
-3. Agent: roadmap item 5, looping — design first from TAPE's LooperEngine /
-   FileSampler (tape-style overdub, varispeed), within ~7.6 MB SDRAM and the
-   remaining code space; confirm scope with DC before building.
-4. Bundle: `Forge-0.5-test-b7a504a` built from `b7a504a` (xPack GCC 10.3.1,
-   zip sha256 `cb0380da…dfe4e1`, FORGE.bin sha256 `513d295c…af45df`,
-   `verify_bundle.py`: 51 files OK). DC stores it on Google Drive. Older ZIPs
-   are stale; regenerate if firmware changes again.
-5. DC (later, per feature): LIVE_AI_TEST.md, then TEST_SESSION.md; record in
-   TEST_RESULTS.md. Agent then fixes only what QA finds.
+1. DC, at home: [HOME_CHECKLIST.md](HOME_CHECKLIST.md): one last card flash of
+   0.7 (only FORGE.bin may contain ".bin" in the card root), rig fixes, Check
+   setup, panel walk, automatic checks, one USB install and one sample upload;
+   send the reports folder.
+2. Agent, after that session: fix only what it finds; record it in
+   TEST_RESULTS.md. Then decide the looper voice cap (7 if 6.2d agrees) from
+   the per-step CPU figures.
+3. Open, needs DC's choice: next instrument features (arpeggiator/sequencer,
+   more effects, configurable MIDI input channel, Tab5 controller).
+4. Unverified on hardware: everything in 0.7 (USB throughput, FatFS writes and
+   read-back on the real card, the restart into the bootloader, the exe on
+   DC's PC), the knob lights and encoder presses, zipper noise.
+
+Roadmap items 1–5 are built (PROJECT.md); bundles before 0.7 are stale.

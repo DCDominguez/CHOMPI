@@ -47,20 +47,25 @@ struct CardUploads : forge::UploadFiles {
     bool Ready() override { return card.Ready(); }
     bool Open(const char*) override { temp.clear(); open = card.Ready(); return open; }
     bool Append(const uint8_t* d, uint32_t n) override { if(!open) return false; temp.insert(temp.end(), d, d + n); return true; }
-    bool Finish(const char*, const char* final_path) override {
+    bool Finish(const char*, const char* final_path, bool verify, uint32_t size, uint32_t crc) override {
         if(!open) return false;
-        open = false; card.Remove(final_path); card.files[final_path] = temp; return true;
+        open = false;
+        if(verify && (temp.size() != size || forge::Crc32(0, temp.data(), temp.size()) != crc)) return false;
+        card.Remove(final_path); card.files[final_path] = temp; return true;
     }
     void Abort(const char*) override { open = false; temp.clear(); }
     bool Exists(const char* path) override { return card.Has(path); }
-    bool SetAsideOtherFirmware(const char*) override {
+    bool SetAsideOtherFirmware() override {      // as FatFsUploadFiles (the bootloader's ".bin" substring rule)
         std::vector<std::string> names;
-        for(const auto& f : card.files) {
-            const std::string& n = f.first;
-            if(n.size() > 4 && !forge::IsFirmwareName(n.c_str()) && (n.substr(n.size() - 4) == ".bin" || n.substr(n.size() - 4) == ".BIN"))
-                names.push_back(n);
+        for(const auto& f : card.files)
+            if(!forge::IsFirmwareName(f.first.c_str()) && forge::BootloaderMatches(f.first.c_str())) names.push_back(f.first);
+        for(const auto& n : names) {
+            char target[268]; unsigned attempt = 0;
+            for(; attempt <= 9; ++attempt)
+                if(forge::SetAsideName(n.c_str(), attempt, target, sizeof target) && !card.Has(target)) break;
+            if(attempt > 9) return false;
+            card.files[target] = card.files[n]; card.files.erase(n);
         }
-        for(const auto& n : names) { card.files[n + ".old"] = card.files[n]; card.files.erase(n); }
         return true;
     }
 };

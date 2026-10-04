@@ -25,6 +25,11 @@ constexpr uint32_t kFirmwareMax = 480u * 1024u, kSampleFileMax = 64u * 1024u * 1
 constexpr uint8_t kFileActive = 1, kFileInstallPending = 2, kFileFirmwareStaged = 4, kFileRestarting = 8;   // reply flags
 
 static_assert(kMaxSysEx >= kFileRequest, "the MIDI framer must hold a whole file-transfer request");
+// Chunks shorter than a sector always pass through FatFS's own sector buffer (in the
+// FIL object, D1 SRAM): f_write never hands the SD card's DMA the request on the stack (DTCM).
+static_assert(kFileChunk < 512, "Data chunks must stay below one SD sector");
+constexpr uint32_t kAppStart = 0x24000000u;                      // BOOT_SRAM images run from D1 SRAM
+constexpr uint32_t kStaleTransferMs = 5000;                      // Install takes over a transfer idle this long
 
 inline uint32_t Crc32(uint32_t crc, const uint8_t* data, size_t size) {   // IEEE 802.3, as zlib.crc32
     crc = ~crc;
@@ -46,6 +51,39 @@ inline bool IsFirmwareName(const char* name) {
         if(c != kName[i]) return false;
     }
     return true;
+}
+// The CHOMPI bootloader (v6.4 SearchBin) flashes the first visible root file whose name
+// contains ".bin" or ".BIN" anywhere (strstr): FORGE.bin has to be the only such file.
+inline bool BootloaderMatches(const char* name) {
+    for(const char* c = name; c[0]; ++c)
+        if(c[0] == '.' && ((c[1] == 'b' && c[2] == 'i' && c[3] == 'n') || (c[1] == 'B' && c[2] == 'I' && c[3] == 'N'))) return true;
+    return false;
+}
+// The bootloader-invisible name for a file it would match: each ".bin"/".BIN" becomes
+// "_bin"/"_BIN", and a name that ended in it gains ".old" (TAPE.bin -> TAPE_bin.old).
+// attempt > 0 prefixes "<attempt>_" when that name is taken. False if it does not fit.
+inline bool SetAsideName(const char* name, unsigned attempt, char* out, size_t capacity) {
+    size_t n = 0;
+    auto put = [&](char c) { if(n + 1 < capacity) out[n] = c; ++n; };
+    if(attempt) { if(attempt > 9) return false; put(char('0' + attempt)); put('_'); }
+    size_t length = 0; bool ends = false;
+    for(const char* c = name; *c; ++c, ++length) {
+        const bool dot = c[0] == '.' && ((c[1] == 'b' && c[2] == 'i' && c[3] == 'n') || (c[1] == 'B' && c[2] == 'I' && c[3] == 'N'));
+        if(dot) ends = c[4] == 0;
+        put(dot ? '_' : c[0]);
+    }
+    if(ends) for(const char* c = ".old"; *c; ++c) put(*c);
+    if(n + 1 > capacity || !length) return false;
+    out[n] = 0;
+    return true;
+}
+// The bootloader's and check_firmware_layout.py's acceptance test for a BOOT_SRAM image:
+// initial stack pointer in DTCM or D1 SRAM, Thumb entry point inside the image.
+inline bool PlausibleFirmware(const uint8_t* head, uint32_t size) {
+    const uint32_t stack = uint32_t(head[0]) | uint32_t(head[1]) << 8 | uint32_t(head[2]) << 16 | uint32_t(head[3]) << 24;
+    const uint32_t entry = uint32_t(head[4]) | uint32_t(head[5]) << 8 | uint32_t(head[6]) << 16 | uint32_t(head[7]) << 24;
+    const bool stack_ok = (stack >= 0x20000000u && stack <= 0x20020000u) || (stack >= 0x24000000u && stack <= 0x24080000u);
+    return size >= 8 && size <= kFirmwareMax && stack_ok && (entry & 1u) && entry >= kAppStart && entry - kAppStart < size;
 }
 inline bool AllowedUploadName(const char* name) {
     uint8_t mode, bank, slot;
@@ -126,11 +164,13 @@ public:
     virtual bool Ready() = 0;
     virtual bool Open(const char* temp) = 0;                                    // create or truncate
     virtual bool Append(const uint8_t* data, uint32_t size) = 0;
-    virtual bool Finish(const char* temp, const char* final_path) = 0;          // sync, close, replace
+    // Sync and close; with verify, read the file back and require size and CRC-32; then replace.
+    virtual bool Finish(const char* temp, const char* final_path, bool verify, uint32_t size, uint32_t crc) = 0;
     virtual void Abort(const char* temp) = 0;
     virtual bool Exists(const char* path) = 0;
-    // Renames every other *.bin in the root to <name>.old, so the bootloader can only find FORGE.bin.
-    virtual bool SetAsideOtherFirmware(const char* keep) = 0;
+    // Renames (SetAsideName) every visible root file the bootloader would match except
+    // FORGE.bin; true only when FORGE.bin is then the only one left.
+    virtual bool SetAsideOtherFirmware() = 0;
 };
 
 // Panel confirmation for installing firmware (audio owner calls Filter with the
@@ -174,12 +214,14 @@ public:
         return (active_ ? kFileActive : 0) | (gate.Armed() ? kFileInstallPending : 0)
              | (files.Ready() && files.Exists("FORGE.bin") ? kFileFirmwareStaged : 0) | (gate.Confirmed() ? kFileRestarting : 0);
     }
+    void Touch(uint32_t now) { touched_ = now; }
     Error Begin(UploadFiles& files, const FileRequest& r) {
         if(!files.Ready()) return Error::Storage;
         if(active_) files.Abort(kTemp);
-        active_ = false;
+        active_ = done_ = false;
         if(!files.Open(kTemp)) return Error::Storage;
         std::memcpy(name_, r.name, sizeof name_);
+        std::memset(head_, 0, sizeof head_);
         size_ = r.size; offset_ = 0; crc_ = 0; active_ = true;
         return Error::None;
     }
@@ -187,32 +229,41 @@ public:
         if(!active_) return Error::Empty;
         if(r.offset != offset_ || offset_ + r.length > size_ || !r.length) return Error::Patch;   // the reply carries the offset to resume from
         if(!files.Append(r.data, r.length)) { Abort(files); return Error::Storage; }
+        for(uint32_t i = offset_; i < sizeof head_ && i - offset_ < r.length; ++i) head_[i] = r.data[i - offset_];
         crc_ = Crc32(crc_, r.data, r.length); offset_ += r.length;
         return Error::None;
     }
     Error End(UploadFiles& files, const FileRequest& r) {
-        if(!active_) return Error::Empty;
+        // A repeated End (its reply was lost) for the file just written succeeds again.
+        if(!active_) return done_ && r.crc == crc_ ? Error::None : Error::Empty;
         active_ = false;
         if(offset_ != size_ || crc_ != r.crc) { files.Abort(kTemp); return offset_ != size_ ? Error::Length : Error::Checksum; }
-        const char* target = IsFirmwareName(name_) ? "FORGE.bin" : name_;
-        if(!files.Finish(kTemp, target)) return Error::Storage;
-        if(!IsFirmwareName(name_)) sample_written_ = true;
+        const bool firmware = IsFirmwareName(name_);
+        // Never stage an image the bootloader would reject or that cannot start.
+        if(firmware && !PlausibleFirmware(head_, size_)) { files.Abort(kTemp); return Error::Patch; }
+        // Firmware is read back from the card before it replaces FORGE.bin.
+        if(!files.Finish(kTemp, firmware ? "FORGE.bin" : name_, firmware, size_, crc_)) return Error::Storage;
+        if(!firmware) sample_written_ = true;
+        done_ = true;
         return Error::None;
     }
-    void Abort(UploadFiles& files) { if(active_) files.Abort(kTemp); active_ = false; }
-    // Firmware on the card and nothing half-written: ask for the panel press.
+    void Abort(UploadFiles& files) { if(active_) files.Abort(kTemp); active_ = done_ = false; }
+    // Firmware on the card and nothing half-written: ask for the panel press. A transfer
+    // nobody has touched for kStaleTransferMs (a host that went away) is abandoned.
     Error Install(UploadFiles& files, InstallGate& gate, uint32_t now) {
-        if(active_) return Error::StorageBusy;
+        if(active_ && now - touched_ < kStaleTransferMs) return Error::StorageBusy;
+        Abort(files);
         if(!files.Ready()) return Error::Storage;
         if(!files.Exists("FORGE.bin")) return Error::Empty;
-        if(!files.SetAsideOtherFirmware("FORGE.bin")) return Error::Storage;
+        if(!files.SetAsideOtherFirmware()) return Error::Storage;
         gate.Arm(now);
         return Error::None;
     }
 private:
     char name_[kFileNameMax + 1]{};
-    uint32_t size_ = 0, offset_ = 0, crc_ = 0;
-    bool active_ = false, sample_written_ = false;
+    uint8_t head_[8]{};
+    uint32_t size_ = 0, offset_ = 0, crc_ = 0, touched_ = 0;
+    bool active_ = false, sample_written_ = false, done_ = false;
 };
 // One 0C request -> its reply (0x48, or 0x41 with the error). Shared by the
 // firmware's main loop and the offline probe.
@@ -231,6 +282,7 @@ FORGE_NOINLINE inline size_t ServeFileRequest(const uint8_t* bytes, size_t size,
         case FileOp::Install: error = transfer.Install(files, gate, now); break;
         case FileOp::Status: break;
     }
+    if(error == Error::None && (r.op == FileOp::Begin || r.op == FileOp::Data)) transfer.Touch(now);
     if(error != Error::None) return EncodeError(size >= 7 ? Read14(bytes + 5) : 0, error, reply);
     return EncodeFileReply(r.sequence, r.op, transfer.Flags(files, gate), transfer.Offset(), reply);
 }

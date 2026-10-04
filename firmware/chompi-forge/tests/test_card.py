@@ -45,6 +45,22 @@ class LossyTransport:
         return self.inner.receive(payload, decoder, timeout)
 
 
+class LostEndReply(LossyTransport):
+    """CHOMPI gets the End request and writes the file, but its reply never arrives."""
+    def __init__(self, inner): super().__init__(inner, 0); self.lost = False
+    def exchange(self, payload, decoder, timeout=2):
+        if payload[4] == 0x0C and payload[7] == card.OPS["end"] and not self.lost:
+            self.lost = True
+            self.inner.exchange(payload, decoder, timeout); raise TimeoutError("reply lost")
+        return self.inner.exchange(payload, decoder, timeout)
+
+
+class DeadLink(LossyTransport):
+    """Every data reply is lost (a cable pulled mid-upload)."""
+    def receive(self, payload, decoder, timeout=2):
+        self.inner.receive(payload, decoder, timeout); raise TimeoutError("reply lost")
+
+
 class CardTests(unittest.TestCase):
     def setUp(self):
         self.transport = bridge.Transport(None, None, PROBE)
@@ -86,6 +102,19 @@ class CardTests(unittest.TestCase):
         self.assertEqual(self.samples()["samples"]["kit"]["c"], [2])
         with self.assertRaisesRegex(ValueError, "TAPE sample names"): self.card.upload("evil.bin", b"x")
 
+    def test_lost_end_reply_and_failed_upload_leave_nothing_open(self):
+        data = wav(0.4)
+        card.Card(LostEndReply(self.transport), self.seq, log=lambda *_: None).upload("cubbi_e3.wav", data)
+        self.assertEqual(self.samples()["samples"]["kit"]["e"], [3])      # the repeated End was accepted
+        dead = card.Card(DeadLink(self.transport, 0), self.seq, log=lambda *_: None)
+        import time
+        sleep, card.time.sleep = card.time.sleep, lambda seconds: None
+        try:
+            with self.assertRaisesRegex(RuntimeError, "upload failed"): dead.upload("cubbi_e4.wav", data)
+        finally: card.time.sleep = sleep
+        self.assertFalse(self.card.status()["active"])                      # the host aborted it
+        self.assertEqual(self.samples()["samples"]["kit"]["e"], [3])
+
     @unittest.skipUnless(FIRMWARE.exists(), "development firmware not built (make firmware-dev)")
     def test_firmware_install_waits_for_the_chompi_key(self):
         with self.assertRaisesRegex(ValueError, "Not a valid Forge firmware image"): self.card.upload("FORGE.bin", b"\0" * 4096)
@@ -101,10 +130,6 @@ class CardTests(unittest.TestCase):
         self.transport.exchange(host.message(0x0A, self.seq(), [0, 5, 65]), bridge.panel_ack)
         state = self.card.status()
         self.assertTrue(state["restarting"]); self.assertFalse(state["install_pending"])
-
-
-if __name__ == "__main__":
-    unittest.main()
 
 
 class BridgeCardTests(unittest.TestCase):
@@ -149,3 +174,7 @@ class BridgeCardTests(unittest.TestCase):
         job = self.wait()
         self.assertIsNone(job["error"]); self.assertFalse(job["result"]["restarting"])
         self.assertIn("nothing installed", job["progress"][-1])
+
+
+if __name__ == "__main__":
+    unittest.main()

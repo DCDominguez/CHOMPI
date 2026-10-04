@@ -182,6 +182,28 @@ class DetectionTests(unittest.TestCase):
         Device.snapshot = lambda self: {"storage": {"looper": {"state": "empty"}}}
         runner.ensure("looper_empty"); self.assertEqual(events, [])
 
+    def test_cpu_peak_is_per_step_when_the_firmware_can_reset_it(self):
+        plan = {"steps": [{"id": "a", "do": [{"status": True}], "check": [{"status": {"cpu_max_percent": [0, 50]}}]},
+                          {"id": "b", "do": [{"status": True}], "check": []}, {"id": "c", "do": [], "check": []}]}
+        class Device:
+            peak, resets = 0.0, []
+            def status(self, reset_cpu=False):
+                result = {"cpu_max_percent": self.peak, "cpu_average_percent": 1.0}
+                if reset_cpu: self.resets.append(self.peak); self.peak = 0.0
+                else: self.peak = 20.0                         # this step's load
+                return result
+        device = Device(); device.peak = 90.0                   # a spike before the run
+        result = audio.Runner(device, None).run(plan)
+        self.assertEqual([s.get("cpu_peak") for s in result["steps"]], ["this step", "this step", None])
+        self.assertEqual(result["steps"][0]["result"], "pass"); self.assertEqual(device.resets, [90.0, 20.0])
+        class OldFirmware(Device):                              # 0.6: a flags byte is a length error
+            def status(self, reset_cpu=False):
+                if reset_cpu: raise RuntimeError("Device rejected request: length")
+                return {"cpu_max_percent": 90.0}
+        old = OldFirmware(); result = audio.Runner(old, None).run(plan)
+        self.assertEqual([s.get("cpu_peak") for s in result["steps"]], ["since boot", "since boot", None])
+        self.assertEqual(result["steps"][0]["result"], "fail")
+
     def test_no_line_in_plug_means_no_output_and_no_beeps(self):
         # The dry path carries CHOMPI's mic without a plug: a speaker beep must not count as line in.
         world = FakeChompi(); interface = world.audio()

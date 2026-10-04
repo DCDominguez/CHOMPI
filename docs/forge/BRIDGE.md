@@ -14,8 +14,9 @@ behaviour, and its audio measurements do not replace listening.
 
 GitHub builds one Windows program, **Forge Bridge.exe**, on every change
 (repository → Actions → *Forge Bridge (Windows exe)* → the latest green run →
-artifact *Forge-Bridge-exe*). It contains the bridge, its Python and packages,
-and the matching development firmware. Put it in a folder of its own and
+artifact *Forge-Bridge-exe*: the exe, the same `FORGE.bin` for a card flash, and
+[HOME_CHECKLIST.md](HOME_CHECKLIST.md)). The exe contains the bridge, its Python
+and packages, and the matching development firmware. Put it in a folder of its own and
 double-click it; `reports` and `card` folders appear next to it. Windows may
 warn about an unsigned program (More info → Run anyway). Command line:
 `"Forge Bridge.exe" checks` (automatic checks, no browser) and

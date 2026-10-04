@@ -154,7 +154,7 @@ class SessionDevice:
     def __init__(self, bridge): self.bridge = bridge
     def exchange(self, payload, decoder=host.decode_response): return self.bridge.transport.exchange(payload, decoder)
     def send_patch(self, patch): return self.exchange(host.encode_patch(patch, self.bridge.seq()))
-    def status(self): return self.exchange(host.message(2, self.bridge.seq()))
+    def status(self, reset_cpu=False): return self.exchange(host.message(2, self.bridge.seq(), [1] if reset_cpu else []))
     def panic(self): return self.exchange(host.message(3, self.bridge.seq()))
     def samples(self): return self.exchange(host.sample_message(8, self.bridge.seq()))
     def snapshot(self): return self.bridge.snapshot()

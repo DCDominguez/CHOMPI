@@ -64,12 +64,12 @@ public:
         UINT written = 0;
         return open_ && f_write(&file_, data, size, &written) == FR_OK && written == size;
     }
-    bool Finish(const char* temp, const char* final_path) override {
+    bool Finish(const char* temp, const char* final_path, bool verify, uint32_t size, uint32_t crc) override {
         if(!open_) return false;
         open_ = false;
         const bool synced = f_sync(&file_) == FR_OK;
         f_close(&file_);
-        if(!synced) { f_unlink(temp); return false; }
+        if(!synced || (verify && !ReadsBack(temp, size, crc))) { f_unlink(temp); return false; }
         f_unlink(final_path);              // FatFS rename does not replace
         return f_rename(temp, final_path) == FR_OK;
     }
@@ -78,31 +78,55 @@ public:
         f_unlink(temp);
     }
     bool Exists(const char* path) override { FILINFO info; return Ready() && f_stat(path, &info) == FR_OK; }
-    bool SetAsideOtherFirmware(const char* keep) override {
-        DIR dir; FILINFO info;
-        if(!Ready() || f_opendir(&dir, "/") != FR_OK) return false;
-        char names[8][64]; unsigned count = 0;    // rename after the listing, not during it
-        while(count < 8 && f_readdir(&dir, &info) == FR_OK && info.fname[0]) {
-            const size_t n = std::strlen(info.fname);
-            if(info.fattrib & AM_DIR || n < 5 || n > 59 || forge::IsFirmwareName(info.fname)) continue;
-            const char* ext = info.fname + n - 4;
-            if((ext[0] == '.') && (ext[1] | 32) == 'b' && (ext[2] | 32) == 'i' && (ext[3] | 32) == 'n')
-                std::memcpy(names[count++], info.fname, n + 1);
+    // The bootloader takes the first visible root name containing ".bin"/".BIN": rename
+    // all but FORGE.bin (a batch per directory pass, renaming after the listing).
+    bool SetAsideOtherFirmware() override {
+        if(!Ready()) return false;
+        for(unsigned pass = 0; pass < 16; ++pass) {
+            DIR dir; FILINFO info;
+            if(f_opendir(&dir, "/") != FR_OK) return false;
+            unsigned count = 0;
+            while(count < kAsideBatch && f_readdir(&dir, &info) == FR_OK && info.fname[0]) {
+                if(info.fattrib & (AM_DIR | AM_HID) || forge::IsFirmwareName(info.fname) || !forge::BootloaderMatches(info.fname)) continue;
+                const size_t n = std::strlen(info.fname);
+                if(n >= sizeof aside_[0]) { f_closedir(&dir); return false; }
+                std::memcpy(aside_[count++], info.fname, n + 1);
+            }
+            f_closedir(&dir);
+            if(!count) return true;        // FORGE.bin is the only image the bootloader can see
+            for(unsigned i = 0; i < count; ++i) {
+                bool renamed = false;
+                for(unsigned attempt = 0; attempt <= 9 && !renamed; ++attempt) {
+                    if(!forge::SetAsideName(aside_[i], attempt, target_, sizeof target_)) return false;
+                    if(f_stat(target_, &info) == FR_OK) continue;        // never overwrite a file
+                    renamed = f_rename(aside_[i], target_) == FR_OK;
+                    if(!renamed) return false;
+                }
+                if(!renamed) return false;
+            }
         }
-        f_closedir(&dir);
-        (void)keep;
-        bool ok = true;
-        for(unsigned i = 0; i < count; ++i) {
-            char target[64]; const size_t n = std::strlen(names[i]);
-            std::memcpy(target, names[i], n); std::memcpy(target + n, ".old", 5);
-            f_unlink(target);
-            ok = f_rename(names[i], target) == FR_OK && ok;
-        }
-        return ok;
+        return false;
     }
 private:
+    static constexpr unsigned kAsideBatch = 8;
+    // Read the closed file back (size and CRC-32). The buffer is a member of a global (.bss,
+    // D1 SRAM) and cache-line aligned: whole-sector reads go straight to it by DMA.
+    bool ReadsBack(const char* path, uint32_t size, uint32_t crc) {
+        if(f_open(&check_, path, FA_OPEN_EXISTING | FA_READ) != FR_OK) return false;
+        bool ok = f_size(&check_) == size;
+        uint32_t got = 0, sum = 0;
+        while(ok && got < size) {
+            UINT read = 0;
+            ok = f_read(&check_, verify_buffer_, sizeof verify_buffer_, &read) == FR_OK && read > 0;
+            if(ok) { sum = forge::Crc32(sum, verify_buffer_, read); got += read; }
+        }
+        f_close(&check_);
+        return ok && got == size && sum == crc;
+    }
+    alignas(32) uint8_t verify_buffer_[4096];
+    char aside_[kAsideBatch][256], target_[268];
     FatFsStorage& mount_;
-    FIL file_;
+    FIL file_, check_;
     bool open_ = false;
 };
 

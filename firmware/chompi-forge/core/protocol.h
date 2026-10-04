@@ -35,6 +35,7 @@ struct Request {
     uint8_t epoch = 0; // main-loop emergency count when queued; never on the wire
     uint8_t bank = 0, slot = 0; // device preset address (Store/Recall/Erase), 0-based
     bool silent = false;        // apply without a reply (on-device recall)
+    bool reset_cpu = false;     // Status: start a new CPU peak after reporting (per-step measurements)
     // SampleJob: action, source mode/bank/slot (bank/slot above) and copy destination.
     SampleAction action = SampleAction::Save;
     uint8_t mode = 0, to_mode = 0, to_bank = 0, to_slot = 0;
@@ -208,9 +209,11 @@ FORGE_NOINLINE inline Error DecodeRequest(const uint8_t* bytes, size_t size, Req
         }
         candidate.kind = RequestKind::Probe; candidate.page = bytes[7];
 #endif
-    } else if(bytes[4] == 2) {
-        if(size != 8) return Error::Length;
+    } else if(bytes[4] == 2) {                       // status; optional flags byte: bit 0 resets the CPU peak after this reply
+        if(size != 8 && size != 9) return Error::Length;
+        if(size == 9 && bytes[7] > 1) return Error::Patch;
         candidate.kind = RequestKind::Status;
+        candidate.reset_cpu = size == 9 && bytes[7] == 1;
     } else if(bytes[4] == 3) {
         if(size != 8) return Error::Length;
         candidate.kind = RequestKind::Panic;

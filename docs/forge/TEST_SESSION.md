@@ -240,7 +240,7 @@ From 0.7 on, files and firmware go to the card over the USB cable (bridge:
 | 7.1 | Put two TAPE samples (e.g. `cubbi_b1.wav`, `jammi_b1.wav`) in the kit's `card` folder; bridge: Refresh list, Copy selected to CHOMPI. Then send a kit patch for bank b and play | Both copied (time per MB noted); the sample list shows them; they play. Nothing else on the card changed |
 | 7.2 | Pull the USB cable in the middle of a copy; reconnect; copy again | The interrupted file never appears half-written (the old one, or none, stays); the second copy completes |
 | 7.3 | Install this kit's firmware; do **not** press CHOMPI for 15 s | CHOMPI's light blinks white, then stops; nothing installed; Forge keeps running |
-| 7.4 | Install again and press the CHOMPI key | CHOMPI restarts; rainbow lights while the bootloader flashes; Forge starts; Connect CHOMPI shows the expected firmware version. Any other `.bin` on the card was renamed `.bin.old` |
+| 7.4 | Install again and press the CHOMPI key | CHOMPI restarts; rainbow lights while the bootloader flashes; Forge starts; Connect CHOMPI shows the expected firmware version. Any other firmware file on the card was renamed so the bootloader ignores it (`CHOMPI_TAPEv2_0.bin` → `CHOMPI_TAPEv2_0_bin.old`; rename it back to use TAPE again) |
 
 ## Results — copy into docs/forge/TEST_RESULTS.md
 

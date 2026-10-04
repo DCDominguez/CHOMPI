@@ -62,6 +62,7 @@ def main():
                                 b"cubbi_<a-e><1-14>.wav. The bridge's Card & firmware section copies them over USB\r\n"
                                 b"(firmware 0.7 or newer); so does: python\\python.exe host\\forge_card.py sync card\r\n")
     if args.development: files["CLAUDE.md"] = (ROOT / "host/KIT_CLAUDE.md").read_bytes()   # for an agent on the test PC
+    if args.development: files["HOME_CHECKLIST.md"] = (REPO / "docs/forge/HOME_CHECKLIST.md").read_bytes()
     for name in ("BRIDGE.md", "INSPECTOR.md", "TEST_SESSION.md", "KNOBS.md", "TEST_RESULTS.md"):
         files["docs/" + name] = (REPO / "docs/forge" / name).read_bytes()
     probe = ROOT / "build" / ("forge_probe.exe" if sys.platform == "win32" else "forge_probe")

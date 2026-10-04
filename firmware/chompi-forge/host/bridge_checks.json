@@ -488,7 +488,7 @@
   {
     "id": "7.4",
     "do": "Install again and press the CHOMPI key",
-    "expect": "CHOMPI restarts; rainbow lights while the bootloader flashes; Forge starts; Connect CHOMPI shows the expected firmware version. Any other `.bin` on the card was renamed `.bin.old`",
+    "expect": "CHOMPI restarts; rainbow lights while the bootloader flashes; Forge starts; Connect CHOMPI shows the expected firmware version. Any other firmware file on the card was renamed so the bootloader ignores it (`CHOMPI_TAPEv2_0.bin` → `CHOMPI_TAPEv2_0_bin.old`; rename it back to use TAPE again)",
     "group": "7. USB card and firmware (firmware 0.7)"
   }
 ]

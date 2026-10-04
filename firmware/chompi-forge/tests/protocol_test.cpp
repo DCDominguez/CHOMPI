@@ -209,7 +209,20 @@ void ProtocolV5() {
         assert(std::fabs(copy.Value(Parameter::Knob2) - copy.Value(q)) < 1e-6f);
     }
 }
-int main() { ProtocolV3(); ProtocolV5();
+// Status with the optional flags byte: bit 0 asks for a fresh CPU peak after the reply.
+void StatusResetsCpu() {
+    auto status = [](std::vector<uint8_t> body) {
+        std::vector<uint8_t> m(7); Header(m.data(), 2, 5); m.insert(m.end(), body.begin(), body.end());
+        m.push_back(0); m.back() = Checksum(m.data(), m.size() - 1); return m;
+    };
+    Request r; auto m = status({});
+    assert(DecodeRequest(m.data(), m.size(), r) == Error::None && r.kind == RequestKind::Status && !r.reset_cpu);
+    m = status({1}); assert(DecodeRequest(m.data(), m.size(), r) == Error::None && r.kind == RequestKind::Status && r.reset_cpu);
+    m = status({0}); assert(DecodeRequest(m.data(), m.size(), r) == Error::None && !r.reset_cpu);
+    m = status({2}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Patch);
+    m = status({1, 0}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Length);
+}
+int main() { ProtocolV3(); ProtocolV5(); StatusResetsCpu();
     ProtocolAndAtomicity(); Framing(); UsbPacketization();
-    std::cout << "PASS: protocol rejection/atomicity, v3 round trip/bounds, v5 knob assignments, MIDI real-time/resync/fuzz, USB packet endings\n";
+    std::cout << "PASS: protocol rejection/atomicity, v3 round trip/bounds, v5 knob assignments, status CPU reset, MIDI real-time/resync/fuzz, USB packet endings\n";
 }

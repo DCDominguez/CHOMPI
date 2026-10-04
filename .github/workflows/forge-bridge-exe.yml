@@ -5,7 +5,7 @@ name: Forge Bridge (Windows exe)
 on:
   push:
     branches: [forge/foundation]
-    paths: ["firmware/chompi-forge/**", "firmware/chompi-wave/code/libs/libDaisy/**", ".github/workflows/forge-bridge-exe.yml"]
+    paths: ["firmware/chompi-forge/**", "firmware/chompi-wave/code/libs/libDaisy/**", "docs/forge/HOME_CHECKLIST.md", ".github/workflows/forge-bridge-exe.yml"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -71,8 +71,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "card tool failed" }
           & $exe --help
           Get-Item $exe | Format-List Name, Length
+      - name: Collect the download (exe, FORGE.bin for the one SD-card flash, what to do first)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item "dist/Forge Bridge.exe" out/
+          Copy-Item firmware/FORGE.bin out/
+          Copy-Item ../../docs/forge/HOME_CHECKLIST.md out/
+          Get-ChildItem out | Format-Table Name, Length
       - uses: actions/upload-artifact@v4
         with:
           name: Forge-Bridge-exe
-          path: firmware/chompi-forge/dist/Forge Bridge.exe
+          path: firmware/chompi-forge/out/
           if-no-files-found: error

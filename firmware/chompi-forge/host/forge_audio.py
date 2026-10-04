@@ -426,6 +426,15 @@ class Runner:
         if self.report: self.report.mkdir(parents=True, exist_ok=True)
         self.progress, self.cancel = progress or (lambda entry: None), cancel or threading.Event()
         self.captures, self.images, self.last = {}, {}, {}
+        self.cpu_reset = None                                  # unknown until the first step that reads status
+
+    def fresh_cpu_peak(self, entry):
+        """Start this step's CPU peak (firmware 0.7+: status with flags byte 1); older firmware
+        reports the peak since boot, and the step says so."""
+        if self.cpu_reset is not False:
+            try: self.device.status(reset_cpu=True); self.cpu_reset = True
+            except (RuntimeError, TypeError): self.cpu_reset = False
+        entry["cpu_peak"] = "this step" if self.cpu_reset else "since boot"
 
     def run(self, plan, only=None):
         """Run every step, or only the ids in `only` (re-running failed steps)."""
@@ -440,6 +449,7 @@ class Runner:
                         raise Skipped("Needs real time (the simulation advances only on requests)")
                     if self.audio is None and any(next(iter(a)) in AUDIO_ACTIONS for a in step.get("do", [])):
                         raise Skipped("No audio interface (simulation, or none detected)")
+                    if any("status" in a for a in step.get("do", [])): self.fresh_cpu_peak(entry)
                     for action in step.get("do", []): self.action(action, entry)
                     for check in step.get("check", []): self.check(check, entry)
                 except Skipped as reason:
@@ -557,7 +567,8 @@ def summary(result):
     lines = [f"# {result['plan']}", "", f"pass {c['pass']} · fail {c['fail']} · error {c['error']} · skipped {c['skipped']}"
              + (" · CANCELLED" if result.get("cancelled") else ""), ""]
     for s in result["steps"]:
-        lines.append(f"- **{s['id']}** {s['result']}: {s['title']}" + (f" — {s.get('error') or s.get('reason')}" if s.get("error") or s.get("reason") else ""))
+        lines.append(f"- **{s['id']}** {s['result']}: {s['title']}" + (f" — {s.get('error') or s.get('reason')}" if s.get("error") or s.get("reason") else "")
+                     + (" (CPU peak since boot: firmware without the per-step reset)" if s.get("cpu_peak") == "since boot" else ""))
         for c in s["checks"]:
             if not c["ok"]: lines.append(f"  - expected {c['what']} = {c['expected']}, got {c['actual']}")
     return "\n".join(lines) + "\n"

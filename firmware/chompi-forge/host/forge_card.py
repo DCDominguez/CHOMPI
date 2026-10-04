@@ -81,11 +81,27 @@ class Card:
             if problems: raise ValueError("Not a valid Forge firmware image: " + "; ".join(problems))
             name = "FORGE.bin"
         started = time.monotonic()
-        self.request("begin", [*word35(len(data)), len(name), *name.encode("ascii")])
+        try:
+            self._upload(name, data, progress, cancel)
+        except BaseException:
+            try: self.request("abort", timeout=1)               # best effort: leave nothing half-written open
+            except Exception: pass
+            raise
+        return time.monotonic() - started
+
+    def _retry(self, op, body, attempts=4):
+        """Begin and End are safe to repeat (a repeated End for the file just written succeeds again)."""
+        for attempt in range(attempts):
+            try: return self.request(op, body)
+            except TimeoutError:
+                if attempt == attempts - 1: raise
+
+    def _upload(self, name, data, progress, cancel):
+        self._retry("begin", [*word35(len(data)), len(name), *name.encode("ascii")])
         offset, retries = 0, 0
         while offset < len(data):
             if cancel and cancel.is_set():
-                self.request("abort"); raise RuntimeError("Upload cancelled; the card is unchanged")
+                raise RuntimeError("Upload cancelled; the card is unchanged")
             sent = []
             for at in range(offset, min(len(data), offset + CHUNK * WINDOW), CHUNK):
                 payload = message("data", self.seq(), [*word35(at), *pack7(data[at:at + CHUNK])])
@@ -101,11 +117,10 @@ class Card:
             if progress: progress(offset, len(data))
         for attempt in range(480):                             # CHOMPI may be loading samples: wait (up to 2 min)
             try:
-                self.request("end", word35(zlib.crc32(bytes(data)))); break
+                self._retry("end", word35(zlib.crc32(bytes(data)))); break
             except RuntimeError as error:
                 if "storage busy" not in str(error) or attempt == 479: raise
                 time.sleep(0.25)
-        return time.monotonic() - started
 
     def install(self, wait=30, cancel=None, prompt=None):
         """Ask for the panel confirmation; True once CHOMPI restarts (the connection then drops)."""

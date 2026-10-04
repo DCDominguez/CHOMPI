@@ -183,6 +183,7 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
             response.cpu_average = cpu.GetAvgCpuLoad();
             response.cpu_max = cpu.GetMaxCpuLoad();
             responses.Push(response);
+            if(request.kind == forge::RequestKind::Status && request.reset_cpu) cpu.Reset();   // audio owns the meter
         }
     }
 

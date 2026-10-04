@@ -6,10 +6,23 @@ Software-tested only; needs one last card flash to get it onto CHOMPI.
 - Opcode 0C: write FORGE.bin or TAPE samples to the SD card over USB MIDI,
   staged in FORGE/UPLOAD.TMP and replacing the target only after the CRC-32
   matches; resume after a lost reply; samples are rescanned and reloaded.
-- Firmware install: other root .bin files are set aside (.bin.old), CHOMPI's
+- Firmware install: every other root file the bootloader would flash (any
+  name containing ".bin") is renamed (TAPE.bin -> TAPE_bin.old), CHOMPI's
   key blinks white and a press (within 15 s) restarts CHOMPI so the bootloader
   flashes the new FORGE.bin. The press is kept from the menu and recorder.
 - MIDI SysEx up to 288 bytes. Firmware minor 7.
+- Hardening before the first flash (stress review): the bootloader matches
+  ".bin" anywhere in a name, so 0.7's first `.bin.old` names would still have
+  been flashed; FORGE.bin is now checked like the bootloader checks it and read
+  back from the card before it replaces the old one; a repeated End (lost
+  reply) succeeds; Install takes over an upload idle for 5 s; the host retries
+  a lost Begin/End and aborts a failed upload. Tests: bootloader names,
+  firmware guards, a lossy link (drops, duplicates, late requests) and 200,000
+  fuzzed requests under ASan/UBSan.
+- Status (opcode 02) takes an optional flags byte: 1 starts a new CPU peak.
+  The automatic checks reset it at the start of each step that reads status,
+  so CPU figures are per step (0.6 firmware: still since boot, and the report
+  says so).
 - Host: `forge_card.py` (upload / sync / install); bridge *Card & firmware*
   section with the kit's `card` folder and an install button.
 

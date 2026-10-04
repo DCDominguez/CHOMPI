@@ -14,7 +14,8 @@ Measured by the bridge on the hardware (automatic checks):
   figure. After 6.2b (synth worst case) 36.9 % / 37.6 %; after 6.2c (seven
   sampler voices) 54.5 % in the first run and 37.6 % in the third; no drops.
   The 54.5 % may come from anything earlier in that boot. 6.2d (7 voices +
-  overdub) not run.
+  overdub) not run. From the 0.7 firmware on, the automatic checks reset the peak at the
+  start of each step, so later runs give per-step figures.
 - Looper states via virtual keys: first take, overdub, pause, clear all as
   designed (3.42s–3.45) once started from an empty looper.
 - Knob pages: page counts follow every virtual press exactly
