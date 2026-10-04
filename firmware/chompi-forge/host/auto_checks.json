@@ -957,7 +957,7 @@
   },
   {
    "id": "6.2c",
-   "title": "Sampler worst case: seven voices on the recording for 20 s",
+   "title": "Sampler worst case: seven voices on the recording for 20 s (needs the 3.34 recording; silence means the CPU figure is not a sampler load)",
    "do": [
     {
      "send": "presets/13-sampler-stress.json"
@@ -993,6 +993,12 @@
        100
       ],
       "dropped": 0
+     }
+    },
+    {
+     "capture": {
+      "name": "sampler",
+      "silent": false
      }
     }
    ]
