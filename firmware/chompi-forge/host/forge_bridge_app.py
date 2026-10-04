@@ -3,6 +3,7 @@
   Forge Bridge.exe                     starts the bridge and opens it in the browser
   Forge Bridge.exe checks [options]    automatic checks without the browser (forge_audio.py run)
   Forge Bridge.exe card sync FOLDER    USB card and firmware tool (forge_card.py)
+  Forge Bridge.exe selftest            check that everything inside loads (numpy, audio, MIDI)
 Reports and the `card` folder live next to the program.
 """
 import os
@@ -11,6 +12,26 @@ import sys
 
 if getattr(sys, "frozen", False):                       # PyInstaller: bundled files are unpacked here
     os.environ.setdefault("FORGE_HOST_DIR", str(Path(sys._MEIPASS) / "host"))
+
+
+def selftest():
+    """Import everything the bridge needs, the way the bridge does; non-zero on any failure."""
+    failed = 0
+    for name in ("numpy", "sounddevice", "rtmidi", "mido.backends.rtmidi", "forge_audio", "forge_walk", "forge_card",
+                 "forge_bridge", "forge_web", "check_firmware_layout"):
+        try:
+            module = __import__(name)
+            print(f"OK    {name} {getattr(module, '__version__', '')}".rstrip())
+        except Exception as error:                               # report every module, not just the first
+            failed += 1; print(f"FAIL  {name}: {type(error).__name__}: {error}")
+    try:
+        import forge_bridge
+        if forge_bridge.AUDIO_MISSING: failed += 1; print("FAIL  bridge:", forge_bridge.AUDIO_MISSING)
+        import sounddevice
+        print(f"OK    PortAudio {sounddevice.get_portaudio_version()[1]}")
+    except Exception as error:
+        failed += 1; print(f"FAIL  audio library: {type(error).__name__}: {error}")
+    return 1 if failed else 0
 
 
 def main():
@@ -25,6 +46,8 @@ def main():
     if command == "card":
         import forge_card
         return forge_card.cli(rest)
+    if command == "selftest":
+        return selftest()
     if command in ("-h", "--help"):
         print(__doc__); return 0
     import forge_web

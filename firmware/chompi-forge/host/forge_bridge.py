@@ -17,7 +17,7 @@ try:                       # automatic checks need numpy (+ sounddevice for a re
     import forge_walk
 except ImportError as missing:
     forge_audio = forge_walk = None
-    AUDIO_MISSING = f"Automatic checks need numpy and sounddevice ({missing.name} is not installed)"
+    AUDIO_MISSING = f"Automatic checks need numpy and sounddevice ({missing.name or 'a module'} failed to load: {missing})"
 else:
     AUDIO_MISSING = None
 PHOTO_LIMIT = 600_000      # characters of one camera snapshot (JPEG data URL) kept as light-check evidence

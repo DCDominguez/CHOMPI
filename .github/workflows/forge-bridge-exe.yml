@@ -45,7 +45,8 @@ jobs:
           name: forge-dev-firmware
           path: firmware/chompi-forge/firmware
       - name: Packages
-        run: python -m pip install -r host/requirements.txt -r host/bridge-requirements.txt pyinstaller==6.11.1
+        # Pinned together: PyInstaller 6.11 could not freeze numpy 2.4+ (numpy._core._exceptions missing at run time).
+        run: python -m pip install -r host/requirements.txt -r host/bridge-requirements.txt numpy==2.4.6 sounddevice==0.5.6 pyinstaller==6.22.3
       - name: Build Forge Bridge.exe
         run: >
           pyinstaller --noconfirm --onefile --console --name "Forge Bridge" --paths host
@@ -54,10 +55,12 @@ jobs:
           --hidden-import mido.backends.rtmidi --collect-all rtmidi --collect-all sounddevice --collect-all _sounddevice_data
           --hidden-import forge_card --hidden-import forge_walk --hidden-import forge_audio --hidden-import check_firmware_layout
           host/forge_bridge_app.py
-      - name: Smoke test (server, pages, presets, firmware inside, card tool)
+      - name: Smoke test (everything loads, server, pages, presets, firmware inside, card tool)
         shell: pwsh
         run: |
           $exe = Resolve-Path "dist/Forge Bridge.exe"
+          & $exe selftest
+          if ($LASTEXITCODE -ne 0) { throw "selftest failed: a bundled module does not load" }
           $p = Start-Process -FilePath $exe -ArgumentList "--port","8795" -PassThru
           try {
             $ok = $false
