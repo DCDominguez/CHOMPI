@@ -38,6 +38,9 @@ build/panel_test: tests/panel_test.cpp $(HEADERS)
 build/looper_test: tests/looper_test.cpp $(HEADERS)
 	mkdir -p build
 	$(CXX) $(HOST_FLAGS) -O2 tests/looper_test.cpp -o $@
+build/file_transfer_test: tests/file_transfer_test.cpp $(HEADERS)
+	mkdir -p build
+	$(CXX) $(HOST_FLAGS) -O2 tests/file_transfer_test.cpp -o $@
 build/inspector_test: tests/inspector_test.cpp tests/sample_card.h $(HEADERS)
 	mkdir -p build
 	$(CXX) $(HOST_FLAGS) -DFORGE_TEST_HOOKS -O2 tests/inspector_test.cpp -o $@
