@@ -19,9 +19,10 @@ source and the full docs live in the GitHub repo DCDominguez/CHOMPI, branch
 - Look at a recording: `python\python.exe host\forge_audio.py analyze reports\<time>\3.4-steal.wav`
   (prints levels, pitch, clicks, clipping per channel).
 - The browser bridge with the guided panel walk (DC's hands needed):
-  `python\python.exe host\forge_web.py --port 8766 --open`, then
-  http://127.0.0.1:8766/inspector. Only one program may own CHOMPI's MIDI
-  ports: stop any other bridge first.
+  `Start Forge bridge.cmd` (or `python\python.exe host\forge_web.py --open`);
+  it takes port 8765, or the next free one if another program holds it, and
+  prints the address. Only one program may own CHOMPI's MIDI ports: stop any
+  other bridge first.
 
 ## Rules
 

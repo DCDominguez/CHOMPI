@@ -5,6 +5,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import secrets
+import sys
+import socket
 import threading
 import time
 import webbrowser
@@ -38,6 +40,13 @@ def validate_samples(samples):
 
 class ForgeServer(ThreadingHTTPServer):
     daemon_threads = True
+    # Windows' SO_REUSEADDR lets a second server bind a port another program already serves, and the
+    # browser then reaches that other program (seen 2026-10-04). Insist on an exclusive port there.
+    allow_reuse_address = sys.platform != "win32"
+
+    def server_bind(self):
+        if sys.platform == "win32": self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
 
     def __init__(self, port=8765, probe=None):
         super().__init__(("127.0.0.1", port), Handler)
@@ -51,7 +60,7 @@ class ForgeServer(ThreadingHTTPServer):
         self.bridge = forge_bridge.Bridge(self.midi_lock, probe)
 
     def server_close(self):
-        self.bridge.close()
+        if hasattr(self, "bridge"): self.bridge.close()      # absent when binding the port failed
         super().server_close()
 
     def handle_error(self, request, client_address):
@@ -200,14 +209,21 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--port", type=int, help="default: 8765, or the next free port up to 8775")
     parser.add_argument("--probe", type=Path, help="Enable labelled simulation using a local forge_probe executable")
     parser.add_argument("--open", action="store_true", help="Open the hardware test bridge in your browser")
     args = parser.parse_args()
-    if not 1 <= args.port <= 65535:
+    if args.port is not None and not 1 <= args.port <= 65535:
         parser.error("port must be 1–65535")
     if args.probe and not args.probe.is_file(): parser.error("Probe executable does not exist")
-    with ForgeServer(args.port, args.probe.resolve() if args.probe else None) as server:
+    server = None
+    for port in ([args.port] if args.port else range(8765, 8776)):
+        try: server = ForgeServer(port, args.probe.resolve() if args.probe else None); break
+        except OSError:
+            if args.port: raise SystemExit(f"Port {port} is in use by another program; choose another with --port")
+            print(f"Port {port} is in use by another program; trying {port + 1}", flush=True)
+    if server is None: raise SystemExit("Ports 8765–8775 are all in use; choose one with --port")
+    with server:
         print(f"Forge: {server.origin} (Ctrl+C to stop)", flush=True)
         print(f"Hardware test bridge: {server.origin}/inspector", flush=True)
         if args.open: webbrowser.open(server.origin + "/inspector")
