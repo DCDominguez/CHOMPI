@@ -27,6 +27,14 @@ OK; `make bench --check` PASS (unchanged: worst 2,671 ≤ WAVE 2,695); ARM
 (xPack GCC 10.3.1) release 227,060 B (78.6 %), development 242,512 B, both
 layout OK. Hardware: none.
 
+Kits from `131776b` (xPack GCC 10.3.1), both `verify_bundle.py` OK, both
+images pass the bootloader/layout image check. **Use these for the hardware
+session** (they include the looper and the boot fix; older kits are stale):
+- `Forge-Bridge-dev-131776b.zip` 26,869,464 B, sha256 `0e31e669…38fc47e6`,
+  FORGE.bin (development) `b663e4d9…4798d0c`, 1,292 files.
+- `Forge-0.6-test-131776b.zip` 4,045,406 B, sha256 `9f588c32…39af80f5`,
+  FORGE.bin (release) `bce7d1f6…937602c`, 67 files.
+
 Risks: knob light positions and encoder-press reads (from TAPE's source),
 zipper noise on fast turns of filter/envelope controls, the 102-byte v5
 status over USB/UART (two USB packets, as v3/v4).
@@ -55,8 +63,8 @@ sanitize` 9 PASS (detect_leaks=0); `make browser-test` OK; `make bench
 Exact figures in the commit messages. Hardware: none.
 
 Kits from `b7d098b` (xPack GCC 10.3.1), both `verify_bundle.py` OK and both
-images pass the layout check. **Use these for the hardware session**; older
-kits lack the looper (1d1618e) or the boot fix (50cdc4b, b7a504a):
+images pass the layout check. Superseded by the `131776b` kits above (they
+add the knob pages):
 - `Forge-Bridge-dev-b7d098b.zip` 26,351,953 B, sha256 `e7044fc0…bbd42ad41`,
   FORGE.bin (development) `8f680063…361e29`, 1,290 files.
 - `Forge-0.5-test-b7d098b.zip` 3,526,677 B, sha256 `12ed81f4…a31c268e`,
