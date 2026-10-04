@@ -162,7 +162,9 @@ class SampleWebAndAiTests(unittest.TestCase):
                 self.assertEqual(self.post("/api/samples", {**ports, "action": "save", "mode": "kit", "bank": "a", "slot": 15})[0], 400)
             status, result = self.post("/api/upgrade", {"patch": WARM, "to": 4})
             self.assertEqual((status, result["patch"]["version"]), (200, 4))
-            self.assertEqual(self.post("/api/upgrade", {"patch": WARM, "to": 5})[0], 400)
+            status, result = self.post("/api/upgrade", {"patch": WARM, "to": 5})
+            self.assertEqual((status, result["patch"]["version"], result["patch"]["knobs"]), (200, 5, ["default"] * 4))
+            self.assertEqual(self.post("/api/upgrade", {"patch": WARM, "to": 6})[0], 400)
         finally:
             device.close()
 
@@ -173,7 +175,7 @@ class SampleWebAndAiTests(unittest.TestCase):
         summary = forge_ai.sample_summary(listing)
         self.assertIn("kit bank c: slots 1, 2, 5", summary); self.assertIn("recording (slot 15, chromatic): 2.5 s", summary)
         self.assertIn("No sample list", forge_ai.sample_summary(None))
-        v4 = host.upgrade_patch(WARM, 4); v4["routing"] = "sampler>delay>reverb>output"
+        v4 = host.upgrade_patch(WARM, 5); v4["routing"] = "sampler>delay>reverb>output"
         def reply(p):
             text = json.dumps(p)
             return lambda request, timeout: io.BytesIO(json.dumps({"status": "completed", "output": [

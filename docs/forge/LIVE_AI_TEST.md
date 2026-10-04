@@ -25,8 +25,8 @@ The key is read with a hidden prompt (or from `FORGE_API_KEY` if you set it in
 your shell yourself). Each run appends a key-free record to
 `forge-ai-check.jsonl`: provider, model, prompt, seconds, pass/fail, safe error
 text, and the validated patch. PASS means the reply was complete, matched the
-schema, passed Forge's own validation and encodes to the 0.5 wire format
-(instrument mode asks for a v4 patch: seven modules including the sampler,
+schema, passed Forge's own validation and encodes to the 0.6 wire format
+(instrument mode asks for a v5 patch: seven modules including the sampler and four knob choices,
 ~50 fields, integers, booleans and enums as well as numbers; ranges are
 repeated in field descriptions). The command-line check has no device, so the
 model is told no sample list was read; in the webapp, Read samples first and

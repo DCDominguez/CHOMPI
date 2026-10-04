@@ -88,7 +88,7 @@ Forge's independent local validator before reaching the editor.
 
 ## Instrument patches and playing
 
-Firmware 0.5 plays v4 instrument patches (and still v1–v3). Load Warm Pad, Acid
+Firmware 0.6 plays v5 instrument patches (and still v1–v4). Load Warm Pad, Acid
 Bass or Bell Keys; connect MIDI, send once, then play CHOMPI keys (MIDI 48–72)
 or incoming channel 1 notes. Keybed velocity is fixed at 100; MIDI velocity
 changes loudness. Synth output is mono duplicated to stereo through the delay
@@ -98,7 +98,9 @@ processes external stereo audio.
 v4 JSON has `version: 4`, `engine: "instrument"`, `routing`
 (`synth>delay>reverb>output`, `sampler>delay>reverb>output` or
 `aux>delay>reverb>output`) and seven modules, all keys required (v3 is the same
-without `sampler`, with `voices` 1–4):
+without `sampler`, with `voices` 1–4). v5 is v4 plus `knobs`: four entries,
+each `"default"` or a `module.key` control, for what knobs 1–4 (SW4, SW1, SW2,
+SW3; CC 20–23) do on their first page — see `docs/forge/KNOBS.md`:
 
 | Module | Keys and ranges |
 | --- | --- |
@@ -112,9 +114,9 @@ without `sampler`, with `voices` 1–4):
 
 v3, v2 JSON (`synth`, `delay`, `output`; routes without reverb) and v1 delay files
 still load, send and capture. `python host/forge_host.py upgrade old.json new.json`
-writes a v3 copy (`--to 4` for v4) with the same settings and neutral new
+writes a v3 copy (`--to 4` for v4, `--to 5` for v5) with the same settings and neutral new
 modules; the v3 filter is steeper than v1/v2, so tone can differ slightly.
-`schema --instrument` prints the v4 schema. No arbitrary graph, looper or FM
+`schema --instrument` prints the v5 schema. No arbitrary graph, looper or FM
 can be generated, and AI never creates audio: the sampler plays files that are
 already on the card or the device's recording.
 
@@ -124,14 +126,14 @@ SW5 turn/CC24/CC74 change cutoff (while a loop exists, SW5 and CC24 are the loop
 wheel scales LFO depth when the patch enables it. Route or waveform changes,
 and switching between v1/v2 and v3/v4 patches or between oscillators and sampler, stop voices/tails; retrigger held notes. Up to the patch's `voices` (4, or 7 on v4); additional notes steal a releasing voice, else the oldest.
 A patch is volatile; save JSON and resend after reboot. v1 delay files still work.
-Firmware 0.4 rejects v4 patches, 0.3 also v3, 0.2 also v2 and panic. Use the matching 0.5 host tools.
+Firmware 0.5 rejects v5 patches, 0.4 also v4, 0.3 also v3, 0.2 also v2 and panic. Use the matching 0.6 host tools.
 
 ```sh
 python host/forge_host.py panic --input "EXACT INPUT NAME" --output "EXACT OUTPUT NAME"
 ```
 
 Ollama CLI authoring currently emits v1 delay patches only. OpenAI/Gemini webapp
-supports both authoring modes (v4 instrument, v1 delay); after Read samples
+supports both authoring modes (v5 instrument with knob choices, v1 delay); after Read samples
 in the Device samples panel, instrument authoring may use only the samples
 CHOMPI reported, and a patch pointing at a missing sample is refused. Instrument code has software and
 real-Chromium test coverage, but real model and hardware acceptance remain pending.

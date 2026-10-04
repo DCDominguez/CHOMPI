@@ -30,6 +30,7 @@ one consolidated hardware session.
 | [Protocol](PROTOCOL.md) | Exact SysEx framing, requests, replies, errors and overload semantics |
 | [Compatibility](COMPATIBILITY.md) | Comparison with stock TAPE/TEMPO/WAVE: bootloader, memory, MIDI, keybed, CPU benchmark |
 | [Looping](LOOPING.md) | Looper (roadmap item 5): TAPE behaviour, keys, memory, CPU budget, saving a loop |
+| [Knobs](KNOBS.md) | Knob pages (press a knob; its light shows the page) and v5 patch/AI knob choices |
 | [Sampling](SAMPLING.md) | Sampler design (roadmap item 4): TAPE behaviour kept, what Forge changes, memory, v4 patch, panel |
 | [Test session](TEST_SESSION.md) | One physical acceptance checklist and results template |
 | [Handoff](HANDOFF.md) | Latest implementation, evidence, limitations and next action |

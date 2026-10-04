@@ -38,9 +38,34 @@ class PatchTests(unittest.TestCase):
             response = probe(packet)[0]
             self.assertEqual(response[8:len(packet)], packet[7:-1])
             result = host.decode_response(response, 129)
-            self.assertEqual(result["firmware"], "0.5")
+            self.assertEqual(result["firmware"], "0.6")
             self.assertAlmostEqual(host.effect_patch(result["patch"])["parameters"]["time_ms"],
                                    host.effect_patch(patch)["parameters"]["time_ms"], delta=990 / 16383)
+
+    def test_v5_knob_assignments_round_trip_cpp(self):
+        patch = host.upgrade_patch(host.load_patch(ROOT / "presets" / "07-warm-pad.json"), 5)
+        for knobs in (["default"] * 4, ["filter.cutoff_hz", "synth.attack_ms", "sampler.crossfade_ms", "output.level"],
+                      [*list(host.KNOB_TARGETS)[-4:]]):
+            patch["knobs"] = knobs
+            packet = host.encode_patch(patch, 77)
+            self.assertEqual(len(packet), 88)
+            response = probe(packet)[0]
+            self.assertEqual(len(response), 100)
+            self.assertEqual(response[8:len(packet)], packet[7:-1])
+            self.assertEqual(host.decode_response(response, 77)["patch"]["knobs"], knobs)
+        for bad in (["delay.bypass"] + ["default"] * 3, ["default"] * 3, "default", [None] * 4):
+            with self.assertRaises(ValueError): host.validate_patch({**patch, "knobs": bad})
+        v4 = {k: v for k, v in patch.items() if k != "knobs"}
+        with self.assertRaises(ValueError): host.validate_patch({**v4, "version": 4, "knobs": ["default"] * 4})
+        with self.assertRaises(ValueError): host.validate_patch({**v4, "version": 5})
+        # Every host name maps to the firmware id the device accepts; the probe rejects an unknown byte.
+        broken = host.encode_patch(patch, 78); broken[84] = 5; broken[-1] = host.checksum(broken[:-1])
+        with self.assertRaisesRegex(RuntimeError, "invalid patch"): host.decode_response(probe(broken)[0], 78)
+        self.assertEqual(host.knob_control(patch, 1), "delay.mix" if patch["knobs"][0] == "default" else patch["knobs"][0])
+        sampler = {**patch, "routing": "sampler>delay>reverb>output", "knobs": ["default"] * 4}
+        self.assertEqual([host.knob_control(sampler, k) for k in range(1, 5)], list(host.DEFAULT_KNOBS["sampler"]))
+        self.assertEqual(host.knob_control(sampler, 3, 4), "sampler.crossfade_ms")
+        self.assertEqual(host.knob_control(patch, 3, 4), "synth.osc2_detune_cents")
 
     def test_random_patch_round_trips(self):
         rng = random.Random(481)

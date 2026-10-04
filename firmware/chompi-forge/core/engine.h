@@ -48,11 +48,14 @@ public:
         return true;
     }
     bool Apply(Command command) {
+        command.parameter = parameters_.Resolve(command.parameter);       // knobs -> their control
         if(!parameters_.Apply(command)) return false;
-        if(command.parameter != Parameter::Mix && command.parameter != Parameter::Time
-           && command.parameter != Parameter::Feedback && command.parameter != Parameter::Level
-           && command.parameter != Parameter::Bypass && command.parameter != Parameter::ReverbMix)
-            synth_.Configure(parameters_);   // cutoff, resonance, sampler pitch/start/end (knobs resolve inside)
+        const Parameter p = command.parameter;
+        if(p == Parameter::ReverbSize || p == Parameter::ReverbDamping) {
+            if(has_reverb_) reverb_.Configure(parameters_.reverb_size, parameters_.reverb_damping);
+        } else if(p != Parameter::Mix && p != Parameter::Time && p != Parameter::Feedback && p != Parameter::Level
+                  && p != Parameter::Bypass && p != Parameter::ReverbMix)
+            synth_.Configure(parameters_);   // filter, envelope, LFO, oscillator, sampler controls
         return true;
     }
     // Sampler memory (v4); see sample_table.h. May be set before or after Init.

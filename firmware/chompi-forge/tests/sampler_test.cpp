@@ -164,10 +164,10 @@ void ProtocolV4() {
     p.sample_mode = 1; p.sample_bank = 4; p.sample_slot = 14; p.sample_pitch = 0.75f; p.sample_start = 0.125f;
     p.sample_end = 0.875f; p.sample_xfade = 0.3f; p.sample_loop = true; p.sample_gate = false; p.sample_reverse = true;
     p.resonance = 0.4f; p.reverb_mix = 0.2f;
-    uint8_t request[kMaxRequest]; Header(request, 1, 9);
-    assert(EncodePatchData(p, request + 7) == kMaxRequest - 8);
-    request[kMaxRequest - 1] = Checksum(request, kMaxRequest - 1);
-    Request decoded; assert(DecodeRequest(request, kMaxRequest, decoded) == Error::None);
+    uint8_t request[kV4Request]; Header(request, 1, 9);
+    assert(EncodePatchData(p, request + 7) == kV4Request - 8);
+    request[kV4Request - 1] = Checksum(request, kV4Request - 1);
+    Request decoded; assert(DecodeRequest(request, kV4Request, decoded) == Error::None);
     const Parameters& q = decoded.patch;
     assert(q.version == 4 && q.source == 1 && q.sample_mode == 1 && q.sample_bank == 4 && q.sample_slot == 14
            && q.sample_loop && !q.sample_gate && q.sample_reverse && q.voices == 7
@@ -175,18 +175,18 @@ void ProtocolV4() {
            && std::fabs(q.sample_end - 0.875f) < 1e-4f && std::fabs(q.sample_xfade - 0.3f) < 1e-4f);
     // Status echoes the same DATA bytes.
     Rig rig; Response response; assert(ExecuteRequest(decoded, rig.engine, response) && response.error == Error::None);
-    uint8_t reply[kMaxReply]; assert(EncodeResponse(response, 0, 0, reply) == kMaxReply);
-    for(size_t i = 7; i < kMaxRequest - 1; ++i) assert(reply[i + 1] == request[i]);
+    uint8_t reply[kMaxReply]; assert(EncodeResponse(response, 0, 0, reply) == kV4Request + 12);
+    for(size_t i = 7; i < kV4Request - 1; ++i) assert(reply[i + 1] == request[i]);
     // Byte limits, bools and start < end are enforced atomically.
     for(auto bad : std::vector<std::pair<unsigned, uint8_t>>{{68, 2}, {69, 2}, {70, 5}, {71, 15}, {78, 2}, {79, 2}, {80, 2}, {59, 8}, {59, 0}}) {
-        uint8_t broken[kMaxRequest]; std::memcpy(broken, request, kMaxRequest);
-        broken[bad.first] = bad.second; broken[kMaxRequest - 1] = Checksum(broken, kMaxRequest - 1);
+        uint8_t broken[kV4Request]; std::memcpy(broken, request, kV4Request);
+        broken[bad.first] = bad.second; broken[kV4Request - 1] = Checksum(broken, kV4Request - 1);
         Request untouched; untouched.sequence = 3;
-        assert(DecodeRequest(broken, kMaxRequest, untouched) == Error::Patch && untouched.sequence == 3);
+        assert(DecodeRequest(broken, kV4Request, untouched) == Error::Patch && untouched.sequence == 3);
     }
-    uint8_t inverted[kMaxRequest]; std::memcpy(inverted, request, kMaxRequest);
-    Write14(inverted + 74, 9000); Write14(inverted + 76, 9000); inverted[kMaxRequest - 1] = Checksum(inverted, kMaxRequest - 1);
-    assert(DecodeRequest(inverted, kMaxRequest, decoded) == Error::Patch);
+    uint8_t inverted[kV4Request]; std::memcpy(inverted, request, kV4Request);
+    Write14(inverted + 74, 9000); Write14(inverted + 76, 9000); inverted[kV4Request - 1] = Checksum(inverted, kV4Request - 1);
+    assert(DecodeRequest(inverted, kV4Request, decoded) == Error::Patch);
     // v3 keeps its 4-voice limit; v4 allows 7.
     Parameters v3; v3.version = 3; v3.synth = true; v3.voices = 5; assert(!v3.Valid());
     v3.version = 4; assert(v3.Valid());

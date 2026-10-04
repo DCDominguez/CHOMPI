@@ -49,7 +49,7 @@ def decode(data, sequence, expected_page=None):
         return {"page": 1, "rgb": [data[9+3*i:12+3*i] for i in range(26)]}
     if page not in range(2,8) or len(data) < 16 or data[9] != 1:
         raise ValueError("Unsupported Inspector schema/page; use the matching host")
-    lengths = {2:88, 3:95, 4:88, 5:94}
+    lengths = {2:88, 3:97, 4:88, 5:94}
     if page in lengths and len(data) != lengths[page]:
         raise ValueError("Invalid Inspector page length")
     pos = 10
@@ -94,6 +94,9 @@ def decode(data, sequence, expected_page=None):
         result["menu"]={"packed":menu,"open":bool(menu&1),"page":"samples" if menu>>21&1 else "presets","bank_index":menu>>4&7}
         result["raw_encoder_turns"]=[signed(u32()) for _ in range(6)]
         result["logical_encoder_turns"]=[signed(u32()) for _ in range(6)]
+        pages=byte()|(byte()<<7)
+        if pages>255: raise ValueError("Invalid knob pages")
+        result["knob_pages"]=[(pages>>(2*k)&3)+1 for k in range(4)]
         result["key_mapping"]={str(i):KEY_NOTES[i] or None for i in range(40)}
         result["held_notes"]=[KEY_NOTES[i] for i in result["logical_keys"] if KEY_NOTES[i]]
     elif page == 4:
@@ -148,7 +151,7 @@ def decode(data, sequence, expected_page=None):
             result["events"].append(e)
     elif page == 7:
         patch_data=data[15:-1]
-        if not patch_data or len(patch_data)!={1:10,2:22,3:61,4:76}.get(patch_data[0]):
+        if not patch_data or len(patch_data)!={1:10,2:22,3:61,4:76,5:80}.get(patch_data[0]):
             raise ValueError("Invalid Inspector patch page")
         # Reuse the established patch decoder via an internal status envelope.
         # Only the decoded patch is returned; these shim diagnostics are never displayed.
@@ -188,14 +191,13 @@ def collect(fetch, cursor=0):
                         "sample_pool_capacity_bytes":pages[5]["pool_capacity_bytes"],
                         "record_buffer_capacity_bytes":pages[5]["record_capacity_frames"]*4}
     modules=patch.get("modules",{})
-    sampler=modules.get("sampler",{}) if patch.get("routing","").split(">")[0]=="sampler" else {}
-    pages[3]["logical_parameters"]=(
-        {"knob1_pitch_semitones":sampler.get("pitch_semitones"),"knob2_start":sampler.get("start"),
-         "knob3_end":sampler.get("end"),"knob4_mix":modules.get("delay",{}).get("mix")}
-        if sampler else {"knob1_mix":host.effect_patch(patch)["parameters"]["mix"],
-                         "knob2_time_ms":host.effect_patch(patch)["parameters"]["time_ms"],
-                         "knob3_feedback":host.effect_patch(patch)["parameters"]["feedback"],
-                         "knob4_level":modules.get("output",patch.get("parameters",{})).get("level")})
+    # Page-1 knobs (the patch's assignment or the source's default), then each knob's current page.
+    pages[3]["logical_parameters"]={f"knob{k}_{host.knob_control(patch,k).split('.')[1]}":
+                                    host.control_value(patch,host.knob_control(patch,k)) for k in range(1,5)}
+    pages[3]["knobs"]=[{"knob":k,"switch":host.KNOB_SWITCHES[k-1],"page":page,
+                        "control":host.knob_control(patch,k,page),
+                        "value":host.control_value(patch,host.knob_control(patch,k,page))}
+                       for k,page in zip(range(1,5),pages[3]["knob_pages"])]
     pages[3]["logical_parameters"].update(
         sw5_cutoff_hz=modules.get("filter",modules.get("synth",{})).get("cutoff_hz"),
         sw6_level=modules.get("output",patch.get("parameters",{})).get("level"))
@@ -216,6 +218,7 @@ def display(s, recent=()):
            f'        physical {panel["physical"]}; logical {panel["logical"]}; menu {panel["menu"]}',
            f'        encoders raw {panel["raw_encoder_turns"]}; logical {panel["logical_encoder_turns"]}',
            f'        parameters {panel["logical_parameters"]}; lit LEDs {[i for i,c in enumerate(panel["leds"]) if any(c)]}',
+           '        knob pages '+', '.join(f'{k["switch"]} p{k["page"]} {k["control"]}' for k in panel["knobs"]),
            f'ENGINE  {mode}; {engine["active_voices"]} voices; targets {engine["patch"].get("modules",engine["patch"].get("parameters"))}',
            f'        voices {[v for v in engine["voices"] if v["stage"]!="off"]}',
            f'        resolved {engine["resolved"]}; cutoff {engine["smoothed_cutoff_hz"]:.1f}Hz; LFO {engine["lfo_value"]:.3f}; wheel {engine["mod_wheel"]:.3f}',

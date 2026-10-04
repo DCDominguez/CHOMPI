@@ -60,7 +60,8 @@ function render(s) {
     CPU_average_percent:sys.cpu_average_percent,CPU_peak_percent:sys.cpu_peak_percent,dropped:sys.dropped,rejected:sys.rejected,
     audio_state_age_ms:(sys.uptime_ms-sys.audio_time_ms)>>>0});
   fields("panel-summary",{physical:p.physical,logical:p.logical,menu:p.menu,raw_encoder_turns:p.raw_encoder_turns,
-    logical_encoder_turns:p.logical_encoder_turns,parameters:p.logical_parameters});
+    logical_encoder_turns:p.logical_encoder_turns,parameters:p.logical_parameters,
+    knob_pages:Object.fromEntries(p.knobs.map(k=>[`${k.switch} (knob ${k.knob})`,`page ${k.page}: ${k.control}`]))});
   fields("engine-summary",{source:e.patch.routing?.split(">")[0] || "aux",active_voices:e.active_voices,cutoff_Hz:e.smoothed_cutoff_hz,resolved:e.resolved});
   fields("storage-summary",{SD_ready:st.sd_ready,loaded_files:st.loaded_files??"No completed file selection",loaded_frames:st.file_loaded_frames,
     allocated_frames:st.file_allocated_frames,loading:st.loading,recording:st.recording,record_source:st.record_source,

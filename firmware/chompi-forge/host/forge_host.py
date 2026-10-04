@@ -142,6 +142,55 @@ SCHEMA4 = object_schema({
     "routing": {"type": "string", "enum": list(ROUTES4)},
     "modules": object_schema({module: object_schema({key: field_schema(codec) for key, codec in fields.items()})
                               for module, fields in V4_MODULES.items()})})
+# ---- Version 5: knob assignments ---------------------------------------------
+# v5 = v4 + "knobs": what panel knobs 1-4 (SW4, SW1, SW2, SW3; MIDI CC 20-23)
+# control on their first page. "default" keeps the v4 behaviour (delay mix,
+# time, feedback, level; with the sampler: pitch, start, end, delay mix).
+# Wire byte = firmware Parameter id + 1 (core/parameters.h), 0 = default.
+KNOB_TARGETS = {
+    "delay.mix": 0, "delay.time_ms": 1, "delay.feedback": 2, "output.level": 3,
+    "filter.cutoff_hz": 5, "filter.resonance": 6, "reverb.mix": 7,
+    "sampler.pitch_semitones": 8, "sampler.start": 9, "sampler.end": 10,
+    "filter.env_octaves": 15, "synth.attack_ms": 16, "synth.decay_ms": 17, "synth.sustain": 18,
+    "synth.release_ms": 19, "lfo.rate_hz": 20, "lfo.pitch_cents": 21, "lfo.filter_octaves": 22,
+    "lfo.amp_depth": 23, "synth.osc2_level": 24, "synth.osc2_detune_cents": 25, "synth.noise": 26,
+    "synth.glide_ms": 27, "reverb.size": 28, "reverb.damping": 29, "sampler.crossfade_ms": 30}
+KNOB_CHOICES = ("default", *KNOB_TARGETS)
+KNOB_BYTES = {0: "default", **{value + 1: name for name, value in KNOB_TARGETS.items()}}
+SCHEMA5 = object_schema({**SCHEMA4["properties"], "version": {"type": "integer", "enum": [5]},
+                         "knobs": {"type": "array", "minItems": 4, "maxItems": 4,
+                                   "items": {"type": "string", "enum": list(KNOB_CHOICES)}}})
+# Knob pages (core/panel_controller.h KnobPageParameter): page 1 is the patch's
+# knob, pages 2-4 fixed per knob. Knobs 1-4 are SW4, SW1, SW2, SW3 on the panel.
+KNOB_SWITCHES = ("SW4", "SW1", "SW2", "SW3")
+DEFAULT_KNOBS = {"synth": ("delay.mix", "delay.time_ms", "delay.feedback", "output.level"),
+                 "sampler": ("sampler.pitch_semitones", "sampler.start", "sampler.end", "delay.mix")}
+KNOB_PAGES = (("filter.cutoff_hz", "filter.resonance", "filter.env_octaves"),
+              ("synth.attack_ms", "synth.decay_ms", "synth.release_ms"),
+              ("lfo.rate_hz", "lfo.filter_octaves", "synth.osc2_detune_cents"),
+              ("delay.mix", "delay.feedback", "reverb.mix"))
+
+
+def knob_control(patch, knob, page=1):
+    """The control ("module.key") knob 1-4 turns on page 1-4 for this patch."""
+    sampler = patch.get("version", 1) >= 4 and patch.get("routing", "").startswith("sampler")
+    if page == 1:
+        assigned = patch.get("knobs", ["default"] * 4)[knob - 1]
+        return DEFAULT_KNOBS["sampler" if sampler else "synth"][knob - 1] if assigned == "default" else assigned
+    if sampler and knob == 3 and page == 4: return "sampler.crossfade_ms"
+    return KNOB_PAGES[knob - 1][page - 2]
+
+
+def control_value(patch, control):
+    """Current value of a "module.key" control, or None if this patch version lacks it."""
+    module, key = control.split(".")
+    if patch["version"] == 1:
+        return patch["parameters"].get(key) if module in ("delay", "output") else None
+    modules = patch["modules"]
+    if patch["version"] == 2 and module == "filter": module = "synth"
+    return modules.get(module, {}).get(key)
+
+
 SAMPLER_DEFAULTS = {"mode": "chromatic", "bank": "a", "slot": 1, "pitch_semitones": 0, "start": 0, "end": 1,
                     "loop": False, "hold": True, "reverse": False, "crossfade_ms": 10}
 
@@ -161,9 +210,14 @@ def check_value(path, value, codec):
 
 
 def validate_instrument3(patch):
-    if set(patch) != {"version", "name", "engine", "routing", "modules"} or type(patch["version"]) is not int:
+    v5 = patch.get("version") == 5
+    if set(patch) != {"version", "name", "engine", "routing", "modules", *(("knobs",) if v5 else ())} \
+            or type(patch["version"]) is not int:
         raise ValueError("Invalid instrument fields")
-    v4 = patch["version"] == 4
+    v4 = patch["version"] >= 4
+    if v5 and (not isinstance(patch["knobs"], list) or len(patch["knobs"]) != 4
+               or any(not isinstance(k, str) or k not in KNOB_CHOICES for k in patch["knobs"])):
+        raise ValueError("knobs must list 4 of: " + ", ".join(KNOB_CHOICES))
     spec = V4_MODULES if v4 else V3_MODULES
     if patch["engine"] != "instrument" or patch["routing"] not in (ROUTES4 if v4 else ROUTES3):
         raise ValueError("Unsupported engine or routing")
@@ -198,13 +252,17 @@ def encode_word(value, codec):
 
 
 def upgrade_patch(patch, to=3):
-    """Return a v3 (or v4) patch with the same delay/output (and v2 synth)
+    """Return a v3, v4 or v5 patch with the same delay/output (and v2 synth)
     settings; new modules start neutral (osc2/noise/LFO depths/reverb mix 0,
     filter envelope 0; v4 adds the sampler module, unused until routing selects
-    it). The v3 filter is a steeper resonant low-pass, so tone can differ slightly."""
+    it; v5 adds knob assignments, all "default"). The v3 filter is a steeper
+    resonant low-pass, so tone can differ slightly."""
     patch = validate_patch(patch)
-    if to not in (3, 4) or patch["version"] > to: raise ValueError("Upgrade target must be 3 or 4 and not older")
+    if to not in (3, 4, 5) or patch["version"] > to: raise ValueError("Upgrade target must be 3, 4 or 5 and not older")
     if patch["version"] == to: return patch
+    if to == 5:
+        v4 = upgrade_patch(patch, 4)
+        return validate_patch({**v4, "version": 5, "knobs": ["default"] * 4})
     if patch["version"] == 3:
         modules = {**json.loads(json.dumps(patch["modules"])), "sampler": dict(SAMPLER_DEFAULTS)}   # deep copy
         return validate_patch({**patch, "version": 4,
@@ -262,7 +320,7 @@ def validate_instrument(patch):
 def validate_patch(patch):
     if isinstance(patch, dict) and patch.get("version") == 2:
         return validate_instrument(patch)
-    if isinstance(patch, dict) and patch.get("version") in (3, 4):
+    if isinstance(patch, dict) and patch.get("version") in (3, 4, 5):
         validate_instrument3(patch)
         validate_patch(effect_patch(patch))
         return patch
@@ -355,10 +413,10 @@ def encode_patch(patch, sequence):
             value = (math.log(synth[key] / low) / math.log(high / low) if key == "cutoff_hz"
                      else (synth[key] - low) / (high - low))
             data.extend(word14(int(min(max(value, 0.0), 1.0) * 16383 + 0.5)))
-    elif patch["version"] in (3, 4):
+    elif patch["version"] in (3, 4, 5):
         data[0] = patch["version"]
         modules = patch["modules"]
-        route = (ROUTES4 if patch["version"] == 4 else ROUTES3).index(patch["routing"])
+        route = (ROUTES4 if patch["version"] >= 4 else ROUTES3).index(patch["routing"])
         data.extend([min(route, 1), WAVEFORMS.index(modules["synth"]["waveform"])])
         for key, codec in V3_MODULES["synth"].items():
             if key in AMP_LIMITS: data.extend(encode_word(modules["synth"][key], codec))
@@ -369,10 +427,12 @@ def encode_patch(patch, sequence):
             elif codec[0] == "int": data.append(value + codec[3])
             elif codec[0] == "bool": data.append(int(value))
             else: data.extend(encode_word(value, codec))
-        if patch["version"] == 4:
+        if patch["version"] >= 4:
             data.append(int(route == 2))                 # source: sampler
             for key, codec in V4_SAMPLER:
                 data.extend(encode_value(modules["sampler"][key], codec))
+        if patch["version"] == 5:
+            data.extend(0 if knob == "default" else KNOB_TARGETS[knob] + 1 for knob in patch["knobs"])
     return message(1, sequence, data)
 
 
@@ -420,7 +480,7 @@ def decode_response(data, sequence):
             raise ValueError("Invalid sample acknowledgement")
         return {"sequence": sequence, "action": ("saved", "erased", "copied")[data[8]],
                 "mode": SAMPLE_MODES[data[9]], "bank": SAMPLE_BANKS[data[10]], "slot": data[11] + 1}
-    if len(data) not in (30, 42, 81, 96) or data[4] != 0x40 or data[7] != 0 or data[8] not in (1, 2, 3, 4) or data[17] > 1:
+    if len(data) not in (30, 42, 81, 96, 100) or data[4] != 0x40 or data[7] != 0 or data[8] not in (1, 2, 3, 4, 5) or data[17] > 1:
         raise ValueError("Invalid Forge status payload")
     patch = {"version": 1, "name": "Captured from Forge", "engine": "stereo_delay", "parameters": {
         "mix": read14(data, 9) / 16383,
@@ -428,8 +488,8 @@ def decode_response(data, sequence):
         "feedback": 0.85 * read14(data, 13) / 16383,
         "level": read14(data, 15) / 16383, "bypass": bool(data[17])}}
     offset = 18
-    if data[8] in (3, 4):
-        patch, offset = decode_v3(data, patch["name"]), (69 if data[8] == 3 else 84)
+    if data[8] in (3, 4, 5):
+        patch, offset = decode_v3(data, patch["name"]), {3: 69, 4: 84, 5: 88}[data[8]]
     elif data[8] == 2:
         if len(data) != 42 or data[18] > 1 or data[19] > 3:
             raise ValueError("Invalid instrument status")
@@ -451,11 +511,11 @@ def decode_response(data, sequence):
 
 
 def decode_v3(data, name):
-    """Inverse of the v3/v4 part of encode_patch for an 81/96-byte status reply."""
-    v4 = data[8] == 4
+    """Inverse of the v3/v4/v5 part of encode_patch for an 81/96/100-byte status reply."""
+    v4 = data[8] >= 4
     spec = V4_MODULES if v4 else V3_MODULES
-    if len(data) != (96 if v4 else 81) or data[18] > 1 or data[19] > 3:
-        raise ValueError("Invalid v3/v4 instrument status")
+    if len(data) != {3: 81, 4: 96, 5: 100}[data[8]] or data[18] > 1 or data[19] > 3:
+        raise ValueError("Invalid v3/v4/v5 instrument status")
     modules = {module: {} for module in spec}
     modules["delay"] = {"mix": read14(data, 9) / 16383, "time_ms": 10 + 990 * read14(data, 11) / 16383,
                         "feedback": 0.85 * read14(data, 13) / 16383, "bypass": bool(data[17])}
@@ -502,8 +562,12 @@ def decode_v3(data, name):
                 value = from_unit(read14(data, index) / 16383, codec); index += 2
             modules["sampler"][key] = value
     ordered = {module: {key: modules[module][key] for key in fields} for module, fields in spec.items()}
-    return {"version": data[8], "name": name, "engine": "instrument",
-            "routing": (ROUTES4 if v4 else ROUTES3)[route], "modules": ordered}
+    patch = {"version": data[8], "name": name, "engine": "instrument",
+             "routing": (ROUTES4 if v4 else ROUTES3)[route], "modules": ordered}
+    if data[8] == 5:
+        if any(b not in KNOB_BYTES for b in data[84:88]): raise ValueError("Invalid v5 knob assignment in status")
+        patch["knobs"] = [KNOB_BYTES[b] for b in data[84:88]]   # reply index = request index 83-86 + 1
+    return patch
 
 
 def preset_message(opcode, sequence, bank=None, slot=None):
@@ -659,11 +723,11 @@ def cli(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     schema = commands.add_parser("schema", help="Print an authoring JSON schema (v1 delay by default)")
-    schema.add_argument("--instrument", action="store_true", help="Print the v4 instrument schema (with sampler)")
+    schema.add_argument("--instrument", action="store_true", help="Print the v5 instrument schema (sampler, knob choices)")
     commands.add_parser("ports", help="List MIDI ports")
     validate = commands.add_parser("validate"); validate.add_argument("patch")
     upgrade = commands.add_parser("upgrade", help="Convert an older patch file to a new v3 (or --to 4) instrument file")
-    upgrade.add_argument("patch"); upgrade.add_argument("out"); upgrade.add_argument("--to", type=int, default=3, choices=(3, 4))
+    upgrade.add_argument("patch"); upgrade.add_argument("out"); upgrade.add_argument("--to", type=int, default=3, choices=(3, 4, 5))
     encode = commands.add_parser("encode", help="Print SysEx bytes without using MIDI")
     encode.add_argument("patch"); encode.add_argument("--sequence", type=int, default=1)
     preset_help = {"store": "Save the device's current sound to an SD preset slot",
@@ -700,7 +764,7 @@ def cli(argv=None):
     ai.add_argument("--endpoint", default="http://127.0.0.1:11434/api/chat")
     ai.add_argument("--out", required=True)
     args = parser.parse_args(argv)
-    if args.command == "schema": print(json.dumps(SCHEMA4 if args.instrument else SCHEMA, indent=2))
+    if args.command == "schema": print(json.dumps(SCHEMA5 if args.instrument else SCHEMA, indent=2))
     elif args.command == "ports":
         midi = midi_module()
         print(json.dumps({"inputs": midi.get_input_names(), "outputs": midi.get_output_names()}, indent=2))

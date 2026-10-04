@@ -51,7 +51,7 @@ CpuLoadMeter cpu;
 UsbHandle usb_sender;
 // libDaisy exposes the configured device and CDC state used by its MIDI mode.
 // Keep TX memory alive until USB completion, and never rewrite it while busy.
-// Largest reply (v4 status, 98 bytes with F0/F7) packs into 33 USB-MIDI events.
+// Largest reply (v5 status, 102 bytes with F0/F7) packs into 34 USB-MIDI events.
 constexpr size_t kMaxEnvelope = forge::kMaxReply + 2;
 uint8_t usb_tx_packets[((kMaxEnvelope + 2) / 3) * 4];
 struct Outgoing { uint8_t source = 0; uint8_t bytes[kMaxEnvelope]{}; size_t size = 0; };
@@ -100,6 +100,7 @@ constexpr uint32_t kLoopFrames = 4000000u;
 int16_t DSY_SDRAM_BSS loop_memory[2 * kLoopFrames];
 forge::Looper looper;                                         // audio owner
 std::atomic<uint32_t> looper_state{0};                        // audio -> main: PackLooper, for the LEDs
+std::atomic<uint8_t> knob_pages{0};                           // audio -> main: knob page per knob, for the LEDs
 uint8_t __attribute__((aligned(32))) sample_scratch[16384];   // D1 SRAM: reachable by SD DMA
 forge::SampleTable sample_table;
 forge::SampleHandoff sample_handoff;
@@ -203,6 +204,7 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     recording_now.store(recorder.Recording(), std::memory_order_relaxed);
     menu_state.store(panel_controller.MenuPacked(), std::memory_order_relaxed);
     looper_state.store(forge::PackLooper(looper, engine.FxBeforeLoop()), std::memory_order_relaxed);
+    knob_pages.store(panel_controller.KnobPages(), std::memory_order_relaxed);
 
     const bool recording = recorder.Recording();
     for(size_t i = 0; i < size; ++i) {
@@ -396,7 +398,7 @@ void RunSampler() {
     const uint32_t flash = audio_flash.exchange(0, std::memory_order_relaxed);
     if(flash) Flash(flash == 1);
 }
-// Key LEDs (~30 Hz) and panel LED 0 (the CHOMPI key, as in TAPE): red while
+// Key LEDs (~30 Hz), the knob page LEDs (1-4), PLAY/LOOP (7/8) and panel LED 0 (the CHOMPI key, as in TAPE): red while
 // recording, a flash after an action, pink blink while saving/copying. The
 // composed colours are kept for the development probe.
 void DrawLeds() {
@@ -422,6 +424,9 @@ void DrawLeds() {
     forge::ComposeLooperLeds(view.looper, view.blink, play, loop);
     SetPthLedFloat(forge::panel::kPlayLed, play.r, play.g, play.b);
     SetPthLedFloat(forge::panel::kLoopLed, loop.r, loop.g, loop.b);
+    forge::Rgb knobs[4];
+    forge::ComposeKnobLeds(knob_pages.load(std::memory_order_relaxed), knobs);
+    for(unsigned k = 0; k < 4; ++k) SetPthLedFloat(forge::panel::kKnobLed[k], knobs[k].r, knobs[k].g, knobs[k].b);
     for(unsigned i = 0; i < 25; ++i) SetSmtLedFloat(i, keys[i].r, keys[i].g, keys[i].b);
     SetPthLedFloat(0, chompi.r, chompi.g, chompi.b);
     fill_led_data();

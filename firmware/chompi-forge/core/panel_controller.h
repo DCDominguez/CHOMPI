@@ -15,6 +15,21 @@ constexpr unsigned kButtons = 40, kEncoders = 6, kVolumeEncoder = 5, kToneEncode
 // Looper keys (as TAPE): KEY_27 PLAY, KEY_28 LOOP; their LEDs are through-hole 7 / 8.
 // Menu (presets page): KEY_21 effects before the loop, KEY_20 after.
 constexpr uint8_t kPlayKey = 33, kLoopKey = 34, kPlayLed = 7, kLoopLed = 8, kFxBefore = 22, kFxAfter = 21;
+// Knob pages (docs/forge/KNOBS.md). Pressing logical knob n (its encoder switch,
+// button kKnobEncoder[n]) steps its page; page 0 = the patch's knob, 1-3 fixed.
+// Knob n's ring LED is through-hole LED n + 1 (ENC_4, ENC_1, ENC_2, ENC_3 as TAPE).
+constexpr unsigned kKnobPages = 4;
+constexpr uint8_t kKnobLed[4] = {1, 2, 3, 4};
+inline Parameter KnobPageParameter(unsigned knob, unsigned page, bool sampler) {
+    static const Parameter pages[4][3] = {
+        {Parameter::Cutoff, Parameter::Resonance, Parameter::FilterAmount},     // knob 1: filter
+        {Parameter::Attack, Parameter::Decay, Parameter::Release},              // knob 2: envelope
+        {Parameter::LfoRate, Parameter::LfoFilter, Parameter::Osc2Detune},      // knob 3: movement
+        {Parameter::Mix, Parameter::Feedback, Parameter::ReverbMix}};           // knob 4: space
+    if(page == 0 || page >= kKnobPages) return static_cast<Parameter>(static_cast<unsigned>(Parameter::Knob1) + (knob & 3));
+    if(sampler && knob == 2 && page == 3) return Parameter::SampleXfade;      // no second oscillator
+    return pages[knob & 3][page - 1];
+}
 } // namespace panel
 
 // One block of debounced hardware input (audio owner).
@@ -164,24 +179,30 @@ public:
                 engine.Apply({Parameter::Cutoff, engine.GetParameters().cutoff + turns[panel::kToneEncoder] / 127.f});
         }
         for(unsigned knob = 0; knob < 4; ++knob) {
+            // Encoder switches 0-3 (no note): a press steps the knob's page.
+            if((rising >> panel::kKnobEncoder[knob]) & 1u) knob_page_[knob] = static_cast<uint8_t>((knob_page_[knob] + 1) % panel::kKnobPages);
             const int increment = turns[panel::kKnobEncoder[knob]];
             if(increment && !menu_.Encoder(static_cast<uint8_t>(knob), increment)) {   // knob 1 picks the bank while the menu is open
                 const Parameters& p = engine.GetParameters();
-                engine.Apply({static_cast<Parameter>(static_cast<unsigned>(Parameter::Knob1) + knob),
-                              p.Value(p.KnobParameter(knob)) + increment / 127.f});
+                const Parameter target = panel::KnobPageParameter(knob, knob_page_[knob], p.Sampler());
+                engine.Apply({target, p.Value(target) + increment / 127.f});
             }
         }
         if(turns[panel::kVolumeEncoder])
             engine.Apply({Parameter::Level, engine.GetParameters().level + turns[panel::kVolumeEncoder] / 127.f});
     }
     uint32_t MenuPacked() const { return menu_.Packed(); }
+    // Knob n's page in bits 2n..2n+1.
+    uint8_t KnobPages() const {
+        return static_cast<uint8_t>(knob_page_[0] | knob_page_[1] << 2 | knob_page_[2] << 4 | knob_page_[3] << 6);
+    }
     RecordSource Source() const { return source_; }
     const PresetMenu& Menu() const { return menu_; }
 #ifdef FORGE_TEST_HOOKS
     void Inspect(InspectorAudio& a) const {
         a.physical_keys=physical_keys_; a.logical_keys=logical_keys_;
         a.physical_flags=physical_flags_; a.logical_flags=logical_flags_; a.menu=MenuPacked();
-        a.record_source=static_cast<uint8_t>(source_);
+        a.record_source=static_cast<uint8_t>(source_); a.knob_pages=KnobPages();
         for(unsigned i=0;i<panel::kEncoders;++i) { a.raw_turns[i]=raw_turns_[i]; a.turns[i]=turns_[i]; }
     }
 #endif
@@ -238,6 +259,7 @@ private:
     int8_t toggle_override_ = -1, jack_override_ = -1;
     bool first_ = true, jack_ = false, virtual_press_ = false;
     int16_t virtual_turns_[panel::kEncoders]{};
+    uint8_t knob_page_[4]{};
 };
 
 // Everything the key LEDs and the CHOMPI key LED show (main loop, pure), as
@@ -280,6 +302,11 @@ inline void ComposeLooperLeds(uint32_t looper, bool blink, Rgb& play, Rgb& loop)
         case Looper::State::Paused: play = scaled(white, 1.f - position); loop = scaled(white, position); break;
         default: break;
     }
+}
+// Knob ring LEDs: each knob's page as a colour (page 1 dim white, 2 red, 3 green, 4 blue).
+inline void ComposeKnobLeds(uint8_t pages, Rgb (&knobs)[4]) {
+    static const Rgb colours[panel::kKnobPages] = {{.12f, .12f, .12f}, {.6f, 0.f, 0.f}, {0.f, .5f, 0.f}, {0.f, 0.f, .7f}};
+    for(unsigned k = 0; k < 4; ++k) knobs[k] = colours[(pages >> (2 * k)) & 3u];
 }
 inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chompi) {
     if((v.menu >> 21) & 1u)

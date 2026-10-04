@@ -1,9 +1,10 @@
-# Forge control protocol — firmware 0.5
+# Forge control protocol — firmware 0.6
 
-Transport version remains **1**; patch formats **1, 2, 3 and 4** are supported.
+Transport version remains **1**; patch formats **1–5** are supported.
 Firmware 0.4 added patch v3 (second oscillator, noise, resonant filter with
-envelope, LFO, voice limit, glide, reverb); 0.5 adds patch v4 (the sampler,
-up to 7 voices) and sample requests (opcodes 08/09). v1–v3 patches render
+envelope, LFO, voice limit, glide, reverb); 0.5 added patch v4 (the sampler,
+up to 7 voices) and sample requests (opcodes 08/09); 0.6 adds patch v5 (what
+knobs 1–4 control; [KNOBS.md](KNOBS.md)) and the panel's knob pages. v1–v3 patches render
 bit-exactly as on 0.4 (checked against the previous core in simulation).
 All lengths/indexes below exclude MIDI F0/F7 unless stated. USB and bidirectional
 TRS MIDI use the non-commercial manufacturer ID 7D followed by ASCII FG.
@@ -18,7 +19,7 @@ Every payload byte is 7-bit. Words are little-endian base 128. Sequence is
 
 | OP | Length | Operation |
 | --- | --- | --- |
-| 01 | 18 for v1, 30 for v2, 69 for v3, 84 for v4 | Apply complete patch |
+| 01 | 18 for v1, 30 for v2, 69 for v3, 84 for v4, 88 for v5 | Apply complete patch |
 | 02 | 8 | Read current patch and status |
 | 03 | 8 | Panic: silence all synth voices and clear old delay tail; return status |
 | 04 | 10 | Store the current device patch to SD preset (bank 0–7 at 7, slot 0–14 at 8); reply 42 |
@@ -27,7 +28,7 @@ Every payload byte is 7-bit. Words are little-endian base 128. Sequence is
 | 07 | 8 | List occupied SD presets; reply 43 |
 | 08 | 8 | List samples on the card and the recording; reply 44 |
 | 09 | 15 | Sample job: 7 action (0 save recording, 1 erase, 2 copy), 8 mode, 9 bank, 10 slot, 11–13 copy destination mode/bank/slot; reply 45 |
-| 40 | 30 for v1, 42 for v2, 81 for v3, 96 for v4 | Success/current targets plus diagnostics |
+| 40 | 30 for v1, 42 for v2, 81 for v3, 96 for v4, 100 for v5 | Success/current targets plus diagnostics |
 | 41 | 9 | Rejection; error code at index 7, checksum at 8 |
 | 42 | 12 | Preset done: index 8 = 1 stored / 2 erased, 9 bank, 10 slot |
 | 43 | 33 | Occupancy: per bank (0–7) 3 bytes at 8 + 3·bank = 15-bit slot mask, 7 + 7 + 1 bits |
@@ -77,7 +78,20 @@ Every payload byte is 7-bit. Words are little-endian base 128. Sequence is
 | 74–75, 76–77 | v4 sample start, end (start < end, else error 4) |
 | 78, 79, 80 | v4 loop, gate (1 = sound while held, TAPE "sustain"; 0 = trigger), reverse: 0 or 1 |
 | 81–82 | v4 loop crossfade |
-| 83 | v4 checksum |
+| 83 | v4 checksum; v5 knob 1 (SW4) page-1 control |
+| 84, 85, 86 | v5 knobs 2, 3, 4 (SW1, SW2, SW3) |
+| 87 | v5 checksum |
+
+v5 knob bytes: 0 = the source's default (mix, time, feedback, level; sampler:
+pitch, start, end, mix), else firmware Parameter id + 1 (`core/parameters.h`;
+host names in `forge_host.KNOB_TARGETS`): 1 delay mix, 2 time, 3 feedback,
+4 output level, 6 cutoff, 7 resonance, 8 reverb mix, 9 sample pitch,
+10 start, 11 end, 16 filter envelope amount, 17 attack, 18 decay, 19 sustain,
+20 release, 21 LFO rate, 22 LFO pitch depth, 23 LFO filter depth, 24 LFO
+amplitude depth, 25 osc 2 level, 26 osc 2 detune, 27 noise, 28 glide,
+29 reverb size, 30 reverb damping, 31 loop crossfade. 5 (bypass), 12–15
+(the knobs themselves) and anything above 31 are error 4. v5 indexes 7–82 are
+identical to v4.
 
 v3 indexes 7–28 are identical to v2, except that the cutoff at 27–28 feeds the
 v3 per-voice resonant filter instead of the shared one-pole filter. v4 indexes
@@ -124,7 +138,7 @@ or dynamic module creation is accepted. Names remain host-side.
 | 7 | Success, 0 |
 | 8 onward | Exact quantized patch DATA (request indexes 7 through before checksum) |
 
-After patch DATA, diagnostics begin at offset **18 for v1**, **30 for v2**, **69 for v3**, **84 for v4**:
+After patch DATA, diagnostics begin at offset **18 for v1**, **30 for v2**, **69 for v3**, **84 for v4**, **88 for v5**:
 
 | Offset from diagnostics | Content |
 | --- | --- |
@@ -132,7 +146,7 @@ After patch DATA, diagnostics begin at offset **18 for v1**, **30 for v2**, **69
 | +2,+3 | Peak audio callback load since boot ×1000, 14-bit |
 | +4..+6 | Dropped ingress/control/reply count, saturated 21-bit |
 | +7..+9 | Rejected recognized requests, saturated 21-bit |
-| +10 | Firmware minor version, 5 |
+| +10 | Firmware minor version, 6 |
 | +11 | Checksum |
 
 CPU resolution is 0.1 percentage point; max 1638.3%. Readings are from completed
@@ -167,8 +181,9 @@ clock sync, MPE, aftertouch, arpeggiator or MIDI note output. v3 voices = 1
 is monophonic with last-note priority but no return to a still-held earlier note.
 
 Stock CHOMPI convention, CC20+n = absolute position of logical knob n:
-CC20–23 = knobs 1–4, which are mix, time, feedback, level (or, on a v4
-sampler patch, TAPE's page: sample pitch, start, end, mix), 24 cutoff (SW5),
+CC20–23 = knobs 1–4 on their first page: the v5 patch's knob controls, else
+mix, time, feedback, level (or, on a sampler patch, TAPE's page: sample pitch,
+start, end, mix), whatever page the panel shows; 24 cutoff (SW5),
 25 level (SW6). While a loop exists, CC 24 sets the looper speed instead
 (−2…+2×, as TAPE's transport knob). CC 26 / 27 are TAPE's looper PLAY / LOOP
 (≥ 85 press, ≤ 41 release, the middle third ignored). Stock's virtual-key and
@@ -209,10 +224,10 @@ Patches, status, panic and controls always execute (`RecoveryGate` in
 core/runtime.h, host-tested). Keys held through a recovery must be retriggered. This logic is implemented; actual interrupt/transport behavior is
 still hardware-unverified. Use SW5 press or host panic if an audible note hangs.
 
-Replies are sent only by main loop. Largest response is the 98-byte v4 status
-(with F0/F7): 31.4 ms at 31250 baud; the UART timeout is computed per reply
-(0.32 ms per byte + 5 ms). Incoming SysEx up to 88 bytes is accepted (v4 apply
-is 86 with F0/F7). The USB buffer holds 132 bytes (33 USB-MIDI events); a v3/v4
+Replies are sent only by main loop. Largest response is the 102-byte v5 status
+(with F0/F7): 32.6 ms at 31250 baud; the UART timeout is computed per reply
+(0.32 ms per byte + 5 ms). Incoming SysEx up to 92 bytes is accepted (v5 apply
+is 90 with F0/F7). The USB buffer holds 136 bytes (34 USB-MIDI events); a v3–v5
 reply is larger than one 64-byte USB packet, relying on the USB stack's
 multi-packet transfer, which is **unverified on hardware**. TX memory survives
 completion. Pending TX is abandoned/counts a drop after 100 ms without progress.
@@ -223,7 +238,8 @@ Host checks full patch DATA, checksum and sequence. Timeout may mean applied
 but reply lost; query status before retrying. No auto retry, deduplication,
 subscriptions, sessions or authentication. One host, one acknowledged exchange
 at a time. Old 0.2 hosts cannot decode v2 status and 0.3 hosts cannot decode
-v3 status and 0.4 hosts cannot decode v4 status; use the matching 0.5 host. Old firmware rejects newer patch versions
+v3 status, 0.4 hosts cannot decode v4 status and 0.5 hosts cannot decode v5
+status; use the matching 0.6 host. Old firmware rejects newer patch versions
 (error 2) and 0.2 rejects panic rather than executing them.
 
 ## Device presets (SD card), firmware 0.4
@@ -319,7 +335,7 @@ monitoring, jack detection, LED colours.
 
 Only `FORGE_TEST_HOOKS` firmware accepts `0A`/`0B`. Release firmware rejects
 both with error 5, including all new pages. Protocol version remains 1,
-firmware remains 0.5 and patch/status v1–v4 layouts are unchanged. This is an
+and the patch/status layouts are those above. This is an
 additive development extension; the Inspector has its own explicit schema byte.
 Unknown pages return error 4. Unknown schemas must be rejected by clients.
 
@@ -333,7 +349,7 @@ is 9 bytes: byte 7 zero, byte 8 checksum. Ack means queued, not yet applied.
 Page 6 additionally accepts a 14-byte request with cursor at 8–12 and checksum
 at 13; without the cursor it starts at serial 0. Cursor is unsigned 32-bit in
 five little-endian 7-bit chunks, with the fifth chunk at most 15. All sizes
-exclude F0/F7. Largest reply still fits the existing `kMaxReply = 96` and the
+exclude F0/F7. Largest reply still fits `kMaxReply = 100` and the
 existing USB/UART buffers. No subscription, background push or new transport.
 
 Page 0 (the original 24-byte state page) was retired on 2026-10-03: the
@@ -352,11 +368,11 @@ listed order, with no struct padding on the wire.
 | Page | Size | Body from byte 15 |
 | --- | --- | --- |
 | 2 SYSTEM | 88 | firmware minor, protocol, simulated flag (3 bytes); uptime ms, audio state timestamp ms, audio block count (3 U32); CPU average and peak ×1000 (2 14-bit words); UART then USB: RX complete accepted frames, TX accepted submissions, TX errors, ingress drops (4 U32 each); aggregate drops and rejections (2 U32) |
-| 3 PANEL | 95 | physical and merged key masks (6 7-bit chunks each, 40 bits); physical then merged flags (2 bytes); packed menu U32; six physical encoder accumulators then six merged accumulators (12 U32, signed two's complement) |
+| 3 PANEL | 97 | physical and merged key masks (6 7-bit chunks each, 40 bits); physical then merged flags (2 bytes); packed menu U32; six physical encoder accumulators then six merged accumulators (12 U32, signed two's complement); knob pages (two 7-bit chunks: knob n's page 0–3 in bits 2n, 2n+1) |
 | 4 ENGINE | 88 | seven voices (7 bytes each: note, source 0 UART/1 USB/2 panel, stage 0 off/1 attack/2 decay/3 sustain/4 release, sample slot 0–14 or 127 none, flags sampled 1/sustained 2/reverse 4, envelope N14); smoothed cutoff normalized, (LFO+1)/2, mod wheel (3 N14); pedal-source bit mask byte; three smoothed bend ratios ×4096 (3 14-bit words); resolved mix, feedback/0.85, level, delay samples/48000, reverb mix (5 N14) |
 | 5 STORAGE | 94 | flags, recording source 0 mic/1 line/2 resample, queued sample-job count, active job 0 save/1 copy/2 erase/127 none, last generic error code, partial-file-slot count (6 bytes); actual loaded file selection, file readable frames, file allocated frames, pool reserved bytes, pool capacity bytes, recording frames, recording capacity frames, storage error count, audio event drops, emergency count, panel queue drops, sample queue drops (12 U32); looper: flags (state 0 empty/1 armed/2 first take/3 playing/4 paused, 8 overdub, 16 effects before the loop, 32 locked for saving), length frames (U32), position, speed ((s+2)/4) and feedback (N14) |
 | 6 EVENTS | 27 + 17 × count, count 0–3 | latest event serial U32, total retention overwrites U32, count byte; records: serial U32, timestamp ms U32, kind byte, id byte, value U32 |
-| 7 PATCH | 26/38/77/92 for v1/v2/v3/v4 | existing patch DATA, exactly as `EncodePatchData` and status use |
+| 7 PATCH | 26/38/77/92/96 for v1–v5 | existing patch DATA, exactly as `EncodePatchData` and status use |
 
 Page 3 physical flags: toggle up 1, line jack 2, SW5 press edge 4. Merged flags
 add overridden 8. Masks include menu/control keys; the map in

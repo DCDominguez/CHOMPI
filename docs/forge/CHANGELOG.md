@@ -1,5 +1,24 @@
 # Forge changelog
 
+## 0.6 knob pages and patch knobs — 2026-10-04
+
+Design and map: KNOBS.md. Software-tested only.
+- Press a knob (SW4, SW1, SW2, SW3) to step its page; its light shows the page
+  (dim white, red, green, blue). Page 1 = the patch's knob; pages 2–4 fixed:
+  SW4 cutoff / resonance / filter envelope, SW1 attack / decay / release, SW2
+  LFO rate / LFO filter depth / osc 2 detune (sampler: loop crossfade), SW3
+  delay mix / feedback / reverb mix. Pages are per knob, kept across presets.
+- Patch v5 = v4 + `knobs`: what the four knobs (and CC 20–23) control on page 1,
+  from 26 controls or `default`. 88-byte request, 100-byte status; v1–v4
+  unchanged. Firmware minor 6.
+- Every continuous control can now be set by Parameter id (engine/panel);
+  controls a patch version cannot carry are refused, as before.
+- Host: schema/codec/upgrade to v5, `knob_control`; AI authoring writes v5 and
+  picks the knobs; webapp *Panel knobs* group, Convert to v5; preset
+  `14-knob-pad.json`; Inspector page 3 carries the knob pages; MIDI framer
+  holds 92-byte SysEx. TEST_SESSION 3F (3.52–3.56), automatic checks 3.52,
+  3.53, 3.55; bridge checks 78.
+
 ## 0.5 looper (roadmap item 5) — 2026-10-03
 
 TAPE's looper on KEY_28 LOOP / KEY_27 PLAY (design: LOOPING.md). Software-tested only.

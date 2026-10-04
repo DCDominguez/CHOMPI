@@ -4,6 +4,8 @@
 #include "preset_store.h"
 #include "protocol.h"
 
+static_assert(forge::kMaxSysEx >= forge::kMaxRequest, "the MIDI framer must hold the largest apply request");
+
 namespace forge {
 // Audio-owner operation shared with the offline integration harness.
 // True means a reply is required. CPU stats are supplied by the caller.

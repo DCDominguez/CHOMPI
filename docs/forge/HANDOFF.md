@@ -1,9 +1,14 @@
-# Forge handoff — instrument candidate 0.5
+# Forge handoff — instrument candidate 0.6
 
-Updated 2026-10-03 (UTC). **Read [CONTINUE.md](CONTINUE.md) first**; it is the
+Updated 2026-10-04 (UTC). **Read [CONTINUE.md](CONTINUE.md) first**; it is the
 live checkpoint with claim levels, what changed and prioritized next actions.
 
-Latest: the looper (roadmap item 5, LOOPING.md) — TAPE-style on KEY_27/28,
+Latest: knob pages and patch knobs (KNOBS.md, firmware 0.6) — press a knob to
+step its page (patch's knob, then filter / envelope / LFO / space controls),
+its light shows the page; v5 patches (and the AI) choose what the four knobs
+do on page 1. Software-tested only. See CONTINUE.
+
+Before that: the looper (roadmap item 5, LOOPING.md) — TAPE-style on KEY_27/28,
 ~83 s, save to a sample slot; software-tested only. See CONTINUE.
 
 Before that: boot fix ("64 MHz bug": boot_info now in backup SRAM; release and
@@ -26,8 +31,8 @@ builds, release byte-identity and pending physical tests. No hardware was tested
 - Development branch `forge/foundation`, draft PR #1. No merge, no flash.
 - Scope: AI-programmable playable instrument (synth with up to four voices,
   two oscillators, noise, resonant filter, LFO, glide; TAPE-compatible sampler
-  with recording, up to seven voices; stereo delay and reverb; keybed/MIDI; v4
-  module patches with v1–v3 still supported; AI webapp).
+  with recording, up to seven voices; stereo delay and reverb; looper; knob
+  pages; keybed/MIDI; v5 module patches with v1–v4 still supported; AI webapp).
   Never narrow to effects-only.
 - Plan: develop roadmap features first (PROJECT.md order), QA each later.
 - Firmware changes since the integration checkpoint: sound fixes (`0a605f6`),

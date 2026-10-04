@@ -16,7 +16,7 @@ def fixed(data):
 
 class InspectorTests(unittest.TestCase):
     def test_schema_lengths_checksums_and_versions(self):
-        for version in range(1,5):
+        for version in range(1,6):
             patch=host.load_patch(ROOT/'presets'/'03-long-echo.json')
             if version>1: patch=host.upgrade_patch(patch,version if version>2 else 3)
             if version==2: patch=host.load_patch(ROOT/'presets'/'04-glass-keys.json')
@@ -42,6 +42,24 @@ class InspectorTests(unittest.TestCase):
         self.assertEqual(new['held_notes'],[48]); self.assertTrue(new['logical']['overridden'])
         self.assertEqual(new['raw_encoder_turns'],[0]*6); self.assertEqual(new['logical_encoder_turns'][3],3)
         self.assertEqual(new['generation'],2)
+
+    def test_knob_pages_and_assignments(self):
+        patch=host.upgrade_patch(host.load_patch(ROOT/'presets'/'07-warm-pad.json'),5)
+        patch['knobs']=['filter.resonance','default','default','reverb.size']
+        press=lambda seq,button:[host.message(0x0a,seq,[0,button,65]),host.message(0x0a,seq+1,[0,button,64])]
+        replies=probe(host.encode_patch(patch,1),
+                      host.message(0x0a,2,[1,3,64+20]),             # knob 1 (encoder 3), page 1: resonance
+                      *press(3,0),*press(5,0),                      # knob 2 (switch 0) to page 3: decay
+                      host.message(0x0a,7,[1,0,64+10]),
+                      *press(8,2),                                  # knob 4 (switch 2) to page 2: delay mix
+                      inspector.request(3,10),inspector.request(7,11))
+        panel=inspector.decode(replies[-2],10,3); after=inspector.decode(replies[-1],11,7)['patch']
+        self.assertEqual(panel['knob_pages'],[1,3,1,2])
+        self.assertAlmostEqual(after['modules']['filter']['resonance'],patch['modules']['filter']['resonance']+20/127,delta=1e-3)
+        self.assertGreater(after['modules']['synth']['decay_ms'],patch['modules']['synth']['decay_ms'])
+        self.assertEqual(after['knobs'],patch['knobs'])
+        self.assertEqual([host.knob_control(after,k,p) for k,p in zip(range(1,5),panel['knob_pages'])],
+                         ['filter.resonance','synth.decay_ms','delay.feedback','delay.mix'])
 
     def test_events_are_retained_and_cursor_is_exclusive(self):
         on=host.message(0x0a,1,[0,15,65]); off=host.message(0x0a,2,[0,15,64])

@@ -378,6 +378,36 @@
     "group": "3E. Looper (TAPE-style, roadmap item 5)"
   },
   {
+    "id": "3.52",
+    "do": "Send `07-warm-pad.json`. Look at the four knob lights; turn each knob a little; then press SW4 once and turn it while holding a chord",
+    "expect": "All four lights dim white and the knobs do mix / time / feedback / level as before; after the press SW4's light is red and SW4 sweeps the filter cutoff (SW5 still does too)",
+    "group": "3F. Knob pages and patch knobs (firmware 0.6)"
+  },
+  {
+    "id": "3.53",
+    "do": "Press SW4 again (green: resonance), again (blue: filter envelope amount, play short notes), again (white). Press SW1 once and check that only SW1's light changed",
+    "expect": "Each page audibly does its job; the fourth press is back to page 1; pages are per knob",
+    "group": "3F. Knob pages and patch knobs (firmware 0.6)"
+  },
+  {
+    "id": "3.54",
+    "do": "SW1 pages 2–4 = attack, decay, release (play short notes); SW2 = LFO rate, LFO filter depth (on Warm Pad the sweep is audible), oscillator 2 detune; SW3 = delay mix, delay feedback, reverb mix. Then put every knob back to page 1 (white)",
+    "expect": "Each control is audible and moves smoothly, without zipper noise or clicks; no stuck notes; the lights follow every press",
+    "group": "3F. Knob pages and patch knobs (firmware 0.6)"
+  },
+  {
+    "id": "3.55",
+    "do": "Send `14-knob-pad.json` (a v5 patch). With all knobs on page 1: turn SW4, SW1, SW2, SW3; then `H cc 20 0` and `H cc 20 127`",
+    "expect": "SW4 = cutoff, SW1 = LFO speed, SW2 = reverb size, SW3 = reverb mix (the patch chose them); CC 20 moves the cutoff the same way",
+    "group": "3F. Knob pages and patch knobs (firmware 0.6)"
+  },
+  {
+    "id": "3.56",
+    "do": "Send `12-tape-kit-a.json` and play: SW2 on page 4 (blue) = loop crossfade. Send `02-slap.json` (v1 delay) and try SW1's pages. Webapp: open any preset, **Convert to v5**, choose a job for each knob under *Panel knobs*, Send; optionally ask the AI for a patch and look at its knob choices",
+    "expect": "Sampler: no crash, crossfade changes on looped samples only; v1: SW1 pages 2–4 do nothing (a delay patch has no envelope), no crash; the webapp patch's knobs do what you chose",
+    "group": "3F. Knob pages and patch knobs (firmware 0.6)"
+  },
+  {
     "id": "4.1",
     "do": "Hold a long-release chord with echo (use Warm Pad for reverb too); press SW5",
     "expect": "Voices, old echo and reverb tails stop at once",

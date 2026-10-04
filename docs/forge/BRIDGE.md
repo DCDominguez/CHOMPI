@@ -2,7 +2,7 @@
 
 The bridge is the local browser interface for a consolidated physical test:
 live SYSTEM/PANEL/ENGINE/STORAGE, keys and LED shadow, indexed voices, retained
-events, test controls, 73 guided checks, observations and downloadable evidence.
+events, test controls, 78 guided checks, observations and downloadable evidence.
 It uses the same `forge_inspector.collect` model as the terminal Inspector.
 With an audio interface it also listens: automatic checks measure CHOMPI's
 output (pitch, clicks, level, silence) while driving notes, tones and virtual
@@ -63,7 +63,8 @@ back at the right pitch (3.34; RAM only, nothing written to the card), the
 looper (3.42: a line-in tone loop repeats at the right pitch without a seam
 click; 3.42s–3.45: first take, overdub, pause and clear via the virtual keys,
 read back from the Inspector; these need real time and are skipped in the
-simulation), panic (4.1), CPU worst cases (6.2b, 6.2c) and the return to dry aux. It sends
+simulation), knob pages and v5 patch knobs via the virtual knob presses (3.52, 3.53,
+3.55), panic (4.1), CPU worst cases (6.2b, 6.2c) and the return to dry aux. It sends
 patches, notes, −18 dBFS tones and virtual panel presses, and always hands the
 panel back at the end. Each step shows pass / fail / error / skipped, the
 failed expectations and, per recording, level, pitch, clicks and a

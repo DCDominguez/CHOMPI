@@ -32,7 +32,9 @@ struct MemoryStorage : Storage {
 Parameters Sample(uint8_t version, float seed) {
     Parameters p; p.version = version; p.synth = version >= 2; p.mix = seed; p.time = 1 - seed; p.level = .25f;
     if(version >= 2) { p.waveform = 2; p.cutoff = seed * .5f; }
-    if(version == 3) { p.osc2_level = .3f; p.osc2_semitones = 31; p.voices = 2; p.lfo_wheel = true; p.reverb_mix = seed; }
+    if(version >= 3) { p.osc2_level = .3f; p.osc2_semitones = 31; p.voices = 2; p.lfo_wheel = true; p.reverb_mix = seed; }
+    if(version >= 4) { p.source = 1; p.sample_slot = 3; p.sample_xfade = seed * .5f; }
+    if(version >= 5) { p.knobs[0] = static_cast<uint8_t>(Parameter::Resonance) + 1; p.knobs[3] = static_cast<uint8_t>(Parameter::Glide) + 1; }
     return p;
 }
 bool SameOnWire(const Parameters& a, const Parameters& b) {
@@ -50,7 +52,7 @@ void RecordsAndPaths() {
         assert(name.find(".bin") == std::string::npos && name.find(".BIN") == std::string::npos); // bootloader ignores
         assert(name.size() == 15 && name.substr(name.find('/') + 1).size() == 9);               // 8.3
     }
-    for(uint8_t version = 1; version <= 3; ++version) {
+    for(uint8_t version = 1; version <= 5; ++version) {
         uint8_t record[kMaxPresetRecord];
         const Parameters p = Sample(version, .4f);
         const size_t size = EncodePresetRecord(p, record);

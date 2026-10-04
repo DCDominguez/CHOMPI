@@ -254,7 +254,55 @@ void LooperSaveGesture() {
     assert(empty.sink.jobs.empty() && empty.sink.failures == 1);
 }
 
+// Knob pages (docs/forge/KNOBS.md): a knob's press steps its page; page 1 is the
+// patch's knob (v5 assignment or the source's default), pages 2-4 fixed controls.
+void KnobPages() {
+    Rig rig;
+    Parameters synth; synth.version = 3; synth.synth = true; synth.cutoff = 0.5f; assert(rig.engine.ApplyPatch(synth));
+    rig.Block();
+    auto turn = [&](unsigned knob, int amount) { rig.Inject(PanelEvent::Kind::Turn, panel::kKnobEncoder[knob], static_cast<int8_t>(amount)); };
+    auto press = [&](unsigned knob) { rig.Tap(panel::kKnobEncoder[knob]); };
+    const Parameters& p = rig.engine.GetParameters();
+    auto near = [](float a, float b) { return std::fabs(a - b) < 1e-4f; };
+    turn(0, 10); assert(near(p.mix, 10 / 127.f) && near(p.cutoff, 0.5f) && rig.panel.KnobPages() == 0);
+    press(0); assert(rig.panel.KnobPages() == 1);                         // knob 1 page 2: cutoff
+    turn(0, 10); assert(near(p.cutoff, 0.5f + 10 / 127.f) && near(p.mix, 10 / 127.f));
+    press(0); turn(0, 20); assert(near(p.resonance, 20 / 127.f));         // page 3: resonance
+    press(0); turn(0, -10); assert(near(p.filter_amount, 0.5f - 10 / 127.f));   // page 4: filter envelope
+    press(0); assert(rig.panel.KnobPages() == 0);                         // wraps to the patch page
+    press(1); turn(1, 10); assert(near(p.attack, 0.0045f + 10 / 127.f));  // knob 2: attack, decay, release
+    press(1); turn(1, 10); assert(near(p.decay, 0.1f + 10 / 127.f));
+    press(1); turn(1, 10); assert(near(p.release, 0.08f + 10 / 127.f));
+    press(2); turn(2, 10); assert(near(p.lfo_rate, 0.5f + 10 / 127.f));   // knob 3: LFO rate, filter depth, osc 2 detune
+    press(2); turn(2, 10); assert(near(p.lfo_filter, 10 / 127.f));
+    press(2); turn(2, -10); assert(near(p.osc2_detune, 0.5f - 10 / 127.f));
+    for(int i = 0; i < 3; ++i) press(3);                                  // knob 4 page 4: reverb mix
+    turn(3, 30); assert(near(p.reverb_mix, 30 / 127.f));
+    assert(rig.panel.KnobPages() == (0 | 3 << 2 | 3 << 4 | 3 << 6));
+    // Pages are panel state: they survive a patch change. Sampler: knob 3 page 4 = crossfade.
+    Parameters sampler; sampler.version = 4; sampler.synth = true; sampler.source = 1; sampler.sample_xfade = 0.04f;
+    assert(rig.engine.ApplyPatch(sampler)); turn(2, 10); assert(near(p.sample_xfade, 0.04f + 10 / 127.f));
+    // A control the patch version cannot carry is ignored (v1: no envelope).
+    Parameters delay; assert(rig.engine.ApplyPatch(delay)); press(1); assert(((rig.panel.KnobPages() >> 2) & 3u) == 0);
+    press(1); turn(1, 10); assert(near(p.attack, 0.0045f));
+    // v5 assignment: page 1 of knob 1 = attack; CC 20 follows the assignment.
+    Parameters assigned = synth; assigned.version = 5; assigned.knobs[0] = static_cast<uint8_t>(Parameter::Attack) + 1;
+    assert(rig.engine.ApplyPatch(assigned));
+    for(int i = 0; i < 4; ++i) if(rig.panel.KnobPages() & 3u) press(0);
+    assert((rig.panel.KnobPages() & 3u) == 0);
+    turn(0, 10); assert(near(p.attack, 0.0045f + 10 / 127.f));
+    Command cc; assert(DecodeCC(0, 20, 127, cc) && rig.engine.Apply(cc) && near(p.attack, 1.f));
+    // LEDs: dim white, red, green, blue.
+    Rgb leds[4]; ComposeKnobLeds(static_cast<uint8_t>(0 | 1 << 2 | 2 << 4 | 3 << 6), leds);
+    assert(leds[0].r > 0.f && leds[0].r == leds[0].g && leds[0].g == leds[0].b && leds[0].r < .2f);
+    assert(leds[1].r > 0.f && leds[1].g == 0.f && leds[2].g > 0.f && leds[2].r == 0.f && leds[3].b > 0.f && leds[3].g == 0.f);
+    // Reverb size through an assigned knob reconfigures the reverb (no crash, value kept).
+    assigned.knobs[3] = static_cast<uint8_t>(Parameter::ReverbSize) + 1; assigned.reverb_mix = 0.5f;
+    assert(rig.engine.ApplyPatch(assigned)); press(3); turn(3, 40); assert(near(p.reverb_size, 0.5f + 40 / 127.f));
+    for(int i = 0; i < 200; ++i) rig.Block();
+}
 int main() {
+    KnobPages();
     KeysKnobsAndOverrides(); MenuAndRecordingThroughTheController(); LedComposition(); DevelopmentOpcodes(); LooperThroughThePanel(); LooperVoiceCap(); LooperSaveGesture();
-    std::cout << "PASS: panel controller keys/knobs/overrides, menu + recording via injection, LED composition, dev opcodes, looper via panel/MIDI\n";
+    std::cout << "PASS: panel controller keys/knobs/overrides, menu + recording via injection, LED composition, dev opcodes, looper via panel/MIDI, knob pages/LEDs/v5 assignment\n";
 }

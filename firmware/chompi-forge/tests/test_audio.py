@@ -206,7 +206,7 @@ class BridgeAutomaticTests(unittest.TestCase):
         ports = FakePorts(["Microsoft GS Wavetable Synth", "Arturia KeyStep", "CHOMPI 0"],
                           ["Microsoft GS Wavetable Synth", "Arturia KeyStep", "CHOMPI 1"])
         found = self.make(ports).request("discover", {})
-        self.assertEqual((found["input"], found["output"], found["firmware"]), ("CHOMPI 0", "CHOMPI 1", "0.5"))
+        self.assertEqual((found["input"], found["output"], found["firmware"]), ("CHOMPI 0", "CHOMPI 1", "0.6"))
         self.assertEqual(ports.opened, [("CHOMPI 0", "CHOMPI 1")])
         self.assertFalse(self.lock.locked())
 
@@ -240,7 +240,7 @@ class BridgeAutomaticTests(unittest.TestCase):
         job = self.wait()
         self.assertIsNone(job["error"])
         results = {s["id"]: s["result"] for s in job["result"]["steps"]}
-        for step in ("1.3", "3.17", "3.30", "3.30c", "3.28", "6.3"): self.assertEqual(results[step], "pass", job["result"])
+        for step in ("1.3", "3.17", "3.30", "3.30c", "3.28", "3.52", "3.53", "3.55", "6.3"): self.assertEqual(results[step], "pass", job["result"])
         self.assertEqual(results["2.1"], "skipped")
         self.assertEqual(job["result"]["counts"]["fail"] + job["result"]["counts"]["error"], 0)
         self.assertFalse(self.call("poll")["panel"]["logical"]["overridden"])     # virtual panel handed back

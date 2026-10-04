@@ -5,14 +5,14 @@
 
 namespace forge {
 constexpr uint8_t kProtocolVersion = 1, kPatchVersion = 1;
-constexpr uint8_t kFirmwareMinor = 5; // 0.5: v4 sampler patches
+constexpr uint8_t kFirmwareMinor = 6; // 0.6: v5 patches (knob assignments)
 // 7-9 are device-preset (SD) errors: empty slot, no/failed card, storage busy.
 enum class Error : uint8_t { None, Length, Version, Checksum, Patch, Opcode, Busy, Empty, Storage, StorageBusy };
 // Device presets: 8 banks x 15 slots on the SD card (see preset_store.h).
 constexpr uint8_t kPresetBanks = 8, kPresetSlots = 15;
-// Request/reply sizes exclude F0/F7. v4 is the largest: 84-byte apply request,
-// 96-byte status reply. Transport buffers are sized from these constants.
-constexpr size_t kV3Request = 69, kMaxRequest = 84, kMaxReply = 96;
+// Request/reply sizes exclude F0/F7. v5 is the largest: 88-byte apply request,
+// 100-byte status reply (v4: 84 / 96). Transport buffers are sized from these constants.
+constexpr size_t kV3Request = 69, kV4Request = 84, kMaxRequest = 88, kMaxReply = 100;
 // Note, Pedal (CC64), Bend, ModWheel (CC1) and ResetControllers (CC121) are
 // channel-1 performance events: no reply, dropped if queued before an emergency.
 // Store/Recall/Erase/List are host requests for device presets; the main loop
@@ -92,7 +92,7 @@ inline const V3Field* V3Fields(size_t& count) {
         // 58: lfo_wheel (bool), 59: voices (1..4): handled explicitly
         {60, 0, 0, &Parameters::glide, nullptr}, {62, 0, 0, &Parameters::reverb_mix, nullptr},
         {64, 0, 0, &Parameters::reverb_size, nullptr}, {66, 0, 0, &Parameters::reverb_damping, nullptr},
-        // v4 sampler (only on version 4). 78-80: loop, gate, reverse (bools): handled explicitly.
+        // v4 sampler (version 4+). 78-80: loop, gate, reverse (bools): handled explicitly.
         {68, 1, 1, nullptr, &Parameters::source}, {69, 1, 1, nullptr, &Parameters::sample_mode},
         {70, 1, kSampleBanks - 1, nullptr, &Parameters::sample_bank}, {71, 1, kSampleSlots - 1, nullptr, &Parameters::sample_slot},
         {72, 0, 0, &Parameters::sample_pitch, nullptr}, {74, 0, 0, &Parameters::sample_start, nullptr},
@@ -105,10 +105,11 @@ inline const V3Field* V3Fields(size_t& count) {
 // request (request index i is DATA index i - 7; replies carry it from index 8).
 // Shared by SysEx requests, status replies and SD preset records.
 inline size_t PatchDataSize(uint8_t version) {
-    return version == 1 ? 10 : version == 2 ? 22 : version == 3 ? kV3Request - 8 : version == 4 ? kMaxRequest - 8 : 0;
+    return version == 1 ? 10 : version == 2 ? 22 : version == 3 ? kV3Request - 8 : version == 4 ? kV4Request - 8
+         : version == 5 ? kMaxRequest - 8 : 0;
 }
 FORGE_NOINLINE inline Error DecodePatchData(const uint8_t* data, size_t size, Parameters& out) {
-    if(!size || data[0] < 1 || data[0] > 4) return Error::Version;
+    if(!size || data[0] < 1 || data[0] > 5) return Error::Version;
     if(size != PatchDataSize(data[0])) return Error::Length;
     for(size_t i = 0; i < size; ++i) if(data[i] > 127) return Error::Patch;
     auto at = [data](size_t request_index) { return data + request_index - 7; };
@@ -141,10 +142,11 @@ FORGE_NOINLINE inline Error DecodePatchData(const uint8_t* data, size_t size, Pa
         if(*at(58) > 1 || *at(59) < 1 || *at(59) > p.MaxVoices()) return Error::Patch;
         p.lfo_wheel = *at(58) != 0; p.voices = *at(59);
     }
-    if(p.version == 4) {
+    if(p.version >= 4) {
         if(*at(78) > 1 || *at(79) > 1 || *at(80) > 1) return Error::Patch;
         p.sample_loop = *at(78) != 0; p.sample_gate = *at(79) != 0; p.sample_reverse = *at(80) != 0;
     }
+    if(p.version >= 5) for(unsigned k = 0; k < 4; ++k) p.knobs[k] = *at(83 + k);   // request 83-86; checked by Valid()
     if(!p.Valid()) return Error::Patch;      // e.g. sample start not before end
     out = p;
     return Error::None;
@@ -161,7 +163,7 @@ FORGE_NOINLINE inline Error DecodeRequest(const uint8_t* bytes, size_t size, Req
     Request candidate;
     candidate.sequence = Read14(bytes + 5);
     if(bytes[4] == 1) {
-        if(bytes[7] < 1 || bytes[7] > 4) return Error::Version;
+        if(bytes[7] < 1 || bytes[7] > 5) return Error::Version;
         if(size != 8 + PatchDataSize(bytes[7])) return Error::Length;
         const Error error = DecodePatchData(bytes + 7, size - 8, candidate.patch);
         if(error != Error::None) return error;
@@ -261,9 +263,10 @@ FORGE_NOINLINE inline size_t EncodePatchData(const Parameters& p, uint8_t* data)
         }
         *at(58) = p.lfo_wheel ? 1 : 0; *at(59) = p.voices;
     }
-    if(p.version == 4) {
+    if(p.version >= 4) {
         *at(78) = p.sample_loop ? 1 : 0; *at(79) = p.sample_gate ? 1 : 0; *at(80) = p.sample_reverse ? 1 : 0;
     }
+    if(p.version >= 5) for(unsigned k = 0; k < 4; ++k) *at(83 + k) = p.knobs[k];
     return PatchDataSize(p.version);
 }
 FORGE_NOINLINE inline size_t EncodeResponse(const Response& response, uint32_t dropped,

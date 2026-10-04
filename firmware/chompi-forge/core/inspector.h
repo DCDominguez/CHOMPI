@@ -16,7 +16,7 @@ struct InspectorAudio {
     uint64_t physical_keys = 0, logical_keys = 0;
     uint32_t raw_turns[6]{}, turns[6]{}; // wrapping signed encoder accumulators
     uint32_t block = 0, time_ms = 0, menu = 0, record_frames = 0;
-    uint8_t physical_flags = 0, logical_flags = 0, record_source = 0;
+    uint8_t physical_flags = 0, logical_flags = 0, record_source = 0, knob_pages = 0;
     bool recording = false, locked = false;
     float cpu_average = 0, cpu_peak = 0, cutoff = 0, lfo = 0, wheel = 0;
     float mix = 0, feedback = 0, level = 0, delay_samples = 0, reverb_mix = 0;
@@ -115,6 +115,7 @@ FORGE_NOINLINE inline size_t EncodeInspector(uint16_t sequence, uint8_t page, co
         byte(a.physical_flags); byte(a.logical_flags); word(a.menu);
         for(auto v : a.raw_turns) word(v);
         for(auto v : a.turns) word(v);
+        byte(a.knob_pages & 127); byte(a.knob_pages >> 7);           // knob n's page: bits 2n..2n+1
     } else if(page == 4) {
         for(const auto& v : a.voices) { byte(v.note); byte(v.source); byte(v.stage); byte(v.slot); byte(v.flags); unit(v.envelope); }
         unit(a.cutoff); unit((a.lfo+1)*.5f); unit(a.wheel); byte(a.pedals);

@@ -108,11 +108,12 @@ class BrowserTests(unittest.TestCase):
 
     def test_initial_render_and_instrument_editing(self):
         p = self.page
-        self.assertEqual(p.locator("#preset option").count(), 14)
+        self.assertEqual(p.locator("#preset option").count(), 15)
         patch_json = self.json()
         self.assertEqual(patch_json["version"], 3)                  # starts on the first v3 preset
-        self.assertFalse(p.is_disabled("#upgrade"))                 # v3 can convert to v4
-        self.assertTrue(p.is_disabled("#sampler-mode"))             # sampler controls need v4
+        self.assertFalse(p.is_disabled("#upgrade"))                 # v3 can convert to v5
+        self.assertTrue(p.is_disabled("#sampler-mode"))             # sampler controls need v4+
+        self.assertTrue(p.is_disabled("#knobs-0"))                  # knob choices need v5
         for control in ("#synth-waveform", "#filter-resonance", "#lfo-rate_hz", "#reverb-mix", "#lfo-mod_wheel"):
             self.assertFalse(p.is_disabled(control), control)
         self.assertEqual(p.input_value("#routing"), patch_json["routing"])
@@ -146,7 +147,7 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(p.input_value("#filter-cutoff_hz-range"), "1000")
         p.screenshot(path=str(SHOTS / "desktop-instrument.png"), full_page=True)
 
-    def test_v2_controls_map_to_v2_fields_and_convert_to_v4(self):
+    def test_v2_controls_map_to_v2_fields_and_convert_to_v5(self):
         p = self.page
         self.choose_preset("Soft Pad")
         self.assertEqual(self.json()["version"], 2)
@@ -158,12 +159,18 @@ class BrowserTests(unittest.TestCase):
         self.assertNotIn("filter", self.json()["modules"])
         before = self.json()
         p.click("#upgrade"); self.wait_idle()
-        self.assertIn("Converted to v4", self.notice())
+        self.assertIn("Converted to v5", self.notice())
         upgraded = self.json()
-        self.assertEqual(upgraded, forge_host.upgrade_patch(before, 4))
-        self.assertEqual((upgraded["version"], upgraded["routing"]), (4, "synth>delay>reverb>output"))
+        self.assertEqual(upgraded, forge_host.upgrade_patch(before, 5))
+        self.assertEqual((upgraded["version"], upgraded["routing"], upgraded["knobs"]), (5, "synth>delay>reverb>output", ["default"] * 4))
         self.assertEqual(upgraded["modules"]["filter"]["cutoff_hz"], 1500)
         self.assertFalse(p.is_disabled("#reverb-mix")); self.assertTrue(p.is_disabled("#upgrade"))
+        # Knob choices (page 1 of the panel knobs) edit the v5 "knobs" list.
+        self.assertFalse(p.is_disabled("#knobs-0"))
+        self.assertIn("Filter: Cutoff", p.locator("#knobs-0 option").all_inner_texts())
+        p.select_option("#knobs-0", "filter.cutoff_hz"); p.select_option("#knobs-3", "reverb.mix")
+        self.assertEqual(self.json()["knobs"], ["filter.cutoff_hz", "default", "default", "reverb.mix"])
+        self.assertEqual(forge_host.validate_patch(self.json())["knobs"][3], "reverb.mix")
 
     def test_save_validates_and_reports_field_errors(self):
         p = self.page
@@ -203,7 +210,7 @@ class BrowserTests(unittest.TestCase):
 
     def test_generate_with_mock_provider_keeps_key_ephemeral(self):
         p, provider = self.page, self.provider
-        provider.status, provider.patch = 200, forge_host.upgrade_patch(forge_host.load_patch(ROOT / "presets" / "08-acid-bass.json"), 4)
+        provider.status, provider.patch = 200, forge_host.upgrade_patch(forge_host.load_patch(ROOT / "presets" / "08-acid-bass.json"), 5)
         provider.requests.clear()
         for name in ("openai", "gemini"):
             p.select_option("#provider", name)
@@ -217,7 +224,7 @@ class BrowserTests(unittest.TestCase):
             self.assertIn(FAKE_KEY, json.dumps(dict(request.header_items())))
             self.assertEqual(json.loads(request.data)["text"]["format"]["schema"]["properties"]["version"]["enum"]
                              if name == "openai" else
-                             json.loads(request.data)["generationConfig"]["responseFormat"]["text"]["schema"]["properties"]["version"]["enum"], [4])
+                             json.loads(request.data)["generationConfig"]["responseFormat"]["text"]["schema"]["properties"]["version"]["enum"], [5])
         # storage_state() reads cookies/localStorage without page eval (blocked by the CSP).
         self.assertNotIn(FAKE_KEY, json.dumps(self.context.storage_state()))
         self.assertNotIn(FAKE_KEY, p.inner_text("#json"))
@@ -243,7 +250,7 @@ class BrowserTests(unittest.TestCase):
         sent = self.json()
         p.click("#send"); self.wait_idle()
         self.assertIn("acknowledged", self.notice())
-        self.assertIn("Firmware 0.5", p.inner_text("#device-state"))
+        self.assertIn("Firmware 0.6", p.inner_text("#device-state"))
         # Legacy v1 delay patch switches device to aux path.
         self.choose_preset("Short slap"); p.click("#send"); self.wait_idle()
         p.click("#capture"); self.wait_idle()
@@ -310,7 +317,7 @@ class BrowserTests(unittest.TestCase):
     def test_sampler_controls_and_device_samples(self):
         p = self.page
         self.choose_preset("Recorded Keys")
-        self.assertEqual(self.json()["version"], 4); self.assertTrue(p.is_disabled("#upgrade"))
+        self.assertEqual(self.json()["version"], 4); self.assertFalse(p.is_disabled("#upgrade"))
         p.select_option("#sampler-mode", "kit"); p.select_option("#sampler-bank", "c"); p.check("#sampler-reverse")
         p.uncheck("#sampler-hold"); p.fill("#sampler-crossfade_ms", "80"); p.fill("#synth-voices", "7")
         s = self.json()["modules"]["sampler"]
@@ -342,10 +349,10 @@ class BrowserTests(unittest.TestCase):
         p.click("#sample-erase"); self.wait_idle(); self.assertIn("again within 4 seconds", self.notice())
         p.click("#sample-erase"); self.wait_idle(); self.assertIn("erased", self.notice())
         expect(p.locator("#sample-slot-3")).not_to_have_class("filled")
-        # A v1 patch is converted to v4 when a sample is used.
+        # A v1 patch is converted to v5 when a sample is used.
         self.choose_preset("Short slap"); self.assertEqual(self.json()["version"], 1)
         p.select_option("#sample-bank", "a"); p.click("#sample-slot-1"); p.click("#sample-use"); self.wait_idle()
-        self.assertEqual((self.json()["version"], self.json()["routing"]), (4, "sampler>delay>reverb>output"))
+        self.assertEqual((self.json()["version"], self.json()["routing"]), (5, "sampler>delay>reverb>output"))
         p.screenshot(path=str(SHOTS / "desktop-samples.png"), full_page=True)
 
     def test_missing_ports_and_lost_reply(self):

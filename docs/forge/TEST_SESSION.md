@@ -1,4 +1,4 @@
-# Forge 0.5 — the one consolidated hardware test
+# Forge 0.6 — the one consolidated hardware test
 
 Status of the candidate: **software-tested, hardware-unverified.** This is the
 single planned physical session. Work top to bottom. If a stage fails, record
@@ -40,7 +40,7 @@ when recording from it (3D); keep headphones on so the speaker cannot feed back.
 | --- | --- | --- |
 | 1.1 | Put `firmware/FORGE.bin` on the test card root as the **only** `.bin` file. On macOS also remove `._FORGE.bin` (`dot_clean -m /Volumes/CARD` or delete it); the bootloader loads the first `.bin` it finds and would reject that metadata file. Use the installed bootloader's normal SD update | Update completes uninterrupted |
 | 1.2 | Power up; watch LED | Initialization completes; no output burst |
-| 1.3 | `H status ...` | Firmware 0.5, version 1 aux patch, counters 0 |
+| 1.3 | `H status ...` | Firmware 0.6, version 1 aux patch, counters 0 |
 
 ## 1A. Inspector development candidate (before the normal audio checks)
 
@@ -180,6 +180,24 @@ key lights. The loop records what you hear (effects before the loop). Up to
 | 3.49 | Menu, Samples page: KEY_24 (copy), LOOP, a white key, CHOMPI | CHOMPI LED pink, then green; the loop is now that sample slot and plays on the keys; while saving, LOOP cannot overdub |
 | 3.50 | `H cc 27 127`, `H cc 27 0`, `H cc 26 127`, `H cc 26 0`, `H cc 24 100` | CC 27 = LOOP, CC 26 = PLAY (as TAPE); CC 24 changes the loop speed while a loop exists |
 | 3.51 | Panic (`H panic`, SW5 without a loop, CC 120) while a loop plays; then switch presets | Panic stops the loop at once (it stays, PLAY resumes it); a preset change does not stop the loop |
+
+## 3F. Knob pages and patch knobs (firmware 0.6)
+
+Each of the four knobs (SW4, SW1, SW2, SW3 = knobs 1–4) has four pages.
+**Press a knob** to step its page; the light at that knob shows which:
+page 1 dim white (the patch's own knob jobs), 2 red, 3 green, 4 blue. Pages
+belong to the panel (they stay when you change presets). See
+`docs/forge/KNOBS.md` (in the repository) for the full map. The knob lights are
+TAPE's through-hole LEDs 1–4; if a light shows up at a different knob, write
+down which one lit — that mapping is not yet hardware-verified.
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.52 | Send `07-warm-pad.json`. Look at the four knob lights; turn each knob a little; then press SW4 once and turn it while holding a chord | All four lights dim white and the knobs do mix / time / feedback / level as before; after the press SW4's light is red and SW4 sweeps the filter cutoff (SW5 still does too) |
+| 3.53 | Press SW4 again (green: resonance), again (blue: filter envelope amount, play short notes), again (white). Press SW1 once and check that only SW1's light changed | Each page audibly does its job; the fourth press is back to page 1; pages are per knob |
+| 3.54 | SW1 pages 2–4 = attack, decay, release (play short notes); SW2 = LFO rate, LFO filter depth (on Warm Pad the sweep is audible), oscillator 2 detune; SW3 = delay mix, delay feedback, reverb mix. Then put every knob back to page 1 (white) | Each control is audible and moves smoothly, without zipper noise or clicks; no stuck notes; the lights follow every press |
+| 3.55 | Send `14-knob-pad.json` (a v5 patch). With all knobs on page 1: turn SW4, SW1, SW2, SW3; then `H cc 20 0` and `H cc 20 127` | SW4 = cutoff, SW1 = LFO speed, SW2 = reverb size, SW3 = reverb mix (the patch chose them); CC 20 moves the cutoff the same way |
+| 3.56 | Send `12-tape-kit-a.json` and play: SW2 on page 4 (blue) = loop crossfade. Send `02-slap.json` (v1 delay) and try SW1's pages. Webapp: open any preset, **Convert to v5**, choose a job for each knob under *Panel knobs*, Send; optionally ask the AI for a patch and look at its knob choices | Sampler: no crash, crossfade changes on looped samples only; v1: SW1 pages 2–4 do nothing (a delay patch has no envelope), no crash; the webapp patch's knobs do what you chose |
 
 ## 4. Panic and recovery
 

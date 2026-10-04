@@ -1,9 +1,37 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-03 (UTC), checkpoint after roadmap items 1–4 (sampler,
-firmware 0.5). Read this first.
+Updated 2026-10-04 (UTC), checkpoint after the knob pages (firmware 0.6).
+Read this first.
 
-## Current checkpoint: looper (roadmap item 5), 2026-10-03
+## Current checkpoint: knob pages and patch knobs (firmware 0.6), 2026-10-04
+
+DC: "We haven't maximized the usage of the hardware knobs and buttons."
+Decisions (AskUserQuestion): **both** fixed pages and patch/AI-assigned knobs,
+press a knob to change its page and its light shows the page; SW6 press does
+nothing for now; build **now**, before the hardware test, and send a new kit.
+Design, map and costs: [KNOBS.md](KNOBS.md). Not run past DC as a separate
+design doc (they answered the design questions directly).
+
+Built and software-tested (nothing hardware-verified):
+- Panel: SW4/SW1/SW2/SW3 presses step each knob's page; page 1 = the patch's
+  knob, pages 2–4 = filter / envelope / LFO-osc / space; knob lights
+  (through-hole LEDs 1–4, TAPE's map) dim white, red, green, blue.
+- Patch v5 (`knobs`, request 88, status 100, firmware minor 6); v1–v4
+  unchanged. Every continuous control has a Parameter id; version-gated.
+- Host/AI/webapp v5, preset `14-knob-pad.json`, Inspector page 3 (97 bytes)
+  with knob pages, MIDI framer 92 bytes, TEST_SESSION 3F (3.52–3.56), 78
+  bridge checks, automatic checks 3.52/3.53/3.55 (pass in simulation).
+
+Checks 2026-10-04: `make test` 9 native suites PASS + 95 Python tests OK; `make sanitize` 9 PASS; `make browser-test` 11 + 4
+OK; `make bench --check` PASS (unchanged: worst 2,671 ≤ WAVE 2,695); ARM
+(xPack GCC 10.3.1) release 227,060 B (78.6 %), development 242,512 B, both
+layout OK. Hardware: none.
+
+Risks: knob light positions and encoder-press reads (from TAPE's source),
+zipper noise on fast turns of filter/envelope controls, the 102-byte v5
+status over USB/UART (two USB packets, as v3/v4).
+
+## Previous checkpoint: looper (roadmap item 5), 2026-10-03
 
 DC: "proceed with the looper build but run the design doc with me first".
 Design and decisions: [LOOPING.md](LOOPING.md) (D1 ~83 s stereo with the sample
@@ -38,7 +66,7 @@ Risks: real CPU of 7 voices + looper (6.2d decides the cap), SDRAM
 bandwidth, KEY_27/28 and LEDs 7/8 (taken from TAPE's source), loudness of
 overdub stacking.
 
-## Previous checkpoint: boot fix and cleanup, 2026-10-03
+## Earlier checkpoint: boot fix and cleanup, 2026-10-03
 
 DC asked to review the new community CHOMPI firmware forks (sfaber02,
 lnetzel, ugrossek, xNeoclox, sthompsonjr; upstream CHOMPI-Club unchanged) and

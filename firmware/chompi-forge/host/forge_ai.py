@@ -5,7 +5,7 @@ import re
 import urllib.error
 import urllib.request
 
-from forge_host import SAMPLE_BANKS, SAMPLE_MODES, SCHEMA, SCHEMA4, parse_json, validate_patch
+from forge_host import SAMPLE_BANKS, SAMPLE_MODES, SCHEMA, SCHEMA5, parse_json, validate_patch
 
 SYSTEM = (
     "Author a Forge v1 stereo_delay JSON preset matching the schema. Only mix, "
@@ -54,7 +54,7 @@ def sample_summary(samples):
 
 def check_samples(patch, samples):
     """A sampler patch must point at a sample the device reported."""
-    if patch["version"] != 4 or not patch["routing"].startswith("sampler") or samples is None: return
+    if patch["version"] < 4 or not patch["routing"].startswith("sampler") or samples is None: return
     s = patch["modules"]["sampler"]
     present = samples["samples"][s["mode"]][s["bank"]]
     if s["mode"] == "kit" and not present:
@@ -85,10 +85,10 @@ def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay", 
     if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 4000:
         raise ValueError("Describe your sound in 1–4000 characters")
     if kind not in ("delay", "instrument"): raise ValueError("Unknown authoring mode")
-    schema = copy.deepcopy(SCHEMA4 if kind == "instrument" else SCHEMA)
+    schema = copy.deepcopy(SCHEMA5 if kind == "instrument" else SCHEMA)
     schema.pop("$schema", None)
     system = SYSTEM if kind == "delay" else (
-        "Author a Forge v4 instrument patch. Installed modules only: synth (main oscillator "
+        "Author a Forge v5 instrument patch. Installed modules only: synth (main oscillator "
         "sine/triangle/saw/square; second oscillator with its own waveform, level, semitone interval and "
         "detune; white noise; amplitude ADSR; voices 1-7, use at most 4 with the oscillators; glide), "
         "sampler (plays sample files already on the device's SD card, TAPE layout: mode chromatic plays one "
@@ -100,12 +100,16 @@ def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay", 
         "Routing synth>delay>reverb>output plays the oscillators, sampler>delay>reverb>output plays samples, "
         "aux>delay>reverb>output processes external audio. All settings are required; set unused modules "
         "neutral (levels/depths 0, env_octaves 0; sampler mode chromatic, bank a, slot 1, pitch 0, start 0, "
-        "end 1). You cannot create or record audio and must only use samples listed below. No FM, "
+        "end 1). knobs: what CHOMPI's four panel knobs (and MIDI CC 20-23) control first, as 'module.key' "
+        "names from the enum; choose the four most expressive controls for this sound (e.g. filter.cutoff_hz "
+        "for a pad, synth.decay_ms for a pluck, lfo.rate_hz for movement), or 'default' (delay mix, time, "
+        "feedback, output level; with the sampler: pitch, start, end, delay mix). The player can still reach "
+        "filter, envelope, LFO and space controls on the knobs' other pages. You cannot create or record audio and must only use samples listed below. No FM, "
         "arbitrary routing or custom code exists. Approximate the request only with these modules. Default "
         "output level 0.25. Return JSON only. " + sample_summary(samples))
     describe(schema)
     # Explicit types and enums work across both providers' JSON Schema subsets.
-    schema["properties"]["version"] = {"type": "integer", "enum": [4 if kind == "instrument" else 1]}
+    schema["properties"]["version"] = {"type": "integer", "enum": [5 if kind == "instrument" else 1]}
     schema["properties"]["engine"] = {"type": "string", "enum": ["instrument" if kind == "instrument" else "stereo_delay"]}
     headers = {"Content-Type": "application/json"}
     if provider == "openai":
@@ -153,7 +157,7 @@ def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay", 
             content = "".join(part["text"] for part in candidate["content"]["parts"]
                               if "text" in part and not part.get("thought"))
         patch = validate_patch(parse_json(content))
-        if patch["version"] != (4 if kind == "instrument" else 1):
+        if patch["version"] != (5 if kind == "instrument" else 1):
             raise ValueError("Wrong patch format for authoring mode")
         check_samples(patch, samples)
         return patch
