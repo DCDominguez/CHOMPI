@@ -52,6 +52,10 @@ per-step CPU, tidy up for the first session home. Software-tested only;
   artifact now holds `Forge Bridge.exe`, `FORGE.bin` and the checklist.
 - ARM (xPack 10.3.1): release 235,980 B (SRAM_EXEC 81.7 %), development
   251,684 B (87.2 %); SRAM 108,196 / 112,260 B; layout checks OK.
+- Kit `Forge-Bridge-dev-b36ba99.zip` (26,910,887 B, sha256 `4b8277f0…565647`,
+  FORGE.bin sha256 `7953ab0c…6890c9b39`; `verify_bundle.py`: 1301 files OK)
+  sent to DC. CI run 37195690217 on `b36ba99` green (firmware, native tests,
+  exe build and smoke test; artifact = exe + FORGE.bin + checklist).
 
 ## Previous checkpoint: firmware 0.7 USB loader and Forge Bridge.exe, 2026-10-04
 
