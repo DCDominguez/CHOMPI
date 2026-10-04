@@ -9,6 +9,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: forge-bridge-exe-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   firmware:
     runs-on: ubuntu-latest
@@ -18,9 +21,9 @@ jobs:
         with:
           release: "10.3-2021.10"
       - name: Development firmware (with the layout check)
-        run: make -C firmware/chompi-forge firmware-dev
+        run: make -j"$(nproc)" -C firmware/chompi-forge firmware-dev
       - name: Native tests
-        run: make -C firmware/chompi-forge build/core_test build/protocol_test build/file_transfer_test build/panel_test && for t in core_test protocol_test file_transfer_test panel_test; do firmware/chompi-forge/build/$t; done
+        run: make -j"$(nproc)" -C firmware/chompi-forge build/core_test build/protocol_test build/file_transfer_test build/panel_test && for t in core_test protocol_test file_transfer_test panel_test; do firmware/chompi-forge/build/$t; done
       - uses: actions/upload-artifact@v4
         with:
           name: forge-dev-firmware
