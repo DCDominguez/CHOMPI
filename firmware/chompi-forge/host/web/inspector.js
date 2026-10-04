@@ -2,6 +2,8 @@
 const $ = id => document.getElementById(id);
 let token, owner, connected = false, busy = false, paused = false, armed = false, jobActive = false;
 let presets = [], checks = [], results = {}, events = [], lastReceived = 0, nextPoll = 0, lastHeartbeat = 0;
+let lastRun = null, prompt = null, cameraStream = null;
+const failedSteps = () => lastRun ? lastRun.steps.filter(s => s.result === "fail" || s.result === "error").map(s => s.id) : [];
 const value = id => $(id).value;
 const number = id => Number(value(id));
 const text = (id, message) => { $(id).textContent = message; };
@@ -9,7 +11,8 @@ function notice(message, error = false) { text("notice", message); $("notice").c
 function controls() {
   for (const id of ["mode", "input", "output", "metadata", "ports", "connect"]) $(id).disabled = busy || connected;
   for (const id of ["pause", "disconnect", "arm", "release", "panic", "save-check"]) $(id).disabled = busy || !connected || (jobActive && id !== "save-check");
-  for (const id of ["detect", "autorun"]) $(id).disabled = busy || !connected || jobActive;
+  for (const id of ["detect", "autorun", "setup", "walk-start", "walk-lights"]) $(id).disabled = busy || !connected || jobActive;
+  $("rerun").disabled = busy || !connected || jobActive || !failedSteps().length;
   $("cancel-job").disabled = !jobActive;
   for (const id of ["export", "jsonl"]) $(id).disabled = busy || !owner;
   $("controls").disabled = busy || !connected || !armed || jobActive;
@@ -164,7 +167,7 @@ function showAudio(info) {
   text("audio-status",`Audio interface: ${info.input?`hears CHOMPI on “${info.input.name}”`:"none hears CHOMPI (audio steps will be skipped)"} · ${info.output?`plays into line in from “${info.output.name}”`:"no output reaches line in (tone steps will be skipped)"}`);
 }
 function showRun(result) {
-  const c=result.counts, box=$("auto-results");
+  lastRun=result; const c=result.counts, box=$("auto-results");
   const head=el("p","auto-counts",`pass ${c.pass} · fail ${c.fail} · error ${c.error} · skipped ${c.skipped}${result.cancelled?" · cancelled":""}. Files: ${result.folder}`);
   const rows=result.steps.map(s=>{
     const d=el("details",`auto-step ${s.result}`); const sum=el("summary");
@@ -185,12 +188,17 @@ function showRun(result) {
 async function followJob() {
   const j=await bridge("job");
   text("job-log",j.progress.join("\n")||"Starting…");
+  if(j.kind==="walk") showPrompt(j.finished?null:j.prompt);
   if(!j.finished) return false;
   jobActive=false; controls();
-  if(j.error) notice(`${j.kind==="autorun"?"Automatic checks":"Audio search"} stopped: ${j.error}`,true);
+  showPrompt(null);
+  const names={autorun:"Automatic checks",audio_detect:"Audio search",setup:"Setup check",walk:"Panel walk"};
+  if(j.error) notice(`${names[j.kind]} stopped: ${j.error}`,true);
   else if(j.kind==="audio_detect") { showAudio(j.result); notice("Audio search finished."); }
-  else { showRun(j.result); notice(`Automatic checks finished: ${j.result.counts.pass} pass, ${j.result.counts.fail} fail, ${j.result.counts.error} error, ${j.result.counts.skipped} skipped.`, j.result.counts.fail+j.result.counts.error>0); }
-  nextPoll=Date.now();
+  else if(j.kind==="setup") { showSetup(j.result); notice(j.result.ok?"Setup check: everything measured fine.":"Setup check found problems; each one lists a fix.",!j.result.ok); }
+  else if(j.kind==="walk") { showWalk(j.result); notice(`Panel walk ${j.result.stopped?"stopped":"finished"}: ${j.result.counts.pass} pass, ${j.result.counts.fail} fail, ${j.result.counts.skipped} skipped.`, j.result.counts.fail>0); }
+  else { showRun(j.result); if(j.result.setup) showSetup(j.result.setup); notice(`Automatic checks finished: ${j.result.counts.pass} pass, ${j.result.counts.fail} fail, ${j.result.counts.error} error, ${j.result.counts.skipped} skipped.`, j.result.counts.fail+j.result.counts.error>0); }
+  controls(); nextPoll=Date.now();
   return true;
 }
 async function startJob(op, body={}) {
@@ -202,6 +210,51 @@ bind("autorun",async()=>{
   await startJob("autorun",{confirm:true});
 });
 bind("cancel-job",async()=>{ await bridge("cancel"); notice("Cancelling after the current step…"); });
+bind("setup",()=>startJob("setup"));
+bind("rerun",()=>startJob("autorun",{confirm:true,only:failedSteps()}));
+bind("walk-start",()=>startJob("walk"));
+bind("walk-lights",()=>startJob("walk",{parts:["lights"]}));
+function row(status, title, detail, extra) {
+  const d=document.createElement("div"); d.className="walk-row";
+  const b=document.createElement("span"); b.className=`badge-${status}`; b.textContent=status.toUpperCase();
+  d.append(b," ",title); if(detail) { const p=document.createElement("div"); p.className="hint"; p.textContent=detail; d.append(p); }
+  if(extra) d.append(extra); return d;
+}
+function showSetup(setup) {
+  $("setup-results").replaceChildren(...setup.findings.map(f=>row(f.status,f.what,f.detail+(f.fix?` Fix: ${f.fix}`:""))));
+}
+function showWalk(walk) {
+  $("walk-results").replaceChildren(...walk.results.map(r=>{
+    let photo=null; if(r.photo) { photo=document.createElement("img"); photo.className="walk-photo"; photo.src=r.photo; photo.alt=`Camera photo for ${r.what}`; }
+    return row(r.result,r.what,r.detail,photo);
+  }));
+}
+function showPrompt(p) {
+  if(!p) { prompt=null; $("walk-box").hidden=true; return; }
+  if(prompt && prompt.seq===p.seq) return;
+  prompt=p; $("walk-box").hidden=false;
+  text("walk-title",p.title); text("walk-text",p.text); text("walk-hint",p.hint||""); text("walk-progress",`${p.done} answered so far`);
+  $("walk-choices").replaceChildren(...p.choices.map(c=>{ const b=document.createElement("button"); b.textContent=c; b.addEventListener("click",()=>answer(c)); return b; }));
+  if(!p.choices.length) text("walk-hint",(p.hint?p.hint+" ":"")+"The bridge is watching; it moves on by itself.");
+}
+function photo() {
+  const v=$("camera"); if(!cameraStream || !v.videoWidth) return undefined;
+  const c=document.createElement("canvas"), w=Math.min(640,v.videoWidth); c.width=w; c.height=Math.round(v.videoHeight*w/v.videoWidth);
+  c.getContext("2d").drawImage(v,0,0,c.width,c.height); return c.toDataURL("image/jpeg",0.7);
+}
+async function answer(value) {
+  if(!prompt) return; const p=prompt;
+  try { await bridge("answer",{seq:p.seq,value,...(p.photo&&value!=="skip"&&value!=="stop"&&photo()?{image:photo()}:{})}); }
+  catch(error) { notice(error.message,true); }
+}
+$("walk-skip").addEventListener("click",()=>answer("skip"));
+$("walk-stop").addEventListener("click",()=>answer("stop"));
+$("camera-on").addEventListener("change",async()=>{
+  if($("camera-on").checked) {
+    try { cameraStream=await navigator.mediaDevices.getUserMedia({video:true}); $("camera").srcObject=cameraStream; $("camera").hidden=false; }
+    catch(error) { $("camera-on").checked=false; notice(`Camera unavailable: ${error.message}`,true); }
+  } else { if(cameraStream) cameraStream.getTracks().forEach(t=>t.stop()); cameraStream=null; $("camera").hidden=true; }
+});
 setInterval(()=>{
   if(lastReceived) text("freshness",`${connected?(paused?"PAUSED":"CONNECTED"):"DISCONNECTED"} · last complete state ${Math.floor((Date.now()-lastReceived)/1000)}s ago`);
   $("telemetry").classList.toggle("stale",!connected || paused || Date.now()-lastReceived>number("interval")*2+2000);
@@ -234,6 +287,7 @@ async function init() {
       const j=await bridge("job");
       if(j.kind && !j.finished) { jobActive=true; text("job-log",j.progress.join("\n")); }
       else if(j.kind==="autorun" && j.result) showRun(j.result);
+      if(j.kind==="walk" && !j.finished) showPrompt(j.prompt);
       showCheck(); controls(); notice(connected?"Session restored with polling paused. Resume when ready.":"Previous session retained. Export before starting a new one.");
       return;
     } catch { owner=null; sessionStorage.removeItem("forge-bridge-owner"); }

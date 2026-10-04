@@ -319,6 +319,88 @@ def detect(device, audio, log=print, cancel=None):
     return result
 
 
+# ---- setup check ---------------------------------------------------------------------------
+def dominant_hz(x, rate):
+    """Strongest frequency above 15 Hz of a noise capture (hum diagnosis)."""
+    s = np.asarray(x, dtype=np.float64)
+    if len(s) < 1024: return None
+    spectrum = np.abs(np.fft.rfft(s * np.hanning(len(s)))); freqs = np.fft.rfftfreq(len(s), 1 / rate)
+    spectrum[freqs < 15] = 0
+    return round(float(freqs[int(np.argmax(spectrum))]), 1)
+
+
+def hum_hint(hz):
+    if hz is None: return ""
+    for mains in (50, 60):
+        if any(abs(hz - mains * k) < 2 for k in range(1, 8)):
+            return f" Strongest at {hz:g} Hz, a mains ({mains} Hz) harmonic: a ground loop."
+    for refresh in (144, 165, 120, 240):
+        if any(abs(hz - refresh * k) < 2 for k in range(1, 12)):
+            return f" Strongest at {hz:g} Hz, a multiple of {refresh} Hz, which matches a monitor's refresh rate: interference through the PC's ground or USB."
+    return f" Strongest at {hz:g} Hz."
+
+
+def setup_check(device, audio, output_found, log=print):
+    """Measure the test rig before the automatic checks: both outputs wired, input gain, noise and
+    hum, and the line input. Returns findings with a plain fix for each problem."""
+    findings = []
+    def add(what, status, detail, fix=""):
+        findings.append({"what": what, "status": status, "detail": detail, "fix": fix})
+        log(f"{status.upper():5} {what}: {detail}" + (f" Fix: {fix}" if fix else ""))
+    rate = audio.rate
+    device.send_patch(host.load_patch(ROOT / "presets/01-dry.json")); time.sleep(0.3)
+    audio.start(1.0); quiet = np.asarray(audio.wait(), dtype=np.float64)
+    if quiet.ndim == 1: quiet = quiet[:, None]
+    for c in range(quiet.shape[1]):
+        rms = db(np.sqrt(np.mean(quiet[:, c] ** 2)))
+        name = ("Input 1 (left)", "Input 2 (right)")[c] if c < 2 else f"Input {c + 1}"
+        if rms < -60: add(f"Noise on {name}", "ok", f"{rms:g} dB RMS with nothing playing.")
+        else:
+            add(f"Noise on {name}", "fail", f"{rms:g} dB RMS with nothing playing (needs below -60 dB)." + hum_hint(dominant_hz(quiet[:, c], rate)),
+                "Plug CHOMPI's USB into another port or a powered hub, unplug the monitor's audio (HDMI), use short cables, "
+                "and turn that input's gain down.")
+    device.send_patch(host.load_patch(ROOT / "presets/04-glass-keys.json")); time.sleep(0.3)
+    audio.start(1.0); time.sleep(0.1); device.note(60, 100); time.sleep(0.5); device.note(60, 0)
+    one = analyze(audio.wait(), rate)
+    if len(one["channels"]) >= 2:
+        left, right = one["channels"][0]["peak_db"], one["channels"][1]["peak_db"]
+        if abs(left - right) <= 6: add("Both outputs", "ok", f"Left {left:g} dB, right {right:g} dB.")
+        else:
+            weak = "right" if right < left else "left"
+            add("Both outputs", "fail", f"Left {left:g} dB, right {right:g} dB: CHOMPI's {weak} output does not reach the interface "
+                f"(what is there is leakage).", f"Cable CHOMPI's {weak} main output to interface input {2 if weak == 'right' else 1}, "
+                "and set both input gains the same.")
+    if one["peak_db"] < -40:
+        add("CHOMPI heard", "fail", f"A C4 peaked at {one['peak_db']:g} dB.", "Check the cable from CHOMPI's main outputs and the input gain.")
+    time.sleep(0.6)
+    audio.start(1.4); time.sleep(0.1)
+    for n in (60, 64, 67, 71): device.note(n, 127)
+    time.sleep(0.8)
+    for n in (60, 64, 67, 71): device.note(n, 0)
+    loud = analyze(audio.wait(), rate)
+    if loud["clipped"]:
+        add("Input gain", "fail", f"A loud four-note chord clipped the interface ({loud['clipped']} samples at full scale).",
+            "Turn the interface input gain down about 10 dB, then check again.")
+    elif loud["peak_db"] > -3:
+        add("Input gain", "warn", f"A loud chord peaks at {loud['peak_db']:g} dB, close to clipping.", "Turn the input gain down about 6 dB.")
+    else: add("Input gain", "ok", f"A loud chord peaks at {loud['peak_db']:g} dB.")
+    plugged = line_jack(device)
+    if plugged is False:
+        add("Line input", "fail", "Nothing is plugged into CHOMPI's line input; its built-in mic is live instead.",
+            "Cable the interface's outputs 1/2 into CHOMPI's line input, then press Find audio interface again.")
+    elif not output_found:
+        add("Line input", "fail", "CHOMPI's line input is plugged in, but no interface output reached it.",
+            "Check that the cable runs from the interface's outputs 1/2 (not the headphone out), then press Find audio interface again.")
+    else:
+        device.send_patch(host.load_patch(ROOT / "presets/01-dry.json")); time.sleep(0.3)
+        audio.start(0.8, tone(1000, 0.5, TONE_DB, rate)); through = analyze(audio.wait(), rate)
+        if through["pitch_hz"] and abs(through["pitch_hz"] - 1000) < 15:
+            add("Line input", "ok", f"A {TONE_DB} dBFS tone comes back at {through['peak_db']:g} dB.")
+        else: add("Line input", "fail", "The test tone did not come back through CHOMPI.", "Check the line-in cable and that direct monitoring is off.")
+    device.send_patch(host.load_patch(ROOT / "presets/01-dry.json"))
+    return {"ok": all(f["status"] != "fail" for f in findings), "findings": findings}
+
+
 # ---- plans ----------------------------------------------------------------------------------
 def lookup(data, dotted):
     for part in dotted.split("."):
@@ -343,11 +425,13 @@ class Runner:
         self.progress, self.cancel = progress or (lambda entry: None), cancel or threading.Event()
         self.captures, self.images, self.last = {}, {}, {}
 
-    def run(self, plan):
+    def run(self, plan, only=None):
+        """Run every step, or only the ids in `only` (re-running failed steps)."""
         steps = []
         try:
             for step in plan["steps"]:
                 if self.cancel.is_set(): break
+                if only is not None and step["id"] not in only: continue
                 entry = {"id": step["id"], "title": step.get("title", ""), "result": "pass", "checks": []}
                 try:
                     if self.simulated and step.get("realtime"):
@@ -489,6 +573,8 @@ def cli(argv=None):
     run.add_argument("--input", help="MIDI input (default: found automatically)"); run.add_argument("--output", help="MIDI output")
     run.add_argument("--no-audio", action="store_true", help="skip audio detection and audio steps")
     run.add_argument("--sim", type=Path, metavar="FORGE_PROBE", help="simulated CHOMPI (no audio, no hardware evidence)")
+    run.add_argument("--only", nargs="+", metavar="STEP", help="run only these steps (e.g. the ones that failed)")
+    run.add_argument("--setup-only", action="store_true", help="only check the test setup (cables, gain, hum, line in)")
     args = parser.parse_args(argv)
     if args.command == "devices":
         print(json.dumps(SoundDeviceAudio().devices(), indent=2)); return 0
@@ -515,7 +601,12 @@ def cli(argv=None):
         wait.seen = {}
         if not args.sim and not args.no_audio:
             bridge.request("audio_detect", {"owner": owner}); print(json.dumps(wait("audio_detect")["result"], indent=2))
-        bridge.request("autorun", {"owner": owner, "folder": report.name, "confirm": True})
+        if args.setup_only:
+            bridge.request("setup", {"owner": owner}); job = wait("setup")
+            if job["error"]: raise RuntimeError(job["error"])
+            return 0 if job["result"]["ok"] else 2
+        bridge.request("autorun", {"owner": owner, "folder": report.name, "confirm": True,
+                                   **({"only": args.only} if args.only else {})})
         job = wait("autorun")
         if job["error"]: raise RuntimeError(job["error"])
         exported = bridge.request("export", {"owner": owner})

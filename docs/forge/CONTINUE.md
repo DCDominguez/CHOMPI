@@ -22,7 +22,27 @@ SD streaming remains gated on physical SD measurements. Older checkpoint and
 PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
 use the latest implementation checkpoint and ledger for present capabilities/budgets.
 
-## Current checkpoint: knob pages and patch knobs (firmware 0.6), 2026-10-04
+## Current checkpoint: first hardware session and bridge test tooling, 2026-10-04
+
+DC flashed the `131776b` development kit and ran automatic checks four times
+(results: [TEST_RESULTS.md](TEST_RESULTS.md)). Firmware behaved as designed
+wherever measured (pitch, keybed, looper states, knob pages, v5 knobs, CPU peak
+≤ 37.6 % since boot in the third run); most audio failures were the rig (left
+output only, 144 Hz hum on IN 1, interface clipping, no line in, no samples).
+Bridge work since (host only, firmware unchanged; commits `7f04996`, `fbd98c1`,
+`2b0ec66` and the setup/walk commit): starting-state `ensure` actions, line-jack
+aware detection, setup check, guided panel walk with light questions and camera
+evidence, re-run failed steps, `CLAUDE.md` for an agent on the test PC. 103
+Python + 16 Chromium tests pass; the walk's physical part is untested on hardware.
+DC also got the TAPE bank-a sample zips and the Panel Map / QA sheet artifacts.
+
+Next: DC fixes the rig (right output to IN 2, IN 1 gain −10 dB, a USB port or
+hub without the hum, interface OUT 1/2 → CHOMPI line in, samples at the card
+root), runs Check setup, the panel walk and the automatic checks, then the
+QA-sheet hand checks. Open: per-step CPU (firmware: reset peak), raise the
+looper voice cap to 7 if 6.2d agrees.
+
+## Previous checkpoint: knob pages and patch knobs (firmware 0.6), 2026-10-04
 
 DC: "We haven't maximized the usage of the hardware knobs and buttons."
 Decisions (AskUserQuestion): **both** fixed pages and patch/AI-assigned knobs,

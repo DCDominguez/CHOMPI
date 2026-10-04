@@ -99,6 +99,22 @@ class BridgeBrowserTests(unittest.TestCase):
         self.page.click("#pause")                      # polling resumes normally after the job
         expect(self.page.locator("#notice")).to_contain_text("snapshot")
 
+    def test_panel_walk_light_questions_in_simulation(self):
+        expect(self.page.locator("#walk-start")).to_be_enabled()
+        self.page.click("#walk-start")                 # the full walk needs hands on a physical CHOMPI
+        expect(self.page.locator("#notice")).to_contain_text("physical CHOMPI")
+        self.page.click("#walk-lights")
+        answers = ["Red", "Green", "Blue", "Dim white", "Dim blue", "Teal", "Red", "Yes"]
+        for n, answer in enumerate(answers):
+            expect(self.page.locator("#walk-box")).to_be_visible(timeout=20000)
+            expect(self.page.locator("#walk-progress")).to_contain_text(f"{n} answered", timeout=20000)
+            if n == 0: self.page.locator("#walk").screenshot(path=str(ROOT/"build/browser/bridge-walk.png"))
+            self.page.locator("#walk-choices button", has_text=answer).first.click()
+        expect(self.page.locator("#notice")).to_contain_text("Panel walk finished: 8 pass, 0 fail", timeout=20000)
+        expect(self.page.locator("#walk-box")).to_be_hidden()
+        self.assertEqual(self.page.locator("#walk-results .walk-row").count(), 8)
+        expect(self.page.locator("#rerun")).to_be_disabled()                    # nothing failed yet
+
     def test_mobile_layout_and_connection_failure(self):
         self.page.set_viewport_size({"width":390,"height":844})
         self.assertLessEqual(self.page.evaluate("document.documentElement.scrollWidth"),390)

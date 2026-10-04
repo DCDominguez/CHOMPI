@@ -1,0 +1,211 @@
+"""Panel walk and setup check: a scripted hand on a fake CHOMPI, the setup check against DC's
+2026-10-04 rig faults, and the bridge's walk/setup/re-run operations in the simulation."""
+from pathlib import Path
+import queue
+import sys
+import tempfile
+import threading
+import time
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "host"))
+try:
+    import numpy as np
+    import forge_audio as audio
+    import forge_walk as walk
+except ImportError:
+    np = None
+import forge_bridge as bridge
+import test_audio
+
+
+class FakeChompi:
+    """Just enough state for the walk: physical switch events, encoder counters, toggle/jack,
+    knob pages and looper state driven by virtual panel taps, active voices."""
+    def __init__(self):
+        self.events, self.raw = [], [0] * 6
+        self.toggle_up, self.jack, self.voices = False, True, 0
+        self.pages, self.looper, self.menu_page, self.held = [1, 1, 1, 1], "empty", "samples", set()
+        self.patches, self.notes = [], []
+
+    def snapshot(self):
+        events, self.events = self.events, []
+        return {"events": events, "panel": {"physical": {"toggle_up": self.toggle_up, "line_jack": self.jack},
+                                            "raw_encoder_turns": list(self.raw), "knob_pages": list(self.pages),
+                                            "menu": {"page": self.menu_page}, "leds": [[0, 0, 0]] * 26},
+                "engine": {"active_voices": self.voices}, "storage": {"looper": {"state": self.looper}}}
+
+    def panel(self, event):
+        kind, ident, value = event["kind"], event["id"], event["value"]
+        if kind == 5: self.held.clear(); return
+        if kind != 0: return
+        if value: self.held.add(ident)
+        else: self.held.discard(ident)
+        if not value: return
+        if ident in (3, 0, 1, 2): k = (3, 0, 1, 2).index(ident); self.pages[k] = self.pages[k] % 4 + 1
+        if ident == 34 and self.looper == "empty": self.looper = "first_take"
+        if {33, 34} <= self.held: self.looper = "empty"          # hold both: cleared (the walk waits 2.3 s)
+        if ident == 23: self.menu_page = "presets" if self.menu_page == "samples" else "samples"
+
+    def send_patch(self, patch): self.patches.append(patch["name"])
+    def note(self, note, velocity):
+        self.notes.append((note, velocity))
+        if velocity: self.voices += 1
+
+    # the hand
+    def press(self, ident): self.events.append({"kind": "key_down", "id": ident, "value": 1})
+
+
+@unittest.skipIf(np is None, "numpy not installed")
+class WalkTests(unittest.TestCase):
+    def run_walk(self, act, parts=("controls", "lights")):
+        device, answers = FakeChompi(), queue.Queue()
+        shown = []
+        def show(prompt):
+            shown.append(prompt)
+            if prompt: act(device, prompt, answers)
+        w = walk.Walk(device, show, answers, threading.Event(), log=lambda line: None, poll=0.001)
+        walk.time = FastTime()                                    # the 2.3 s looper clears take no real time
+        try: return w.run(parts), device, shown
+        finally: walk.time = time
+
+    def test_every_control_confirmed_and_one_miswired_key_reported(self):
+        def hand(device, prompt, answers):
+            ident = prompt["id"]
+            if ident == "toggle": device.toggle_up = not device.toggle_up
+            elif ident.startswith(("white.", "black.", "top.", "knobpress.")):
+                group, n = ident.split("."); n = int(n) - 1
+                names = {"white": walk.WHITE, "black": walk.BLACK, "top": ["CHOMPI", "KEY_27", "KEY_28"],
+                         "knobpress": ["ENC_4_SW", "ENC_1_SW", "ENC_2_SW", "ENC_3_SW", "ENC_6_SW"]}[group]
+                target = audio.PANEL_BUTTONS[names[n]]
+                if ident == "white.3": target = audio.PANEL_BUTTONS["KEY_4"]   # a swapped switch
+                device.press(target)
+            elif ident.startswith("turn."):
+                index = walk.ENCODER[prompt["title"].split()[1]]
+                device.raw[index] += 3 if "RIGHT" in prompt["text"] else -3
+            elif ident == "press.SW5": device.voices = 0
+            elif ident == "jack": device.jack = not device.jack
+            elif ident.startswith("light."):
+                colour = {"light.SW4": "Red", "light.SW1": "Green", "light.SW2": "Blue", "light.SW3": "Dim white",
+                          "light.CHOMPI": "Dim blue", "light.PLAY": "Teal", "light.LOOP": "Off", "light.menu": "Yes"}[ident]
+                answers.put({"value": colour, "image": "data:image/jpeg;base64,AAAA"})
+        result, device, shown = self.run_walk(hand)
+        bad = {r["id"]: r for r in result["results"] if r["result"] != "pass"}
+        self.assertEqual(set(bad), {"white.3", "light.LOOP"}, bad)
+        self.assertIn("expected switch 9 (KEY_3), got 10 (KEY_4)", bad["white.3"]["detail"])
+        self.assertIn("answered Off", bad["light.LOOP"]["detail"])
+        self.assertEqual(bad["light.LOOP"]["photo"], "data:image/jpeg;base64,AAAA")
+        self.assertEqual(result["counts"]["pass"], 15 + 10 + 3 + 5 + 3 + 12 + 1 + 2 + 8 - 2)
+        self.assertEqual(device.pages, [1, 1, 1, 1]); self.assertEqual(device.looper, "empty")   # cleaned up
+        self.assertEqual(device.patches[-1], "Dry routing check")
+        self.assertEqual([v for n, v in device.notes if n in (57, 64)][-2:], [0, 0])            # pad released
+        self.assertIsNone(shown[-1])
+
+    def test_wrong_knob_reversed_direction_skip_and_stop(self):
+        def hand(device, prompt, answers):
+            ident = prompt["id"]
+            if ident == "toggle": answers.put({"value": "skip"})
+            elif ident.startswith(("white.", "black.", "top.", "knobpress.")): answers.put({"value": "skip"})
+            elif ident == "turn.SW1": device.raw[walk.ENCODER["SW2"]] += 3                   # turned the wrong knob
+            elif ident == "turn.SW2": device.raw[walk.ENCODER["SW2"]] += 3                   # same way both times
+            elif ident.startswith("turn."):
+                index = walk.ENCODER[prompt["title"].split()[1]]
+                device.raw[index] += 3 if "RIGHT" in prompt["text"] else -3
+            elif ident == "press.SW5": answers.put({"value": "stop"})
+        result, device, _ = self.run_walk(hand)
+        by = {}
+        for r in result["results"]: by.setdefault(r["id"], []).append(r)
+        self.assertTrue(result["stopped"])
+        self.assertIn("encoder 1 (SW2) moved instead", by["turn.SW1"][0]["detail"])
+        self.assertEqual([r["result"] for r in by["turn.SW2"]], ["pass", "fail"])
+        self.assertTrue(all(r["result"] == "skipped" for r in by["toggle.up"]))
+        self.assertNotIn("light.SW4", by)                                                    # stopped before lights
+
+
+class FastTime:
+    """time without sleeping (the walk's waits are for a real panel)."""
+    def sleep(self, seconds): pass
+    def time(self): return time.time()
+
+
+@unittest.skipIf(np is None, "numpy not installed")
+class SetupCheckTests(unittest.TestCase):
+    class Device:
+        def __init__(self, jack): self.jack = jack
+        def send_patch(self, patch): pass
+        def note(self, note, velocity): pass
+        def snapshot(self): return {"panel": {"physical": {"line_jack": self.jack}}}
+
+    def rig(self, left_only, hum, hot):
+        calls = []
+        def source(frames, play, rate):
+            calls.append(play is not None)
+            t = np.arange(frames) / rate
+            x = np.zeros((frames, 2))
+            if hum: x[:, 0] += 10 ** (-55 / 20) * np.sqrt(2) * np.sin(2 * np.pi * 144 * t)
+            n = len(calls)
+            if n == 2: x[:, 0] += 0.35 * np.sin(2 * np.pi * 261.63 * t)                        # one C4
+            if n == 3: x[:, 0] += (1.4 if hot else 0.3) * np.sin(2 * np.pi * 261.63 * t)       # loud chord
+            if n == 4 and play is not None: x += play[:frames] if len(play) >= frames else np.pad(play, ((0, frames - len(play)), (0, 0)))
+            if n in (2, 3): x[:, 1] += x[:, 0] * (0.045 if left_only else 1.0)
+            return np.clip(x, -1, 1).astype(np.float32)
+        return audio.FakeAudio(source)
+
+    def test_dc_rig_problems_each_get_a_fix(self):
+        result = audio.setup_check(self.Device(False), self.rig(True, True, True), False, log=lambda line: None)
+        status = {f["what"]: f for f in result["findings"]}
+        self.assertFalse(result["ok"])
+        self.assertEqual(status["Noise on Input 1 (left)"]["status"], "fail")
+        self.assertIn("144 Hz", status["Noise on Input 1 (left)"]["detail"])
+        self.assertEqual(status["Noise on Input 2 (right)"]["status"], "ok")
+        self.assertEqual(status["Both outputs"]["status"], "fail"); self.assertIn("right main output", status["Both outputs"]["fix"])
+        self.assertEqual(status["Input gain"]["status"], "fail"); self.assertIn("10 dB", status["Input gain"]["fix"])
+        self.assertEqual(status["Line input"]["status"], "fail"); self.assertIn("line input", status["Line input"]["fix"])
+
+    def test_good_rig_passes(self):
+        result = audio.setup_check(self.Device(True), self.rig(False, False, False), True, log=lambda line: None)
+        self.assertTrue(result["ok"], result)
+        self.assertEqual([f["status"] for f in result["findings"]], ["ok"] * 5)
+
+
+class BridgeWalkTests(unittest.TestCase):
+    _base = test_audio.BridgeAutomaticTests
+    make, tearDown, connect, call, wait = _base.make, _base.tearDown, _base.connect, _base.call, _base.wait
+    @unittest.skipIf(np is None, "numpy not installed")
+    def test_light_questions_in_simulation_rerun_and_export(self):
+        self.make(); self.connect()
+        with self.assertRaisesRegex(RuntimeError, "physical CHOMPI"): self.call("walk")
+        with self.assertRaisesRegex(RuntimeError, "no audio"): self.call("setup")
+        with self.assertRaisesRegex(ValueError, "Walk parts"): self.call("walk", parts=["dance"])
+        self.call("walk", parts=["lights"])
+        expected = {"light.SW4": "Red", "light.SW1": "Green", "light.SW2": "Blue", "light.SW3": "Dim white",
+                    "light.CHOMPI": "Dim blue", "light.PLAY": "Teal", "light.LOOP": "Red", "light.menu": "Yes"}
+        seen = []
+        for _ in range(2000):
+            job = self.call("job")
+            if job["finished"]: break
+            p = job["prompt"]
+            if p and (not seen or seen[-1] != p["seq"]):
+                seen.append(p["seq"])
+                with self.assertRaisesRegex(ValueError, "Unknown answer"): self.call("answer", seq=p["seq"], value="Purple")
+                with self.assertRaisesRegex(ValueError, "no longer open"): self.call("answer", seq=p["seq"] - 1, value="skip")
+                self.call("answer", seq=p["seq"], value=expected[p["id"]])
+            time.sleep(0.01)
+        self.assertIsNone(job["error"]); self.assertEqual(len(seen), 8)
+        self.assertEqual(job["result"]["counts"], {"pass": 8, "fail": 0, "skipped": 0, "error": 0})
+        # The simulation's LED shadow agrees with what the bridge asked about (menu keys lit).
+        menu = next(r for r in job["result"]["results"] if r["id"] == "light.menu")
+        self.assertTrue(any(max(c) > 8 for c in menu["commanded"]))
+        self.assertEqual(self.call("poll")["panel"]["knob_pages"], [1, 1, 1, 1])
+        self.assertEqual(self.call("export")["automatic"]["panel_walks"][0]["counts"]["pass"], 8)
+        # Re-run only chosen steps.
+        with self.assertRaisesRegex(ValueError, "step ids"): self.call("autorun", confirm=True, only=["9.9"])
+        self.call("autorun", confirm=True, only=["3.17", "3.52"], folder="rerun")
+        job = self.wait()
+        self.assertEqual([s["id"] for s in job["result"]["steps"]], ["3.17", "3.52"])
+        self.assertEqual({s["result"] for s in job["result"]["steps"]}, {"pass"})
+
+
+if __name__ == "__main__":
+    unittest.main()

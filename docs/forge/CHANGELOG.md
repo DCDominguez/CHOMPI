@@ -1,5 +1,16 @@
 # Forge changelog
 
+## Bridge: setup check, panel walk, re-runs — 2026-10-04
+
+Host only (firmware unchanged). From the first hardware session.
+- Automatic checks set their own starting state (knob pages, menu page,
+  looper); line-in detection needs the line jack and a clear level; tone steps
+  skip without a plug; 3.29 needs the kit file; 3.1k starts from a known panel.
+- Setup check (cables, both outputs, gain, hum with its likely source, line in).
+- Guided panel walk with automatic confirmation of every physical control and
+  light questions (optional camera photos); re-run failed steps; CLI
+  `--setup-only` / `--only`; `CLAUDE.md` in the development kit for an agent.
+
 ## 0.6 knob pages and patch knobs — 2026-10-04
 
 Design and map: KNOBS.md. Software-tested only.

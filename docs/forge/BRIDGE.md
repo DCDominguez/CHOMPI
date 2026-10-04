@@ -80,6 +80,29 @@ session without the browser: `python\python.exe host\forge_audio.py run` finds
 CHOMPI and the interface, runs the checks and writes `reports\<time>\`
 including `session.json`.
 
+### Setup check, panel walk and re-runs (2026-10-04)
+
+- **Check setup** measures the rig before anything else (it also runs at the
+  start of every automatic run): noise on each input with nothing playing
+  (and where a hum comes from: mains harmonics or a monitor's refresh rate),
+  whether both of CHOMPI's outputs arrive, whether a loud chord clips the
+  interface, and whether the line input is plugged in and fed. Each problem
+  comes with a fix. The first hardware session lost most audio steps to the rig.
+- **Panel walk** (about 10 minutes, once per unit) asks you to press every key,
+  push and turn every knob, flip the toggle and re-plug the line input. The
+  bridge confirms each one from CHOMPI's physical switch bits, encoder counters
+  and events, and records anything that arrives on another control (a swapped
+  or dead switch) or turns the wrong way. SW5's press is confirmed by a held
+  pad stopping (its press is panic). Then it lights known patterns (knob pages,
+  CHOMPI, PLAY/LOOP, menu keys) and asks which colour you see; with **Use a
+  camera** each answer keeps a photo. *Light questions only* also works in the
+  simulation. The walk leaves CHOMPI on the dry patch with the knobs on page 1
+  and no loop.
+- **Re-run failed steps** repeats only the steps that failed or errored.
+- Command line: `forge_audio.py run --setup-only`, `run --only 3.4 3.29`.
+- An agent on the test PC: the development kit's `CLAUDE.md` tells Claude Code
+  (opened in the kit folder) how to run and read the checks.
+
 ## From a source checkout
 
 `host/start_bridge.cmd` in a clone uses Python 3.10–3.12 (python-rtmidi has no

@@ -14,10 +14,19 @@
 <p id="freshness" class="hint">No state received.</p><p class="hint">Reports retain the latest 1,200 trace records plus every checklist result. Export regularly during long sessions. Reloading the server clears the session.</p></section>
 <section class="card section" id="auto"><p class="eyebrow">LISTEN · MEASURE</p><h2>Automatic checks</h2>
 <p class="hint">With an audio interface wired in (CHOMPI's main out → interface inputs, interface outputs → CHOMPI line in, direct monitoring off), the bridge finds it, plays notes and quiet −18 dBFS test tones, records CHOMPI and measures pitch, clicks, level, silence after panic, menu/LED state and CPU. Without an interface, the non-audio checks still run. Results are the bridge's measurements, not your judgement; the guided checks below cover what needs your ears and eyes.</p>
-<div class="button-row"><button id="detect" disabled>Find audio interface</button><button id="autorun" class="primary" disabled>Run automatic checks</button><button id="cancel-job" disabled>Cancel</button></div>
+<div class="button-row"><button id="detect" disabled>Find audio interface</button><button id="setup" disabled>Check setup</button><button id="autorun" class="primary" disabled>Run automatic checks</button><button id="rerun" disabled>Re-run failed steps</button><button id="cancel-job" disabled>Cancel</button></div>
 <p id="audio-status" class="hint">Audio interface: not searched yet.</p>
+<div id="setup-results"></div>
 <pre id="job-log" aria-label="Automatic check progress">Not started.</pre>
 <div id="auto-results"></div></section>
+<section class="card section" id="walk"><p class="eyebrow">HANDS · EYES</p><h2>Panel walk</h2>
+<p class="hint">About 10 minutes, once per unit. The bridge asks you to press, turn and flip every physical control and confirms each one itself from CHOMPI's switch readings; anything that arrives on a different control is recorded. Then it lights known patterns and asks which colour you see. Use the CHOMPI Panel Map if the keys are unlabelled. Nothing is written to the SD card; the walk leaves CHOMPI on the dry patch.</p>
+<div class="button-row"><button id="walk-start" class="primary" disabled>Start panel walk</button><button id="walk-lights" disabled>Light questions only</button></div>
+<label class="check"><input type="checkbox" id="camera-on">Use a camera: point it at CHOMPI; each light answer keeps a photo as evidence</label>
+<video id="camera" autoplay muted playsinline hidden></video>
+<div id="walk-box" hidden><p id="walk-progress" class="hint"></p><h3 id="walk-title"></h3><p id="walk-text" class="walk-text"></p><p id="walk-hint" class="hint"></p>
+<div id="walk-choices" class="button-row"></div><div class="button-row"><button id="walk-skip">Skip this one</button><button id="walk-stop">Stop the walk</button></div></div>
+<div id="walk-results"></div></section>
 <div class="grid telemetry" id="telemetry">
 <section class="card"><p class="eyebrow">SYSTEM</p><h2>Timing &amp; health</h2><div id="system-summary">Waiting for device.</div><details><summary>All system fields</summary><div id="system-fields"></div></details></section>
 <section class="card"><p class="eyebrow">PANEL</p><h2>Hands to firmware</h2><p class="hint">Filled: physical switch held. Outline: logical state. Labels show switch index / MIDI note. This is an index map, not board geometry.</p><div id="keys" class="key-map"></div><div id="panel-summary"></div><h3>Commanded LEDs</h3><p class="hint">Renderer indices 0–24 and CHOMPI (25). Compare with the physical lights.</p><div id="leds" class="led-map"></div><details><summary>All panel fields &amp; mapping</summary><div id="panel-fields"></div></details></section>

@@ -56,9 +56,10 @@ def main():
     }
     for name in ("forge_host.py", "forge_ai.py", "forge_ai_check.py", "forge_web.py", "forge_bridge.py",
                  "forge_inspector.py", "bridge_checks.json", "start_bridge.cmd", "requirements.txt", "README.md",
-                 "forge_audio.py", "auto_checks.json", "bridge-requirements.txt", "windows-runtime.json"):
+                 "forge_audio.py", "forge_walk.py", "auto_checks.json", "bridge-requirements.txt", "windows-runtime.json"):
         files["host/" + name] = (ROOT / "host" / name).read_bytes()
-    for name in ("BRIDGE.md", "INSPECTOR.md", "TEST_SESSION.md"):
+    if args.development: files["CLAUDE.md"] = (ROOT / "host/KIT_CLAUDE.md").read_bytes()   # for an agent on the test PC
+    for name in ("BRIDGE.md", "INSPECTOR.md", "TEST_SESSION.md", "KNOBS.md", "TEST_RESULTS.md"):
         files["docs/" + name] = (REPO / "docs/forge" / name).read_bytes()
     probe = ROOT / "build" / ("forge_probe.exe" if sys.platform == "win32" else "forge_probe")
     if args.include_probe:
@@ -66,7 +67,8 @@ def main():
     for path in sorted((ROOT / "host/web").iterdir()):
         if path.is_file():
             files["host/web/" + path.name] = path.read_bytes()
-    files["host/instrument.schema.json"] = (json.dumps(forge_host.SCHEMA4, indent=2) + "\n").encode()
+    files["host/instrument.schema.json"] = (json.dumps(forge_host.SCHEMA5, indent=2) + "\n").encode()
+    files["host/instrument-v4.schema.json"] = (json.dumps(forge_host.SCHEMA4, indent=2) + "\n").encode()
     files["host/instrument-v3.schema.json"] = (json.dumps(forge_host.SCHEMA3, indent=2) + "\n").encode()
     files["host/instrument-v2.schema.json"] = (json.dumps(forge_host.SCHEMA2, indent=2) + "\n").encode()
     files["docs/CONTINUE.md"] = (REPO / "docs/forge/CONTINUE.md").read_bytes()

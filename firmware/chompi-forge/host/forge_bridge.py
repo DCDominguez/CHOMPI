@@ -13,10 +13,13 @@ import forge_host as host
 import forge_inspector as inspector
 try:                       # automatic checks need numpy (+ sounddevice for a real interface)
     import forge_audio
+    import forge_walk
 except ImportError as missing:
-    forge_audio, AUDIO_MISSING = None, f"Automatic checks need numpy and sounddevice ({missing.name} is not installed)"
+    forge_audio = forge_walk = None
+    AUDIO_MISSING = f"Automatic checks need numpy and sounddevice ({missing.name} is not installed)"
 else:
     AUDIO_MISSING = None
+PHOTO_LIMIT = 600_000      # characters of one camera snapshot (JPEG data URL) kept as light-check evidence
 
 ROOT = Path(__file__).resolve().parent
 CHECKS = json.loads((ROOT / "bridge_checks.json").read_text(encoding="utf-8"))
@@ -161,7 +164,7 @@ class SessionDevice:
 
 class Bridge:
     # Operations allowed while a background job (audio detection, automatic checks) owns the transport.
-    DURING_JOB = ("job", "cancel", "capture", "heartbeat", "resume", "export", "check", "marker")
+    DURING_JOB = ("job", "cancel", "capture", "heartbeat", "resume", "export", "check", "marker", "answer")
 
     def __init__(self, midi_lock, probe=None, factory=Transport, ports=midi_ports, audio_factory=None, reports=None, plan=None):
         self.midi_lock, self.probe, self.factory, self.ports = midi_lock, probe, factory, ports
@@ -207,7 +210,8 @@ class Bridge:
                 "connection": self.connection, "checks": dict(self.results),
                 "checklist": CHECKS, "records": list(self.records),
                 "records_omitted": self.total_records-len(self.records),
-                "automatic": {"audio": self.audio_info, "runs": list(self.runs)},
+                "automatic": {"audio": self.audio_info, "runs": list(self.runs), "setup": list(self.setups),
+                              "panel_walks": list(self.walks)},
                 "hardware_verified": False,
                 "claim": "Check results are operator observations; simulation and injected events are not physical verification. "
                          "Automatic results are the bridge's measurements of CHOMPI's audio output and telemetry: "
@@ -281,6 +285,7 @@ class Bridge:
                 self.injected = self.armed = self.pedal = False
                 self.latest = None
                 self.audio, self.audio_info, self.runs, self.images = None, None, [], {}
+                self.walks, self.setups = [], []
                 self.touched = time.monotonic()
                 try: snapshot = self.snapshot()
                 except Exception:
@@ -295,12 +300,12 @@ class Bridge:
                 return {"connected":bool(self.transport), "snapshot":self.latest,
                         "checks":dict(self.results), "metadata":self.metadata, "mode":self.mode,
                         "armed":self.armed if self.transport else False}
-            if operation in ("job", "cancel", "capture"): return self.job_request(operation, body)
+            if operation in ("job", "cancel", "capture", "answer"): return self.job_request(operation, body)
             if not self.transport: raise RuntimeError("Session disconnected; export the report or reconnect")
             self.touched = time.monotonic()
             if self.busy() and operation not in self.DURING_JOB:
                 raise RuntimeError("Automatic checks are running; wait for them or Cancel")
-            if operation in ("audio_detect", "autorun"): return self.start_job(operation, body)
+            if operation in ("audio_detect", "autorun", "setup", "walk"): return self.start_job(operation, body)
             if operation == "disconnect":
                 self.disconnect("Operator disconnected")
                 return {"disconnected": True, "cleanup_errors":self.cleanup_errors}
@@ -381,22 +386,35 @@ class Bridge:
         if kind == "autorun" and body.get("confirm") is not True:
             raise ValueError("Confirm that automatic checks may send patches, notes, tones and virtual panel presses")
         if forge_audio is None: raise RuntimeError(AUDIO_MISSING)
+        only = None
         if kind == "autorun":
             plan = json.loads(self.plan.read_text(encoding="utf-8"))
             folder = body.get("folder") or time.strftime("%Y%m%d-%H%M%S")
             if not isinstance(folder, str) or not folder.replace("-", "").isalnum(): raise ValueError("Invalid report folder")
+            if body.get("only") is not None:
+                only = body["only"]
+                ids = {step["id"] for step in plan["steps"]}
+                if not isinstance(only, list) or not only or any(i not in ids for i in only):
+                    raise ValueError("Re-run needs step ids from the automatic checks")
+        if kind == "walk" and body.get("parts") is not None and (not isinstance(body["parts"], list) or not body["parts"]
+                                                                 or any(p not in ("controls", "lights") for p in body["parts"])):
+            raise ValueError("Walk parts: controls and/or lights")
+        if kind == "walk" and self.mode == "simulation" and body.get("parts") != ["lights"]:
+            raise RuntimeError("The panel walk needs your hands on a physical CHOMPI; the simulation can only show the light questions")
+        if kind == "setup" and self.mode == "simulation":
+            raise RuntimeError("The simulation has no audio; the setup check measures your interface and cables")
         if kind == "audio_detect" and self.mode == "simulation":
             raise RuntimeError("The simulation has no audio; automatic checks skip audio steps there")
         if kind == "audio_detect" and self.audio_factory is None:
             raise RuntimeError("Audio detection is disabled for this session")
         job = {"kind": kind, "started": now(), "finished": None, "progress": [], "result": None, "error": None,
-               "cancel": threading.Event()}
+               "cancel": threading.Event(), "prompt": None, "answers": queue.Queue()}
         device = SessionDevice(self)
         def say(line):
             job["progress"].append(line); self.touched = time.monotonic()
         def body_():
             try:
-                if kind == "audio_detect":
+                if kind in ("audio_detect", "setup") and (kind == "audio_detect" or self.audio is None):
                     audio = self.audio_factory()
                     info = forge_audio.detect(device, audio, say, job["cancel"])
                     self.audio = audio if info["input"] else None
@@ -404,16 +422,31 @@ class Bridge:
                     say("Hears CHOMPI on: " + (info["input"]["name"] if info["input"] else "nothing (audio steps will be skipped)"))
                     say("Plays into line in from: " + (info["output"]["name"] if info["output"] else "nothing (tone steps will be skipped)"))
                     job["result"] = info
-                else:
+                if kind == "setup":
+                    if self.audio is None: raise RuntimeError("No audio input hears CHOMPI; check the cable from CHOMPI's main outputs")
+                    say("Checking the test setup…")
+                    setup = forge_audio.setup_check(device, self.audio, bool(self.audio_info and self.audio_info.get("output")), say)
+                    setup["utc"] = now(); self.setups.append(setup); job["result"] = setup
+                elif kind == "walk":
+                    walk = forge_walk.Walk(device, lambda p: job.__setitem__("prompt", p), job["answers"], job["cancel"], say)
+                    result = walk.run(tuple(body.get("parts") or ("controls", "lights")))
+                    result["utc"] = now(); self.walks.append(result); job["result"] = result
+                elif kind == "autorun":
+                    if self.audio is not None and only is None:
+                        say("Checking the test setup first…")
+                        setup = forge_audio.setup_check(device, self.audio, bool(self.audio_info and self.audio_info.get("output")), say)
+                        setup["utc"] = now(); self.setups.append(setup)
+                        if not setup["ok"]: say("The setup has problems (above): audio results may reflect the cables, not CHOMPI.")
                     runner = forge_audio.Runner(device, self.audio, self.reports / folder, ROOT.parent,
                                                 lambda e: say(f"{e['id']:>6}  {e['result']:<8} {e['title']}"), job["cancel"],
                                                 simulated=self.mode == "simulation")
-                    result = runner.run(plan)
+                    result = runner.run(plan, only)
+                    if self.setups and only is None and self.audio is not None: result["setup"] = self.setups[-1]
                     self.images.update(runner.images)
                     result.update(folder=str((self.reports / folder).resolve()), audio=self.audio_info)
                     self.runs.append(result)
                     job["result"] = result
-                self.log(kind, job["result"])
+                self.log(kind, {k: v for k, v in job["result"].items() if k != "results"} if kind == "walk" else job["result"])
             except Exception as error:
                 job["error"] = f"{type(error).__name__}: {error}"
                 self.log("error", f"{kind}: {job['error']}")
@@ -431,10 +464,20 @@ class Bridge:
             image = self.images.get(body.get("image"))
             if image is None: raise ValueError("Unknown capture")
             return {"image": body["image"], "png": forge_audio.data_url(image)}
-        if not job: return {"kind": None, "finished": None, "progress": [], "result": None, "error": None}
+        if not job: return {"kind": None, "finished": None, "progress": [], "result": None, "error": None, "prompt": None}
         if operation == "cancel": job["cancel"].set()
+        if operation == "answer":
+            prompt, value, image = job["prompt"], body.get("value"), body.get("image")
+            if not prompt or body.get("seq") != prompt["seq"]: raise ValueError("That question is no longer open")
+            if value not in (*prompt["choices"], "skip", "stop"): raise ValueError("Unknown answer")
+            if image is not None and (not isinstance(image, str) or not image.startswith("data:image/jpeg;base64,")
+                                      or len(image) > PHOTO_LIMIT):
+                raise ValueError("Camera photo must be a JPEG under 450 KB")
+            job["answers"].put({"value": value, **({"image": image} if image else {})})
+            self.log("walk_answer", {"id": prompt["id"], "value": value, "photo": bool(image)})
+            return {"accepted": True}
         return {"kind": job["kind"], "started": job["started"], "finished": job["finished"], "progress": list(job["progress"]),
-                "result": job["result"], "error": job["error"], "cancelling": job["cancel"].is_set()}
+                "result": job["result"], "error": job["error"], "cancelling": job["cancel"].is_set(), "prompt": job["prompt"]}
 
     def prepare(self, body):
         action = body.get("action")

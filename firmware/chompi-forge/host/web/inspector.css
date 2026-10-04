@@ -5,3 +5,11 @@ header a{color:var(--accent)}.telemetry,.section{margin-top:20px}.telemetry .car
 #auto .badge-pass{color:#2e9d5b}#auto .badge-fail,#auto .badge-error{color:#d0453b}#auto .badge-skipped{color:#8a8a8a}
 #auto .spectrogram{display:block;max-width:100%;height:auto;image-rendering:pixelated;margin:.4rem 0}
 #auto #job-log{max-height:14rem;overflow:auto}
+#walk .walk-text{font-size:1.35rem;line-height:1.4;font-weight:600;margin:.4rem 0}
+#walk #walk-box{border:1px solid var(--accent);border-radius:8px;padding:12px 14px;margin-top:12px}
+#walk video{display:block;width:100%;max-width:420px;border-radius:6px;margin-top:10px}
+#walk .walk-photo{display:block;max-width:220px;margin:.3rem 0;border-radius:4px}
+#walk .walk-row,#setup-results .walk-row{border-top:1px solid rgba(127,127,127,.25);padding:.35rem 0}
+.badge-ok,.badge-pass{color:#2e9d5b}.badge-warn{color:#c9902b}.badge-fail,.badge-error{color:#d0453b}.badge-skipped{color:#8a8a8a}
+.walk-row [class^="badge-"]{display:inline-block;min-width:5.5em;font-weight:700;font-size:.8em;letter-spacing:.05em}
+#walk video[hidden]{display:none}
