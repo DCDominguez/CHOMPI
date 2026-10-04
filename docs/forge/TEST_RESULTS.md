@@ -29,6 +29,17 @@ Rig (all four failures):
 - 3.29: no kit-a file on the card (sample list), so no sample sound.
 - Line in unplugged: 2.1, 2.2, 2.4, 3.34, 3.42 skipped.
 
+Later the same evening, after the rig fixes (reports `20261004-202421` …
+`20261004-203526`, ten runs while DC adjusted gain and cables): the last two
+full runs are **21 pass, 1 fail, 5 skipped**.
+- Rig fixed: right output now on IN 2 (L/R within 1 dB, pad correlation
+  0.78), no clipping (3.4 chord peak −9.4 dB), floor −67 dB RMS (0.n, 4.1 pass;
+  panic leaves −64 dB). Notes peak about −20 dB.
+- 6.2b synth worst case **36.9 % / 37.1 %** CPU in the step, no drops or clicks.
+  6.2c still silent (no recording; that exe predates the 6.2c sound check), so
+  its 36 % is not a sampler figure.
+- Only failure: 3.29, no kit-a file on the card. Line in still unplugged.
+
 ## 2026-10-04 — first hardware session (DC), firmware 0.6 development (`131776b`)
 
 Setup: CHOMPI over USB, Forge bridge (port 8766), Behringer UMC204HD. Source:
