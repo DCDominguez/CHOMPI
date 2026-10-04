@@ -22,6 +22,10 @@ else:
 PHOTO_LIMIT = 600_000      # characters of one camera snapshot (JPEG data URL) kept as light-check evidence
 
 ROOT = Path(__file__).resolve().parent
+# Where reports go and where card files are picked up: the kit folder, or next to Forge Bridge.exe.
+import sys
+DATA = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else ROOT.parent
+import forge_card
 CHECKS = json.loads((ROOT / "bridge_checks.json").read_text(encoding="utf-8"))
 # Only ports whose names say CHOMPI (USB product string) or Daisy are ever probed by discover.
 CHOMPI_NAMES = ("chompi", "daisy")
@@ -96,8 +100,12 @@ class Transport:
             self.destination.send(self.midi.Message.from_bytes(data))
 
     def exchange(self, payload, decoder=host.decode_response, timeout=2):
-        sequence = host.read14(payload, 5)
         self.raw([0xf0, *payload, 0xf7])
+        return self.receive(payload, decoder, timeout)
+
+    def receive(self, payload, decoder=host.decode_response, timeout=2):
+        """The reply to an already sent request (pipelined file transfer sends several first)."""
+        sequence = host.read14(payload, 5)
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             if self.process:
@@ -162,6 +170,11 @@ class SessionDevice:
         self.bridge.transport.raw([0xb0, control, value])
 
 
+def Card(bridge, device):
+    """forge_card.Card over the bridge session's transport (job thread only)."""
+    return forge_card.Card(bridge.transport, bridge.seq, log=lambda line: None)
+
+
 class Bridge:
     # Operations allowed while a background job (audio detection, automatic checks) owns the transport.
     DURING_JOB = ("job", "cancel", "capture", "heartbeat", "resume", "export", "check", "marker", "answer")
@@ -169,7 +182,9 @@ class Bridge:
     def __init__(self, midi_lock, probe=None, factory=Transport, ports=midi_ports, audio_factory=None, reports=None, plan=None):
         self.midi_lock, self.probe, self.factory, self.ports = midi_lock, probe, factory, ports
         self.audio_factory = audio_factory or (forge_audio.SoundDeviceAudio if forge_audio else None)
-        self.reports = Path(reports) if reports else ROOT.parent / "reports"
+        self.reports = Path(reports) if reports else DATA / "reports"
+        self.card_folder = DATA / "card"                                    # files to copy onto CHOMPI's SD card
+        self.firmware = ROOT.parent / "firmware" / "FORGE.bin"              # the kit's (or the exe's) firmware
         self.plan = Path(plan) if plan else ROOT / "auto_checks.json"   # server-side choice; never from a browser
         self.job = None
         self.log_lock = threading.Lock()
@@ -305,7 +320,8 @@ class Bridge:
             self.touched = time.monotonic()
             if self.busy() and operation not in self.DURING_JOB:
                 raise RuntimeError("Automatic checks are running; wait for them or Cancel")
-            if operation in ("audio_detect", "autorun", "setup", "walk"): return self.start_job(operation, body)
+            if operation in ("audio_detect", "autorun", "setup", "walk", "card_upload", "install"): return self.start_job(operation, body)
+            if operation == "card_list": return self.card_list()
             if operation == "disconnect":
                 self.disconnect("Operator disconnected")
                 return {"disconnected": True, "cleanup_errors":self.cleanup_errors}
@@ -385,7 +401,7 @@ class Bridge:
     def start_job(self, kind, body):
         if kind == "autorun" and body.get("confirm") is not True:
             raise ValueError("Confirm that automatic checks may send patches, notes, tones and virtual panel presses")
-        if forge_audio is None: raise RuntimeError(AUDIO_MISSING)
+        if forge_audio is None and kind not in ("card_upload", "install"): raise RuntimeError(AUDIO_MISSING)
         only = None
         if kind == "autorun":
             plan = json.loads(self.plan.read_text(encoding="utf-8"))
@@ -401,6 +417,15 @@ class Bridge:
             raise ValueError("Walk parts: controls and/or lights")
         if kind == "walk" and self.mode == "simulation" and body.get("parts") != ["lights"]:
             raise RuntimeError("The panel walk needs your hands on a physical CHOMPI; the simulation can only show the light questions")
+        if kind == "card_upload":
+            available = {p.name: p for p in self.card_files()}
+            names = body.get("files")
+            if not isinstance(names, list) or not names or any(n not in available for n in names):
+                raise ValueError(f"Choose files from {self.card_folder}")
+            uploads = [available[n] for n in names]
+        if kind == "install":
+            if not self.firmware.is_file(): raise RuntimeError("This kit has no firmware/FORGE.bin to install")
+            if body.get("confirm") is not True: raise ValueError("Confirm that CHOMPI may restart to install firmware")
         if kind == "setup" and self.mode == "simulation":
             raise RuntimeError("The simulation has no audio; the setup check measures your interface and cables")
         if kind == "audio_detect" and self.mode == "simulation":
@@ -427,6 +452,30 @@ class Bridge:
                     say("Checking the test setup…")
                     setup = forge_audio.setup_check(device, self.audio, bool(self.audio_info and self.audio_info.get("output")), say)
                     setup["utc"] = now(); self.setups.append(setup); job["result"] = setup
+                elif kind in ("card_upload", "install"):
+                    files = Card(self, device)
+                    done = []
+                    for path in (uploads if kind == "card_upload" else [self.firmware]):
+                        data = path.read_bytes(); shown = [0]
+                        def progress(at, total, name=path.name):
+                            if at - shown[0] >= 32768 or at == total: shown[0] = at; job["progress_bar"] = [name, at, total]
+                        say(f"{path.name}: writing {len(data) / 1024:.0f} KB…")
+                        seconds = files.upload(path.name, data, progress, job["cancel"])
+                        say(f"{path.name}: written in {seconds:.1f} s"); done.append(path.name)
+                    result = {"written": done}
+                    if kind == "install":
+                        job["prompt"] = {"seq": 1, "id": "install", "title": "Install firmware",
+                                         "text": "Press the CHOMPI key on the panel now.", "choices": [],
+                                         "hint": "Its light blinks white for 15 seconds. Pressing it restarts CHOMPI: the bootloader "
+                                                 "installs the new firmware (rainbow lights), then Forge starts.", "photo": False, "done": 0}
+                        restarted = files.install(wait=20, cancel=job["cancel"])
+                        job["prompt"] = None
+                        result["restarting"] = restarted
+                        say("CHOMPI is restarting to install the firmware. Wait for the rainbow lights to finish, then press Connect CHOMPI."
+                            if restarted else "No CHOMPI key press within 15 seconds: nothing installed (FORGE.bin stays on the card).")
+                        if restarted and self.mode == "hardware":
+                            with self.lock: self.disconnect("CHOMPI restarting to install firmware")
+                    job["result"] = result
                 elif kind == "walk":
                     walk = forge_walk.Walk(device, lambda p: job.__setitem__("prompt", p), job["answers"], job["cancel"], say)
                     result = walk.run(tuple(body.get("parts") or ("controls", "lights")))
@@ -458,6 +507,19 @@ class Bridge:
         job["thread"].start()
         return {"started": kind}
 
+    def card_files(self):
+        self.card_folder.mkdir(parents=True, exist_ok=True)
+        return forge_card.files_in(self.card_folder)
+
+    def card_list(self):
+        files = [{"name": p.name, "kb": round(p.stat().st_size / 1024)} for p in self.card_files()]
+        firmware = None
+        if self.firmware.is_file():
+            import hashlib
+            firmware = {"kb": round(self.firmware.stat().st_size / 1024),
+                        "sha256": hashlib.sha256(self.firmware.read_bytes()).hexdigest()}
+        return {"folder": str(self.card_folder.resolve()), "files": files, "firmware": firmware}
+
     def job_request(self, operation, body):
         job = self.job
         if operation == "capture":
@@ -477,7 +539,8 @@ class Bridge:
             self.log("walk_answer", {"id": prompt["id"], "value": value, "photo": bool(image)})
             return {"accepted": True}
         return {"kind": job["kind"], "started": job["started"], "finished": job["finished"], "progress": list(job["progress"]),
-                "result": job["result"], "error": job["error"], "cancelling": job["cancel"].is_set(), "prompt": job["prompt"]}
+                "result": job["result"], "error": job["error"], "cancelling": job["cancel"].is_set(), "prompt": job["prompt"],
+                "progress_bar": job.get("progress_bar")}
 
     def prepare(self, body):
         action = body.get("action")

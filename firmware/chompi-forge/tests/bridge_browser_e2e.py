@@ -7,7 +7,7 @@ import threading
 import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(ROOT/"host"))
+sys.path.insert(0,str(ROOT/"host")); sys.path.insert(0,str(ROOT/"tests"))
 import forge_web
 from playwright.sync_api import expect, sync_playwright
 
@@ -60,7 +60,7 @@ class BridgeBrowserTests(unittest.TestCase):
         expect(self.page.locator("#action-result")).to_contain_text('"note_off_sent": true')
         self.page.fill("#observation","Injected activity only; physical controls still pending.")
         self.page.select_option("#result","blocked"); self.page.click("#save-check")
-        expect(self.page.locator("#check-progress")).to_contain_text("1 / 78")
+        expect(self.page.locator("#check-progress")).to_contain_text("1 / 82")
         self.page.get_by_text("SD presets & samples",exact=True).click()
         self.page.click('[data-preset="store"]')
         expect(self.page.locator("#notice")).to_contain_text("Confirm the SD")
@@ -114,6 +114,18 @@ class BridgeBrowserTests(unittest.TestCase):
         expect(self.page.locator("#walk-box")).to_be_hidden()
         self.assertEqual(self.page.locator("#walk-results .walk-row").count(), 8)
         expect(self.page.locator("#rerun")).to_be_disabled()                    # nothing failed yet
+
+    def test_card_section_copies_a_sample(self):
+        import test_card
+        folder = Path(tempfile.mkdtemp()); (folder / "jammi_e5.wav").write_bytes(test_card.wav(0.2))
+        self.server.bridge.card_folder = folder
+        self.page.click("#card-refresh")
+        expect(self.page.locator("#card-files")).to_contain_text("jammi_e5.wav")
+        expect(self.page.locator("#card-folder")).to_contain_text(str(folder))
+        self.page.click("#card-upload")
+        expect(self.page.locator("#notice")).to_contain_text("Copied to CHOMPI's card: jammi_e5.wav", timeout=20000)
+        expect(self.page.locator("#card-log")).to_contain_text("written")
+        self.page.locator("#card").screenshot(path=str(ROOT/"build/browser/bridge-card.png"))
 
     def test_mobile_layout_and_connection_failure(self):
         self.page.set_viewport_size({"width":390,"height":844})

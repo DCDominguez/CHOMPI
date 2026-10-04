@@ -19,6 +19,15 @@
 <div id="setup-results"></div>
 <pre id="job-log" aria-label="Automatic check progress">Not started.</pre>
 <div id="auto-results"></div></section>
+<section class="card section" id="card"><p class="eyebrow">USB · NO CARD SWAPPING</p><h2>Card &amp; firmware</h2>
+<p class="hint">Firmware 0.7 or newer. Copies samples onto CHOMPI's SD card and installs firmware over this USB cable, so the card can stay in CHOMPI. Accepted: TAPE sample names (jammi_/cubbi_ + bank a–e + slot 1–14, .wav) and FORGE.bin. Each file replaces the one on the card only after it arrived complete and checked.</p>
+<p id="card-folder" class="hint">Connect to see the card folder.</p>
+<div id="card-files" class="card-files"></div>
+<div class="button-row"><button id="card-refresh" disabled>Refresh list</button><button id="card-upload" disabled>Copy selected to CHOMPI</button><button id="fw-install" class="primary" disabled>Install this kit's firmware</button></div>
+<p id="fw-info" class="hint"></p>
+<progress id="card-progress" max="1" value="0" hidden></progress>
+<div id="install-box" hidden><p class="walk-text">Press the CHOMPI key on the panel now.</p><p class="hint">Its light blinks white for 15 seconds. CHOMPI then restarts; the bootloader installs the new firmware (rainbow lights) and Forge starts. Then press Connect CHOMPI again.</p></div>
+<pre id="card-log" aria-label="Card and firmware progress">Nothing copied yet.</pre></section>
 <section class="card section" id="walk"><p class="eyebrow">HANDS · EYES</p><h2>Panel walk</h2>
 <p class="hint">About 10 minutes, once per unit. The bridge asks you to press, turn and flip every physical control and confirms each one itself from CHOMPI's switch readings; anything that arrives on a different control is recorded. Then it lights known patterns and asks which colour you see. Use the CHOMPI Panel Map if the keys are unlabelled. Nothing is written to the SD card; the walk leaves CHOMPI on the dry patch.</p>
 <div class="button-row"><button id="walk-start" class="primary" disabled>Start panel walk</button><button id="walk-lights" disabled>Light questions only</button></div>

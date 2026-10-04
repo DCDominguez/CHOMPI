@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include "engine.h"
+#include "file_transfer.h"
 #include "preset_menu.h"
 #include "recorder.h"
 #include "sample_loader.h"
@@ -88,7 +89,8 @@ public:
 #endif
 
     void Block(const PanelInput& hardware, Engine& engine, Recorder& recorder, PanelSink& sink) {
-        const uint64_t keys = hardware.keys | virtual_keys_;
+        uint64_t keys = hardware.keys | virtual_keys_;
+        if(install_gate_) install_gate_->Filter(keys, panel::kChompiKey);   // firmware install confirmation owns CHOMPI
         const bool toggle_up = toggle_override_ >= 0 ? toggle_override_ != 0 : hardware.toggle_up;
         const bool jack = jack_override_ >= 0 ? jack_override_ != 0 : hardware.jack;
 #ifdef FORGE_TEST_HOOKS
@@ -192,6 +194,7 @@ public:
             engine.Apply({Parameter::Level, engine.GetParameters().level + turns[panel::kVolumeEncoder] / 127.f});
     }
     uint32_t MenuPacked() const { return menu_.Packed(); }
+    void SetInstallGate(InstallGate* gate) { install_gate_ = gate; }
     // Knob n's page in bits 2n..2n+1.
     uint8_t KnobPages() const {
         return static_cast<uint8_t>(knob_page_[0] | knob_page_[1] << 2 | knob_page_[2] << 4 | knob_page_[3] << 6);
@@ -260,6 +263,7 @@ private:
     bool first_ = true, jack_ = false, virtual_press_ = false;
     int16_t virtual_turns_[panel::kEncoders]{};
     uint8_t knob_page_[4]{};
+    InstallGate* install_gate_ = nullptr;
 };
 
 // Everything the key LEDs and the CHOMPI key LED show (main loop, pure), as
@@ -276,6 +280,7 @@ struct LedView {
     int8_t flash = -1;                            // -1 none, 0 failed, 1 ok (panel LED feedback)
     bool saving = false;                          // a sample save/copy is running
     uint32_t looper = 0;                          // PackLooper()
+    uint8_t install = 0;                          // 1 waiting for the CHOMPI press, 2 restarting
 };
 // Looper state for the LEDs (audio -> main loop in one word): bits 0-2 state,
 // 3 overdub, 4 effects before the loop, 5 has a loop, 6-15 position x 1023.
@@ -318,6 +323,9 @@ inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chompi) {
     else if(v.flash >= 0) chompi = v.flash ? Rgb{0.f, .3f, 0.f} : Rgb{.3f, 0.f, 0.f};
     else if(v.saving) chompi = v.slow_blink ? Rgb{1.f, 0.f, .6f} : Rgb{};
     else chompi = Rgb{0.f, .05f, .1f};
+    // Firmware install: CHOMPI blinks white until pressed, then stays white while CHOMPI restarts.
+    if(v.install == 1) chompi = v.blink ? Rgb{1.f, 1.f, 1.f} : Rgb{};
+    else if(v.install == 2) chompi = Rgb{1.f, 1.f, 1.f};
     // Menu, presets page: KEY_21 / KEY_20 show where the effects sit (before / after the loop).
     if((v.menu & 1u) && !((v.menu >> 21) & 1u)) {
         const bool before = (v.looper >> 4) & 1u;

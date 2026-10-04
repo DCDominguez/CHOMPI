@@ -13,3 +13,8 @@ header a{color:var(--accent)}.telemetry,.section{margin-top:20px}.telemetry .car
 .badge-ok,.badge-pass{color:#2e9d5b}.badge-warn{color:#c9902b}.badge-fail,.badge-error{color:#d0453b}.badge-skipped{color:#8a8a8a}
 .walk-row [class^="badge-"]{display:inline-block;min-width:5.5em;font-weight:700;font-size:.8em;letter-spacing:.05em}
 #walk video[hidden]{display:none}
+#card .card-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:4px 14px;margin:8px 0}
+#card .card-files label{font-size:13px;display:flex;gap:8px;align-items:center;overflow-wrap:anywhere}
+#card progress{width:100%;height:10px;margin-top:8px}
+#card #install-box{border:1px solid var(--accent);border-radius:8px;padding:10px 14px;margin-top:10px}
+#card #card-log{max-height:10rem;overflow:auto}

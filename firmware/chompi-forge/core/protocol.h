@@ -5,7 +5,7 @@
 
 namespace forge {
 constexpr uint8_t kProtocolVersion = 1, kPatchVersion = 1;
-constexpr uint8_t kFirmwareMinor = 6; // 0.6: v5 patches (knob assignments)
+constexpr uint8_t kFirmwareMinor = 7; // 0.7: USB file transfer and firmware install (opcode 0C)
 // 7-9 are device-preset (SD) errors: empty slot, no/failed card, storage busy.
 enum class Error : uint8_t { None, Length, Version, Checksum, Patch, Opcode, Busy, Empty, Storage, StorageBusy };
 // Device presets: 8 banks x 15 slots on the SD card (see preset_store.h).

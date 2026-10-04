@@ -1,5 +1,18 @@
 # Forge changelog
 
+## 0.7 USB card and firmware loader — 2026-10-04
+
+Software-tested only; needs one last card flash to get it onto CHOMPI.
+- Opcode 0C: write FORGE.bin or TAPE samples to the SD card over USB MIDI,
+  staged in FORGE/UPLOAD.TMP and replacing the target only after the CRC-32
+  matches; resume after a lost reply; samples are rescanned and reloaded.
+- Firmware install: other root .bin files are set aside (.bin.old), CHOMPI's
+  key blinks white and a press (within 15 s) restarts CHOMPI so the bootloader
+  flashes the new FORGE.bin. The press is kept from the menu and recorder.
+- MIDI SysEx up to 288 bytes. Firmware minor 7.
+- Host: `forge_card.py` (upload / sync / install); bridge *Card & firmware*
+  section with the kit's `card` folder and an install button.
+
 ## Bridge: setup check, panel walk, re-runs — 2026-10-04
 
 Host only (firmware unchanged). From the first hardware session.

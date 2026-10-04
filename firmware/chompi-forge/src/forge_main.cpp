@@ -107,6 +107,10 @@ forge::SampleHandoff sample_handoff;
 forge::SampleLoader sample_loader;                            // main loop
 forge::Recorder recorder;                                     // audio owner (Unlock: main)
 FatFsSampleFiles sample_files(card);
+// USB file transfer and firmware install (core/file_transfer.h; main loop, gate shared with audio).
+FatFsUploadFiles upload_files(card);
+forge::FileTransfer file_transfer;
+forge::InstallGate install_gate;
 std::atomic<uint32_t> sample_wanted{0};                      // audio -> main: PackSelection of the live patch
 std::atomic<bool> recording_now{false};                       // audio -> main, for the CHOMPI LED
 forge::SpscQueue<forge::SampleJob, 4> sample_jobs;            // audio -> main: panel save/erase/copy
@@ -255,6 +259,20 @@ void Send(uint8_t source, uint8_t* envelope, size_t payload_size) {
     envelope[0] = 0xf0; envelope[payload_size + 1] = 0xf7;
     std::copy(envelope, envelope + message.size, message.bytes);
     if(!outgoing.Push(message)) ++dropped_commands;
+}
+
+void DrawLeds(); void SendResponses(); void TransmitPending(); void RunSampler();
+// Firmware install confirmed on the panel: finish sending the replies, then
+// restart; the bootloader finds the new FORGE.bin on the card and flashes it.
+[[noreturn]] void Restart() {
+    file_transfer.Abort(upload_files);
+    DrawLeds();
+    uint32_t start = System::GetNow();
+    while(sample_loader.Busy() && System::GetNow() - start < 5000) RunSampler();   // never cut a sample save short
+    start = System::GetNow();
+    while(System::GetNow() - start < 300) { TransmitPending(); SendResponses(); }
+    NVIC_SystemReset();
+    while(true) {}
 }
 
 void TransmitPending() {
@@ -419,6 +437,7 @@ void DrawLeds() {
     view.flash = now < flash_until ? (flash_ok ? 1 : 0) : -1;
     view.saving = sample_loader.Busy() && !sample_loader.Loading();
     view.looper = looper_state.load(std::memory_order_relaxed);
+    view.install = install_gate.Confirmed() ? 2 : install_gate.Armed() ? 1 : 0;
     forge::Rgb keys[25], chompi, play, loop;
     forge::ComposeLeds(view, keys, chompi);
     forge::ComposeLooperLeds(view.looper, view.blink, play, loop);
@@ -496,6 +515,15 @@ void CaptureInspector() {
 // One received frame (shared by both transports, so the code exists once).
 FORGE_NOINLINE void HandleFrame(const forge::MidiFrame& frame, uint8_t source) {
     forge::Request request;
+    if(frame.kind == forge::MidiFrame::Kind::SysEx && forge::IsRequest(frame.data, frame.size)
+       && frame.data[4] == forge::kFileOpcode) {
+        uint8_t envelope[kMaxEnvelope];
+        const size_t size = forge::ServeFileRequest(frame.data, frame.size, file_transfer, upload_files, install_gate,
+                                                    System::GetNow(), envelope + 1, sample_loader.Busy());
+        if(file_transfer.SampleWritten()) sample_loader.Rescan();
+        Send(source, envelope, size);
+        return;
+    }
     if(frame.kind != forge::MidiFrame::Kind::SysEx) {
         switch(forge::TranslateChannel(frame, source, request)) {
             case forge::Ingress::Emergency: RaiseEmergency(); break;
@@ -642,6 +670,7 @@ int main() {
     if(disk_status(0)==RES_OK && !card.Ready()) InspectorStorageError(forge::Error::Storage);
 #endif
     store.Rescan();
+    panel_controller.SetInstallGate(&install_gate);
     cpu.Init(hw.seed.AudioSampleRate(), hw.seed.AudioBlockSize());
     hw.StartAudio(AudioCallback);
     uint32_t battery_check = System::GetNow();
@@ -672,6 +701,7 @@ int main() {
             hw.LowBatteryLockoutCheck();
             battery_check = now;
         }
+        if(install_gate.Poll(now)) Restart();
         System::DelayUs(100);
     }
 }

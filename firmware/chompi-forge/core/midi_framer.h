@@ -3,14 +3,14 @@
 #include <cstdint>
 
 namespace forge {
-// Largest SysEx payload accepted (F0/F7 excluded); v5 apply requests are 88
-// (protocol.h kMaxRequest; runtime.h checks it fits).
-constexpr unsigned kMaxSysEx = 92;   // v5 apply request (88) + margin
+// Largest SysEx payload accepted (F0/F7 excluded): a 270-byte file-transfer
+// request (file_transfer.h); v5 apply requests are 88. runtime.h checks both fit.
+constexpr unsigned kMaxSysEx = 288;
 struct MidiFrame {
     enum class Kind : uint8_t { CC, SysEx, NoteOn, NoteOff, PitchBend, ProgramChange };
     Kind kind = Kind::CC;
     uint8_t data[kMaxSysEx]{};
-    uint8_t size = 0;
+    uint16_t size = 0;
 };
 
 // Only the messages Forge needs. Real-time bytes may legally interrupt any
@@ -64,7 +64,8 @@ public:
     }
 private:
     uint8_t bytes_[kMaxSysEx]{}, cc_[2]{};
-    uint8_t used_ = 0, status_ = 0, cc_used_ = 0;
+    uint16_t used_ = 0;
+    uint8_t status_ = 0, cc_used_ = 0;
     bool sysex_ = false, overflow_ = false;
 };
 } // namespace forge

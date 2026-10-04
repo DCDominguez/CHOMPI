@@ -13,6 +13,7 @@
 #include "../core/runtime.h"
 #include "../core/panel_controller.h"
 #include "../core/sampler_runtime.h"
+#include "../core/file_transfer.h"
 #include "../tests/sample_card.h"
 
 // Simulated sample card: a few TAPE-named files and a one-second recording, so
@@ -38,6 +39,30 @@ struct MemoryCard : forge::Storage {
     }
     bool Write(const char* path, const uint8_t* data, size_t size) override { files[path].assign(data, data + size); return true; }
     bool Remove(const char* path) override { files.erase(path); return true; }
+};
+// USB file transfer onto the simulated sample card (forge::UploadFiles).
+struct CardUploads : forge::UploadFiles {
+    SampleCard& card; std::vector<uint8_t> temp; bool open = false;
+    explicit CardUploads(SampleCard& c) : card(c) {}
+    bool Ready() override { return card.Ready(); }
+    bool Open(const char*) override { temp.clear(); open = card.Ready(); return open; }
+    bool Append(const uint8_t* d, uint32_t n) override { if(!open) return false; temp.insert(temp.end(), d, d + n); return true; }
+    bool Finish(const char*, const char* final_path) override {
+        if(!open) return false;
+        open = false; card.Remove(final_path); card.files[final_path] = temp; return true;
+    }
+    void Abort(const char*) override { open = false; temp.clear(); }
+    bool Exists(const char* path) override { return card.Has(path); }
+    bool SetAsideOtherFirmware(const char*) override {
+        std::vector<std::string> names;
+        for(const auto& f : card.files) {
+            const std::string& n = f.first;
+            if(n.size() > 4 && !forge::IsFirmwareName(n.c_str()) && (n.substr(n.size() - 4) == ".bin" || n.substr(n.size() - 4) == ".BIN"))
+                names.push_back(n);
+        }
+        for(const auto& n : names) { card.files[n + ".old"] = card.files[n]; card.files.erase(n); }
+        return true;
+    }
 };
 void Word(std::ostream& out, uint32_t value, unsigned bytes) {
     for(unsigned i = 0; i < bytes; ++i) out.put(static_cast<char>((value >> (8 * i)) & 255));
@@ -109,6 +134,8 @@ int main(int argc, char** argv) {
     } sink;
     sink.store = &store; sink.engine = &engine; sink.loader = &loader;
     forge::PanelController panel;
+    CardUploads uploads(samples); forge::FileTransfer transfer; forge::InstallGate install;
+    panel.SetInstallGate(&install);
     forge::InspectorSnapshot inspection; inspection.system.simulated=true;
     forge::InspectorLog event_log; forge::SpscQueue<forge::InspectorEvent,64> edges;
     std::atomic<uint32_t> event_drops{0};
@@ -160,6 +187,15 @@ int main(int argc, char** argv) {
         if(!parser.Feed(static_cast<uint8_t>(byte), frame)) continue;
         if(frame.kind != forge::MidiFrame::Kind::SysEx || !forge::IsRequest(frame.data, frame.size)) continue;
         forge::Request request; uint8_t reply[forge::kMaxReply]; size_t size = 0;
+        if(frame.data[4] == forge::kFileOpcode) {                 // file transfer: the firmware's main-loop path
+            settle(ignored);
+            size = forge::ServeFileRequest(frame.data, frame.size, transfer, uploads, install, blocks / 2, reply, loader.Busy());
+            if(transfer.SampleWritten()) { loader.Rescan(); settle(ignored); }
+            install.Poll(blocks / 2);
+            for(size_t i = 0; i < size; ++i) std::cout << std::hex << std::setw(2) << std::setfill('0') << unsigned(reply[i]) << ' ';
+            std::cout << std::endl; ++replies;
+            continue;
+        }
         auto error = forge::DecodeRequest(frame.data, frame.size, request);
         forge::Response response;
         // Device presets: the same main-loop helpers the firmware uses.

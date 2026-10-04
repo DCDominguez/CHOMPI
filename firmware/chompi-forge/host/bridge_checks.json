@@ -466,5 +466,29 @@
     "do": "Optional: restore stock firmware with your normal card (or copy a folder from `firmware/card-profiles/` to a card)",
     "expect": "Stock works again",
     "group": "6. Sustained run and power"
+  },
+  {
+    "id": "7.1",
+    "do": "Put two TAPE samples (e.g. `cubbi_b1.wav`, `jammi_b1.wav`) in the kit's `card` folder; bridge: Refresh list, Copy selected to CHOMPI. Then send a kit patch for bank b and play",
+    "expect": "Both copied (time per MB noted); the sample list shows them; they play. Nothing else on the card changed",
+    "group": "7. USB card and firmware (firmware 0.7)"
+  },
+  {
+    "id": "7.2",
+    "do": "Pull the USB cable in the middle of a copy; reconnect; copy again",
+    "expect": "The interrupted file never appears half-written (the old one, or none, stays); the second copy completes",
+    "group": "7. USB card and firmware (firmware 0.7)"
+  },
+  {
+    "id": "7.3",
+    "do": "Install this kit's firmware; do **not** press CHOMPI for 15 s",
+    "expect": "CHOMPI's light blinks white, then stops; nothing installed; Forge keeps running",
+    "group": "7. USB card and firmware (firmware 0.7)"
+  },
+  {
+    "id": "7.4",
+    "do": "Install again and press the CHOMPI key",
+    "expect": "CHOMPI restarts; rainbow lights while the bootloader flashes; Forge starts; Connect CHOMPI shows the expected firmware version. Any other `.bin` on the card was renamed `.bin.old`",
+    "group": "7. USB card and firmware (firmware 0.7)"
   }
 ]

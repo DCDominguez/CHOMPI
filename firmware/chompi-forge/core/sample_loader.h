@@ -123,6 +123,7 @@ public:
     FORGE_NOINLINE bool Poll(SampleFiles& files, uint32_t wanted, const int16_t* recording, SampleEvent& event,
                              const int16_t* loop = nullptr) {
         loop_ = loop;
+        if(rescan_ && state_ == State::Idle && head_ == tail_) { rescan_ = false; scanned_ = false; current_ = kNone; }
         const bool ready = files.Ready();
         if(!ready) {
             if(scanned_) { std::memset(occupancy_, 0, sizeof occupancy_); scanned_ = false; }
@@ -167,6 +168,8 @@ public:
         return false;
     }
     bool Busy() const { return state_ != State::Idle || head_ != tail_; }
+    // A sample file was replaced over USB: list the card again and reload the selection.
+    void Rescan() { rescan_ = true; }
     bool Loading() const { return state_ == State::Detaching || state_ == State::Headers || state_ == State::Streaming; }
     uint16_t Occupancy(uint8_t mode, uint8_t bank) const { return mode < 2 && bank < kSampleBanks ? occupancy_[mode][bank] : 0; }
     bool Scanned() const { return scanned_; }
@@ -189,6 +192,7 @@ private:
     uint32_t inspector_errors_=0;
 #endif
     const int16_t* loop_ = nullptr;                 // looper memory (loop saves)
+    bool rescan_ = false;
     enum class State : uint8_t { Idle, Detaching, Headers, Streaming, Job };
     static constexpr uint32_t kNone = 0xffffffffu;
     // Only file slots matter: the recording slot needs no loading.

@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 let token, owner, connected = false, busy = false, paused = false, armed = false, jobActive = false;
 let presets = [], checks = [], results = {}, events = [], lastReceived = 0, nextPoll = 0, lastHeartbeat = 0;
-let lastRun = null, prompt = null, cameraStream = null;
+let lastRun = null, prompt = null, cameraStream = null, cardInfo = null;
 const failedSteps = () => lastRun ? lastRun.steps.filter(s => s.result === "fail" || s.result === "error").map(s => s.id) : [];
 const value = id => $(id).value;
 const number = id => Number(value(id));
@@ -11,7 +11,9 @@ function notice(message, error = false) { text("notice", message); $("notice").c
 function controls() {
   for (const id of ["mode", "input", "output", "metadata", "ports", "connect"]) $(id).disabled = busy || connected;
   for (const id of ["pause", "disconnect", "arm", "release", "panic", "save-check"]) $(id).disabled = busy || !connected || (jobActive && id !== "save-check");
-  for (const id of ["detect", "autorun", "setup", "walk-start", "walk-lights"]) $(id).disabled = busy || !connected || jobActive;
+  for (const id of ["detect", "autorun", "setup", "walk-start", "walk-lights", "card-refresh"]) $(id).disabled = busy || !connected || jobActive;
+  $("card-upload").disabled = busy || !connected || jobActive || !document.querySelector("#card-files input:checked");
+  $("fw-install").disabled = busy || !connected || jobActive || !cardInfo || !cardInfo.firmware;
   $("rerun").disabled = busy || !connected || jobActive || !failedSteps().length;
   $("cancel-job").disabled = !jobActive;
   for (const id of ["export", "jsonl"]) $(id).disabled = busy || !owner;
@@ -115,6 +117,7 @@ bind("connect",async()=>{
   owner=r.owner; connected=true; paused=false; armed=false; $("arm").checked=false; events=[]; results={};
   sessionStorage.setItem("forge-bridge-owner",owner);
   lastHeartbeat=Date.now(); nextPoll=Date.now()+number("interval"); render(r.snapshot); showCheck();
+  refreshCard().catch(()=>{});
 });
 bind("disconnect",async()=>{ const r=await bridge("disconnect"); disconnected(); notice(r.cleanup_errors.length?r.cleanup_errors.join(" "):"Disconnected. Export your session before starting a new one.",!!r.cleanup_errors.length); });
 bind("pause",async()=>{await bridge("marker",{message:paused?"Operator resumed polling":"Operator paused polling for comparison"}); paused=!paused; nextPoll=Date.now(); notice(paused?"Polling paused. You can compare audio behaviour; heartbeat keeps the connection open.":"Polling resumed.");});
@@ -187,12 +190,23 @@ function showRun(result) {
 }
 async function followJob() {
   const j=await bridge("job");
-  text("job-log",j.progress.join("\n")||"Starting…");
+  const cardJob=j.kind==="card_upload"||j.kind==="install";
+  text(cardJob?"card-log":"job-log",j.progress.join("\n")||"Starting…");
   if(j.kind==="walk") showPrompt(j.finished?null:j.prompt);
+  if(cardJob) {
+    const bar=$("card-progress"); bar.hidden=!!j.finished || !j.progress_bar;
+    if(j.progress_bar) { bar.max=j.progress_bar[2]; bar.value=j.progress_bar[1]; }
+    $("install-box").hidden=!(j.prompt && !j.finished);
+  }
   if(!j.finished) return false;
   jobActive=false; controls();
   showPrompt(null);
-  const names={autorun:"Automatic checks",audio_detect:"Audio search",setup:"Setup check",walk:"Panel walk"};
+  const names={autorun:"Automatic checks",audio_detect:"Audio search",setup:"Setup check",walk:"Panel walk",card_upload:"Copying to the card",install:"Firmware install"};
+  if(cardJob && !j.error) {
+    if(j.kind==="install" && j.result.restarting) { notice("CHOMPI is restarting to install the firmware. Wait for the rainbow lights to finish, then press Connect CHOMPI."); try { const r=await bridge("job"); } catch {} disconnected(); controls(); return true; }
+    notice(j.kind==="install"?"No CHOMPI key press: nothing was installed. FORGE.bin stays on the card.":`Copied to CHOMPI's card: ${j.result.written.join(", ")}.`, j.kind==="install");
+    controls(); nextPoll=Date.now(); return true;
+  }
   if(j.error) notice(`${names[j.kind]} stopped: ${j.error}`,true);
   else if(j.kind==="audio_detect") { showAudio(j.result); notice("Audio search finished."); }
   else if(j.kind==="setup") { showSetup(j.result); notice(j.result.ok?"Setup check: everything measured fine.":"Setup check found problems; each one lists a fix.",!j.result.ok); }
@@ -202,7 +216,9 @@ async function followJob() {
   return true;
 }
 async function startJob(op, body={}) {
-  await bridge(op, body); jobActive=true; controls(); text("job-log","Starting…"); $("auto-results").replaceChildren();
+  await bridge(op, body); jobActive=true; controls();
+  if(op==="card_upload"||op==="install") text("card-log","Starting…");
+  else { text("job-log","Starting…"); if(op==="autorun") $("auto-results").replaceChildren(); }
 }
 bind("detect",()=>startJob("audio_detect"));
 bind("autorun",async()=>{
@@ -211,6 +227,22 @@ bind("autorun",async()=>{
 });
 bind("cancel-job",async()=>{ await bridge("cancel"); notice("Cancelling after the current step…"); });
 bind("setup",()=>startJob("setup"));
+async function refreshCard() {
+  cardInfo=await bridge("card_list");
+  text("card-folder",`Card folder: ${cardInfo.folder} — put samples (and FORGE.bin) there, then press Refresh list.`);
+  $("card-files").replaceChildren(...(cardInfo.files.length?cardInfo.files.map(f=>{
+    const l=document.createElement("label"); const c=document.createElement("input"); c.type="checkbox"; c.value=f.name; c.checked=true;
+    c.addEventListener("change",controls); l.append(c,`${f.name} · ${f.kb} KB`); return l;
+  }):[Object.assign(document.createElement("p"),{className:"hint",textContent:"No files with TAPE sample names in the folder yet."})]));
+  text("fw-info",cardInfo.firmware?`This kit's firmware: ${cardInfo.firmware.kb} KB, SHA-256 ${cardInfo.firmware.sha256.slice(0,12)}…`:"This kit has no firmware/FORGE.bin.");
+  controls();
+}
+bind("card-refresh",refreshCard);
+bind("card-upload",()=>startJob("card_upload",{files:[...document.querySelectorAll("#card-files input:checked")].map(c=>c.value)}));
+bind("fw-install",async()=>{
+  if(!window.confirm("Install this kit's firmware on CHOMPI? It is copied over USB, then you press the CHOMPI key and CHOMPI restarts to install it (about a minute). Keep the USB cable connected.")) return;
+  await startJob("install",{confirm:true});
+});
 bind("rerun",()=>startJob("autorun",{confirm:true,only:failedSteps()}));
 bind("walk-start",()=>startJob("walk"));
 bind("walk-lights",()=>startJob("walk",{parts:["lights"]}));

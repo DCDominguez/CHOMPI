@@ -56,8 +56,11 @@ def main():
     }
     for name in ("forge_host.py", "forge_ai.py", "forge_ai_check.py", "forge_web.py", "forge_bridge.py",
                  "forge_inspector.py", "bridge_checks.json", "start_bridge.cmd", "requirements.txt", "README.md",
-                 "forge_audio.py", "forge_walk.py", "auto_checks.json", "bridge-requirements.txt", "windows-runtime.json"):
+                 "forge_audio.py", "forge_walk.py", "forge_card.py", "check_firmware_layout.py", "auto_checks.json", "bridge-requirements.txt", "windows-runtime.json"):
         files["host/" + name] = (ROOT / "host" / name).read_bytes()
+    files["card/README.txt"] = (b"Put files for CHOMPI's SD card here: TAPE samples named jammi_<a-e><1-14>.wav or\r\n"
+                                b"cubbi_<a-e><1-14>.wav. The bridge's Card & firmware section copies them over USB\r\n"
+                                b"(firmware 0.7 or newer); so does: python\\python.exe host\\forge_card.py sync card\r\n")
     if args.development: files["CLAUDE.md"] = (ROOT / "host/KIT_CLAUDE.md").read_bytes()   # for an agent on the test PC
     for name in ("BRIDGE.md", "INSPECTOR.md", "TEST_SESSION.md", "KNOBS.md", "TEST_RESULTS.md"):
         files["docs/" + name] = (REPO / "docs/forge" / name).read_bytes()
@@ -85,7 +88,7 @@ def main():
     if args.windows_runtime:
         runtime = windows_runtime(args.windows_runtime, files)
         files["Start Forge bridge.cmd"] = b'@echo off\r\ncall "%~dp0host\\start_bridge.cmd"\r\n'
-    manifest = {"candidate": "Forge Bridge 0.6 development" if args.development else "Forge 0.6", "hardware_verified": False,
+    manifest = {"candidate": "Forge Bridge 0.7 development" if args.development else "Forge 0.7", "hardware_verified": False,
                 "development_hooks": args.development,
                 "simulation_platform": sys.platform if args.include_probe else None,
                 "windows_runtime": runtime,
@@ -100,7 +103,7 @@ def main():
     files["manifest.json"] = (json.dumps(manifest, indent=2) + "\n").encode()
     with zipfile.ZipFile(args.output, "x", compression=zipfile.ZIP_DEFLATED) as archive:
         for name, data in sorted(files.items()):
-            prefix = "Forge-Bridge-dev" if args.development else "Forge-0.6-test"
+            prefix = "Forge-Bridge-dev" if args.development else "Forge-0.7-test"
             info = zipfile.ZipInfo(f"{prefix}-{commit[:7]}/" + name, date_time=(2026, 10, 3, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = (0o100755 if name.startswith("build/") else 0o100644) << 16

@@ -1,10 +1,11 @@
-# Forge control protocol — firmware 0.6
+# Forge control protocol — firmware 0.7
 
 Transport version remains **1**; patch formats **1–5** are supported.
 Firmware 0.4 added patch v3 (second oscillator, noise, resonant filter with
 envelope, LFO, voice limit, glide, reverb); 0.5 added patch v4 (the sampler,
 up to 7 voices) and sample requests (opcodes 08/09); 0.6 adds patch v5 (what
-knobs 1–4 control; [KNOBS.md](KNOBS.md)) and the panel's knob pages. v1–v3 patches render
+knobs 1–4 control; [KNOBS.md](KNOBS.md)) and the panel's knob pages; 0.7 adds USB
+file transfer and firmware install (opcode 0C, below). v1–v3 patches render
 bit-exactly as on 0.4 (checked against the previous core in simulation).
 All lengths/indexes below exclude MIDI F0/F7 unless stated. USB and bidirectional
 TRS MIDI use the non-commercial manufacturer ID 7D followed by ASCII FG.
@@ -280,6 +281,29 @@ the main loop for the SD write (typically a few to tens of ms); incoming MIDI
 waits in the 16-frame ingress queues meanwhile. A recalled patch is applied
 atomically like any patch request. **Hardware-unverified:** SD timing,
 card-swap remount, LED colours and positions.
+
+## USB file transfer and firmware install, firmware 0.7
+
+Opcode **0C** (all builds; reply **48**, or 41 with an error). Byte 7 is the
+operation. **W35** = unsigned 32 bits in five 7-bit chunks, low first (fifth ≤ 15).
+
+| Op | Request (after the 7-byte header) | Meaning |
+| --- | --- | --- |
+| 0 begin | 8–12 size W35, 13 name length n (1–24), 14.. name (ASCII 33–126, no `/ \ :`) | Start a file: `FORGE.bin` (≤ 480 KB) or a TAPE sample `jammi_`/`cubbi_` + `a`–`e` + `1`–`14` + `.wav` (≤ 64 MB). Data goes to `FORGE/UPLOAD.TMP`; an unfinished upload is discarded |
+| 1 data | 8–12 offset W35, 13.. packed data | Up to 224 bytes as 32 groups of 8 SysEx bytes (a high-bit byte, bit i = byte i's bit 7, then up to 7 low-7-bit bytes; a final partial group has n+1 bytes). The offset must equal the bytes received so far, else error 4 (status gives the offset to resume from). Request ≤ 270 bytes |
+| 2 end | 8–12 CRC-32 W35 (IEEE, as zlib.crc32) | All bytes and the CRC match: the file replaces the target (FatFS sync, then rename). Else error 1 (short) or 3 (CRC), and the card is unchanged |
+| 3 abort | — | Discard the upload |
+| 4 install | — | Needs `FORGE.bin` on the card and no upload in progress (error 7 / 9). Renames every other root `*.bin` to `*.bin.old`, then waits 15 s for a CHOMPI key press on the panel (its light blinks white; the press never reaches the menu or record gesture). On the press CHOMPI sends its replies and restarts; the bootloader flashes the new `FORGE.bin` from the card |
+| 5 status | — | Report only |
+
+Reply 48 (16 bytes): 7 zero, 8 operation, 9 flags (1 upload active, 2 waiting
+for the CHOMPI press, 4 `FORGE.bin` on the card, 8 restarting), 10–14 bytes
+received W35, 15 checksum. Errors: 1 length, 3 CRC, 4 bad name/size/offset or
+packing, 7 nothing to finish/install, 8 no card or a write failed, 9 an upload
+is in progress. One request at a time per transport is the contract; the host
+keeps at most 4 data requests in flight (CHOMPI queues 16 frames per port). The
+MIDI framer accepts SysEx up to 288 bytes. Host tools: `host/forge_card.py`,
+the bridge's *Card & firmware* section.
 
 ## Sampler, firmware 0.5
 

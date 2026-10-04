@@ -16,6 +16,10 @@ source and the full docs live in the GitHub repo DCDominguez/CHOMPI, branch
   `host\auto_checks.json` and writes `reports\<time>\` with `summary.md`,
   `report.json`, `session.json` and a WAV + spectrogram per recording.
 - Only the setup: `... run --setup-only`. Only some steps: `... run --only 3.4 3.29`.
+- Put files on CHOMPI's SD card over USB (firmware 0.7+; the card stays in):
+  `python\python.exe host\forge_card.py sync card` (TAPE sample names only),
+  `... upload jammi_b1.wav`. Installing firmware (`... install firmware\FORGE.bin`)
+  needs DC to press the CHOMPI key and restarts CHOMPI: only when DC asks.
 - Look at a recording: `python\python.exe host\forge_audio.py analyze reports\<time>\3.4-steal.wav`
   (prints levels, pitch, clicks, clipping per channel).
 - The browser bridge with the guided panel walk (DC's hands needed):
@@ -29,8 +33,8 @@ source and the full docs live in the GitHub repo DCDominguez/CHOMPI, branch
 - Never claim a hardware result you did not measure; "the bridge measured X"
   is evidence only for what that step measures. Audio failures are often the
   rig (cables, interface gain, ground hum): read the setup findings first.
-- Never flash firmware, write `FORGE.bin`, change the SD card or edit kit
-  files yourself; ask DC. Never ask for or handle API keys.
+- Never install firmware or write `FORGE.bin` unless DC asks in this session;
+  never delete card files or edit kit files. Never ask for or handle API keys.
 - Keep monitoring volume low; the checks play quiet tones and notes.
 - Report back: counts, each failure with its measured values, the setup
   findings, and what you think is CHOMPI versus the rig. DC sends the

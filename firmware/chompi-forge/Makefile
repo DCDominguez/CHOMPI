@@ -2,7 +2,7 @@ CXX ?= c++
 HOST_FLAGS = -std=c++14 -Wall -Wextra -Werror -pedantic -pthread
 HEADERS = $(wildcard core/*.h)
 .PHONY: test sanitize firmware firmware-dev libdaisy browser-test bench
-test: build/core_test build/protocol_test build/synth_test build/v3_test build/preset_test build/sampler_test build/panel_test build/inspector_test build/looper_test build/forge_probe
+test: build/core_test build/protocol_test build/synth_test build/v3_test build/preset_test build/sampler_test build/panel_test build/inspector_test build/looper_test build/file_transfer_test build/forge_probe
 	./build/core_test
 	./build/protocol_test
 	./build/synth_test
@@ -12,6 +12,7 @@ test: build/core_test build/protocol_test build/synth_test build/v3_test build/p
 	./build/panel_test
 	./build/inspector_test
 	./build/looper_test
+	./build/file_transfer_test
 	python3 -m unittest discover -s tests -p 'test_*.py' -v
 build/core_test: tests/core_test.cpp $(HEADERS)
 	mkdir -p build
@@ -63,6 +64,8 @@ sanitize:
 	./build/inspector_test_sanitize
 	$(CXX) $(HOST_FLAGS) -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer tests/looper_test.cpp -o build/looper_test_sanitize
 	./build/looper_test_sanitize
+	$(CXX) $(HOST_FLAGS) -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer tests/file_transfer_test.cpp -o build/file_transfer_test_sanitize
+	./build/file_transfer_test_sanitize
 libdaisy:
 	mkdir -p build
 	$(MAKE) -C ../chompi-wave/code/libs/libDaisy BUILD_DIR=$(abspath build/libdaisy)

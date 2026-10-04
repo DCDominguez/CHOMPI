@@ -4,6 +4,7 @@
 #include "diskio.h"
 #include "../core/preset_store.h"
 #include "../core/sample_loader.h"
+#include "../core/file_transfer.h"
 
 // forge::Storage on the CHOMPI SD card via libDaisy FatFS. Main loop only.
 // Writes go to FORGE/TMP.FPR, are synced, then renamed over the slot file, so
@@ -44,6 +45,65 @@ public:
 private:
     FIL file_;
     bool mounted_ = false;
+};
+
+// forge::UploadFiles: USB file transfer on the same mounted card (main loop
+// only), with its own write handle so it never disturbs a sample job.
+class FatFsUploadFiles : public forge::UploadFiles {
+public:
+    explicit FatFsUploadFiles(FatFsStorage& mount) : mount_(mount) {}
+    bool Ready() override { return mount_.Ready(); }
+    bool Open(const char* temp) override {
+        if(!Ready()) return false;
+        if(open_) { f_close(&file_); open_ = false; }
+        f_mkdir("FORGE");                  // FR_EXIST is fine
+        open_ = f_open(&file_, temp, FA_CREATE_ALWAYS | FA_WRITE) == FR_OK;
+        return open_;
+    }
+    bool Append(const uint8_t* data, uint32_t size) override {
+        UINT written = 0;
+        return open_ && f_write(&file_, data, size, &written) == FR_OK && written == size;
+    }
+    bool Finish(const char* temp, const char* final_path) override {
+        if(!open_) return false;
+        open_ = false;
+        const bool synced = f_sync(&file_) == FR_OK;
+        f_close(&file_);
+        if(!synced) { f_unlink(temp); return false; }
+        f_unlink(final_path);              // FatFS rename does not replace
+        return f_rename(temp, final_path) == FR_OK;
+    }
+    void Abort(const char* temp) override {
+        if(open_) { f_close(&file_); open_ = false; }
+        f_unlink(temp);
+    }
+    bool Exists(const char* path) override { FILINFO info; return Ready() && f_stat(path, &info) == FR_OK; }
+    bool SetAsideOtherFirmware(const char* keep) override {
+        DIR dir; FILINFO info;
+        if(!Ready() || f_opendir(&dir, "/") != FR_OK) return false;
+        char names[8][64]; unsigned count = 0;    // rename after the listing, not during it
+        while(count < 8 && f_readdir(&dir, &info) == FR_OK && info.fname[0]) {
+            const size_t n = std::strlen(info.fname);
+            if(info.fattrib & AM_DIR || n < 5 || n > 59 || forge::IsFirmwareName(info.fname)) continue;
+            const char* ext = info.fname + n - 4;
+            if((ext[0] == '.') && (ext[1] | 32) == 'b' && (ext[2] | 32) == 'i' && (ext[3] | 32) == 'n')
+                std::memcpy(names[count++], info.fname, n + 1);
+        }
+        f_closedir(&dir);
+        (void)keep;
+        bool ok = true;
+        for(unsigned i = 0; i < count; ++i) {
+            char target[64]; const size_t n = std::strlen(names[i]);
+            std::memcpy(target, names[i], n); std::memcpy(target + n, ".old", 5);
+            f_unlink(target);
+            ok = f_rename(names[i], target) == FR_OK && ok;
+        }
+        return ok;
+    }
+private:
+    FatFsStorage& mount_;
+    FIL file_;
+    bool open_ = false;
 };
 
 // forge::SampleFiles on the same mounted card (main loop only): one read and

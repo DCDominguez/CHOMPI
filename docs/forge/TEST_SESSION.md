@@ -1,4 +1,4 @@
-# Forge 0.6 — the one consolidated hardware test
+# Forge 0.7 — the one consolidated hardware test
 
 Status of the candidate: **software-tested, hardware-unverified.** This is the
 single planned physical session. Work top to bottom. If a stage fails, record
@@ -40,7 +40,7 @@ when recording from it (3D); keep headphones on so the speaker cannot feed back.
 | --- | --- | --- |
 | 1.1 | Put `firmware/FORGE.bin` on the test card root as the **only** `.bin` file. On macOS also remove `._FORGE.bin` (`dot_clean -m /Volumes/CARD` or delete it); the bootloader loads the first `.bin` it finds and would reject that metadata file. Use the installed bootloader's normal SD update | Update completes uninterrupted |
 | 1.2 | Power up; watch LED | Initialization completes; no output burst |
-| 1.3 | `H status ...` | Firmware 0.6, version 1 aux patch, counters 0 |
+| 1.3 | `H status ...` | Firmware 0.7, version 1 aux patch, counters 0 |
 
 ## 1A. Inspector development candidate (before the normal audio checks)
 
@@ -229,6 +229,18 @@ Record provider/model/seconds, never the key.
 | 6.4 | Optional: restore stock firmware with your normal card (or copy a folder from `firmware/card-profiles/` to a card) | Stock works again |
 
 Do not deep-discharge the battery to test shutdown; record it as not run.
+
+## 7. USB card and firmware (firmware 0.7)
+
+From 0.7 on, files and firmware go to the card over the USB cable (bridge:
+*Card & firmware*, or `host/forge_card.py`). The card stays in CHOMPI.
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 7.1 | Put two TAPE samples (e.g. `cubbi_b1.wav`, `jammi_b1.wav`) in the kit's `card` folder; bridge: Refresh list, Copy selected to CHOMPI. Then send a kit patch for bank b and play | Both copied (time per MB noted); the sample list shows them; they play. Nothing else on the card changed |
+| 7.2 | Pull the USB cable in the middle of a copy; reconnect; copy again | The interrupted file never appears half-written (the old one, or none, stays); the second copy completes |
+| 7.3 | Install this kit's firmware; do **not** press CHOMPI for 15 s | CHOMPI's light blinks white, then stops; nothing installed; Forge keeps running |
+| 7.4 | Install again and press the CHOMPI key | CHOMPI restarts; rainbow lights while the bootloader flashes; Forge starts; Connect CHOMPI shows the expected firmware version. Any other `.bin` on the card was renamed `.bin.old` |
 
 ## Results — copy into docs/forge/TEST_RESULTS.md
 

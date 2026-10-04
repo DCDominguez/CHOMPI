@@ -2,7 +2,7 @@
 
 The bridge is the local browser interface for a consolidated physical test:
 live SYSTEM/PANEL/ENGINE/STORAGE, keys and LED shadow, indexed voices, retained
-events, test controls, 78 guided checks, observations and downloadable evidence.
+events, test controls, 82 guided checks, observations and downloadable evidence.
 It uses the same `forge_inspector.collect` model as the terminal Inspector.
 With an audio interface it also listens: automatic checks measure CHOMPI's
 output (pitch, clicks, level, silence) while driving notes, tones and virtual
