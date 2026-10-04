@@ -9,9 +9,12 @@ Measured by the bridge on the hardware (automatic checks):
 - Identity: firmware 0.6 (1.3). Flash via SD worked.
 - Pitch: C3 130.76 Hz, C4 261.87 Hz, C5 523.57 Hz over MIDI; keybed C4
   261.99 Hz (3.1, 3.1k). Warm Pad plays with a 4 s tail (3.10).
-- **CPU (status, real device):** 6.2b synth worst case peak **36.9 %**;
-  6.2c seven sampler voices peak **54.5 %**; no drops. 6.2d (7 voices +
-  overdub) not run; with this headroom the looper voice cap (6) may go to 7.
+- **CPU (status, real device):** the status reports the callback's peak
+  load **since boot**, so it is an upper bound for each step, not a per-step
+  figure. After 6.2b (synth worst case) 36.9 % / 37.6 %; after 6.2c (seven
+  sampler voices) 54.5 % in the first run and 37.6 % in the third; no drops.
+  The 54.5 % may come from anything earlier in that boot. 6.2d (7 voices +
+  overdub) not run.
 - Looper states via virtual keys: first take, overdub, pause, clear all as
   designed (3.42s–3.45) once started from an empty looper.
 - Knob pages: page counts follow every virtual press exactly
@@ -35,3 +38,16 @@ Not valid yet (setup):
   the card. The check now needs the file and a −30 dB level.
 
 Hardware observations by DC (not automatic): none recorded yet.
+
+### Third run (`20261004-163535`, bridge update `fbd98c1`)
+
+17 pass, 5 fail, 5 skipped. The state-setting checks now pass: menu
+(3.17, 3.30), looper (3.42s–3.45), knob pages and v5 knobs (3.52, 3.53, 3.55).
+Line-in steps are skipped with the reason (no plug). Still failing:
+- 0.n, 4.1: IN 1 floor −57 dB RMS (setup, as above).
+- 3.4: interface clipping again (24 samples at full scale; gain unchanged).
+- 3.29: the sample list shows no kit-a file, so no sample sound.
+- 3.1k: the capture holds only the C5 tail from 3.1; the virtual KEY_8 did
+  not sound this time (it did in run 2). Cause not established: a panel state
+  left from hand use (e.g. the menu) is likely. The step now starts with the
+  toggle forced down (which closes the menu) and waits for the tail.
