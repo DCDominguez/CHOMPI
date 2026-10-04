@@ -63,6 +63,10 @@ Panel walk on 0.7 (DC's paste), first time on hardware:
   accepted). PLAY answered **red** during a first take (expected teal; Forge
   drives through-hole LED 7 as TAPE's `led_map` for KEY_27): unexplained,
   re-check with *Light questions only* and a photo.
+- Re-check (DC, verbal, no paste): knobs and lights all passed; DC thinks the
+  earlier knob failures were extra clicks carried into the next question. So
+  all six knobs turn both ways and the lights match, by DC's report; SW3's
+  dim white still reads teal (cosmetic).
 
 ## 2026-10-04 — first hardware session (DC), firmware 0.6 development (`131776b`)
 
