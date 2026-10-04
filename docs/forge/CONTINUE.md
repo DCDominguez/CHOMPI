@@ -35,6 +35,13 @@ removing the card". Built (software-tested; nothing hardware-verified):
 - `Forge Bridge.exe` (`d3c8531`): GitHub Actions builds the development
   firmware on Linux and a one-file PyInstaller program on Windows with it
   inside, then smoke-tests it. FORGE_HOST_DIR relocates the host's files.
+- CI run 37193971640 on `dac79f7` is green (first run failed on a broken
+  Makefile rule, fixed in `dac79f7`): firmware job built the development
+  FORGE.bin, passed the layout check and native tests; the Windows job built
+  `Forge Bridge.exe` and its smoke test passed (server, pages, presets,
+  firmware inside, card tool). Artifact `Forge-Bridge-exe` (23.6 MB zip,
+  expires 2027-01-02): Actions → Forge Bridge (Windows exe) → latest run.
+  Not yet run on DC's PC.
 Untested on hardware: USB throughput, FatFS on the real card, the bootloader
 taking the new FORGE.bin after the restart, the exe on DC's PC.
 
