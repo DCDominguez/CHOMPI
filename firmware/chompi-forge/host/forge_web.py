@@ -3,6 +3,7 @@
 import argparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
 from pathlib import Path
 import secrets
 import sys
@@ -15,7 +16,7 @@ import forge_ai
 import forge_host as host
 import forge_bridge
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(os.environ.get("FORGE_HOST_DIR") or Path(__file__).resolve().parent)   # FORGE_HOST_DIR: Forge Bridge.exe
 ASSETS = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"),
           "/style.css": ("style.css", "text/css"),
           "/inspector": ("inspector.html", "text/html"),

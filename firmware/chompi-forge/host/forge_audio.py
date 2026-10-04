@@ -15,6 +15,7 @@ steps are reported as skipped. Nothing here is used by the instrument itself.
 import argparse
 import base64
 import json
+import os
 import math
 from pathlib import Path
 import struct
@@ -31,8 +32,9 @@ import forge_host as host
 RATE = 48000                 # preferred; a device that refuses it records at its own rate
 MAX_TONE_DB = -6.0           # never drive CHOMPI's input harder than this
 TONE_DB = -18.0              # test tones in plans and detection
-ROOT = Path(__file__).resolve().parents[1]
-PLAN = Path(__file__).resolve().parent / "auto_checks.json"
+HOST = Path(os.environ.get("FORGE_HOST_DIR") or Path(__file__).resolve().parent)   # FORGE_HOST_DIR: Forge Bridge.exe
+ROOT = HOST.parent
+PLAN = HOST / "auto_checks.json"
 
 # Upstream SwId order (chompi hardware.h); CHOMPI = KEY_26. Knobs 1-4 in stock order.
 PANEL_BUTTONS = {name: index for index, name in enumerate((

@@ -1,0 +1,75 @@
+# Builds "Forge Bridge.exe": the hardware test bridge (setup check, panel walk, automatic checks,
+# USB card and firmware loader) with Forge's development firmware inside, as one Windows program.
+# Download it from the run's "Forge-Bridge-exe" artifact. No secrets are used.
+name: Forge Bridge (Windows exe)
+on:
+  push:
+    branches: [forge/foundation]
+    paths: ["firmware/chompi-forge/**", "firmware/chompi-wave/code/libs/libDaisy/**", ".github/workflows/forge-bridge-exe.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: "10.3-2021.10"
+      - name: Development firmware (with the layout check)
+        run: make -C firmware/chompi-forge firmware-dev
+      - name: Native tests
+        run: make -C firmware/chompi-forge build/core_test build/protocol_test build/file_transfer_test build/panel_test && for t in core_test protocol_test file_transfer_test panel_test; do firmware/chompi-forge/build/$t; done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: forge-dev-firmware
+          path: firmware/chompi-forge/src/build-dev/FORGE.bin
+          if-no-files-found: error
+  exe:
+    needs: firmware
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: firmware/chompi-forge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: forge-dev-firmware
+          path: firmware/chompi-forge/firmware
+      - name: Packages
+        run: python -m pip install -r host/requirements.txt -r host/bridge-requirements.txt pyinstaller==6.11.1
+      - name: Build Forge Bridge.exe
+        run: >
+          pyinstaller --noconfirm --onefile --console --name "Forge Bridge" --paths host
+          --add-data "host/web;host/web" --add-data "host/bridge_checks.json;host" --add-data "host/auto_checks.json;host"
+          --add-data "presets;presets" --add-data "firmware/FORGE.bin;firmware"
+          --hidden-import mido.backends.rtmidi --collect-all rtmidi --collect-all sounddevice --collect-all _sounddevice_data
+          --hidden-import forge_card --hidden-import forge_walk --hidden-import forge_audio --hidden-import check_firmware_layout
+          host/forge_bridge_app.py
+      - name: Smoke test (server, pages, presets, firmware inside, card tool)
+        shell: pwsh
+        run: |
+          $exe = Resolve-Path "dist/Forge Bridge.exe"
+          $p = Start-Process -FilePath $exe -ArgumentList "--port","8795" -PassThru
+          try {
+            $ok = $false
+            foreach ($i in 1..30) { try { $r = Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8795/api/session; $ok = $true; break } catch { Start-Sleep 1 } }
+            if (-not $ok) { throw "Bridge did not start" }
+            $j = $r.Content | ConvertFrom-Json
+            if ($j.presets.Count -lt 14 -or $j.checks.Count -lt 80) { throw "Presets or checks missing" }
+            if ((Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8795/inspector).StatusCode -ne 200) { throw "No bridge page" }
+          } finally { Stop-Process -Id $p.Id -Force }
+          & $exe card --help
+          if ($LASTEXITCODE -ne 0) { throw "card tool failed" }
+          & $exe --help
+          Get-Item $exe | Format-List Name, Length
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Forge-Bridge-exe
+          path: firmware/chompi-forge/dist/Forge Bridge.exe
+          if-no-files-found: error

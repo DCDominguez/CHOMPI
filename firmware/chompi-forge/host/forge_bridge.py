@@ -2,6 +2,7 @@
 from collections import deque
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import queue
 import secrets
@@ -21,7 +22,7 @@ else:
     AUDIO_MISSING = None
 PHOTO_LIMIT = 600_000      # characters of one camera snapshot (JPEG data URL) kept as light-check evidence
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(os.environ.get("FORGE_HOST_DIR") or Path(__file__).resolve().parent)   # FORGE_HOST_DIR: Forge Bridge.exe
 # Where reports go and where card files are picked up: the kit folder, or next to Forge Bridge.exe.
 import sys
 DATA = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else ROOT.parent
