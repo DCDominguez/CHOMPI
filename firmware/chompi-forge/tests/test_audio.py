@@ -90,13 +90,14 @@ class AnalysisTests(unittest.TestCase):
 
     def test_plan_is_valid(self):
         plan = json.loads(audio.PLAN.read_text())
-        actions = {"wait", "send", "status", "panic", "panel", "probe", "samples", "cc", *audio.AUDIO_ACTIONS}
+        actions = {"wait", "send", "status", "panic", "panel", "probe", "samples", "cc", "ensure", *audio.AUDIO_ACTIONS}
         ids = [s["id"] for s in plan["steps"]]
         self.assertEqual(len(ids), len(set(ids)))
         def walk(action):
             (kind, arg), = action.items(); self.assertIn(kind, actions)
             if kind == "panel":
                 for gesture in (arg if isinstance(arg, list) else [arg]): audio.panel_gesture(gesture)
+            if kind == "ensure": self.assertIn(arg, ("knobs_page1", "menu_presets", "looper_empty"))
             if kind == "send":
                 bridge.host.validate_patch(bridge.host.load_patch(ROOT / (arg["file"] if isinstance(arg, dict) else arg)))
             if kind == "tone": self.assertLessEqual(arg.get("db", audio.TONE_DB), -18)
@@ -167,6 +168,29 @@ class DetectionTests(unittest.TestCase):
         self.assertEqual((interface.input, interface.output), (2, 3))
         self.assertEqual(world.patch, "Dry routing check")                 # leaves CHOMPI on the dry aux patch
         self.assertEqual(world.held, set())
+
+    def test_ensure_clears_a_leftover_loop(self):
+        events = []
+        class Device:
+            def snapshot(self): return {"storage": {"looper": {"state": "playing"}}}
+            def panel(self, event): events.append((event["kind"], event["id"], event["value"]))
+        runner = audio.Runner(Device(), None)
+        start = time.monotonic(); runner.ensure("looper_empty")
+        self.assertGreaterEqual(time.monotonic() - start, 2.3)                      # TAPE's 2 s hold
+        self.assertEqual(events[:4], [(0, 33, 1), (0, 34, 1), (0, 33, 0), (0, 34, 0)])
+        events.clear()
+        Device.snapshot = lambda self: {"storage": {"looper": {"state": "empty"}}}
+        runner.ensure("looper_empty"); self.assertEqual(events, [])
+
+    def test_no_line_in_plug_means_no_output_and_no_beeps(self):
+        # The dry path carries CHOMPI's mic without a plug: a speaker beep must not count as line in.
+        world = FakeChompi(); interface = world.audio()
+        world.snapshot = lambda: {"panel": {"physical": {"line_jack": False}}}
+        info = audio.detect(world, interface, log=lambda line: None)
+        self.assertEqual(info["input"]["name"], "Analogue 1 + 2 (Scarlett 2i2)")
+        self.assertIsNone(info["output"]); self.assertIs(info["line_jack"], False); self.assertEqual(world.played, [])
+        world.snapshot = lambda: {"panel": {"physical": {"line_jack": True}}}
+        self.assertEqual(audio.detect(world, world.audio(), log=lambda line: None)["output"]["name"], "Speakers (Scarlett 2i2)")
 
     def test_nothing_heard_means_no_audio(self):
         world = FakeChompi(); interface = world.audio()
@@ -248,6 +272,22 @@ class BridgeAutomaticTests(unittest.TestCase):
         self.assertEqual(report["automatic"]["runs"][0]["counts"], job["result"]["counts"])
         self.assertFalse(report["hardware_verified"])
         self.assertTrue((Path(self.tmp.name) / "run1" / "summary.md").exists())
+
+    @unittest.skipIf(np is None, "numpy not installed")
+    def test_autorun_sets_its_own_starting_state(self):
+        # As on DC's unit (2026-10-04): knob pages, the menu page and a loop left from hand testing.
+        self.make(); self.connect(); self.call("arm", enabled=True)
+        for button in (3, 3, 3, 0, 1):                        # SW4 to page 4, SW1 and SW2 to page 2
+            for value in (1, 0): self.call("action", action="panel", kind=0, id=button, value=value)
+        for value in (1, 0): self.call("action", action="panel", kind=0, id=34, value=value)   # a first take
+        self.assertEqual(self.call("poll")["panel"]["knob_pages"], [4, 2, 2, 1])
+        self.call("action", action="release")
+        for folder in ("dirty", "again"):                     # and a second run starts where the first ended
+            self.call("autorun", confirm=True, folder=folder)
+            job = self.wait()
+            results = {s["id"]: s["result"] for s in job["result"]["steps"]}
+            for step in ("3.17", "3.30", "3.30c", "3.52", "3.53", "3.55"):   # looper steps need real time
+                self.assertEqual(results[step], "pass", (folder, step, job["result"]))
 
     def test_looper_state_reaches_the_bridge(self):
         self.make(); self.connect(); self.call("arm", enabled=True)

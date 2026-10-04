@@ -257,6 +257,15 @@ def spectrogram(x, rate=RATE, top_hz=12000):
 
 
 # ---- finding the audio interface -----------------------------------------------------------
+LINE_IN_MIN_DB = -35   # the -18 dBFS beep through the dry path; a mic hearing a speaker is ~-40
+
+
+def line_jack(device):
+    """True/False from the Inspector (development firmware), None when the device cannot say."""
+    try: return bool(device.snapshot()["panel"]["physical"]["line_jack"])
+    except Exception: return None
+
+
 def detect(device, audio, log=print, cancel=None):
     """Find the input that hears CHOMPI (a Glass Keys C4) and the output wired to its line in
     (a -18 dBFS 1 kHz tone through the dry aux patch). Plays short quiet sounds only."""
@@ -281,6 +290,13 @@ def detect(device, audio, log=print, cancel=None):
     if best is None: return result
     source = best[0]
     result["input"] = {"index": source["index"], "name": source["name"], "api": source["api"]}
+    # Without a plug in CHOMPI's line input the dry aux path carries its built-in mic, which can
+    # hear a beep from any speaker in the room: only look for the line-in output with a plug in.
+    result["line_jack"] = line_jack(device)
+    if result["line_jack"] is False:
+        log("CHOMPI's line input has no plug (its mic is live): wire the interface's outputs to CHOMPI's line in, then try again")
+        audio.configure(source["index"], None); result["rate"] = audio.rate
+        return result
     outputs = sorted([d for d in devices if d["outputs"] > 0 and d.get("api") == source.get("api")],
                      key=lambda d: -host.shared_words(d["name"], source["name"]))[:8]
     for d in outputs:
@@ -289,7 +305,7 @@ def detect(device, audio, log=print, cancel=None):
             audio.configure(source["index"], d["index"])
             audio.start(0.8, tone(1000, 0.4, TONE_DB, audio.rate))
             a = analyze(audio.wait(), audio.rate)
-            reaches = a["pitch_hz"] is not None and abs(a["pitch_hz"] - 1000) < 15 and a["peak_db"] > -55
+            reaches = a["pitch_hz"] is not None and abs(a["pitch_hz"] - 1000) < 15 and a["peak_db"] > LINE_IN_MIN_DB
             result["attempts"].append({"output": d["name"], "pitch_hz": a["pitch_hz"], "peak_db": a["peak_db"], "reaches_line_in": reaches})
         except Exception as error:
             reaches = False
@@ -374,6 +390,7 @@ class Runner:
             for gesture in (arg if isinstance(arg, list) else [arg]):
                 for event in panel_gesture(gesture): self.device.panel(event); time.sleep(0.03)
         elif kind == "probe": time.sleep(0.08); self.last["probe"] = self.device.snapshot()   # LEDs redraw at ~30 Hz
+        elif kind == "ensure": self.ensure(arg)
         elif kind == "samples": self.last["samples"] = self.device.samples()
         elif kind == "cc": self.device.cc(*arg)
         elif kind == "play":                                   # notes held while recording CHOMPI's output
@@ -388,10 +405,32 @@ class Runner:
         elif kind == "capture":                                # recording while other actions run
             self.audio.start(float(arg["seconds"])); self.during(arg, entry); self.store(arg["name"], self.audio.wait(), entry)
         elif kind == "tone":                                   # tone into CHOMPI's line in, recorded at the same time
+            if line_jack(self.device) is False: raise Skipped("CHOMPI's line input has no plug; its mic would be measured instead")
             self.audio.start(float(arg["seconds"]) + float(arg.get("tail", 0.5)),
                              tone(arg["hz"], arg["seconds"], arg.get("db", TONE_DB), self.audio.rate))
             self.during(arg, entry); self.store(arg["capture"], self.audio.wait(), entry)
         else: raise ValueError(f"Unknown action {kind}")
+
+    def ensure(self, what):
+        """Put CHOMPI into a step's starting state (the panel remembers knob pages, the menu page and a loop)."""
+        def snap(): time.sleep(0.08); return self.device.snapshot()
+        def tap(name):
+            for event in panel_gesture(f"tap {name}"): self.device.panel(event); time.sleep(0.03)
+        if what == "knobs_page1":
+            switches = ("ENC_4_SW", "ENC_1_SW", "ENC_2_SW", "ENC_3_SW")   # knobs 1-4 = SW4, SW1, SW2, SW3
+            for name, page in zip(switches, snap()["panel"]["knob_pages"]):
+                for _ in range((5 - page) % 4): tap(name)
+        elif what == "menu_presets":                           # with the menu open
+            if snap()["panel"]["menu"]["page"] == "samples": tap("KEY_22")
+        elif what == "looper_empty":
+            if snap()["storage"]["looper"]["state"] != "empty":
+                for gesture in ("hold KEY_27", "hold KEY_28"):
+                    for event in panel_gesture(gesture): self.device.panel(event)
+                time.sleep(2.3)
+                for gesture in ("let KEY_27", "let KEY_28", "release all"):
+                    for event in panel_gesture(gesture): self.device.panel(event)
+                time.sleep(0.2)
+        else: raise ValueError(f"Unknown ensure {what}")
 
     def during(self, arg, entry):
         if "during" in arg:

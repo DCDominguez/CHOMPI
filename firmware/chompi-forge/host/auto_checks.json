@@ -337,6 +337,9 @@
      ]
     },
     {
+     "ensure": "menu_presets"
+    },
+    {
      "probe": true
     }
    ],
@@ -625,6 +628,9 @@
    "title": "Looper states via the virtual keys (first take, playback, overdub, pause)",
    "do": [
     {
+     "ensure": "looper_empty"
+    },
+    {
      "panel": [
       "release all",
       "tap KEY_28"
@@ -733,6 +739,9 @@
      "send": "presets/07-warm-pad.json"
     },
     {
+     "ensure": "knobs_page1"
+    },
+    {
      "panel": [
       "release all",
       "tap ENC_4_SW"
@@ -803,6 +812,9 @@
    "do": [
     {
      "send": "presets/14-knob-pad.json"
+    },
+    {
+     "ensure": "knobs_page1"
     },
     {
      "panel": [
