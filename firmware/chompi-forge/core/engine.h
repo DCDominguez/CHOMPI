@@ -193,6 +193,10 @@ public:
 #endif
         synth_.Configure(parameters_);
         if(has_reverb_) reverb_.Configure(parameters_.reverb_size, parameters_.reverb_damping);
+        if(harmony_ && patch.version >= 6) {                    // v6 presets carry harmony mode
+            const uint8_t limit = harmony_->state.max_notes;
+            harmony_->state = harmony::Unpack(patch.harmony); harmony_->state.max_notes = limit;
+        }
         if(SlotMode()) {
             if(Kit()) LoadPads();
             else if(policy != SlotPolicy::Patch) {
@@ -205,6 +209,14 @@ public:
         return true;
     }
     const Parameters& GetParameters() const { return parameters_; }
+    // What a saved preset or a status reply should hold: the patch plus the live harmony
+    // mode (v6) when harmony is in use. v1/v2 patches stay as they are (moving them up a
+    // version would change their sound). Apply replies echo the request (GetParameters).
+    FORGE_COLD Parameters Snapshot() const {
+        Parameters p = parameters_;
+        if(harmony_ && p.version >= 3 && (p.version >= 6 || harmony_->state.enabled)) { p.version = 6; p.harmony = harmony::Pack(harmony_->state); }
+        return p;
+    }
 #ifdef FORGE_TEST_HOOKS
     uint32_t PatchRevision() const { return patch_revision_; }
     void ObserveVoiceEdges(SpscQueue<InspectorEvent,64>& events, std::atomic<uint32_t>& drops, uint32_t now) {
@@ -212,6 +224,15 @@ public:
     }
     void Inspect(InspectorAudio& a) const {
         a.patch=parameters_; synth_.Inspect(a);
+        if(harmony_) {
+            const harmony::Chord& c = harmony_->LastChord(); const harmony::Voiced& v = harmony_->LastVoiced();
+            a.harmony = harmony::Pack(harmony_->state, harmony_->Shift()); a.harmony_changes = harmony_->Changes();
+            a.chord_root = c.root; a.chord_degree = c.degree; a.chord_kind = static_cast<uint8_t>(c.kind);
+            a.chord_quality = static_cast<uint8_t>(c.quality); a.chord_shifted = c.shifted ? 1 : 0; a.chord_count = v.count;
+            for(unsigned i = 0; i < 5; ++i) a.chord_notes[i] = i < v.count ? v.note[i] : 0;
+            unsigned sounding = 0; for(uint8_t s = 0; s < harmony::Player::kSources; ++s) sounding += harmony_->Sounding(s);
+            a.harmony_sounding = static_cast<uint8_t>(sounding > 127 ? 127 : sounding);
+        }
         a.mix=mix_; a.feedback=feedback_; a.level=level_; a.delay_samples=time_; a.reverb_mix=reverb_mix_;
         if(looper_) {
             a.loop_flags=static_cast<uint8_t>(static_cast<unsigned>(looper_->GetState())|(looper_->Overdubbing()?8:0)

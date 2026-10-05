@@ -235,6 +235,39 @@ void EngineAndPanel() {
     for(const auto& x : out) { if((x.status & 0xF0) == 0x90) ++ons; if((x.status & 0xF0) == 0x80) ++offs; }
     assert(ons == 3 && offs == 3);
     run(400); assert(e.ActiveVoices() == 0);
+    // The menu's harmony page (hold CHOMPI in the menu position; hold KEY_21 1 s).
+    player.state = State{};
+    auto block = [&]() { panel.Block(hw, e, recorder, sink); hw.turns[0] = hw.turns[1] = hw.turns[2] = hw.turns[3] = 0; };
+    auto press = [&](uint8_t button) { hw.keys |= uint64_t(1) << button; block(); hw.keys &= ~(uint64_t(1) << button); block(); };
+    hw.keys = uint64_t(1) << forge::panel::kChompiKey; block();                     // menu open (TAPE's page)
+    assert(panel.MenuPacked() & 1u);
+    hw.keys |= uint64_t(1) << forge::panel::kFxBefore;
+    for(int i = 0; i < 2001; ++i) block();
+    hw.keys &= ~(uint64_t(1) << forge::panel::kFxBefore); block();
+    assert(panel.HarmonyPage() && ((panel.MenuPacked() >> 1) & 7u) == 7u);
+    press(forge::panel::kKnobEncoder[0]);                                           // SW4 press: harmony on
+    assert(player.state.enabled);
+    press(25);                                                                      // a key: tonic = its note (button 25 = MIDI 67, G)
+    assert(player.state.tonic == forge::panel::kKeyNotes[25] % 12 && e.ActiveVoices() == 0);
+    hw.turns[forge::panel::kKnobEncoder[0]] = 3; block();                           // SW4: 3 clicks = next mode
+    assert(player.state.mode == Mode::NaturalMinor);
+    hw.turns[forge::panel::kKnobEncoder[1]] = 6; block();                           // SW1: triad -> 7th -> 9th
+    assert(player.state.extension == Extension::Ninth);
+    press(forge::panel::kKnobEncoder[1]); assert(player.state.layout == Layout::Real);
+    press(forge::panel::kKnobEncoder[2]); assert(player.state.block);
+    press(forge::panel::kKnobEncoder[3]); assert(player.state.open);
+    const uint32_t lights = panel.HarmonyLights();
+    assert(Unpack(lights).tonic == player.state.tonic && Unpack(lights).mode == Mode::NaturalMinor && Unpack(lights).enabled);
+    forge::LedView view; view.menu = panel.MenuPacked(); view.harmony = lights;
+    forge::Rgb leds[25], chompi; forge::ComposeLeds(view, leds, chompi);
+    unsigned bright = 0, blue = 0;
+    for(const auto& c : leds) { if(c.r > .9f && c.g > .9f && c.b > .9f) ++bright; else if(c.b > .9f && c.r == 0.f) ++blue; }
+    assert(bright == 2 && blue == 13);                                              // G3, G4 white; A Bb C D Eb F over C3..C5 (C three times)
+    press(forge::panel::kPage);                                                     // KEY_22: back to TAPE's page
+    assert(!panel.HarmonyPage());
+    // A quick KEY_21 tap is still "effects before the looper".
+    e.SetFxBeforeLoop(false); press(forge::panel::kFxBefore); assert(e.FxBeforeLoop());
+    hw.keys = 0; block();
 }
 } // namespace
 

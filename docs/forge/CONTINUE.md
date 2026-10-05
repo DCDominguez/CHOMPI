@@ -1,7 +1,7 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-04 (UTC), checkpoint: firmware 0.7 loader hardened, per-step
-CPU, home checklist. Read this first; DC's next session is
+Updated 2026-10-05 (UTC), checkpoint: firmware 0.13 harmony (see "Current
+checkpoint" below). Read this first; DC's next session is
 [HOME_CHECKLIST.md](HOME_CHECKLIST.md).
 
 ## Resource/QA review, 2026-10-04 (UTC)
@@ -23,25 +23,31 @@ SD streaming remains gated on physical SD measurements. Older checkpoint and
 PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
 use the latest implementation checkpoint and ledger for present capabilities/budgets.
 
-## In progress: Harmony Phase 1 (0.13), 2026-10-05
+## Current checkpoint: firmware 0.13 harmony (2026-10-05)
 
-Done and software-tested (not on hardware; no panel access yet, so harmony can't be
-switched on from CHOMPI): `core/harmony.h` (`6b4d1b8`) and the engine/panel wiring
-(this checkpoint): `Engine::Note` routes keys through `harmony::Player` when it is on
-(synth and chromatic sampler patches; kit keeps its pads), panel MIDI out sends the
-chord, `Silence`/panic clear ownership; firmware and probe own a zero-initialised
-player. Tests: `harmony_test` (identity, layouts, Shift, voicing, 200k ownership events,
-engine/panel/MIDI) + full suite, sanitizers (13), bench unchanged, browser PASS.
-Size: release 267,876 B (+6,652 over 0.12's 261,224), development 283,856 B
-(headroom 4,912 B: tight). Then the RESOURCE_LEDGER savings plan item 1 (DC): queues
-in `.bss` → release 240,948 B, development 255,632 B (headroom 47,820 / 33,136 B);
-all tests, sanitizers (13), bench (unchanged) and browser PASS. Second pass (DC:
-keep the audio buffers): control code `-Os`, start-up construction → release
-215,160 B, development 227,120 B (headroom 73,608 / 61,648 B); all checks PASS;
-hardware CPU peaks (6.2) to confirm the `-Os` control paths. Next: menu harmony
-page, Inspector page, patch v6.
+DC: "Yeah 1 to 4 let's go" = (1) finish harmony 0.13, (2) CPU fix A (table-based
+cubic read), (3) clock + arp + bass, (4) event recorder + projects on SD. Item 1 is
+this checkpoint. DC is still on stock TAPE (battery charging); 0.11–0.13 are not
+installed. One consolidated hardware session covers them all (TEST_SESSION).
+- Implemented and software-tested: `core/harmony.h` (`6b4d1b8`) and engine/panel
+  wiring; memory savings (queues `.bss`, `-Os` control code, start-up construction,
+  `77fb5a7`); the harmony menu page (hold KEY_21 1 s; keys = tonic; SW4/SW1/SW2/SW3);
+  Inspector page 8 + host chord names + a HARMONY display line; patch v6 (firmware,
+  host, webapp, AI, presets saved on CHOMPI via `Engine::Snapshot`); version 0.13.
+  Fixed while testing: the host refused v6 status replies (length/version list).
+- Checks: `make test` 14 native + 121 Python PASS; `make sanitize` 13 PASS
+  (`detect_leaks=0`); `make bench` PASS (worst 2,677.9 vs WAVE 2,694.9; pitch-below-1×
+  2,800.8 informational); `make browser-test` 11 + 7 PASS; ARM release 217,104 B /
+  development 229,768 B, layout OK (headroom 71,664 / 59,000 B).
+- Docs: MANUAL 8a, PROTOCOL v6 + page 8, CHANGELOG 0.13, TEST_SESSION 3.65–3.67
+  (bridge checklist 102), HARMONY_BRIEF "Phase 1 as built", RESOURCE_LEDGER snapshot,
+  STORAGE_STREAMING figures.
+- Not verified: everything on hardware, including the harmony page lights, chord
+  sound and MIDI out (3.65–3.67), and CPU peaks of the `-Os` control paths (6.2).
+- Next: item 2, CPU fix A (a table-based cubic sample read so every voice below 1×
+  is under the WAVE gate), then items 3 and 4.
 
-## Current checkpoint: firmware 0.12 per-slot sample settings (2026-10-05)
+## Checkpoint: firmware 0.12 per-slot sample settings (2026-10-05)
 
 **Queued next (DC, 2026-10-05):** the Harmony / Intent Engine brief,
 [HARMONY_BRIEF.md](HARMONY_BRIEF.md), to start after the safety additions are done.

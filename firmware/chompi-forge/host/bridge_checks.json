@@ -456,6 +456,24 @@
     "group": "3F. Knob pages and patch knobs (firmware 0.6)"
   },
   {
+    "id": "3.65",
+    "do": "**Harmony page (0.13):** Warm Pad. Toggle down, hold CHOMPI, hold KEY_21 1 s. Press SW4 (on), press the A key, turn SW4 one step (natural minor); close the menu and play C3, F3, G3",
+    "expect": "On the page the A keys light white and A minor's scale blue; SW4's light green. Played: C3 = A minor chord, F3 = D minor, G3 = E minor (chords of 3 notes), also on a MIDI monitor (3.61) as 3 notes each. Inspector shows *Am · I · tonic* after C3",
+    "group": "3G. Harmony (firmware 0.13)"
+  },
+  {
+    "id": "3.66",
+    "do": "**Chord size, Shift, voice leading (0.13):** harmony page: turn SW1 two steps (7th); play C3, F3, G3, C3 again; hold C5 and play G3; press SW2 (voice leading off), turn SW2 and play C3 again",
+    "expect": "4-note chords that move smoothly (few notes change between chords); C5 + G3 = E7 (Shift turns the minor v into the major dominant); with voice leading off each SW2 step changes the inversion; no hung notes when releasing in any order",
+    "group": "3G. Harmony (firmware 0.13)"
+  },
+  {
+    "id": "3.67",
+    "do": "**Real layout and saving (0.13):** harmony page: press SW1 (light orange); play C#3 and D3; save the preset on CHOMPI (section 6), switch off and on, recall it; press SW5 while holding a chord",
+    "expect": "Real: each key is the chord's root (D3 in A minor = D minor); after the restart the recalled preset still plays chords in A minor; SW5 panic stops the chord at once",
+    "group": "3G. Harmony (firmware 0.13)"
+  },
+  {
     "id": "4.1",
     "do": "Hold a long-release chord with echo (use Warm Pad for reverb too); press SW5",
     "expect": "Voices, old echo and reverb tails stop at once",

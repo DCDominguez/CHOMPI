@@ -1,6 +1,10 @@
-# Harmony / Intent Engine — brief (queued)
+# Harmony / Intent Engine — brief
 
-Status: **queued, not started.** DC brought this brief over from a ChatGPT
+Status (2026-10-05): **Phase 1 implemented and software-tested as firmware 0.13**
+(not yet on hardware: TEST_SESSION 3.65–3.67). Phase 2 (clock, arp, bass) is next.
+The paragraph below is the original filing note.
+
+Original status: **queued, not started.** DC brought this brief over from a ChatGPT
 brainstorm on 2026-10-05, to run **after the safety additions are finished**. Nothing
 below is implemented. When it starts, Phase 0 (architecture and the first deliverable
 at the end) comes before any large code change.
@@ -43,7 +47,8 @@ Review of the brief against the code (2026-10-05; details in Phase 0):
 
 ## Phase 0 decisions (DC, 2026-10-05)
 
-Status: Phase 1 started after the 0.12 safety extras (`715b1e3`).
+Status: Phase 1 started after the 0.12 safety extras (`715b1e3`); done in 0.13
+(see "Phase 1 as built" after the plan).
 - **Entry:** harmony on/off from a menu page, and presets can store it (patch v6).
   Off = the keybed plays notes exactly as before.
 - **Static layout:** white keys C3–B4 = degrees I–vii twice (lower and upper
@@ -68,6 +73,25 @@ Plan (Phase 1 = 0.13, one hardware test):
 - Inspector: one compact page with the state and the last voiced chord.
 - Patch v6 (presets, host, webapp, AI) right after the core, in the same 0.13.
 - Phase 2: clock, bass, arp, per-part routing, seed use.
+
+Phase 1 as built (0.13, software-tested only):
+- One change from the plan: on the harmony page the **keys** set the tonic (a
+  direct pick instead of 12 clicks), so the knobs are SW4 mode, SW1 chord size,
+  SW2 inversion (3 clicks per step); presses as planned. The key lights show the
+  tonic white and the scale blue. MANUAL section 8a.
+- Patch v6 = v5 + a 17-bit harmony word (request bytes 87–89; PROTOCOL.md). Status
+  replies and presets saved on CHOMPI carry the live settings (a v3–v5 patch with
+  harmony on is reported as v6). Host, webapp *Harmony* group and AI schema use it.
+- Inspector page 8 (38 bytes): state, the last chord (root, degree, kind, quality,
+  Shift, notes), notes sounding, chords played; the host names the chord (e.g.
+  *Am7 · I · tonic*).
+- Resources: release 217,104 B (+1,944 over the post-savings `77fb5a7`; +6.7 KB
+  harmony core before the savings passes), development 229,768 B; SRAM_EXEC
+  headroom 71,664 / 59,000 B; no SDRAM or audio-buffer change; bench unchanged
+  (harmony runs at note on/off on the main loop, not per sample). Tests:
+  `harmony_test` (identity over 12 × 9 × 7 × 6, layouts, Shift, voicing, 200k
+  random ownership events, engine/panel/MIDI, the harmony page), v6 protocol and
+  host round trips, Inspector page 8, webapp controls; sanitizers.
 
 ---
 

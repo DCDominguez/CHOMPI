@@ -160,6 +160,8 @@ public:
         for(unsigned key = 0; key < panel::kButtons; ++key) if(panel::kKeyNotes[key]) {
             if(((rising >> key) & 1u) && !menu_.Key(static_cast<uint8_t>(key), true))
                 PlayKey(engine, panel::kKeyNotes[key], 127);   // TAPE: full velocity
+            else if(((rising >> key) & 1u) && HarmonyPage() && engine.Harmony())
+                engine.Harmony()->state.tonic = static_cast<uint8_t>(panel::kKeyNotes[key] % 12);   // harmony page: the key's note is the tonic
             if((falling >> key) & 1u) {
                 menu_.Key(static_cast<uint8_t>(key), false); PlayKey(engine, panel::kKeyNotes[key], 0);
             }
@@ -186,7 +188,13 @@ public:
         // TAPE's menu page: KEY_21 effects before the looper, KEY_22 after (on release, so a
         // 1 s hold can open Forge's presets page instead).
         const bool tape_page = menu_.Active() && menu_.Page() == MenuPage::Samples;
-        if(tape_page && ((rising >> panel::kFxBefore) & 1u)) engine.SetFxBeforeLoop(true);
+        // KEY_21: a tap = effects before the looper; a 1 s hold opens the harmony page (0.13).
+        if(tape_page && ((rising >> panel::kFxBefore) & 1u)) { fx_key_frames_ = 0; fx_key_armed_ = true; }
+        if(fx_key_armed_ && ((keys >> panel::kFxBefore) & 1u)) {
+            fx_key_frames_ += hardware.frames;
+            if(fx_key_frames_ >= panel::kPresetsHoldFrames) { menu_.ShowPage(MenuPage::Harmony); fx_key_armed_ = false; }
+        }
+        if(fx_key_armed_ && ((falling >> panel::kFxBefore) & 1u)) { if(tape_page) engine.SetFxBeforeLoop(true); fx_key_armed_ = false; }
         if(tape_page && ((rising >> panel::kPage) & 1u)) { page_key_frames_ = 0; page_key_armed_ = true; }
         if(page_key_armed_ && ((keys >> panel::kPage) & 1u)) {
             page_key_frames_ += hardware.frames;
@@ -209,6 +217,7 @@ public:
 #endif
         // TAPE's menu page: the knobs are TAPE's shift layer (MenuControls).
         if(menu_.Active() && menu_.Page() == MenuPage::Samples) MenuControls(hardware, keys, rising, turns, engine);
+        else if(HarmonyPage()) HarmonyControls(keys, turns, engine);
         else {
             // SW5 (virtual: 2 = one click, 1 = held).
             const bool tone_down = hardware.tone_down || virtual_tone_ != 0;
@@ -263,6 +272,9 @@ public:
         if(!(menu_.Active() && menu_.Page() == MenuPage::Samples)) SendKnobCcs(engine, turns);
     }
     uint32_t MenuPacked() const { return menu_.Packed(); }
+    bool HarmonyPage() const { return menu_.Active() && menu_.Page() == MenuPage::Harmony; }
+    // harmony::Pack of the engine's harmony state (for the LEDs and the Inspector).
+    uint32_t HarmonyLights() const { return harmony_lights_.load(std::memory_order_relaxed); }
     void SetInstallGate(InstallGate* gate) { install_gate_ = gate; }
     // Knob n's page in bits 3n..3n+2.
     uint16_t KnobPages() const {
@@ -322,6 +334,7 @@ private:
         state |= static_cast<uint32_t>(vol * 255.f + .5f) << 24;
         knob_values_.store(values, std::memory_order_relaxed); knob_state_.store(state, std::memory_order_relaxed);
         const bool tape_menu = menu_.Active() && menu_.Page() == MenuPage::Samples;
+        harmony_lights_.store(engine.Harmony() ? harmony::Pack(engine.Harmony()->state, engine.Harmony()->Shift()) : 0u, std::memory_order_relaxed);
         menu_lights_.store(static_cast<uint8_t>((tape_menu ? 1u : 0u) | (p.sample_loop ? 2u : 0u) | (p.sample_gate ? 4u : 0u)
                                                 | (static_cast<unsigned>(monitor_) << 3)), std::memory_order_relaxed);
     }
@@ -403,6 +416,44 @@ private:
             looper->SetSpeed(QuantisedSpeedStep(looper->SpeedTarget(), dir));
         }
     }
+    // Harmony page (0.13): SW4 turn mode, press on/off; SW1 turn chord size (fifth, triad,
+    // 7th, 9th, 11th, 13th), press Static/Real; SW2 turn inversion, press voice leading;
+    // SW3 press open spread. Three clicks per step; nothing wraps.
+    FORGE_COLD void HarmonyControls(uint64_t keys, const int16_t (&turns)[panel::kEncoders], Engine& engine) {
+        harmony::Player* player = engine.Harmony();
+        for(unsigned knob = 0; knob < 4; ++knob) {
+            KnobHold& h = hold_[knob];
+            const bool down = (keys >> panel::kKnobEncoder[knob]) & 1u;
+            if(!down) { h.down = false; continue; }
+            if(h.down || !player) continue;
+            h = KnobHold{}; h.down = true; h.used = true;
+            harmony::State& s = player->state;
+            if(knob == 0) s.enabled = !s.enabled;
+            else if(knob == 1) s.layout = s.layout == harmony::Layout::Static ? harmony::Layout::Real : harmony::Layout::Static;
+            else if(knob == 2) s.block = !s.block;
+            else s.open = !s.open;
+        }
+        if(!player) return;
+        harmony::State& s = player->state;
+        for(unsigned knob = 0; knob < 3; ++knob) {
+            harmony_detents_[knob] += turns[panel::kKnobEncoder[knob]];
+            while(harmony_detents_[knob] >= 3 || harmony_detents_[knob] <= -3) {
+                const int dir = harmony_detents_[knob] > 0 ? 1 : -1; harmony_detents_[knob] -= 3 * dir;
+                auto step = [dir](unsigned v, unsigned count) { const int n = static_cast<int>(v) + dir; return static_cast<unsigned>(n < 0 ? 0 : n >= static_cast<int>(count) ? count - 1 : n); };
+                if(knob == 0) s.mode = static_cast<harmony::Mode>(step(static_cast<unsigned>(s.mode), harmony::kModes));
+                else if(knob == 1) {                  // knob order: fifth, triad, 7, 9, 11, 13
+                    static const harmony::Extension order[harmony::kExtensions] = {harmony::Extension::Fifth, harmony::Extension::Triad,
+                        harmony::Extension::Seventh, harmony::Extension::Ninth, harmony::Extension::Eleventh, harmony::Extension::Thirteenth};
+                    unsigned at = 0; while(at < harmony::kExtensions && order[at] != s.extension) ++at;
+                    s.extension = order[step(at % harmony::kExtensions, harmony::kExtensions)];
+                } else s.inversion = static_cast<uint8_t>(step(s.inversion, 4));
+            }
+        }
+    }
+    int harmony_detents_[3] = {};
+    uint32_t fx_key_frames_ = 0;
+    bool fx_key_armed_ = false;
+    std::atomic<uint32_t> harmony_lights_{0};
     int speed_detents_ = 0, loop_detents_ = 0;
     Options options_;
     uint32_t page_key_frames_ = 0;
@@ -493,7 +544,7 @@ private:
                     sink.Flash(false);
                 }
             } else {
-                sink.PresetAction(action, engine.GetParameters());   // full queue: dropped, LEDs show no change
+                sink.PresetAction(action, engine.Snapshot());   // full queue: dropped, LEDs show no change
             }
         }
     }
@@ -529,6 +580,7 @@ struct LedView {
     uint8_t count_in = 0;                         // RecordGesture::CountInPhase (0 none, 1..6)
     float input_level = 0.f;                      // input meter 0..1 (record position)
     uint16_t kit_occupancy = 0;                   // sample files of the live kit bank
+    uint32_t harmony = 0;                         // harmony::Pack (PanelController::HarmonyLights)
 };
 // Menu closed (TAPE NormalPage): a key lights white while held. With a sampler patch,
 // kit mode shows the bank's occupied slots dim in the bank colour (the recording key
@@ -614,8 +666,35 @@ inline void ComposeMenuKnobLeds(uint8_t lights, Rgb (&rings)[4], Rgb& volume) {
     static const Rgb monitor[3] = {knobs::colour::orange, knobs::colour::blue, knobs::colour::yellow};
     volume = monitor[((lights >> 3) & 3u) % 3];
 }
+// Harmony page: the keys show the key (tonic white, its scale blue; dimmer while harmony
+// is off). Knob rings: SW4 on (green) / off (red), SW1 Static (white) / Real (orange),
+// SW2 voice leading on (white) / off (purple), SW3 open spread (white) / close (dim).
+FORGE_COLD inline void RenderHarmonyLeds(uint32_t packed, Rgb (&keys)[25]) {
+    const harmony::State s = harmony::Unpack(packed);
+    const float level = s.enabled ? 1.f : .3f;
+    for(auto& led : keys) led = Rgb{};
+    for(uint8_t key = 0; key < panel::kButtons; ++key) {
+        const uint8_t note = panel::kKeyNotes[key];
+        if(!note) continue;
+        const uint8_t slot = panel::KeyToSlot(key);
+        const uint8_t led = slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key);
+        if(led >= 25) continue;
+        if(note % 12 == s.tonic) keys[led] = Rgb{level, level, level};
+        else if(harmony::InKey(note % 12, s)) keys[led] = Rgb{0.f, .25f * level, level};
+    }
+}
+inline void ComposeHarmonyKnobLeds(uint32_t packed, Rgb (&rings)[4]) {
+    const harmony::State s = harmony::Unpack(packed);
+    const Rgb white{1.f, 1.f, 1.f}, dim{.08f, .08f, .08f};
+    rings[0] = s.enabled ? knobs::colour::green : knobs::colour::red;
+    rings[1] = s.layout == harmony::Layout::Static ? white : knobs::colour::orange;
+    rings[2] = s.block ? knobs::colour::purple : white;
+    rings[3] = s.open ? white : dim;
+}
 FORGE_COLD inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chompi) {
-    if(!(v.menu & 1u))
+    if((v.menu & 1u) && ((v.menu >> 1) & 7u) == 7u)
+        RenderHarmonyLeds(v.harmony, keys);
+    else if(!(v.menu & 1u))
         RenderPlayLeds(v.keys_down, v.live, v.kit_occupancy, v.recording_present, keys);
     else if((v.menu >> 21) & 1u)
         RenderSampleLeds(v.menu, v.sample_occupancy, v.sample_card, v.recording_present, v.live, v.blink, keys);
@@ -639,7 +718,7 @@ FORGE_COLD inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chomp
     if(v.install == 1) chompi = v.blink ? Rgb{1.f, 1.f, 1.f} : Rgb{};
     else if(v.install == 2) chompi = Rgb{1.f, 1.f, 1.f};
     // Menu, presets page: KEY_21 / KEY_20 show where the effects sit (before / after the loop).
-    if((v.menu & 1u) && !((v.menu >> 21) & 1u)) {
+    if((v.menu & 1u) && !((v.menu >> 21) & 1u) && ((v.menu >> 1) & 7u) != 7u) {   // not on the harmony page
         const bool before = (v.looper >> 4) & 1u;
         keys[panel::BlackLed(panel::kFxBefore)] = before ? Rgb{.8f, .8f, .8f} : Rgb{.1f, .1f, .1f};
         keys[panel::BlackLed(panel::kFxAfter)] = before ? Rgb{.1f, .1f, .1f} : Rgb{.8f, .8f, .8f};

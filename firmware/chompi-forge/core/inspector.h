@@ -26,6 +26,10 @@ struct InspectorAudio {
     // Looper: bits 0-2 state, 3 overdub, 4 effects before the loop, 5 locked (saving).
     uint8_t loop_flags = 0; uint32_t loop_length = 0;
     float loop_position = 0, loop_speed = 1, loop_feedback = 1;
+    // Harmony mode (0.13, page 8): harmony::Pack, the last chord and how many notes sound.
+    uint32_t harmony = 0, harmony_changes = 0;
+    uint8_t chord_root = 0, chord_degree = 0, chord_kind = 0, chord_quality = 0, chord_shifted = 0, chord_count = 0;
+    uint8_t chord_notes[5]{}, harmony_sounding = 0;
 };
 // Main requests a refresh at <=20 Hz. Audio writes cheap scalar state into
 // this exclusive slot, then publishes; main makes the actual Inspector snapshot.
@@ -141,6 +145,12 @@ FORGE_NOINLINE inline size_t EncodeInspector(uint16_t sequence, uint8_t page, co
         InspectorEvent events[3]; const unsigned count = log.After(cursor, events); byte(count);
         for(unsigned i=0;i<count;++i) { const auto& e=events[i]; word(e.serial); word(e.time_ms); byte(static_cast<uint8_t>(e.kind)); byte(e.id); word(e.value); }
     } else if(page == 7) n += EncodePatchData(a.patch, out+n);
+    else if(page == 8) {                                           // harmony (0.13): 38 bytes
+        word(a.harmony);
+        byte(a.chord_root); byte(a.chord_degree); byte(a.chord_kind); byte(a.chord_quality); byte(a.chord_shifted); byte(a.chord_count);
+        for(uint8_t note : a.chord_notes) byte(note);
+        byte(a.harmony_sounding); word(a.harmony_changes);
+    }
     else return EncodeError(sequence, Error::Patch, out);
     out[n] = Checksum(out,n); return n+1;
 }

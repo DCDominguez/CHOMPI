@@ -164,7 +164,9 @@ class SampleWebAndAiTests(unittest.TestCase):
             self.assertEqual((status, result["patch"]["version"]), (200, 4))
             status, result = self.post("/api/upgrade", {"patch": WARM, "to": 5})
             self.assertEqual((status, result["patch"]["version"], result["patch"]["knobs"]), (200, 5, ["default"] * 4))
-            self.assertEqual(self.post("/api/upgrade", {"patch": WARM, "to": 6})[0], 400)
+            status, result = self.post("/api/upgrade", {"patch": WARM, "to": 6})
+            self.assertEqual((status, result["patch"]["version"], result["patch"]["harmony"]), (200, 6, host.HARMONY_DEFAULTS))
+            self.assertEqual(self.post("/api/upgrade", {"patch": WARM, "to": 7})[0], 400)
         finally:
             device.close()
 

@@ -5,7 +5,7 @@ import re
 import urllib.error
 import urllib.request
 
-from forge_host import SAMPLE_BANKS, SAMPLE_MODES, SCHEMA, SCHEMA5, parse_json, validate_patch
+from forge_host import SAMPLE_BANKS, SAMPLE_MODES, SCHEMA, SCHEMA6, parse_json, validate_patch
 
 SYSTEM = (
     "Author a Forge v1 stereo_delay JSON preset matching the schema. Only mix, "
@@ -85,10 +85,10 @@ def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay", 
     if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 4000:
         raise ValueError("Describe your sound in 1–4000 characters")
     if kind not in ("delay", "instrument"): raise ValueError("Unknown authoring mode")
-    schema = copy.deepcopy(SCHEMA5 if kind == "instrument" else SCHEMA)
+    schema = copy.deepcopy(SCHEMA6 if kind == "instrument" else SCHEMA)
     schema.pop("$schema", None)
     system = SYSTEM if kind == "delay" else (
-        "Author a Forge v5 instrument patch. Installed modules only: synth (main oscillator "
+        "Author a Forge v6 instrument patch. Installed modules only: synth (main oscillator "
         "sine/triangle/saw/square; second oscillator with its own waveform, level, semitone interval and "
         "detune; white noise; amplitude ADSR; voices 1-7, use at most 4 with the oscillators; glide), "
         "sampler (plays sample files already on the device's SD card, TAPE layout: mode chromatic plays one "
@@ -104,7 +104,13 @@ def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay", 
         "names from the enum; choose the four most expressive controls for this sound (e.g. filter.cutoff_hz "
         "for a pad, synth.decay_ms for a pluck, lfo.rate_hz for movement), or 'default' (delay mix, time, "
         "feedback, output level; with the sampler: pitch, start, end, delay mix). The player can still reach "
-        "filter, envelope, LFO and space controls on the knobs' other pages. You cannot create or record audio and must only use samples listed below. No FM, "
+        "filter, envelope, LFO and space controls on the knobs' other pages. harmony: harmony mode, where one key "
+        "plays a chord built from a key and mode (enabled false plays single notes; turn it on only when the request "
+        "asks for chords, a key, a progression or a chord instrument). tonic and mode set the key; extension the chord "
+        "size (fifth, triad, 7th, 9th, 11th, 13th; use at most 7th for 4-voice patches); layout static makes the white "
+        "keys C3-B4 the degrees I-vii (black keys: secondary dominants and borrowed chords; C5 is shift), real makes the "
+        "pressed key the chord's root; voice_leading true moves each chord least from the last (recommended); "
+        "inversion 0-3 applies without it; open spreads the voicing. Harmony needs voices >= the chord size. You cannot create or record audio and must only use samples listed below. No FM, "
         "arbitrary routing or custom code exists. Approximate the request only with these modules. Default "
         "output level 0.25. Return JSON only. " + sample_summary(samples))
     describe(schema)

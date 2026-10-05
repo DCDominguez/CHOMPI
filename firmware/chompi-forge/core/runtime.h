@@ -32,7 +32,7 @@ FORGE_COLD inline bool ExecuteRequest(const Request& request, Engine& engine, Re
         if(!engine.ApplyPatch(request.patch, request.recall ? SlotPolicy::Recall : SlotPolicy::Patch)) response.error = Error::Patch;
     } else if(request.kind == RequestKind::Panic) engine.Panic();
     else if(request.kind != RequestKind::Status) response.error = Error::Opcode;
-    response.patch = engine.GetParameters();
+    response.patch = request.kind == RequestKind::Patch ? engine.GetParameters() : engine.Snapshot();   // apply: the echo
     return true;
 }
 inline bool IsPerformance(RequestKind kind) {

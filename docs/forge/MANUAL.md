@@ -228,7 +228,7 @@ Forge share it: what you set in one is there in the other.
 | KEY_25 | Save the recording into a slot (white key, CHOMPI) |
 | KEY_24 | Copy a sample (source, destination, CHOMPI); press LOOP as the source to save the loop |
 | KEY_23 | Erase a sample (white key, CHOMPI) |
-| KEY_21 / KEY_22 (tap) | Effects before / after the looper (TAPE). Hold KEY_22 1 s: Forge's presets page |
+| KEY_21 / KEY_22 (tap) | Effects before / after the looper (TAPE). Hold KEY_22 1 s: Forge's presets page. Hold KEY_21 1 s: the harmony page (section 8a) |
 
 While the menu is open the knobs are TAPE's second layer:
 
@@ -288,6 +288,55 @@ Up to about 83 s. Everything you hear goes into the loop. In the menu: PLAY/LOOP
 lower/raise the overdub feedback; on TAPE's page KEY_21 = effects before the loop
 (default), a KEY_22 tap = after it (on Forge's presets page: KEY_21 / KEY_20). Panic pauses the loop without losing it. Save the loop
 as a sample: TAPE's menu page, KEY_24, LOOP, a white key, CHOMPI.
+
+---
+
+## 8a. Harmony (one key plays a chord) — firmware 0.13
+
+With harmony on, each key plays a whole chord in a key you choose, through the
+instrument's own sound and to MIDI out (the chord's notes, not the key you
+pressed). It works with synth patches and the chromatic sampler; kit mode and
+the stereo-delay (v1) patches play keys as usual. Chords have up to 5 notes and
+never more than the patch's voices. *Software-tested only; not yet heard on
+CHOMPI (TEST_SESSION 3.65–3.67).*
+
+**Open the harmony page:** toggle down, hold CHOMPI (TAPE's menu page), then
+**hold KEY_21 for 1 s**. A tap on KEY_22 goes back to TAPE's page. On the harmony
+page the keys play nothing; **a key sets the key (tonic)** to its note. The key
+lights show the key: the tonic white, the rest of its scale blue (dimmer while
+harmony is off).
+
+| Knob | Turn (3 clicks per step, stops at the ends) | Press | Light |
+| --- | --- | --- | --- |
+| SW4 | Mode: major, natural minor, harmonic minor, melodic minor, dorian, phrygian, lydian, mixolydian, locrian | Harmony on / off | green on, red off |
+| SW1 | Chord size: fifth (power chord), triad, 7th, 9th, 11th, 13th | Layout Static / Real | white Static, orange Real |
+| SW2 | Inversion 0–3 (used when voice leading is off) | Voice leading on / off | white on, purple off |
+| SW3 | — | Open spread on / off | white on, dim off |
+
+**Static layout** (the default): the white keys C3–B4 are the scale's chords I to
+vii, twice (lower and upper register), whatever the key; **C5 is Shift**. The black
+keys are colour chords: lower octave V/ii, V/iii, V/V, V/vi and the parallel
+mode's vii (in major: ♭VII); upper octave the parallel mode's iv, iii and vi (in
+major: iv, ♭III, ♭VI), V/IV and ♭II. Hold **Shift** while playing a key to change its
+chord: a dominant becomes its tritone substitute, a major chord sus4, a minor
+chord the dominant on the same root (ii → V/V), a diminished chord the key's V7.
+
+**Real layout:** the key you press is the chord's root. Notes in the scale play
+that degree's chord; other notes play the parallel mode's chord on that root,
+else a dominant that falls a fifth to a degree, else a major chord. Real also
+applies to notes arriving over MIDI; Static maps only C3–C5 (keys or MIDI), and
+notes outside that range play as usual.
+
+**Voice leading** (on by default) picks each chord's inversion so it moves as
+little as possible from the last one. Turn it off to choose the inversion with SW2.
+**Open spread** lifts the second-lowest note an octave (chords of 3 or more notes). Bigger chords drop notes in this
+order when the voices run out: the 5th first, then the middle extensions; the
+root, 3rd, 7th and top extension stay.
+
+The settings are part of a **v6 patch** (the webapp's *Harmony* group, the AI, or
+`forge_host.py`) and are saved with presets stored on CHOMPI. Panic ends held
+chords. The Inspector shows the last chord by name and number
+(e.g. *Am7 · I · tonic*).
 
 ---
 

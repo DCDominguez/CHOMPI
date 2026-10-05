@@ -32,13 +32,13 @@
       <fieldset id="editor" disabled>
         <label for="patch-name">Patch name</label><input id="patch-name" maxlength="80" required>
         <p class="hint" id="version-note"></p>
-        <div class="button-row"><button id="upgrade" type="button">Convert to v5 instrument</button></div>
+        <div class="button-row"><button id="upgrade" type="button">Convert to v6 instrument</button></div>
         <label for="routing">Signal path</label><select id="routing"></select>
         <div id="groups"></div>
       </fieldset>
       <div class="button-row"><button id="download" disabled>Save JSON</button><label class="file-button" for="import">Import JSON<input id="import" type="file" accept=".json,application/json"></label></div>
       <details><summary>Inspect patch JSON</summary><pre id="json">No patch loaded.</pre></details>
-      <p class="footnote">Edits stay here until you send. v5 instruments need firmware 0.6 (v4: 0.5, v3: 0.4); v1–v4 presets still work. Controls a preset's format lacks are greyed out. Save JSON keeps presets on your computer; Device presets (below) keep sounds on CHOMPI's SD card. CHOMPI boots into defaults.</p>
+      <p class="footnote">Edits stay here until you send. v6 instruments need firmware 0.13 (v5: 0.6, v4: 0.5, v3: 0.4); v1–v5 presets still work. Controls a preset's format lacks are greyed out. Save JSON keeps presets on your computer; Device presets (below) keep sounds on CHOMPI's SD card. CHOMPI boots into defaults.</p>
     </section>
     <section class="card device" aria-labelledby="device-heading">
       <div><p class="eyebrow">03 / PLAY</p><h2 id="device-heading">Connect to CHOMPI.</h2><p class="hint">Choose both MIDI ports. Keep monitoring volume low for the first test.</p></div>

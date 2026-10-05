@@ -1,11 +1,12 @@
-# Forge control protocol — firmware 0.7
+# Forge control protocol — firmware 0.13
 
-Transport version remains **1**; patch formats **1–5** are supported.
+Transport version remains **1**; patch formats **1–6** are supported.
 Firmware 0.4 added patch v3 (second oscillator, noise, resonant filter with
 envelope, LFO, voice limit, glide, reverb); 0.5 added patch v4 (the sampler,
 up to 7 voices) and sample requests (opcodes 08/09); 0.6 adds patch v5 (what
 knobs 1–4 control; [KNOBS.md](KNOBS.md)) and the panel's knob pages; 0.7 adds USB
-file transfer and firmware install (opcode 0C, below). v1–v3 patches render
+file transfer and firmware install (opcode 0C, below); 0.13 adds patch v6
+(harmony mode, [HARMONY_BRIEF.md](HARMONY_BRIEF.md)) and Inspector page 8. v1–v3 patches render
 bit-exactly as on 0.4 (checked against the previous core in simulation).
 All lengths/indexes below exclude MIDI F0/F7 unless stated. USB and bidirectional
 TRS MIDI use the non-commercial manufacturer ID 7D followed by ASCII FG.
@@ -20,7 +21,7 @@ Every payload byte is 7-bit. Words are little-endian base 128. Sequence is
 
 | OP | Length | Operation |
 | --- | --- | --- |
-| 01 | 18 for v1, 30 for v2, 69 for v3, 84 for v4, 88 for v5 | Apply complete patch |
+| 01 | 18 for v1, 30 for v2, 69 for v3, 84 for v4, 88 for v5, 91 for v6 | Apply complete patch |
 | 02 | 8 or 9 | Read current patch and status. Optional byte 7 (firmware 0.7): 1 = after this reply, start a new CPU peak (per-step measurements); 0 = report only |
 | 03 | 8 | Panic: silence all synth voices and clear old delay tail; return status |
 | 04 | 10 | Store the current device patch to SD preset (bank 0–7 at 7, slot 0–14 at 8); reply 42 |
@@ -29,7 +30,7 @@ Every payload byte is 7-bit. Words are little-endian base 128. Sequence is
 | 07 | 8 | List occupied SD presets; reply 43 |
 | 08 | 8 | List samples on the card and the recording; reply 44 |
 | 09 | 15 | Sample job: 7 action (0 save recording, 1 erase, 2 copy), 8 mode, 9 bank, 10 slot, 11–13 copy destination mode/bank/slot; reply 45 |
-| 40 | 30 for v1, 42 for v2, 81 for v3, 96 for v4, 100 for v5 | Success/current targets plus diagnostics |
+| 40 | 30 for v1, 42 for v2, 81 for v3, 96 for v4, 100 for v5, 103 for v6 | Success/current targets plus diagnostics |
 | 41 | 9 | Rejection; error code at index 7, checksum at 8 |
 | 42 | 12 | Preset done: index 8 = 1 stored / 2 erased, 9 bank, 10 slot |
 | 43 | 33 | Occupancy: per bank (0–7) 3 bytes at 8 + 3·bank = 15-bit slot mask, 7 + 7 + 1 bits |
@@ -81,7 +82,9 @@ Every payload byte is 7-bit. Words are little-endian base 128. Sequence is
 | 81–82 | v4 loop crossfade |
 | 83 | v4 checksum; v5 knob 1 (SW4) page-1 control |
 | 84, 85, 86 | v5 knobs 2, 3, 4 (SW1, SW2, SW3) |
-| 87 | v5 checksum |
+| 87 | v5 checksum; v6 harmony word bits 0–6 |
+| 88, 89 | v6 harmony word bits 7–13, 14–16 (byte 89 at most 7) |
+| 90 | v6 checksum |
 
 v5 knob bytes: 0 = the source's default (mix, time, feedback, level; sampler:
 pitch, start, end, mix), else firmware Parameter id + 1 (`core/parameters.h`;
@@ -92,7 +95,19 @@ host names in `forge_host.KNOB_TARGETS`): 1 delay mix, 2 time, 3 feedback,
 amplitude depth, 25 osc 2 level, 26 osc 2 detune, 27 noise, 28 glide,
 29 reverb size, 30 reverb damping, 31 loop crossfade. 5 (bypass), 12–15
 (the knobs themselves) and anything above 31 are error 4. v5 indexes 7–82 are
-identical to v4.
+identical to v4. v6 indexes 7–86 are identical to v5.
+
+v6 harmony word (17 bits; `harmony::Pack` in core/harmony.h, host
+`forge_host.harmony_word`): bits 0–3 tonic 0–11 (C..B), 4–7 mode 0–8 (major,
+natural minor, harmonic minor, melodic minor, dorian, phrygian, lydian,
+mixolydian, locrian), 8–10 chord size 0–5 (triad, 7th, 9th, 11th, 13th, fifth),
+11–12 inversion 0–3, 13 open spread, 14 voice leading off, 15 layout (0 Static,
+1 Real), 16 enabled. Anything out of range is error 4. Panel-only Shift (bit 17
+in Inspector page 8) is never in a patch. A v6 patch also sets everything a v5
+patch does; v1–v5 patches leave the harmony settings as they are.
+The apply reply echoes the patch as sent. Status replies and presets saved on
+CHOMPI report the live harmony settings (changed on the panel's harmony page):
+a v3–v5 patch is reported as v6 when harmony is on; v1 and v2 stay as they are.
 
 v3 indexes 7–28 are identical to v2, except that the cutoff at 27–28 feeds the
 v3 per-voice resonant filter instead of the shared one-pole filter. v4 indexes
@@ -139,7 +154,7 @@ or dynamic module creation is accepted. Names remain host-side.
 | 7 | Success, 0 |
 | 8 onward | Exact quantized patch DATA (request indexes 7 through before checksum) |
 
-After patch DATA, diagnostics begin at offset **18 for v1**, **30 for v2**, **69 for v3**, **84 for v4**, **88 for v5**:
+After patch DATA, diagnostics begin at offset **18 for v1**, **30 for v2**, **69 for v3**, **84 for v4**, **88 for v5**, **91 for v6**:
 
 | Offset from diagnostics | Content |
 | --- | --- |
@@ -147,7 +162,7 @@ After patch DATA, diagnostics begin at offset **18 for v1**, **30 for v2**, **69
 | +2,+3 | Peak audio callback load since boot ×1000, 14-bit |
 | +4..+6 | Dropped ingress/control/reply count, saturated 21-bit |
 | +7..+9 | Rejected recognized requests, saturated 21-bit |
-| +10 | Firmware minor version, 6 |
+| +10 | Firmware minor version (13 for 0.13) |
 | +11 | Checksum |
 
 CPU resolution is 0.1 percentage point; max 1638.3%. Readings are from completed
@@ -226,10 +241,10 @@ Patches, status, panic and controls always execute (`RecoveryGate` in
 core/runtime.h, host-tested). Keys held through a recovery must be retriggered. This logic is implemented; actual interrupt/transport behavior is
 still hardware-unverified. Use SW5 press or host panic if an audible note hangs.
 
-Replies are sent only by main loop. Largest response is the 102-byte v5 status
-(with F0/F7): 32.6 ms at 31250 baud; the UART timeout is computed per reply
-(0.32 ms per byte + 5 ms). Incoming SysEx up to 92 bytes is accepted (v5 apply
-is 90 with F0/F7). The USB buffer holds 136 bytes (34 USB-MIDI events); a v3–v5
+Replies are sent only by main loop. Largest response is the 105-byte v6 status
+(with F0/F7): 33.6 ms at 31250 baud; the UART timeout is computed per reply
+(0.32 ms per byte + 5 ms). Incoming SysEx up to 288 bytes is framed (v6 apply
+is 93 with F0/F7; file-transfer requests are larger). The USB buffer holds 136 bytes (34 USB-MIDI events); a v3–v6
 reply is larger than one 64-byte USB packet, relying on the USB stack's
 multi-packet transfer, which is **unverified on hardware**. TX memory survives
 completion. Pending TX is abandoned/counts a drop after 100 ms without progress.
@@ -240,8 +255,8 @@ Host checks full patch DATA, checksum and sequence. Timeout may mean applied
 but reply lost; query status before retrying. No auto retry, deduplication,
 subscriptions, sessions or authentication. One host, one acknowledged exchange
 at a time. Old 0.2 hosts cannot decode v2 status and 0.3 hosts cannot decode
-v3 status, 0.4 hosts cannot decode v4 status and 0.5 hosts cannot decode v5
-status; use the matching 0.6 host. Old firmware rejects newer patch versions
+v3 status, 0.4 hosts cannot decode v4 status, 0.5 hosts cannot decode v5
+status and hosts before 0.13 cannot decode v6 status; use the matching host. Old firmware rejects newer patch versions
 (error 2) and 0.2 rejects panic rather than executing them.
 
 ## Device presets (SD card), firmware 0.4
@@ -377,7 +392,7 @@ is 9 bytes: byte 7 zero, byte 8 checksum. Ack means queued, not yet applied.
 Page 6 additionally accepts a 14-byte request with cursor at 8–12 and checksum
 at 13; without the cursor it starts at serial 0. Cursor is unsigned 32-bit in
 five little-endian 7-bit chunks, with the fifth chunk at most 15. All sizes
-exclude F0/F7. Largest reply still fits `kMaxReply = 100` and the
+exclude F0/F7. Largest reply still fits `kMaxReply = 103` and the
 existing USB/UART buffers. No subscription, background push or new transport.
 
 Page 0 (the original 24-byte state page) was retired on 2026-10-03: the
@@ -387,7 +402,7 @@ request now returns error 4 like any unknown page.
 - Page 1, 88 bytes: byte 8 page, 9–86 LED RGB triples, 87 checksum. Indices
   0–24 are key LEDs in renderer order, 25 is CHOMPI. Each component 0–127.
 
-New `46` pages 2–7: byte 7 zero, 8 page, 9 schema (1), 10–14 snapshot
+New `46` pages 2–8 (page 8 from 0.13): byte 7 zero, 8 page, 9 schema (1), 10–14 snapshot
 generation (unsigned 32-bit); body starts at 15, checksum is the last byte.
 The notation **U32** below means five 7-bit chunks, unsaturated, wrapping at
 32 bits. **N14** means 0–1 normalized in two 7-bit chunks. All fields are in
@@ -400,7 +415,8 @@ listed order, with no struct padding on the wire.
 | 4 ENGINE | 88 | seven voices (7 bytes each: note, source 0 UART/1 USB/2 panel, stage 0 off/1 attack/2 decay/3 sustain/4 release, sample slot 0–14 or 127 none, flags sampled 1/sustained 2/reverse 4, envelope N14); smoothed cutoff normalized, (LFO+1)/2, mod wheel (3 N14); pedal-source bit mask byte; three smoothed bend ratios ×4096 (3 14-bit words); resolved mix, feedback/0.85, level, delay samples/48000, reverb mix (5 N14) |
 | 5 STORAGE | 94 | flags, recording source 0 mic/1 line/2 resample, queued sample-job count, active job 0 save/1 copy/2 erase/127 none, last generic error code, partial-file-slot count (6 bytes); actual loaded file selection, file readable frames, file allocated frames, pool reserved bytes, pool capacity bytes, recording frames, recording capacity frames, storage error count, audio event drops, emergency count, panel queue drops, sample queue drops (12 U32); looper: flags (state 0 empty/1 armed/2 first take/3 playing/4 paused, 8 overdub, 16 effects before the loop, 32 locked for saving), length frames (U32), position, speed ((s+2)/4) and feedback (N14) |
 | 6 EVENTS | 27 + 17 × count, count 0–3 | latest event serial U32, total retention overwrites U32, count byte; records: serial U32, timestamp ms U32, kind byte, id byte, value U32 |
-| 7 PATCH | 26/38/77/92/96 for v1–v5 | existing patch DATA, exactly as `EncodePatchData` and status use |
+| 7 PATCH | 26/38/77/92/96/99 for v1–v6 | existing patch DATA, exactly as `EncodePatchData` and status use |
+| 8 HARMONY | 38 | harmony word U32 (the v6 bits above, plus 17 Shift held); last chord: root 0–11, degree 0–6, kind (0 none, 1 diatonic, 2 secondary dominant, 3 borrowed, 4 Shift key, 5 modal interchange), quality (0 scale, 1 major, 2 minor, 3 dominant, 4 sus4), Shift (0/1), note count 0–5 (6 bytes); five MIDI notes, unused 0 (5 bytes); notes sounding from the harmony player (byte); chords played since start U32 |
 
 Page 3 physical flags: toggle up 1, line jack 2, SW5 press edge 4. Merged flags
 add overridden 8. Masks include menu/control keys; the map in

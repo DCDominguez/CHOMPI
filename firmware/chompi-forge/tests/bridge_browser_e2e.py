@@ -60,7 +60,7 @@ class BridgeBrowserTests(unittest.TestCase):
         expect(self.page.locator("#action-result")).to_contain_text('"note_off_sent": true')
         self.page.fill("#observation","Injected activity only; physical controls still pending.")
         self.page.select_option("#result","blocked"); self.page.click("#save-check")
-        expect(self.page.locator("#check-progress")).to_contain_text("1 / 99")
+        expect(self.page.locator("#check-progress")).to_contain_text("1 / 102")
         self.page.get_by_text("SD presets & samples",exact=True).click()
         self.page.click('[data-preset="store"]')
         expect(self.page.locator("#notice")).to_contain_text("Confirm the SD")

@@ -1,5 +1,32 @@
 # Forge changelog
 
+## 0.13 Harmony — 2026-10-05 (software-tested; not installed yet)
+
+Harmony Phase 1 from DC's brief (HARMONY_BRIEF.md; clean-room, no code from other
+projects). DC's choices: a menu toggle stored in presets, the Static map, Real =
+the key is the root, output to the internal sound and MIDI out. Nothing here is
+hardware-verified.
+- **One key plays a chord** (`core/harmony.h`): 9 modes, chord size fifth to 13th,
+  Static layout (white keys I–vii twice, black keys secondary dominants, borrowed and
+  interchange chords, C5 = Shift) and Real layout (the key is the root), Shift
+  transforms, inversions, open spread, voice leading; at most 5 notes and never
+  more than the patch's voices; no stuck notes through overlaps, mode changes,
+  harmony off or panic (200k random events tested). Synth and chromatic sampler
+  patches; kit and v1 delay patches play as before. MANUAL section 8a.
+- **Harmony page:** TAPE's menu page, hold KEY_21 1 s (a tap is still effects
+  before the looper). Keys set the tonic (lit white, scale blue); SW4 mode / on-off,
+  SW1 chord size / Static-Real, SW2 inversion / voice leading, SW3 open spread.
+- **Patch v6** = v5 + harmony (PROTOCOL.md): host, webapp *Harmony* group, AI
+  schema, conversion of older patches. Status and presets saved on CHOMPI carry the
+  live settings. Fixed while testing: the host decoder refused v6 status replies.
+- **Inspector page 8:** the harmony state and the last chord, named on the host
+  (e.g. *Am7 · I · tonic*); a HARMONY line in the text Inspector.
+- **Memory (DC: "implement our memory savings plan", keep the audio buffers):**
+  queues in `.bss`, control code `-Os`, start-up construction: release 267,876 →
+  215,160 B before the menu/v6 work; 0.13 release **217,104 B**, development
+  229,768 B (headroom 71,664 / 59,000 B; 0.12: 27,544 / 11,500 B). CPU gate unchanged.
+- New TEST_SESSION 3.65–3.67 (bridge checklist 102 steps).
+
 ## 0.12 Per-slot sample settings — 2026-10-05 (software-tested; not installed yet)
 
 TAPE parity A4. DC's choices: save as TAPE does (the moment a control moves), kit

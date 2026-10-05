@@ -163,6 +163,36 @@ KNOB_BYTES = {0: "default", **{value + 1: name for name, value in KNOB_TARGETS.i
 SCHEMA5 = object_schema({**SCHEMA4["properties"], "version": {"type": "integer", "enum": [5]},
                          "knobs": {"type": "array", "minItems": 4, "maxItems": 4,
                                    "items": {"type": "string", "enum": list(KNOB_CHOICES)}}})
+# v6 (firmware 0.13) = v5 + "harmony": harmony mode (core/harmony.h; docs/forge/HARMONY_BRIEF.md).
+# On the wire: one word (bits 0-3 tonic, 4-7 mode, 8-10 extension, 11-12 inversion, 13 open,
+# 14 voice leading off, 15 Real layout, 16 enabled) in three 7-bit bytes after the knobs (request 87-89).
+HARMONY_TONICS = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
+HARMONY_MODES = ("major", "natural_minor", "harmonic_minor", "melodic_minor", "dorian", "phrygian", "lydian",
+                 "mixolydian", "locrian")
+HARMONY_EXTENSIONS = ("triad", "7th", "9th", "11th", "13th", "fifth")   # firmware enum order
+HARMONY_DEFAULTS = {"enabled": False, "tonic": "C", "mode": "major", "extension": "triad", "inversion": 0,
+                    "open": False, "voice_leading": True, "layout": "static"}
+HARMONY_SCHEMA = object_schema({
+    "enabled": {"type": "boolean"}, "tonic": {"type": "string", "enum": list(HARMONY_TONICS)},
+    "mode": {"type": "string", "enum": list(HARMONY_MODES)}, "extension": {"type": "string", "enum": list(HARMONY_EXTENSIONS)},
+    "inversion": {"type": "integer", "minimum": 0, "maximum": 3}, "open": {"type": "boolean"},
+    "voice_leading": {"type": "boolean"}, "layout": {"type": "string", "enum": ["static", "real"]}})
+SCHEMA6 = object_schema({**SCHEMA5["properties"], "version": {"type": "integer", "enum": [6]}, "harmony": HARMONY_SCHEMA})
+
+
+def harmony_word(h):
+    return (HARMONY_TONICS.index(h["tonic"]) | HARMONY_MODES.index(h["mode"]) << 4 | HARMONY_EXTENSIONS.index(h["extension"]) << 8
+            | h["inversion"] << 11 | int(h["open"]) << 13 | int(not h["voice_leading"]) << 14 | int(h["layout"] == "real") << 15
+            | int(h["enabled"]) << 16)
+
+
+def harmony_from_word(w):
+    if w >> 17 or (w & 15) > 11 or (w >> 4 & 15) > 8 or (w >> 8 & 7) > 5: raise ValueError("Invalid harmony in status")
+    return {"enabled": bool(w >> 16 & 1), "tonic": HARMONY_TONICS[w & 15], "mode": HARMONY_MODES[w >> 4 & 15],
+            "extension": HARMONY_EXTENSIONS[w >> 8 & 7], "inversion": w >> 11 & 3, "open": bool(w >> 13 & 1),
+            "voice_leading": not w >> 14 & 1, "layout": "real" if w >> 15 & 1 else "static"}
+
+
 # Knob pages (core/knob_layout.h): TAPE's pages first, Forge's extra controls after,
 # then the patch's own knob (v5 assignment) as one last page. Knobs 1-4 are SW4, SW1,
 # SW2, SW3 on the panel. "tape.*" controls are device performance state (not in patches).
@@ -241,10 +271,18 @@ def check_value(path, value, codec):
 
 
 def validate_instrument3(patch):
-    v5 = patch.get("version") == 5
-    if set(patch) != {"version", "name", "engine", "routing", "modules", *(("knobs",) if v5 else ())} \
+    v5 = patch.get("version") in (5, 6)
+    v6 = patch.get("version") == 6
+    if set(patch) != {"version", "name", "engine", "routing", "modules", *(("knobs",) if v5 else ()), *(("harmony",) if v6 else ())} \
             or type(patch["version"]) is not int:
         raise ValueError("Invalid instrument fields")
+    if v6:
+        h = patch["harmony"]
+        if not isinstance(h, dict) or set(h) != set(HARMONY_DEFAULTS) \
+                or any(type(h[k]) is not bool for k in ("enabled", "open", "voice_leading")) \
+                or h["tonic"] not in HARMONY_TONICS or h["mode"] not in HARMONY_MODES or h["extension"] not in HARMONY_EXTENSIONS \
+                or type(h["inversion"]) is not int or not 0 <= h["inversion"] <= 3 or h["layout"] not in ("static", "real"):
+            raise ValueError("harmony: " + ", ".join(HARMONY_DEFAULTS) + " (see the v6 schema)")
     v4 = patch["version"] >= 4
     if v5 and (not isinstance(patch["knobs"], list) or len(patch["knobs"]) != 4
                or any(not isinstance(k, str) or k not in KNOB_CHOICES for k in patch["knobs"])):
@@ -290,8 +328,11 @@ def upgrade_patch(patch, to=3):
     envelope's shape at zero depth. The v3 filter is a steeper
     resonant low-pass, so tone can differ slightly."""
     patch = validate_patch(patch)
-    if to not in (3, 4, 5) or patch["version"] > to: raise ValueError("Upgrade target must be 3, 4 or 5 and not older")
+    if to not in (3, 4, 5, 6) or patch["version"] > to: raise ValueError("Upgrade target must be 3-6 and not older")
     if patch["version"] == to: return patch
+    if to == 6:
+        v5 = upgrade_patch(patch, 5)
+        return validate_patch({**v5, "version": 6, "harmony": dict(HARMONY_DEFAULTS)})
     if to == 5:
         v4 = upgrade_patch(patch, 4)
         return validate_patch({**v4, "version": 5, "knobs": ["default"] * 4})
@@ -354,7 +395,7 @@ def validate_instrument(patch):
 def validate_patch(patch):
     if isinstance(patch, dict) and patch.get("version") == 2:
         return validate_instrument(patch)
-    if isinstance(patch, dict) and patch.get("version") in (3, 4, 5):
+    if isinstance(patch, dict) and patch.get("version") in (3, 4, 5, 6):
         validate_instrument3(patch)
         validate_patch(effect_patch(patch))
         return patch
@@ -447,7 +488,7 @@ def encode_patch(patch, sequence):
             value = (math.log(synth[key] / low) / math.log(high / low) if key == "cutoff_hz"
                      else (synth[key] - low) / (high - low))
             data.extend(word14(int(min(max(value, 0.0), 1.0) * 16383 + 0.5)))
-    elif patch["version"] in (3, 4, 5):
+    elif patch["version"] in (3, 4, 5, 6):
         data[0] = patch["version"]
         modules = patch["modules"]
         route = (ROUTES4 if patch["version"] >= 4 else ROUTES3).index(patch["routing"])
@@ -465,8 +506,10 @@ def encode_patch(patch, sequence):
             data.append(int(route == 2))                 # source: sampler
             for key, codec in V4_SAMPLER:
                 data.extend(encode_value(modules["sampler"][key], codec))
-        if patch["version"] == 5:
+        if patch["version"] >= 5:
             data.extend(0 if knob == "default" else KNOB_TARGETS[knob] + 1 for knob in patch["knobs"])
+        if patch["version"] == 6:
+            w = harmony_word(patch["harmony"]); data.extend([w & 127, w >> 7 & 127, w >> 14 & 127])
     return message(1, sequence, data)
 
 
@@ -514,7 +557,7 @@ def decode_response(data, sequence):
             raise ValueError("Invalid sample acknowledgement")
         return {"sequence": sequence, "action": ("saved", "erased", "copied")[data[8]],
                 "mode": SAMPLE_MODES[data[9]], "bank": SAMPLE_BANKS[data[10]], "slot": data[11] + 1}
-    if len(data) not in (30, 42, 81, 96, 100) or data[4] != 0x40 or data[7] != 0 or data[8] not in (1, 2, 3, 4, 5) or data[17] > 1:
+    if len(data) not in (30, 42, 81, 96, 100, 103) or data[4] != 0x40 or data[7] != 0 or data[8] not in (1, 2, 3, 4, 5, 6) or data[17] > 1:
         raise ValueError("Invalid Forge status payload")
     patch = {"version": 1, "name": "Captured from Forge", "engine": "stereo_delay", "parameters": {
         "mix": read14(data, 9) / 16383,
@@ -522,8 +565,8 @@ def decode_response(data, sequence):
         "feedback": 0.85 * read14(data, 13) / 16383,
         "level": read14(data, 15) / 16383, "bypass": bool(data[17])}}
     offset = 18
-    if data[8] in (3, 4, 5):
-        patch, offset = decode_v3(data, patch["name"]), {3: 69, 4: 84, 5: 88}[data[8]]
+    if data[8] in (3, 4, 5, 6):
+        patch, offset = decode_v3(data, patch["name"]), {3: 69, 4: 84, 5: 88, 6: 91}[data[8]]
     elif data[8] == 2:
         if len(data) != 42 or data[18] > 1 or data[19] > 3:
             raise ValueError("Invalid instrument status")
@@ -548,7 +591,7 @@ def decode_v3(data, name):
     """Inverse of the v3/v4/v5 part of encode_patch for an 81/96/100-byte status reply."""
     v4 = data[8] >= 4
     spec = V4_MODULES if v4 else V3_MODULES
-    if len(data) != {3: 81, 4: 96, 5: 100}[data[8]] or data[18] > 1 or data[19] > 3:
+    if len(data) != {3: 81, 4: 96, 5: 100, 6: 103}[data[8]] or data[18] > 1 or data[19] > 3:
         raise ValueError("Invalid v3/v4/v5 instrument status")
     modules = {module: {} for module in spec}
     modules["delay"] = {"mix": read14(data, 9) / 16383, "time_ms": 10 + 990 * read14(data, 11) / 16383,
@@ -598,9 +641,11 @@ def decode_v3(data, name):
     ordered = {module: {key: modules[module][key] for key in fields} for module, fields in spec.items()}
     patch = {"version": data[8], "name": name, "engine": "instrument",
              "routing": (ROUTES4 if v4 else ROUTES3)[route], "modules": ordered}
-    if data[8] == 5:
+    if data[8] >= 5:
         if any(b not in KNOB_BYTES for b in data[84:88]): raise ValueError("Invalid v5 knob assignment in status")
         patch["knobs"] = [KNOB_BYTES[b] for b in data[84:88]]   # reply index = request index 83-86 + 1
+    if data[8] == 6:
+        patch["harmony"] = harmony_from_word(data[88] | data[89] << 7 | data[90] << 14)   # request 87-89 + 1
     return patch
 
 
@@ -757,7 +802,7 @@ def cli(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     schema = commands.add_parser("schema", help="Print an authoring JSON schema (v1 delay by default)")
-    schema.add_argument("--instrument", action="store_true", help="Print the v5 instrument schema (sampler, knob choices)")
+    schema.add_argument("--instrument", action="store_true", help="Print the v6 instrument schema (sampler, knob choices, harmony)")
     commands.add_parser("ports", help="List MIDI ports")
     validate = commands.add_parser("validate"); validate.add_argument("patch")
     upgrade = commands.add_parser("upgrade", help="Convert an older patch file to a new v3 (or --to 4) instrument file")
@@ -798,7 +843,7 @@ def cli(argv=None):
     ai.add_argument("--endpoint", default="http://127.0.0.1:11434/api/chat")
     ai.add_argument("--out", required=True)
     args = parser.parse_args(argv)
-    if args.command == "schema": print(json.dumps(SCHEMA5 if args.instrument else SCHEMA, indent=2))
+    if args.command == "schema": print(json.dumps(SCHEMA6 if args.instrument else SCHEMA, indent=2))
     elif args.command == "ports":
         midi = midi_module()
         print(json.dumps({"inputs": midi.get_input_names(), "outputs": midi.get_output_names()}, indent=2))

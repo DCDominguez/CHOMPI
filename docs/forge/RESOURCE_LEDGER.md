@@ -174,3 +174,15 @@ unexplained size increase; >=1 KiB or >=1% image growth; any new large static
 buffer; any CPU-gate regression. Smaller changes still require a delta entry.
 Do not convert missing measurements into zero deltas or passes. Before publishing
 docs, recheck `forge/foundation`; never overwrite a concurrent implementation.
+
+## Snapshot 2026-10-05: firmware 0.13 harmony (Phase 1 complete)
+
+| Field | Record |
+| --- | --- |
+| Identity | Commit after `77fb5a7` (parent, previous measured); firmware 0.13, patch v6, Inspector page 8; clean tree at commit |
+| Build | xPack GCC 10.3.1, unchanged flags. Release 217,104 B (SHA-256 prefix `3c57221613456934`), development 229,768 B (`4bfe08a3d9b825bf`); layout OK both |
+| Memory | SRAM_EXEC headroom 71,664 / 59,000 B (release/dev). Release `.text` 214,408, `.data` 1,732, `.bss` 129,700, DTCM 35,480, SRAM1 23,800 B. SDRAM unchanged (393,200 B free). Delta over `77fb5a7`: +1,944 / +2,648 B |
+| CPU | Emulator gate unchanged: worst 2,677.9 vs WAVE 2,694.9; informational pitch-below-1× 2,800.8 (6.2f, DC accepted). Harmony resolves at note on/off on the main loop |
+| QA | 14 native + 121 Python PASS; 13 ASan/UBSan PASS (`detect_leaks=0`); browser 11 + 7 PASS. No hardware |
+| Value | Harmony menu page (keys = tonic), Inspector chord page, patch v6 (presets, webapp, AI) for ~2 KB |
+| Decision | Hardware evidence still needed: TEST_SESSION 3.65–3.67 and the 6.2 CPU peaks with the `-Os` control paths |

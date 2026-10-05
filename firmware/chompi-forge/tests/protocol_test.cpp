@@ -38,7 +38,7 @@ void ProtocolAndAtomicity() {
         assert(DecodeRequest(packet.data(), size, request) != Error::None);
     packet[16] = 2; packet[17] = Checksum(packet.data(), 17);
     assert(DecodeRequest(packet.data(), packet.size(), request) == Error::Patch);
-    packet = Patch(); packet[7] = 6; packet[17] = Checksum(packet.data(), 17);
+    packet = Patch(); packet[7] = 7; packet[17] = Checksum(packet.data(), 17);
     assert(DecodeRequest(packet.data(), packet.size(), request) == Error::Version);
     packet = Patch(); packet[7] = 3; packet[17] = Checksum(packet.data(), 17);
     assert(DecodeRequest(packet.data(), packet.size(), request) == Error::Length); // v3 needs 69 bytes
@@ -106,8 +106,8 @@ void ProtocolV3() {
     uint8_t cursor_request[14]{}; Header(cursor_request,0x0b,3); cursor_request[7]=6;
     cursor_request[13]=Checksum(cursor_request,13);
     assert(DecodeRequest(cursor_request,14,request)==Error::Opcode);
-    // The largest reply (a v5 status) fits the firmware's USB packet buffer size.
-    response.patch.version = 5;
+    // The largest reply (a v6 status) fits the firmware's USB packet buffer size.
+    response.patch.version = 6;
     assert(EncodeResponse(response, 0, 0, reply) == kMaxReply);
     uint8_t envelope[kMaxReply + 2]; envelope[0] = 0xf0; envelope[kMaxReply + 1] = 0xf7;
     for(size_t i = 0; i < kMaxReply; ++i) envelope[i + 1] = reply[i];
@@ -168,10 +168,10 @@ void ProtocolV5() {
     Parameters p; p.version = 5; p.synth = true; p.voices = 7; p.resonance = 0.3f;
     p.knobs[0] = static_cast<uint8_t>(Parameter::Attack) + 1; p.knobs[2] = static_cast<uint8_t>(Parameter::ReverbSize) + 1;
     assert(p.Valid());
-    std::vector<uint8_t> request(kMaxRequest); Header(request.data(), 1, 77);
-    assert(EncodePatchData(p, request.data() + 7) == kMaxRequest - 8);
+    std::vector<uint8_t> request(kV5Request); Header(request.data(), 1, 77);
+    assert(EncodePatchData(p, request.data() + 7) == kV5Request - 8);
     assert(request[83] == p.knobs[0] && request[84] == 0 && request[85] == p.knobs[2] && request[86] == 0);
-    request[kMaxRequest - 1] = Checksum(request.data(), kMaxRequest - 1);
+    request[kV5Request - 1] = Checksum(request.data(), kV5Request - 1);
     Request decoded; assert(DecodeRequest(request.data(), request.size(), decoded) == Error::None);
     assert(decoded.patch.version == 5 && decoded.patch.knobs[0] == p.knobs[0] && decoded.patch.knobs[2] == p.knobs[2]
            && decoded.patch.knobs[1] == 0 && decoded.patch.knobs[3] == 0);
@@ -179,19 +179,19 @@ void ProtocolV5() {
            && decoded.patch.KnobParameter(2) == Parameter::ReverbSize);
     std::vector<float> l(48002), r(48002); Engine engine; assert(engine.Init(48000.f, l.data(), r.data(), l.size()));
     Response response; assert(ExecuteRequest(decoded, engine, response) && response.error == Error::None);
-    uint8_t reply[kMaxReply]; assert(EncodeResponse(response, 0, 0, reply) == kMaxReply && Checksum(reply, kMaxReply) == 0);
-    for(size_t i = 7; i < kMaxRequest - 1; ++i) assert(reply[i + 1] == request[i]);
+    uint8_t reply[kMaxReply]; assert(EncodeResponse(response, 0, 0, reply) == kV5Request + 12 && Checksum(reply, kV5Request + 12) == 0);
+    for(size_t i = 7; i < kV5Request - 1; ++i) assert(reply[i + 1] == request[i]);
     // Not assignable (bypass, the knobs themselves, unknown ids) or a v4 size: rejected, nothing applied.
     for(uint8_t bad : {uint8_t(uint8_t(Parameter::Bypass) + 1), uint8_t(uint8_t(Parameter::Knob1) + 1), uint8_t(uint8_t(Parameter::Knob4) + 1),
                        uint8_t(uint8_t(Parameter::Count) + 1), uint8_t(127)}) {
-        auto broken = request; broken[84] = bad; broken[kMaxRequest - 1] = Checksum(broken.data(), kMaxRequest - 1);
+        auto broken = request; broken[84] = bad; broken[kV5Request - 1] = Checksum(broken.data(), kV5Request - 1);
         Request untouched; untouched.sequence = 9;
         assert(DecodeRequest(broken.data(), broken.size(), untouched) == Error::Patch && untouched.sequence == 9);
     }
     // The whole v5 request passes the MIDI framer (kMaxSysEx) intact.
     MidiFramer parser; MidiFrame frame; assert(!parser.Feed(0xf0, frame));
     for(auto byte : request) assert(!parser.Feed(byte, frame));
-    assert(parser.Feed(0xf7, frame) && frame.size == kMaxRequest && DecodeRequest(frame.data, frame.size, decoded) == Error::None);
+    assert(parser.Feed(0xf7, frame) && frame.size == kV5Request && DecodeRequest(frame.data, frame.size, decoded) == Error::None);
     auto short_v5 = request; short_v5.resize(kV4Request); short_v5[kV4Request - 1] = Checksum(short_v5.data(), kV4Request - 1);
     assert(DecodeRequest(short_v5.data(), short_v5.size(), decoded) == Error::Length);
     // Older versions cannot carry assignments.
@@ -209,6 +209,39 @@ void ProtocolV5() {
         assert(std::fabs(copy.Value(Parameter::Knob2) - copy.Value(q)) < 1e-6f);
     }
 }
+// v6 (0.13) = v5 + the harmony word (request 87-89): 91-byte request, 103-byte status.
+void ProtocolV6() {
+    Parameters p; p.version = 6; p.synth = true; p.voices = 4;
+    p.harmony = 9u | 1u << 4 | 1u << 8 | 2u << 11 | 1u << 15 | 1u << 16;          // A natural minor, 7th, inversion 2, Real, on
+    assert(p.Valid());
+    std::vector<uint8_t> request(kMaxRequest); Header(request.data(), 1, 78);
+    assert(EncodePatchData(p, request.data() + 7) == kMaxRequest - 8);
+    request[kMaxRequest - 1] = Checksum(request.data(), kMaxRequest - 1);
+    Request decoded; assert(DecodeRequest(request.data(), request.size(), decoded) == Error::None);
+    assert(decoded.patch.version == 6 && decoded.patch.harmony == p.harmony);
+    std::vector<float> l(48002), r(48002); Engine engine; assert(engine.Init(48000.f, l.data(), r.data(), l.size()));
+    harmony::Player player; engine.SetHarmony(&player);
+    Response response; assert(ExecuteRequest(decoded, engine, response) && response.error == Error::None);
+    assert(player.state.enabled && player.state.tonic == 9 && player.state.mode == harmony::Mode::NaturalMinor
+           && player.state.extension == harmony::Extension::Seventh && player.state.inversion == 2 && player.state.layout == harmony::Layout::Real);
+    uint8_t reply[kMaxReply]; assert(EncodeResponse(response, 0, 0, reply) == kMaxReply && Checksum(reply, kMaxReply) == 0);
+    for(size_t i = 7; i < kMaxRequest - 1; ++i) assert(reply[i + 1] == request[i]);   // the apply echo
+    // Invalid harmony words are rejected; v5 sizes are not v6.
+    for(uint32_t bad : {12u, 9u << 4, 6u << 8}) {
+        auto broken = request; broken[87] = bad & 127; broken[88] = (bad >> 7) & 127; broken[89] = (bad >> 14) & 127;
+        broken[kMaxRequest - 1] = Checksum(broken.data(), kMaxRequest - 1);
+        assert(DecodeRequest(broken.data(), broken.size(), decoded) == Error::Patch);
+    }
+    auto short_v6 = request; short_v6.resize(kV5Request); short_v6[kV5Request - 1] = Checksum(short_v6.data(), kV5Request - 1);
+    assert(DecodeRequest(short_v6.data(), short_v6.size(), decoded) == Error::Length);
+    // A v5 apply keeps the harmony state; a status snapshot carries it as v6 (a v3+ patch).
+    Parameters v5 = p; v5.version = 5; v5.harmony = 0; assert(engine.ApplyPatch(v5));
+    assert(player.state.enabled && engine.GetParameters().version == 5);
+    const Parameters snap = engine.Snapshot(); assert(snap.version == 6 && snap.harmony == harmony::Pack(player.state) && snap.Valid());
+    // v1/v2 patches are never moved up a version.
+    Parameters v2; v2.version = 2; v2.synth = true; assert(engine.ApplyPatch(v2) && engine.Snapshot().version == 2);
+    player.state.enabled = false; Parameters v4; v4.version = 4; v4.synth = true; assert(engine.ApplyPatch(v4) && engine.Snapshot().version == 4);
+}
 // Status with the optional flags byte: bit 0 asks for a fresh CPU peak after the reply.
 void StatusResetsCpu() {
     auto status = [](std::vector<uint8_t> body) {
@@ -222,7 +255,7 @@ void StatusResetsCpu() {
     m = status({2}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Patch);
     m = status({1, 0}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Length);
 }
-int main() { ProtocolV3(); ProtocolV5(); StatusResetsCpu();
+int main() { ProtocolV3(); ProtocolV5(); ProtocolV6(); StatusResetsCpu();
     ProtocolAndAtomicity(); Framing(); UsbPacketization();
     std::cout << "PASS: protocol rejection/atomicity, v3 round trip/bounds, v5 knob assignments, status CPU reset, MIDI real-time/resync/fuzz, USB packet endings\n";
 }

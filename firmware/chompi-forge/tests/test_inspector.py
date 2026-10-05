@@ -86,6 +86,22 @@ class InspectorTests(unittest.TestCase):
         self.assertEqual(storage['record_capacity_frames'],192000)
         self.assertEqual(inspector.decode(replies[5],6,7)['patch']['modules']['sampler']['slot'],15)
 
+    def test_harmony_page(self):
+        patch=host.upgrade_patch(host.load_patch(ROOT/'presets'/'07-warm-pad.json'),6)
+        patch['harmony']={**host.HARMONY_DEFAULTS,'enabled':True,'tonic':'A','mode':'natural_minor','extension':'7th'}
+        replies=probe(host.encode_patch(patch,1),inspector.request(2,2),inspector.request(8,3),host.message(0x0a,4,[0,18,65]),
+                      inspector.request(2,5),inspector.request(8,6))   # page 2 latches the snapshot page 8 reads
+        idle=inspector.decode(replies[2],3,8); held=inspector.decode(replies[5],6,8)
+        self.assertEqual(idle['harmony']['tonic'],'A'); self.assertTrue(idle['harmony']['enabled'])
+        self.assertIsNone(idle['chord']['name']); self.assertEqual(idle['sounding_notes'],0)
+        self.assertEqual(held['chord']['root'],'A'); self.assertEqual(held['chord']['numeral'],'I')
+        self.assertEqual(held['chord']['name'],'Am7'); self.assertEqual(held['sounding_notes'],4)
+        self.assertGreater(held['changes'],idle['changes'])
+        self.assertEqual(inspector.harmony_line(held),'HARMONY on, A natural minor, 7th, static, voice leading; '
+                         'last Am7 · I · tonic (A4 C5 E5 G5); sounding 4; chords 1')
+        bad=replies[5].copy(); bad[15]=12; fixed(bad)
+        with self.assertRaisesRegex(ValueError,'Invalid harmony'): inspector.decode(bad,6,8)
+
     def test_malformed_word_and_event_lengths(self):
         data=probe(inspector.request(2,1))[0]; data[14]=16; fixed(data)
         with self.assertRaisesRegex(ValueError,'32-bit'): inspector.decode(data,1,2)
@@ -108,6 +124,7 @@ class InspectorTests(unittest.TestCase):
             self.assertTrue(s['system']['simulated'])
             self.assertIn('SIMULATION',inspector.display(s))
             self.assertIn('STORAGE',inspector.display(s))
+            self.assertIn('HARMONY off, C major, triad, static',inspector.display(s))
             self.assertEqual(len(s['panel']['leds']),26)
             # A cursor from a previous boot must recover without losing the viewer.
             reset=inspector.collect(fetch,100)

@@ -23,7 +23,7 @@ def word(value):
 
 
 def request(page, sequence, cursor=0):
-    if type(page) is not int or not 1 <= page <= 7:
+    if type(page) is not int or not 1 <= page <= 8:
         raise ValueError("Unknown Inspector page")
     return host.message(0x0b, sequence, [page, *word(cursor)] if page == 6 else [page])
 
@@ -47,9 +47,9 @@ def decode(data, sequence, expected_page=None):
         if len(data) != 88:
             raise ValueError("Invalid LED page")
         return {"page": 1, "rgb": [data[9+3*i:12+3*i] for i in range(26)]}
-    if page not in range(2,8) or len(data) < 16 or data[9] != 1:
+    if page not in range(2,9) or len(data) < 16 or data[9] != 1:
         raise ValueError("Unsupported Inspector schema/page; use the matching host")
-    lengths = {2:(88, 91, 98), 3:(97,), 4:(88,), 5:(94,)}  # page 2: 91 from firmware 0.8 (power), 98 from 0.10 (restart)
+    lengths = {2:(88, 91, 98), 3:(97,), 4:(88,), 5:(94,), 8:(38,)}  # page 2: 91 from firmware 0.8 (power), 98 from 0.10 (restart)
     if page in lengths and len(data) not in lengths[page]:
         raise ValueError("Invalid Inspector page length")
     pos = 10
@@ -107,7 +107,8 @@ def decode(data, sequence, expected_page=None):
         result["physical"]={"toggle_up":bool(physical&1),"line_jack":bool(physical&2),"tone_press":bool(physical&4)}
         result["logical"]={"toggle_up":bool(logical&1),"line_jack":bool(logical&2),"tone_press":bool(logical&4),"overridden":bool(logical&8)}
         menu=u32()
-        result["menu"]={"packed":menu,"open":bool(menu&1),"page":"samples" if menu>>21&1 else "presets","bank_index":menu>>4&7}
+        result["menu"]={"packed":menu,"open":bool(menu&1),
+                        "page":"samples" if menu>>21&1 else "harmony" if (menu>>1)&7==7 else "presets","bank_index":menu>>4&7}
         result["raw_encoder_turns"]=[signed(u32()) for _ in range(6)]
         result["logical_encoder_turns"]=[signed(u32()) for _ in range(6)]
         pages=byte()|(byte()<<7)
@@ -167,7 +168,7 @@ def decode(data, sequence, expected_page=None):
             result["events"].append(e)
     elif page == 7:
         patch_data=data[15:-1]
-        if not patch_data or len(patch_data)!={1:10,2:22,3:61,4:76,5:80}.get(patch_data[0]):
+        if not patch_data or len(patch_data)!={1:10,2:22,3:61,4:76,5:80,6:83}.get(patch_data[0]):
             raise ValueError("Invalid Inspector patch page")
         # Reuse the established patch decoder via an internal status envelope.
         # Only the decoded patch is returned; these shim diagnostics are never displayed.
@@ -175,13 +176,52 @@ def decode(data, sequence, expected_page=None):
         status.append(host.checksum(status))
         result["patch"]=host.decode_response(status,sequence)["patch"]
         pos=len(data)-1
+    elif page == 8:
+        result["harmony"]=harmony_state(u32())
+        root,degree,kind,quality,shifted,count=(byte() for _ in range(6))
+        notes=[byte() for _ in range(5)]
+        if root>11 or degree>6 or kind>5 or quality>4 or shifted>1 or count>5: raise ValueError("Invalid harmony page")
+        result["chord"]=chord_label(root,degree,kind,quality,bool(shifted),notes[:count],result["harmony"])
+        result["sounding_notes"]=byte(); result["changes"]=u32()
     if pos!=len(data)-1: raise ValueError("Unexpected Inspector trailing data")
     return result
+
+
+# Harmony mode (firmware 0.13, core/harmony.h): names for the packed numbers.
+NOTE_NAMES=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
+MODES=["major","natural minor","harmonic minor","melodic minor","dorian","phrygian","lydian","mixolydian","locrian"]
+EXTENSIONS=["triad","7th","9th","11th","13th","fifth"]
+ROMAN=["I","II","III","IV","V","VI","VII"]
+def harmony_state(w):
+    if w>>18 or (w&15)>11 or (w>>4&15)>8 or (w>>8&7)>5: raise ValueError("Invalid harmony state")
+    return {"enabled":bool(w>>16&1),"tonic":NOTE_NAMES[w&15],"mode":MODES[w>>4&15],"extension":EXTENSIONS[w>>8&7],
+            "inversion":w>>11&3,"open":bool(w>>13&1),"voice_leading":not w>>14&1,"layout":"real" if w>>15&1 else "static",
+            "shift":bool(w>>17&1),"packed":w}
+def chord_label(root,degree,kind,quality,shifted,notes,state):
+    """A name for the host to show (e.g. D#m9); computed from the voiced notes, so it is what sounds."""
+    kinds=["none","diatonic","secondary","borrowed","shift","interchange"]
+    pcs={(n-root)%12 for n in notes}
+    third="m" if 3 in pcs and 4 not in pcs else "sus4" if 5 in pcs and 4 not in pcs and 3 not in pcs else ""
+    if 3 in pcs and 6 in pcs and 7 not in pcs: third="dim"
+    ext=""
+    if 10 in pcs: ext="7"
+    if 11 in pcs: ext="maj7"
+    if 2 in pcs and (10 in pcs or 11 in pcs): ext="9" if ext=="7" else "maj9" if ext=="maj7" else ext
+    if 9 in pcs and (10 in pcs or 11 in pcs): ext="13"
+    if 5 in pcs and third!="sus4" and (10 in pcs or 11 in pcs) and ext!="13": ext="11"
+    name=NOTE_NAMES[root]+(third if third!="m" or not ext.startswith("maj") else "m")+ext
+    if not notes: name=None
+    function={0:"tonic",2:"tonic",5:"tonic",1:"subdominant",3:"subdominant",4:"dominant",6:"dominant"}.get(degree) \
+        if kinds[kind]=="diatonic" else {"secondary":"secondary dominant","borrowed":"borrowed","interchange":"modal interchange"}.get(kinds[kind])
+    numeral=ROMAN[degree] if kinds[kind] in ("diatonic","interchange") else f"V/{ROMAN[degree]}" if kinds[kind]=="secondary" else None
+    return {"name":name,"root":NOTE_NAMES[root],"numeral":numeral,"function":function,"kind":kinds[kind],"shifted":shifted,
+            "notes":[f"{NOTE_NAMES[n%12]}{n//12-1}" for n in notes],"midi":notes}
 
 
 def collect(fetch, cursor=0):
     """Latch page 2 then read the same main-loop snapshot across all state groups."""
     pages={p:fetch(p,0) for p in (2,3,4,5,7)}
+    if int(pages[2]["firmware"].split(".")[1])>=13: pages[8]=fetch(8,0)   # harmony page from 0.13
     if len({v["generation"] for v in pages.values()})!=1:
         raise RuntimeError("Inspector snapshot changed during read; another host may be polling")
     leds=fetch(1,0)
@@ -218,8 +258,17 @@ def collect(fetch, cursor=0):
         sw5_cutoff_hz=modules.get("filter",modules.get("synth",{})).get("cutoff_hz"),
         sw6_level=modules.get("output",patch.get("parameters",{})).get("level"))
     return {"schema":1,"generation":pages[2]["generation"],"system":pages[2],"panel":pages[3],
-            "engine":pages[4],"storage":pages[5],"events":events,"event_cursor":cursor,"event_gap":lost,
+            "engine":pages[4],"storage":pages[5],"harmony":pages.get(8),"events":events,"event_cursor":cursor,"event_gap":lost,
             "event_overwritten":log["overwritten"]}
+
+
+def harmony_line(page):
+    """One line for the harmony page, e.g. HARMONY on, A natural minor, 7th, static; last Am7 · I · tonic (A4 C5 E5 G5)."""
+    h,c=page["harmony"],page["chord"]
+    state=f'{"on" if h["enabled"] else "off"}, {h["tonic"]} {h["mode"]}, {h["extension"]}, {h["layout"]}' \
+        +(", voice leading" if h["voice_leading"] else f', inversion {h["inversion"]}')+(", open" if h["open"] else "")+(", SHIFT" if h["shift"] else "")
+    last=" · ".join(x for x in (c["name"],c["numeral"],c["function"]) if x)+f' ({" ".join(c["notes"])})' if c["name"] else "none"
+    return f'HARMONY {state}; last {last}; sounding {page["sounding_notes"]}; chords {page["changes"]}'
 
 
 def display(s, recent=()):
@@ -243,6 +292,7 @@ def display(s, recent=()):
            f'        recording {storage["recording"]}, source {storage["record_source"]}, frames {storage["record_frames"]}/{storage["record_capacity_frames"]}',
            f'        jobs {storage["pending_jobs"]}, active {storage["active_job"]}; errors {storage["storage_errors"]}, last {storage["last_error"]}',
            f'EVENTS  gaps {s["event_gap"]}; overwritten {s["event_overwritten"]}; audio event drops {sys["event_drops"]}']
+    if s.get("harmony"): lines.insert(-1,harmony_line(s["harmony"]))
     lines.extend(f'        {e["serial"]} @ {e["time_ms"]}ms {e["kind"]} id={e["id"]} value={e["value"]}' for e in recent)
     return "\n".join(lines)
 

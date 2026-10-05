@@ -218,6 +218,28 @@ FORGE_COLD inline Voiced Lead(int root_note, const uint8_t* tones, uint8_t count
     return best;
 }
 
+// The state in one word (LEDs, Inspector, patch v6): bits 0-3 tonic, 4-7 mode, 8-10
+// extension, 11-12 inversion, 13 open, 14 block (voice leading off), 15 Real layout,
+// 16 enabled, 17 Shift held (Pack only).
+inline uint32_t Pack(const State& s, bool shift = false) {
+    return (s.tonic % 12u) | (static_cast<uint32_t>(s.mode) % kModes) << 4 | (static_cast<uint32_t>(s.extension) % kExtensions) << 8
+         | (s.inversion & 3u) << 11 | (s.open ? 1u << 13 : 0u) | (s.block ? 1u << 14 : 0u)
+         | (s.layout == Layout::Real ? 1u << 15 : 0u) | (s.enabled ? 1u << 16 : 0u) | (shift ? 1u << 17 : 0u);
+}
+inline State Unpack(uint32_t w) {
+    State s;
+    s.tonic = static_cast<uint8_t>((w & 15u) % 12u); s.mode = static_cast<Mode>(((w >> 4) & 15u) % kModes);
+    s.extension = static_cast<Extension>(((w >> 8) & 7u) % kExtensions); s.inversion = static_cast<uint8_t>((w >> 11) & 3u);
+    s.open = (w >> 13) & 1u; s.block = (w >> 14) & 1u; s.layout = (w >> 15) & 1u ? Layout::Real : Layout::Static;
+    s.enabled = (w >> 16) & 1u;
+    return s;
+}
+// Is pitch class `pc` in the key (tonic + mode)?
+inline bool InKey(unsigned pc, const State& s) {
+    for(uint8_t step : kScale[static_cast<unsigned>(s.mode) % kModes]) if((s.tonic + step) % 12 == pc % 12) return true;
+    return false;
+}
+
 // Keys to chords and who owns which note: each held key keeps the notes it started,
 // a per-pitch count lets overlapping chords share notes, so releasing a key (or
 // turning harmony off, changing key or mode while holding) never strands a note.

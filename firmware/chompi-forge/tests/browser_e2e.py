@@ -111,7 +111,7 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(p.locator("#preset option").count(), 15)
         patch_json = self.json()
         self.assertEqual(patch_json["version"], 3)                  # starts on the first v3 preset
-        self.assertFalse(p.is_disabled("#upgrade"))                 # v3 can convert to v5
+        self.assertFalse(p.is_disabled("#upgrade"))                 # v3 can convert to v6
         self.assertTrue(p.is_disabled("#sampler-mode"))             # sampler controls need v4+
         self.assertTrue(p.is_disabled("#knobs-0"))                  # knob choices need v5
         for control in ("#synth-waveform", "#filter-resonance", "#lfo-rate_hz", "#reverb-mix", "#lfo-mod_wheel"):
@@ -147,7 +147,7 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(p.input_value("#filter-cutoff_hz-range"), "1000")
         p.screenshot(path=str(SHOTS / "desktop-instrument.png"), full_page=True)
 
-    def test_v2_controls_map_to_v2_fields_and_convert_to_v5(self):
+    def test_v2_controls_map_to_v2_fields_and_convert_to_v6(self):
         p = self.page
         self.choose_preset("Soft Pad")
         self.assertEqual(self.json()["version"], 2)
@@ -159,10 +159,11 @@ class BrowserTests(unittest.TestCase):
         self.assertNotIn("filter", self.json()["modules"])
         before = self.json()
         p.click("#upgrade"); self.wait_idle()
-        self.assertIn("Converted to v5", self.notice())
+        self.assertIn("Converted to v6", self.notice())
         upgraded = self.json()
-        self.assertEqual(upgraded, forge_host.upgrade_patch(before, 5))
-        self.assertEqual((upgraded["version"], upgraded["routing"], upgraded["knobs"]), (5, "synth>delay>reverb>output", ["default"] * 4))
+        self.assertEqual(upgraded, forge_host.upgrade_patch(before, 6))
+        self.assertEqual((upgraded["version"], upgraded["routing"], upgraded["knobs"], upgraded["harmony"]),
+                         (6, "synth>delay>reverb>output", ["default"] * 4, forge_host.HARMONY_DEFAULTS))
         self.assertEqual(upgraded["modules"]["filter"]["cutoff_hz"], 1500)
         self.assertFalse(p.is_disabled("#reverb-mix")); self.assertTrue(p.is_disabled("#upgrade"))
         # Knob choices (page 1 of the panel knobs) edit the v5 "knobs" list.
@@ -171,6 +172,12 @@ class BrowserTests(unittest.TestCase):
         p.select_option("#knobs-0", "filter.cutoff_hz"); p.select_option("#knobs-3", "reverb.mix")
         self.assertEqual(self.json()["knobs"], ["filter.cutoff_hz", "default", "default", "reverb.mix"])
         self.assertEqual(forge_host.validate_patch(self.json())["knobs"][3], "reverb.mix")
+        # Harmony controls (v6) edit the "harmony" object.
+        p.check("#harmony-enabled"); p.select_option("#harmony-tonic", "A"); p.select_option("#harmony-mode", "dorian")
+        p.select_option("#harmony-layout", "real"); p.uncheck("#harmony-voice_leading")
+        self.assertEqual(forge_host.validate_patch(self.json())["harmony"],
+                         {**forge_host.HARMONY_DEFAULTS, "enabled": True, "tonic": "A", "mode": "dorian", "layout": "real",
+                          "voice_leading": False})
 
     def test_save_validates_and_reports_field_errors(self):
         p = self.page
@@ -250,7 +257,7 @@ class BrowserTests(unittest.TestCase):
         sent = self.json()
         p.click("#send"); self.wait_idle()
         self.assertIn("acknowledged", self.notice())
-        self.assertIn("Firmware 0.12", p.inner_text("#device-state"))
+        self.assertIn("Firmware 0.13", p.inner_text("#device-state"))
         # Legacy v1 delay patch switches device to aux path.
         self.choose_preset("Short slap"); p.click("#send"); self.wait_idle()
         p.click("#capture"); self.wait_idle()

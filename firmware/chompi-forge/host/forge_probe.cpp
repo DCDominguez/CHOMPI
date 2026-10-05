@@ -250,6 +250,7 @@ int main(int argc, char** argv) {
                 v.live = forge::PackSelection(engine.GetParameters()); v.blink = true;
                 v.keys_down = panel.KeysDown(); v.kit_occupancy = loader.Occupancy(1, (v.live >> 2) & 7u);
                 v.record_position = panel.RecordPosition(); v.count_in = panel.CountIn();
+                v.harmony = panel.HarmonyLights();
                 forge::Rgb keys[25], chompi; forge::ComposeLeds(v, keys, chompi);
                 uint8_t leds[26][3];
                 for(unsigned i = 0; i < 26; ++i) {

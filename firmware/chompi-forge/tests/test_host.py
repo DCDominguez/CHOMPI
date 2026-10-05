@@ -38,9 +38,33 @@ class PatchTests(unittest.TestCase):
             response = probe(packet)[0]
             self.assertEqual(response[8:len(packet)], packet[7:-1])
             result = host.decode_response(response, 129)
-            self.assertEqual(result["firmware"], "0.12")
+            self.assertEqual(result["firmware"], "0.13")
             self.assertAlmostEqual(host.effect_patch(result["patch"])["parameters"]["time_ms"],
                                    host.effect_patch(patch)["parameters"]["time_ms"], delta=990 / 16383)
+
+    def test_v6_harmony_round_trip_cpp(self):
+        patch = host.upgrade_patch(host.load_patch(ROOT / "presets" / "07-warm-pad.json"), 6)
+        self.assertEqual(patch["harmony"], host.HARMONY_DEFAULTS)
+        cases = (dict(host.HARMONY_DEFAULTS),
+                 {"enabled": True, "tonic": "A", "mode": "natural_minor", "extension": "7th", "inversion": 1,
+                  "open": True, "voice_leading": False, "layout": "real"},
+                 {"enabled": True, "tonic": "B", "mode": host.HARMONY_MODES[-1], "extension": "fifth", "inversion": 3,
+                  "open": False, "voice_leading": True, "layout": "static"})
+        for harmony in cases:
+            patch["harmony"] = harmony
+            packet = host.encode_patch(patch, 91)
+            self.assertEqual(len(packet), 91)
+            response = probe(packet)[0]
+            self.assertEqual(len(response), 103)
+            self.assertEqual(response[8:len(packet)], packet[7:-1])
+            self.assertEqual(host.decode_response(response, 91)["patch"]["harmony"], harmony)
+        for bad in ({**host.HARMONY_DEFAULTS, "tonic": "H"}, {**host.HARMONY_DEFAULTS, "inversion": 4},
+                    {**host.HARMONY_DEFAULTS, "mode": "ionian"}, {k: v for k, v in host.HARMONY_DEFAULTS.items() if k != "open"}):
+            with self.assertRaises(ValueError): host.validate_patch({**patch, "harmony": bad})
+        with self.assertRaises(ValueError): host.validate_patch({**patch, "version": 5})
+        # The device rejects an out-of-range harmony word (tonic 12) even with a valid checksum.
+        broken = host.encode_patch(patch, 92); broken[87] = 12; broken[-1] = host.checksum(broken[:-1])
+        with self.assertRaisesRegex(RuntimeError, "invalid patch"): host.decode_response(probe(broken)[0], 92)
 
     def test_v5_knob_assignments_round_trip_cpp(self):
         patch = host.upgrade_patch(host.load_patch(ROOT / "presets" / "07-warm-pad.json"), 5)

@@ -70,12 +70,15 @@ struct Parameters {
     bool sample_loop = false, sample_gate = true, sample_reverse = false;
     // v5 knob assignments (page 1 of each knob).
     uint8_t knobs[4] = {0, 0, 0, 0};
+    // Version 6 (0.13) adds harmony mode: harmony::Pack (core/harmony.h), 17 bits; request bytes 87-89.
+    uint32_t harmony = 0;
 
     bool Sampler() const { return version >= 4 && source == 1; }
     uint8_t MaxVoices() const { return version >= 4 ? 7 : 4; }
 
     FORGE_COLD bool Valid() const {
-        return version >= 1 && version <= 5 && waveform < 4 && !(version == 1 && synth)
+        return version >= 1 && version <= 6 && waveform < 4 && !(version == 1 && synth)
+            && harmony < (1u << 17) && (harmony & 15u) < 12 && ((harmony >> 4) & 15u) < 9 && ((harmony >> 8) & 7u) < 6
             && Unit(attack) && Unit(decay) && Unit(sustain) && Unit(release) && Unit(cutoff)
             && Unit(mix) && Unit(time) && Unit(feedback) && Unit(level)
             && osc2_waveform < 4 && osc2_semitones <= 48 && voices >= 1 && voices <= MaxVoices() && lfo_waveform < 4

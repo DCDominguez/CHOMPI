@@ -207,6 +207,17 @@ down which one lit — that mapping is not yet hardware-verified.
 | 3.63 | **Per-slot settings, kit (0.12):** sampler, kit. Play pad 1, turn SW4 up and the pan (menu SW4 page 2) left; play pad 2 and turn SW4 down. Play both | Pad 1 higher and on the left, pad 2 lower and centred; each pad's knob lights show its own values when played; other pads unchanged |
 | 3.64 | **Shared with TAPE (0.12, optional):** after 3.62, put TAPE on the card (only TAPE's `.bin`), start it, choose the same slot 1; then back to Forge | TAPE plays slot 1 with the pitch and start set in Forge (TAPE's pitch curve is the same); settings changed in TAPE are there in Forge |
 
+## 3G. Harmony (firmware 0.13)
+
+One key plays a chord (MANUAL section 8a). Software-tested only; these steps are
+the first time it is heard. Use the Warm Pad preset (synth).
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.65 | **Harmony page (0.13):** Warm Pad. Toggle down, hold CHOMPI, hold KEY_21 1 s. Press SW4 (on), press the A key, turn SW4 one step (natural minor); close the menu and play C3, F3, G3 | On the page the A keys light white and A minor's scale blue; SW4's light green. Played: C3 = A minor chord, F3 = D minor, G3 = E minor (chords of 3 notes), also on a MIDI monitor (3.61) as 3 notes each. Inspector shows *Am · I · tonic* after C3 |
+| 3.66 | **Chord size, Shift, voice leading (0.13):** harmony page: turn SW1 two steps (7th); play C3, F3, G3, C3 again; hold C5 and play G3; press SW2 (voice leading off), turn SW2 and play C3 again | 4-note chords that move smoothly (few notes change between chords); C5 + G3 = E7 (Shift turns the minor v into the major dominant); with voice leading off each SW2 step changes the inversion; no hung notes when releasing in any order |
+| 3.67 | **Real layout and saving (0.13):** harmony page: press SW1 (light orange); play C#3 and D3; save the preset on CHOMPI (section 6), switch off and on, recall it; press SW5 while holding a chord | Real: each key is the chord's root (D3 in A minor = D minor); after the restart the recalled preset still plays chords in A minor; SW5 panic stops the chord at once |
+
 ## 4. Panic and recovery
 
 | # | Do | Pass when |

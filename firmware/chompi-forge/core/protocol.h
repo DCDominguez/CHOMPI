@@ -5,15 +5,15 @@
 
 namespace forge {
 constexpr uint8_t kProtocolVersion = 1, kPatchVersion = 1;
-constexpr uint8_t kFirmwareMinor = 12; // 0.12: TAPE per-slot sample settings (presets.json); 0.11: install power check, battery lockout log, start-up fixes; 0.10: TAPE parity (knobs, effects, count-in, restart record); 0.9: key lights while playing (TAPE); 0.8: power as stock (off gesture, SW6 battery, charger hand-over); 0.7: USB file transfer (opcode 0C)
+constexpr uint8_t kFirmwareMinor = 13; // 0.13: harmony mode (menu page, patch v6, Inspector page 8), memory savings; 0.12: TAPE per-slot sample settings (presets.json); 0.11: install power check, battery lockout log, start-up fixes; 0.10: TAPE parity (knobs, effects, count-in, restart record); 0.9: key lights while playing (TAPE); 0.8: power as stock (off gesture, SW6 battery, charger hand-over); 0.7: USB file transfer (opcode 0C)
 // 7-9 are device-preset (SD) errors: empty slot, no/failed card, storage busy.
 // Power (0.11): a firmware install refused because the battery is low on a weak or missing supply.
 enum class Error : uint8_t { None, Length, Version, Checksum, Patch, Opcode, Busy, Empty, Storage, StorageBusy, Power };
 // Device presets: 8 banks x 15 slots on the SD card (see preset_store.h).
 constexpr uint8_t kPresetBanks = 8, kPresetSlots = 15;
-// Request/reply sizes exclude F0/F7. v5 is the largest: 88-byte apply request,
-// 100-byte status reply (v4: 84 / 96). Transport buffers are sized from these constants.
-constexpr size_t kV3Request = 69, kV4Request = 84, kMaxRequest = 88, kMaxReply = 100;
+// Request/reply sizes exclude F0/F7. v6 is the largest: 91-byte apply request,
+// 103-byte status reply (v5: 88 / 100, v4: 84 / 96). Transport buffers are sized from these constants.
+constexpr size_t kV3Request = 69, kV4Request = 84, kV5Request = 88, kMaxRequest = 91, kMaxReply = 103;
 // Note, Pedal (CC64), Bend, ModWheel (CC1) and ResetControllers (CC121) are
 // channel-1 performance events: no reply, dropped if queued before an emergency.
 // Store/Recall/Erase/List are host requests for device presets; the main loop
@@ -109,10 +109,10 @@ inline const V3Field* V3Fields(size_t& count) {
 // Shared by SysEx requests, status replies and SD preset records.
 inline size_t PatchDataSize(uint8_t version) {
     return version == 1 ? 10 : version == 2 ? 22 : version == 3 ? kV3Request - 8 : version == 4 ? kV4Request - 8
-         : version == 5 ? kMaxRequest - 8 : 0;
+         : version == 5 ? kV5Request - 8 : version == 6 ? kMaxRequest - 8 : 0;
 }
 FORGE_COLD inline Error DecodePatchData(const uint8_t* data, size_t size, Parameters& out) {
-    if(!size || data[0] < 1 || data[0] > 5) return Error::Version;
+    if(!size || data[0] < 1 || data[0] > 6) return Error::Version;
     if(size != PatchDataSize(data[0])) return Error::Length;
     for(size_t i = 0; i < size; ++i) if(data[i] > 127) return Error::Patch;
     auto at = [data](size_t request_index) { return data + request_index - 7; };
@@ -150,6 +150,7 @@ FORGE_COLD inline Error DecodePatchData(const uint8_t* data, size_t size, Parame
         p.sample_loop = *at(78) != 0; p.sample_gate = *at(79) != 0; p.sample_reverse = *at(80) != 0;
     }
     if(p.version >= 5) for(unsigned k = 0; k < 4; ++k) p.knobs[k] = *at(83 + k);   // request 83-86; checked by Valid()
+    if(p.version >= 6) p.harmony = *at(87) | uint32_t(*at(88)) << 7 | uint32_t(*at(89)) << 14;   // request 87-89
     if(!p.Valid()) return Error::Patch;      // e.g. sample start not before end
     out = p;
     return Error::None;
@@ -166,7 +167,7 @@ FORGE_COLD inline Error DecodeRequest(const uint8_t* bytes, size_t size, Request
     Request candidate;
     candidate.sequence = Read14(bytes + 5);
     if(bytes[4] == 1) {
-        if(bytes[7] < 1 || bytes[7] > 5) return Error::Version;
+        if(bytes[7] < 1 || bytes[7] > 6) return Error::Version;
         if(size != 8 + PatchDataSize(bytes[7])) return Error::Length;
         const Error error = DecodePatchData(bytes + 7, size - 8, candidate.patch);
         if(error != Error::None) return error;
@@ -202,9 +203,9 @@ FORGE_COLD inline Error DecodeRequest(const uint8_t* bytes, size_t size, Request
         if(!ok) return Error::Patch;
         candidate.kind = RequestKind::Panel; candidate.panel_kind = kind; candidate.panel_id = id;
         candidate.panel_value = static_cast<int8_t>(value);
-    } else if(bytes[4] == 0x0b) {                    // probe: page 1 LEDs, 2-7 versioned Inspector pages
+    } else if(bytes[4] == 0x0b) {                    // probe: page 1 LEDs, 2-8 versioned Inspector pages
         if(size != 9 && !(size == 14 && bytes[7] == 6)) return Error::Length;
-        if(bytes[7] == 0 || bytes[7] > 7) return Error::Patch;   // page 0 (old state page) retired: Inspector covers it
+        if(bytes[7] == 0 || bytes[7] > 8) return Error::Patch;   // 8: harmony (0.13)   // page 0 (old state page) retired: Inspector covers it
         if(size == 14) {
             if(bytes[12] > 15) return Error::Patch;
             for(unsigned i=0;i<5;++i) candidate.inspector_cursor |= uint32_t(bytes[8+i]) << (7*i);
@@ -272,6 +273,7 @@ FORGE_COLD inline size_t EncodePatchData(const Parameters& p, uint8_t* data) {
         *at(78) = p.sample_loop ? 1 : 0; *at(79) = p.sample_gate ? 1 : 0; *at(80) = p.sample_reverse ? 1 : 0;
     }
     if(p.version >= 5) for(unsigned k = 0; k < 4; ++k) *at(83 + k) = p.knobs[k];
+    if(p.version >= 6) { *at(87) = p.harmony & 127; *at(88) = (p.harmony >> 7) & 127; *at(89) = (p.harmony >> 14) & 127; }
     return PatchDataSize(p.version);
 }
 FORGE_COLD inline size_t EncodeResponse(const Response& response, uint32_t dropped,

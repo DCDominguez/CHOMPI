@@ -652,6 +652,7 @@ FORGE_COLD void DrawLeds() {
     view.live = sample_wanted.load(std::memory_order_relaxed);
     view.keys_down = panel_controller.KeysDown();
     view.kit_occupancy = sample_loader.Occupancy(1, (view.live >> 2) & 7u);
+    view.harmony = panel_controller.HarmonyLights();
     view.blink = (now / 250) % 2 == 0; view.slow_blink = (now / 300) % 2 != 0;
     view.flash = now < flash_until ? (flash_ok ? 1 : 0) : -1;
     view.saving = sample_loader.Busy() && !sample_loader.Loading();
@@ -672,6 +673,7 @@ FORGE_COLD void DrawLeds() {
     const uint32_t knob_state = panel_controller.KnobState();
     forge::Rgb volume = forge::knobs::VolumeColour((knob_state >> 20) & 1u, (knob_state >> 24) / 255.f);
     forge::ComposeMenuKnobLeds(panel_controller.MenuLights(), knobs, volume);   // TAPE's menu page
+    if((view.menu & 1u) && ((view.menu >> 1) & 7u) == 7u) forge::ComposeHarmonyKnobLeds(view.harmony, knobs);   // harmony page
     for(unsigned k = 0; k < 4; ++k) Pth(forge::panel::kKnobLed[k], knobs[k]);
     forge::ComposeTransportLeds((view.looper & 7u) == static_cast<uint32_t>(forge::Looper::State::Playing),
                                 loop_speed.load(std::memory_order_relaxed), view.record_position, reverse, forward);
