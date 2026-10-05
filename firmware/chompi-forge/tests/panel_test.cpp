@@ -439,6 +439,48 @@ void MenuKnobLayer() {
     turn(panel::kKnobEncoder[0], 10); assert(std::fabs(perf.speed - (.83f + .03f)) < 1e-5f);
     for(int i = 0; i < 200; ++i) rig.Block();
 }
+// TAPE's options.json applied: record latch, which pitch mode is quantised, split delay,
+// monitor position, MIDI out channel; and TAPE's MIDI out from the panel.
+void OptionsAndMidiOut() {
+    Rig rig;
+    Parameters synth; synth.version = 3; synth.synth = true; assert(rig.engine.ApplyPatch(synth));
+    Options o; o.record_latch = true; o.quantise_menu = false; o.monitor = 1; o.midi_out = 2;
+    rig.panel.SetOptions(o); rig.engine.SetSplitDelay(true);
+    assert(rig.panel.Monitor() == panel::MonitorMode::Both);
+    auto drain = [&]() { std::vector<MidiOut> v; MidiOut m; while(rig.panel.PopMidi(m)) v.push_back(m); return v; };
+    rig.Block(); drain();
+    // Keys: note on/off at velocity 127 on channel 3.
+    rig.Key(kWhite[7], true); rig.Key(kWhite[7], false);
+    auto m = drain();
+    assert(m.size() == 2 && m[0].status == 0x92 && m[0].data1 == 60 && m[0].data2 == 127 && m[1].status == 0x82 && m[1].data1 == 60);
+    // Knob turns send TAPE's CC for the page; a preset change sends nothing.
+    rig.Inject(PanelEvent::Kind::Turn, panel::kKnobEncoder[1], 3); m = drain();
+    assert(m.size() == 1 && m[0].status == 0xb2 && m[0].data1 == 21);
+    rig.Tap(panel::kKnobEncoder[1]); drain(); rig.Inject(PanelEvent::Kind::Turn, panel::kKnobEncoder[1], 3); m = drain();
+    assert(m.size() == 1 && m[0].data1 == 29);                                      // page 2: CC 29 (TAPE cc_map)
+    assert(rig.engine.ApplyPatch(synth)); rig.Block(); assert(drain().empty());
+    // Quantise option false: the normal page's pitch steps in fifths/octaves (4 clicks a step).
+    rig.Inject(PanelEvent::Kind::Turn, panel::kKnobEncoder[0], 4);
+    assert(std::fabs(TapeSpeedRatio(rig.engine.GetPerformance().speed) - 1.5f) < .01f);
+    // TAPE's quantised steps (fifths/fourths up to 2x, down to 1/16x, then reverse) and the pitch curve's inverse.
+    assert(QuantisedSpeedStep(1.f, 1) == 1.5f && QuantisedSpeedStep(1.5f, 1) == 2.f && QuantisedSpeedStep(2.f, 1) == 2.f);
+    assert(QuantisedSpeedStep(1.f, -1) == .75f && QuantisedSpeedStep(.0625f, -1) == -.0625f && QuantisedSpeedStep(-.0625f, 1) == .0625f);
+    assert(QuantisedSpeedStep(-1.f, 1) == -.75f && QuantisedSpeedStep(-2.f, -1) == -2.f);
+    for(float r : {-2.f, -1.f, -.3f, .02f, .5f, 1.f, 1.5f, 2.f}) assert(std::fabs(TapeSpeedRatio(TapeSpeedKnob(r)) - r) < 1e-3f);
+    // Split delay: SW3 page 1 left of centre = delay only, right = reverb only.
+    rig.engine.Apply({Parameter::Space, .25f});
+    assert(std::fabs(rig.engine.GetParameters().feedback - .5f) < 1e-5f && rig.engine.GetParameters().reverb_mix == 0.f);
+    rig.engine.Apply({Parameter::Space, .75f});
+    assert(rig.engine.GetParameters().feedback == 0.f && std::fabs(rig.engine.GetParameters().reverb_mix - .5f) < 1e-5f);
+    // Record latch: press starts (after the count-in), release keeps recording, a second press stops.
+    rig.Inject(PanelEvent::Kind::Toggle, 0, 0); rig.Inject(PanelEvent::Kind::Jack, 0, 1); drain();
+    rig.Key(panel::kChompiKey, true); rig.Key(panel::kChompiKey, false);
+    for(int i = 0; i < 3001; ++i) rig.Block(0.1f);
+    assert(rig.recorder.Recording());
+    m = drain(); assert(m.size() == 2 && m[0].status == 0xb2 && m[0].data1 == 21 && m[0].data2 == 127 && m[1].data2 == 0);   // CHOMPI CC 21
+    rig.Key(panel::kChompiKey, true); assert(!rig.recorder.Recording());
+    rig.Key(panel::kChompiKey, false); for(int i = 0; i < 4000; ++i) rig.Block(); assert(!rig.recorder.Recording());
+}
 // TAPE: SW6 (volume) held 2 s shows the battery on its light while held; a short press does not.
 void BatteryHold() {
     Rig rig; rig.Block();
@@ -461,7 +503,7 @@ void BatteryHold() {
 }
 
 int main() {
-    KnobPages(); BatteryHold(); MenuKnobLayer();
+    KnobPages(); BatteryHold(); MenuKnobLayer(); OptionsAndMidiOut();
     KeysKnobsAndOverrides(); MenuAndRecordingThroughTheController(); LedComposition(); DevelopmentOpcodes(); LooperThroughThePanel(); LooperVoiceCap(); LooperSaveGesture();
     std::cout << "PASS: panel controller keys/knobs/overrides, menu + recording via injection, LED composition, dev opcodes, looper via panel/MIDI, knob pages/LEDs/v5 assignment, SW6 battery hold\n";
 }

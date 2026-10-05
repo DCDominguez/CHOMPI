@@ -3,6 +3,7 @@
 #include <iostream>
 #include "../core/power.h"
 #include "../core/restart.h"
+#include "../core/options.h"
 
 using namespace forge::power;
 
@@ -78,7 +79,23 @@ void RestartReason() {
     char small[8]; assert(Describe(1, 0, nullptr, small, sizeof(small)) == 7 && small[7] == 0);   // truncated, terminated
 }
 
+// TAPE's options.json, exactly as TAPE writes it (OptionsManager::WriteFile), and edge cases.
+void OptionsFile() {
+    const char tape[] = "{\n\t\"chompi\": [\n\t\t{\n\t\t\t\"name\": \"Record Latch\",\n\t\t\t\"value\": true\n\t\t},"
+        "\n\t\t{\n\t\t\t\"name\": \"Midi In Channel\",\n\t\t\t\"value\": 3\n\t\t},\n\t\t{\n\t\t\t\"name\": \"Midi Out Channel\",\n\t\t\t\"value\": 16\n\t\t},"
+        "\n\t\t{\n\t\t\t\"name\": \"Tape Slew On\",\n\t\t\t\"value\": false\n\t\t},\n\t\t{\n\t\t\t\"name\": \"Monitor Position\",\n\t\t\t\"value\": 3\n\t\t},"
+        "\n\t\t{\n\t\t\t\"name\": \"Pitch Quantize In Shift Menu\",\n\t\t\t\"value\": false\n\t\t},\n\t\t{\n\t\t\t\"name\": \"Split Delay\",\n\t\t\t\"value\": true\n\t\t}\n\t]\n}";
+    const forge::Options o = forge::options::Parse(tape, sizeof(tape) - 1);
+    assert(o.record_latch && o.midi_in == 2 && o.midi_out == 15 && !o.tape_slew && o.monitor == 2 && !o.quantise_menu && o.split_delay);
+    const forge::Options d = forge::options::Parse("", 0);                     // no file: TAPE's defaults
+    assert(!d.record_latch && d.midi_in == 0 && d.midi_out == 0 && d.tape_slew && d.monitor == 0 && d.quantise_menu && !d.split_delay);
+    const char bad[] = "{\"chompi\":[{\"name\":\"Midi In Channel\",\"value\":17},{\"name\":\"Monitor Position\"},{\"name\":\"Record Latch\",\"value\":";
+    const forge::Options b = forge::options::Parse(bad, sizeof(bad) - 1);     // out of range, missing, cut off: defaults
+    assert(b.midi_in == 0 && b.monitor == 0 && !b.record_latch);
+    assert(forge::options::Parse(tape, 40).midi_in == 0);                     // truncated read
+}
+
 int main() {
-    BootGestureOff(); Colours(); ChargerHandover(); StatusDecode(); RestartReason();
-    std::cout << "PASS: power off gesture, battery colours, charger/USB hand-over (edges, timeout, wrap), status decode, restart reason\n";
+    BootGestureOff(); Colours(); ChargerHandover(); StatusDecode(); RestartReason(); OptionsFile();
+    std::cout << "PASS: power off gesture, battery colours, charger/USB hand-over (edges, timeout, wrap), status decode, restart reason, options.json\n";
 }

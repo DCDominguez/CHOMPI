@@ -128,10 +128,13 @@ public:
         compressor_target_ = p.compressor;
         active_ = true;                          // re-evaluated once everything settles
     }
-    void Process(float& l, float& r) {
-        // All neutral and settled: one flag test per sample. Otherwise idle stages are
-        // skipped, the DJ filter clears once when it goes neutral, smoothers stop when settled.
-        if(!active_) return;
+    // All neutral and settled: one flag test per sample (inlined); the work is out of line.
+    void Process(float& l, float& r) { if(active_) ProcessActive(l, r); }
+    void Output(float& l, float& r) { if(active_) OutputActive(l, r); }
+private:
+    // Idle stages are skipped, the DJ filter clears once when it goes neutral, smoothers
+    // stop when settled.
+    FORGE_NOINLINE void ProcessActive(float& l, float& r) {
         if(!dj_.Neutral()) { dj_.Process(l, r); dj_active_ = true; }
         else if(dj_active_) { dj_.Clear(); dj_active_ = false; }
         if(saturation_ != saturation_target_) {
@@ -147,8 +150,7 @@ public:
         if(!dj_active_ && !warble && saturation_ == 1.f && saturation_target_ == 1.f
            && compressor_ == 0.f && compressor_target_ == 0.f) active_ = false;
     }
-    void Output(float& l, float& r) {
-        if(!active_) return;
+    FORGE_NOINLINE void OutputActive(float& l, float& r) {
         if(compressor_ != compressor_target_) {
             OnePole(compressor_, compressor_target_, .001f);
             if(std::fabs(compressor_ - compressor_target_) < 1e-6f) compressor_ = compressor_target_;
@@ -159,7 +161,6 @@ public:
         l = left_.Process(l, pregain_, threshold_, ratio_, makeup_);
         r = right_.Process(r, pregain_, threshold_, ratio_, makeup_);
     }
-private:
     DjFilter dj_;
     Warble warble_;
     Compressor left_, right_;

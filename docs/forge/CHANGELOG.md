@@ -40,6 +40,14 @@ Stage 2 so far (same version; software-tested only):
   warble / DJ resonance, SW5 loop speed, SW6 compressor; presses: pitch or gain+pan
   reset, auto-loop and sustain on/off (lights), all effects reset, monitor position.
 - **TAPE's monitor positions:** headphones (default), both, send/return.
+- **TAPE's options.json** read at start-up (never written): record latch, MIDI in/out
+  channel, tape slew, monitor position, which pitch mode is quantised (also the loop
+  speed), split delay.
+- **Quantised pitch and loop speed** in fifths/octaves (TAPE: the menu by default).
+- **MIDI out as TAPE:** keys, knob CCs (TAPE's cc_map, physical turns only), PLAY/LOOP
+  CC 26/27, CHOMPI CC 21 in the record position; UART and USB.
+- Code size: rarely-run functions (panel, menu, LEDs, start-up, MIDI frames) compiled
+  for size (`FORGE_COLD`); release 253,636 B, development 268,728 B.
 
 ## Bridge: starter presets — 2026-10-05
 

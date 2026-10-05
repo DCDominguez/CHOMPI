@@ -90,6 +90,7 @@ public:
     void SetSpeed(float speed) { speed_target_ = Clamp(speed, -2.f, 2.f); }
     void NudgeSpeed(float delta) { SetSpeed(speed_target_ + delta); }          // SW5 push and turn (TAPE: .012 per click)
     void ResetSpeed() { speed_target_ = 1.f; }
+    float SpeedTarget() const { return speed_target_; }
     void Scrub(int turns) { scrub_turns_ += static_cast<float>(turns); }       // while paused
     void SetTapeSlew(bool on) { tape_slew_ = on; }
     void AdjustFeedback(float delta) { feedback_target_ = Clamp(feedback_target_ + delta, 0.f, 1.f); }

@@ -33,8 +33,8 @@ Branch head `753078b` (the brief named `b7d098b`; 23 commits later: knob pages,
 | Delay lines | `kDelayCapacity` 48,002 floats × 2 (not in the brief) | 384,016 |
 | **Free** | | **393,200 (0.37 MiB)** |
 
-Executable space (SRAM_EXEC 282 KiB = 288,768 B): release **252,420 B, headroom
-36,348 B**; development 268,720 B, headroom 20,048 B (firmware 0.10 stage 1; 0.9
+Executable space (SRAM_EXEC 282 KiB = 288,768 B): release **253,636 B, headroom
+35,132 B**; development 268,728 B, headroom 20,040 B (firmware 0.10 stage 2b; 0.9
 was 238,092 / 253,696 B, 0.7 235,980 / 251,684 B; the brief's 223,444 B / 63.8 KiB predates 0.6–0.7). D1 SRAM (`SRAM`) 108,196 / 235,520 B used.
 
 Calibration of what storage code costs today (release ELF, `nm -S`):
@@ -234,7 +234,7 @@ stalls; no slack for simultaneous record + 7-voice streaming.
 | Page translation in the voice loop | 0.5–1.5 KiB (inlined into `ProcessSampler`) |
 | Streaming recorder + finalize | 2–3 KiB |
 | Diagnostics / Inspector fields | 0.5–1 KiB (mostly development builds) |
-| **Total** | **≈ 7–12 KiB = 19–34 % of the 35.5 KiB release headroom** (35–61 % of the 19.6 KiB development headroom; firmware 0.10 stage 1) |
+| **Total** | **≈ 7–12 KiB = 20–35 % of the 34.3 KiB release headroom** (35–61 % of the 19.6 KiB development headroom; firmware 0.10 stage 2b) |
 
 D1 SRAM: FIL per streamed file (~560 B) × up to 15 + fast-seek tables (e.g. 64
 words each) + page descriptors (~16 B × 256) ≈ 14 KiB, inside the ~124 KiB free.

@@ -118,7 +118,7 @@ FatFSInterface fsi;
 FatFsStorage card;
 forge::PresetStore store(card);
 // One line per start in FORGE/RESTARTS.TXT on the card (kept under 16 KB).
-void LogRestart() {
+FORGE_COLD void LogRestart() {
     if(!card.Ready()) return;
     char line[160];
     const unsigned n = forge::restart::Describe(boot_count.boots, reset_flags, &last_fault, line, sizeof(line));
@@ -330,6 +330,50 @@ void Send(uint8_t source, uint8_t* envelope, size_t payload_size) {
     if(!outgoing.Push(message)) ++dropped_commands;
 }
 
+// TAPE's options.json (core/options.h), read once before audio starts; Forge never writes it.
+FORGE_COLD void LoadOptions() {
+    forge::Options o;
+    if(card.Ready()) {
+        static char text[1024];
+        FIL file; UINT read = 0;
+        if(f_open(&file, "options.json", FA_READ) == FR_OK) {
+            f_read(&file, text, sizeof(text), &read);
+            f_close(&file);
+            o = forge::options::Parse(text, read);
+        }
+    }
+    panel_controller.SetOptions(o);
+    looper.SetTapeSlew(o.tape_slew);
+    engine.SetSplitDelay(o.split_delay);
+}
+// The panel's MIDI out (TAPE): UART and USB, separate from SysEx replies. A USB message
+// waits up to 20 ms for the endpoint (a lost note-off would leave a note stuck elsewhere).
+void SendPanelMidi() {
+    static forge::MidiOut usb_pending; static bool usb_waiting = false; static uint32_t usb_since = 0;
+    for(unsigned n = 0; n < 8; ++n) {
+        if(usb_waiting) {
+            bool sent = false;
+            {
+                ScopedIrqBlocker guard;
+                if(hUsbDeviceHS.dev_state == USBD_STATE_CONFIGURED && hUsbDeviceHS.pClassData) {
+                    auto* cdc = static_cast<USBD_CDC_HandleTypeDef*>(hUsbDeviceHS.pClassData);
+                    if(cdc->TxState == 0) {
+                        static uint8_t packet[4];
+                        forge::PackUsbChannel(usb_pending.status, usb_pending.data1, usb_pending.data2, packet);
+                        sent = usb_sender.TransmitExternal(packet, 4) == UsbHandle::Result::OK;
+                    }
+                } else sent = true;                      // no USB host: nothing to wait for
+            }
+            if(!sent && System::GetNow() - usb_since < 20) return;
+            usb_waiting = false;
+        }
+        forge::MidiOut m;
+        if(!panel_controller.PopMidi(m)) return;
+        const uint8_t bytes[3] = {m.status, m.data1, m.data2};
+        uart_midi.transport.GetUartHandle().BlockingTransmit(const_cast<uint8_t*>(bytes), 3, 3);
+        usb_pending = m; usb_waiting = true; usb_since = System::GetNow();
+    }
+}
 void DrawLeds(); void SendResponses(); void TransmitPending(); void RunSampler();
 // TAPE's USB/charger hand-over after a power event (plug/unplug, charge state).
 forge::power::ChargerUsb charger_usb;
@@ -503,7 +547,7 @@ void RunSampler() {
 constexpr float kBalanceG = .85f, kBalanceB = .6f;
 forge::Rgb Balance(forge::Rgb c) { return forge::Rgb{c.r, c.g * kBalanceG, c.b * kBalanceB}; }
 void Pth(unsigned led, forge::Rgb c) { c = Balance(c); SetPthLedFloat(led, c.r, c.g, c.b); }
-void DrawLeds() {
+FORGE_COLD void DrawLeds() {
     static uint32_t last_draw = 0;
     const uint32_t now = System::GetNow();
     if(now - last_draw < 33) return;
@@ -597,7 +641,7 @@ void CollectInspector() {
         InspectorEvent(forge::InspectorEventKind::StorageError,1,st.errors-errors); errors=st.errors;
     }
 }
-void CaptureInspector() {
+FORGE_COLD void CaptureInspector() {
     CollectInspector();
     auto& s=inspector_snapshot; ++s.generation; s.audio=inspector_latest;
     auto& sys=s.system; sys.uptime_ms=System::GetNow();
@@ -622,7 +666,7 @@ void CaptureInspector() {
 #endif
 
 // One received frame (shared by both transports, so the code exists once).
-FORGE_NOINLINE void HandleFrame(const forge::MidiFrame& frame, uint8_t source) {
+FORGE_COLD void HandleFrame(const forge::MidiFrame& frame, uint8_t source) {
     forge::Request request;
     if(frame.kind == forge::MidiFrame::Kind::SysEx && forge::IsRequest(frame.data, frame.size)
        && frame.data[4] == forge::kFileOpcode) {
@@ -634,7 +678,7 @@ FORGE_NOINLINE void HandleFrame(const forge::MidiFrame& frame, uint8_t source) {
         return;
     }
     if(frame.kind != forge::MidiFrame::Kind::SysEx) {
-        switch(forge::TranslateChannel(frame, source, request)) {
+        switch(forge::TranslateChannel(frame, source, request, panel_controller.GetOptions().midi_in)) {
             case forge::Ingress::Emergency: RaiseEmergency(); break;
             case forge::Ingress::Critical:
                 if(!Queue(request)) { ++dropped_commands; discard_ingress = true; RaiseEmergency(); }
@@ -730,7 +774,7 @@ void SendResponses() {
 }
 } // namespace
 
-int main() {
+FORGE_COLD int main() {
     const uint32_t rsr = RCC->RSR;                 // why this start, before anything clears it
     RCC->RSR |= RCC_RSR_RMVF;
     reset_flags = forge::restart::Flags(rsr);
@@ -802,12 +846,14 @@ int main() {
 #endif
     store.Rescan();
     LogRestart();
+    LoadOptions();
     panel_controller.SetInstallGate(&install_gate);
     cpu.Init(hw.seed.AudioSampleRate(), hw.seed.AudioBlockSize());
     hw.StartAudio(AudioCallback);
     uint32_t battery_check = System::GetNow();
     while(true) {
         TransmitPending();
+        SendPanelMidi();
         SendResponses();
         static uint32_t seen_drops = 0;
         const uint32_t ingress_drops = uart_midi.dropped.load(std::memory_order_relaxed) + usb_midi.dropped.load(std::memory_order_relaxed);

@@ -256,9 +256,11 @@ public:
     static constexpr uint32_t kCountInFrames = 48 * 1500;   // 48 kHz
     Event Update(bool toggle_up, bool chompi_down, uint32_t frames = 0) {
         Event event = Event::None;
-        if(recording_ && (toggle_up || !chompi_down)) { recording_ = false; event = Event::Stop; }
+        const bool press = chompi_down && !chompi_;
+        // Latch (options.json "Record Latch"): a second press stops; the toggle still does.
+        if(recording_ && (toggle_up || (latch_ ? press : !chompi_down))) { recording_ = false; event = Event::Stop; chompi_ = chompi_down; return event; }
         else if(counting_) {
-            if(toggle_up || !chompi_down) counting_ = false;                  // let go early: nothing recorded
+            if(toggle_up || (latch_ ? press : !chompi_down)) counting_ = false;   // let go early (latch: press again): nothing recorded
             else if((count_ += frames) >= kCountInFrames) { counting_ = false; recording_ = true; event = Event::Start; }
         } else if(!recording_ && !toggle_up && chompi_down && !chompi_) {
             counting_ = true; count_ = 0;
@@ -268,12 +270,13 @@ public:
         return event;
     }
     void Cancel() { recording_ = false; }          // the recorder refused to start
+    void SetLatch(bool latch) { latch_ = latch; }
     bool Recording() const { return recording_; }
     bool CountingIn() const { return counting_; }
     // 0 = no count-in, else 1..6: six half-blinks over the count-in (odd = lit).
     uint8_t CountInPhase() const { return counting_ ? static_cast<uint8_t>(1 + count_ * 6 / kCountInFrames) : 0; }
 private:
-    bool recording_ = false, counting_ = false, chompi_ = false;
+    bool recording_ = false, counting_ = false, chompi_ = false, latch_ = false;
     uint32_t count_ = 0;
 };
 

@@ -7,9 +7,12 @@
 #if defined(__GNUC__)
 #define FORGE_NOINLINE __attribute__((noinline))
 #define FORGE_INLINE inline __attribute__((always_inline))
+// Once per audio block or rarer (panel, menu, LEDs, start-up): compiled for size.
+#define FORGE_COLD __attribute__((noinline, optimize("Os")))
 #else
 #define FORGE_NOINLINE
 #define FORGE_INLINE inline
+#define FORGE_COLD
 #endif
 
 namespace forge {

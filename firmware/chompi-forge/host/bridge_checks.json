@@ -426,6 +426,18 @@
     "expect": "As described; the main out carries the input only in *both* (and the mic in *send/return* in the record position); the CHOMPI light meters the input"
   },
   {
+    "id": "3.60",
+    "group": "3F. Knob pages and patch knobs (firmware 0.6)",
+    "do": "**TAPE's options.json:** on a card where TAPE has written `options.json`, set Record Latch true, Midi Out Channel 2 and Split Delay true on the computer; start Forge",
+    "expect": "CHOMPI press starts a take after the count-in and a second press stops it; SW3 page 1 left = delay only, right = reverb only; MIDI out on channel 2 (next row). Set them back afterwards"
+  },
+  {
+    "id": "3.61",
+    "group": "3F. Knob pages and patch knobs (firmware 0.6)",
+    "do": "**MIDI out:** connect CHOMPI's USB (or MIDI out) to a MIDI monitor on the computer; play keys, turn SW1 on page 1 and 2, tap PLAY and LOOP, hold CHOMPI in the record position",
+    "expect": "Notes at velocity 127; CC 21 / 29 for SW1's pages, CC 26 / 27 for PLAY / LOOP (127 then 0), CC 21 for CHOMPI; nothing while the menu is open"
+  },
+  {
     "id": "4.1",
     "do": "Hold a long-release chord with echo (use Warm Pad for reverb too); press SW5",
     "expect": "Voices, old echo and reverb tails stop at once",

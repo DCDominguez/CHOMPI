@@ -48,9 +48,10 @@ enum class Ingress : uint8_t {
     Control,    // CC parameter, bend or mod wheel: a full queue only counts a drop
     Storage,    // program change -> recall a device preset (main loop, SD)
 };
-inline Ingress TranslateChannel(const MidiFrame& frame, uint8_t source, Request& request) {
+// `channel`: the MIDI input channel, 0-15 (options.json "Midi In Channel"; default 1).
+inline Ingress TranslateChannel(const MidiFrame& frame, uint8_t source, Request& request, uint8_t channel = 0) {
     request = Request{}; request.source = source;
-    if(frame.kind == MidiFrame::Kind::SysEx || frame.data[0] != 0) return Ingress::Ignore;
+    if(frame.kind == MidiFrame::Kind::SysEx || frame.data[0] != channel) return Ingress::Ignore;
     const uint8_t a = frame.data[1], b = frame.data[2];
     switch(frame.kind) {
         case MidiFrame::Kind::NoteOn: case MidiFrame::Kind::NoteOff:

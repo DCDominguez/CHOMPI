@@ -65,14 +65,14 @@ public:
         return true;
     }
     // A control's current value (patch or performance).
-    float Value(Parameter parameter) const {
+    FORGE_NOINLINE float Value(Parameter parameter) const {
         parameter = parameters_.Resolve(parameter);
-        if(parameter == Parameter::Space) return parameters_.feedback;
+        if(parameter == Parameter::Space) return split_delay_ ? space_ : parameters_.feedback;
         if(IsPerformance(parameter)) { float* f = const_cast<Performance&>(performance_).Field(parameter); return f ? *f : 0.f; }
         return parameters_.Value(parameter);
     }
     // Back to the patch's value (performance controls: TAPE's default). Knob long press.
-    bool ResetControl(Parameter parameter) {
+    FORGE_NOINLINE bool ResetControl(Parameter parameter) {
         parameter = parameters_.Resolve(parameter);
         if(parameter == Parameter::Space) {
             const bool a = Apply({Parameter::Mix, patch_.mix}), b = Apply({Parameter::Feedback, patch_.feedback});
@@ -83,6 +83,7 @@ public:
         return Apply({parameter, patch_.Value(parameter)});
     }
     const Performance& GetPerformance() const { return performance_; }
+    void SetSplitDelay(bool split) { split_delay_ = split; space_ = .5f; }
     // TAPE menu presses (SW1 / SW2): the sampler's auto-loop and sustain (hold) on/off.
     void ToggleSampleLoop() { parameters_.sample_loop = !parameters_.sample_loop; synth_.Configure(parameters_); }
     void ToggleSampleHold() { parameters_.sample_gate = !parameters_.sample_gate; synth_.Configure(parameters_); }
@@ -213,8 +214,12 @@ private:
         if(!std::isfinite(command.value)) return false;
         const float v = Clamp(command.value, 0.f, 1.f);
         if(command.parameter == Parameter::Space) {            // TAPE SW3 page 1: delay and reverb from one value
-            const bool ok = parameters_.Apply({Parameter::Feedback, v}) && parameters_.Apply({Parameter::Mix, .5f * v});
-            parameters_.Apply({Parameter::ReverbMix, v});      // v3 and newer
+            space_ = v;
+            // Split Delay (options.json): left of centre = delay only, right = reverb only (centre = dry).
+            const float delay = split_delay_ ? (v < .5f ? (.5f - v) * 2.f : 0.f) : v;
+            const float reverb = split_delay_ ? (v > .5f ? (v - .5f) * 2.f : 0.f) : v;
+            const bool ok = parameters_.Apply({Parameter::Feedback, delay}) && parameters_.Apply({Parameter::Mix, .5f * delay});
+            parameters_.Apply({Parameter::ReverbMix, reverb});      // v3 and newer
             return ok;
         }
         float* field = performance_.Field(command.parameter);
@@ -243,6 +248,8 @@ private:
     void Smooth(float& current, float target) { current += smoothing_ * (target - current); }
     Parameters parameters_{}, patch_{};
     Performance performance_{};
+    bool split_delay_ = false;
+    float space_ = .5f;
     tape::Effects effects_;
     Synth synth_;
     float *left_ = nullptr, *right_ = nullptr;

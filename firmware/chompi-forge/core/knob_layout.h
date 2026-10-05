@@ -44,11 +44,11 @@ inline unsigned LayoutPages(unsigned knob, Kind kind) {
     return (kind == Kind::Effects ? effects : n)[knob & 3];
 }
 inline bool HasPatchPage(unsigned knob, const Parameters& p) { return p.knobs[knob & 3] != 0; }
-inline unsigned Pages(unsigned knob, const Parameters& p) { return LayoutPages(knob, KindOf(p)) + (HasPatchPage(knob, p) ? 1 : 0); }
+FORGE_NOINLINE inline unsigned Pages(unsigned knob, const Parameters& p) { return LayoutPages(knob, KindOf(p)) + (HasPatchPage(knob, p) ? 1 : 0); }
 inline bool IsPatchPage(unsigned knob, unsigned page, const Parameters& p) {
     return HasPatchPage(knob, p) && page == LayoutPages(knob, KindOf(p));
 }
-inline Parameter Target(unsigned knob, unsigned page, const Parameters& p) {
+FORGE_NOINLINE inline Parameter Target(unsigned knob, unsigned page, const Parameters& p) {
     if(IsPatchPage(knob, page, p)) return p.KnobParameter(knob & 3);
     const Kind kind = KindOf(p);
     return LayoutTarget(knob, page < LayoutPages(knob, kind) ? page : 0, kind);
@@ -80,7 +80,7 @@ inline Rgb Scale(Rgb c, float k) { return {c.r * k, c.g * k, c.b * k}; }
 // A knob's light for its page and value (TAPE pages: TAPE's value colours;
 // Forge's extra pages: red then green; the patch page and the effects-only delay
 // knobs: dim to bright white).
-inline Rgb KnobColour(unsigned knob, unsigned page, float value, bool patch_page, bool effects = false) {
+FORGE_NOINLINE inline Rgb KnobColour(unsigned knob, unsigned page, float value, bool patch_page, bool effects = false) {
     using namespace colour;
     value = Clamp(value, 0.f, 1.f);
     if(patch_page || (effects && (knob & 3) != 3)) return Scale(white, .12f + .5f * value);

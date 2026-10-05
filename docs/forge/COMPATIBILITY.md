@@ -112,7 +112,7 @@ never reaches the output.
 
 | | Stock TAPE/TEMPO/WAVE | Forge 0.6 |
 | --- | --- | --- |
-| Input channel | Configurable (`options.json` midi_ch_in); CC input can be disabled | Fixed channel 1 |
+| Input channel | Configurable (`options.json` midi_ch_in); CC input can be disabled | Fixed channel 1 until 0.9; from 0.10 TAPE's `options.json` Midi In Channel (default 1) |
 | CC20–23 | Turn logical knobs 0–3 = hardware SW4, SW1, SW2, SW3 (`encoder_map`) | Same knobs, page-1 controls: the v5 patch's choice, else mix, time, feedback, level (sampler: TAPE's page 0: pitch, start, end, mix) |
 | CC24 | Encoder SW5 (WAVE ignores it; TAPE only while the looper plays) | SW5's function: looper speed while a loop exists (as TAPE), else cutoff |
 | CC25 | Encoder SW6 | SW6's function (output level) |

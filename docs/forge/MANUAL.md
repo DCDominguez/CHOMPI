@@ -261,11 +261,14 @@ as a sample: TAPE's menu page, KEY_24, LOOP, a white key, CHOMPI.
 
 ## 9. MIDI
 
-Channel **1**, over USB or the MIDI jack.
+Channel **1** in and out, over USB or the MIDI jack, unless TAPE's `options.json`
+on the card sets other channels (section 11).
+
+**MIDI in:**
 
 | Message | Does |
 | --- | --- |
-| Notes 0–127 | Play (keys send nothing out) |
+| Notes 0–127 | Play |
 | Pitch bend | ±2 semitones |
 | CC 1 | Mod wheel (LFO depth, when the patch uses it) |
 | CC 20–23 | The patch's knob controls (its last page), or the source's defaults |
@@ -278,6 +281,12 @@ Channel **1**, over USB or the MIDI jack.
 | CC 120, 123 | Panic |
 | CC 121 | Reset controllers |
 | Program change 0–119 | Recall a device preset (section 6) |
+
+**MIDI out (as TAPE):** the keys send notes (velocity 127); turning a knob on TAPE's
+pages sends TAPE's CC (SW4/SW1/SW2/SW3 page 1: CC 20–23, page 2: CC 28–31, SW3
+page 3: CC 33), SW5 CC 24, SW6 CC 25 (volume) or 32 (input gain); PLAY CC 26 and LOOP
+CC 27 (127 pressed, 0 released); CHOMPI CC 21 in the record position. Forge's extra
+pages and the menu send nothing.
 
 ---
 
@@ -330,7 +339,18 @@ Warm Pad, Acid Bass, Bell Keys, Knob Pad (synths); Recorded Keys, TAPE Kit A
 | `NAME_bin.old` | Other firmware set aside by a USB install |
 | `FORGE/RESTARTS.TXT` | One line per start: why CHOMPI started (power-on, brown-out, reset, software) and any crash Forge recorded |
 
-Forge never changes TAPE's `presets.json` or `options.json`.
+Forge never changes TAPE's `presets.json` or `options.json`. It **reads**
+`options.json` at start-up (TAPE writes it with defaults the first time TAPE runs),
+so one card sets both firmwares:
+
+| Option | Forge |
+| --- | --- |
+| Record Latch | Press CHOMPI to start (after the count-in), press again to stop |
+| Midi In / Out Channel | The channels above |
+| Tape Slew On | Looper scrubbing glides like tape (on by default) |
+| Monitor Position | 1 headphones, 2 both, 3 send/return (section 7; the menu's SW6 press changes it until power-off) |
+| Pitch Quantize In Shift Menu | true (default): normal pages free, the menu in fifths/octaves; false: the other way round (pitch and loop speed) |
+| Split Delay | SW3 page 1: left of centre = delay only, right = reverb only |
 
 ---
 

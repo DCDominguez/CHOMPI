@@ -18,4 +18,8 @@ inline size_t PackUsbSysEx(const uint8_t* message, size_t size, uint8_t* out, si
     }
     return written;
 }
+// One 3-byte channel message (note on/off, CC) as a USB-MIDI event packet, cable 0.
+inline void PackUsbChannel(uint8_t status, uint8_t data1, uint8_t data2, uint8_t (&out)[4]) {
+    out[0] = static_cast<uint8_t>(status >> 4); out[1] = status; out[2] = data1 & 127; out[3] = data2 & 127;
+}
 } // namespace forge
