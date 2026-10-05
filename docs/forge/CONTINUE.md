@@ -23,6 +23,18 @@ SD streaming remains gated on physical SD measurements. Older checkpoint and
 PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
 use the latest implementation checkpoint and ledger for present capabilities/budgets.
 
+## In progress: Harmony Phase 1 (0.13), 2026-10-05
+
+Done and software-tested (not on hardware; no panel access yet, so harmony can't be
+switched on from CHOMPI): `core/harmony.h` (`6b4d1b8`) and the engine/panel wiring
+(this checkpoint): `Engine::Note` routes keys through `harmony::Player` when it is on
+(synth and chromatic sampler patches; kit keeps its pads), panel MIDI out sends the
+chord, `Silence`/panic clear ownership; firmware and probe own a zero-initialised
+player. Tests: `harmony_test` (identity, layouts, Shift, voicing, 200k ownership events,
+engine/panel/MIDI) + full suite, sanitizers (13), bench unchanged, browser PASS.
+Size: release 267,876 B (+6,652 over 0.12's 261,224), development 283,856 B
+(headroom 4,912 B: tight). Next: menu harmony page, Inspector page, patch v6.
+
 ## Current checkpoint: firmware 0.12 per-slot sample settings (2026-10-05)
 
 **Queued next (DC, 2026-10-05):** the Harmony / Intent Engine brief,

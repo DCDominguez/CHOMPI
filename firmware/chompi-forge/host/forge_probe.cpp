@@ -116,6 +116,8 @@ int main(int argc, char** argv) {
     engine.SetSamples(&table);
     static forge::SlotSettings slot_settings;      // TAPE per-slot settings, in memory (no presets.json here)
     engine.SetSlotSettings(&slot_settings);
+    static forge::harmony::Player harmony_player;
+    engine.SetHarmony(&harmony_player);
     loader.Init(&table, &handoff, pool.data(), static_cast<uint32_t>(pool.size()), scratch.data(), static_cast<uint32_t>(scratch.size()));
     recorder.Init(recording.data(), 48000 * 4, &table.slots[forge::kRamSlot], 48000.f);
     std::vector<int16_t> loop_memory(2 * 48000 * 20);            // 20 s looper (firmware: ~83 s)

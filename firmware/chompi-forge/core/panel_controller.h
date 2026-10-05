@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "command_queue.h"
 #include "engine.h"
 #include "file_transfer.h"
 #include "knob_layout.h"
@@ -157,13 +158,10 @@ public:
         battery_view_.store(volume_held_ >= kBatteryHoldFrames, std::memory_order_relaxed);
         keys_down_.store(static_cast<uint32_t>(keys), std::memory_order_relaxed);   // all 25 note keys are switches 0-31
         for(unsigned key = 0; key < panel::kButtons; ++key) if(panel::kKeyNotes[key]) {
-            if(((rising >> key) & 1u) && !menu_.Key(static_cast<uint8_t>(key), true)) {
-                engine.Note(panel::kKeyNotes[key], 127, 2);   // TAPE: full velocity
-                SendMidi(0x90, panel::kKeyNotes[key], 127);
-            }
+            if(((rising >> key) & 1u) && !menu_.Key(static_cast<uint8_t>(key), true))
+                PlayKey(engine, panel::kKeyNotes[key], 127);   // TAPE: full velocity
             if((falling >> key) & 1u) {
-                menu_.Key(static_cast<uint8_t>(key), false); engine.Note(panel::kKeyNotes[key], 0, 2);
-                SendMidi(0x80, panel::kKeyNotes[key], 0);
+                menu_.Key(static_cast<uint8_t>(key), false); PlayKey(engine, panel::kKeyNotes[key], 0);
             }
         }
         Looper* looper = engine.GetLooper();
@@ -414,6 +412,15 @@ private:
     // TAPE's MIDI out: cc_map[page][knob] for knobs 1-4 (TAPE's pages; Forge's extra pages
     // send nothing), CC 24 = SW5 (cutoff), CC 25 / 32 = SW6 (volume / input gain). A CC is
     // sent when that knob was turned (as TAPE: physical turns, not the menu) and its 7-bit value changed.
+    // A keybed key to the engine, and what it played (a chord in harmony mode) to MIDI out.
+    FORGE_COLD void PlayKey(Engine& engine, uint8_t note, uint8_t velocity) {
+        uint8_t played[2 * harmony::kMaxNotes]; unsigned released = 0;
+        const unsigned n = engine.Note(note, velocity, 2, played, &released);
+        for(unsigned i = 0; i < n; ++i) {
+            const bool off = i < released;
+            SendMidi(off ? 0x80 : 0x90, played[i], off ? 0 : velocity);
+        }
+    }
     void SendMidi(uint8_t status, uint8_t data1, uint8_t data2) {
         if(!midi_out_.Push({static_cast<uint8_t>(status | (options_.midi_out & 15u)), data1, data2})) ++midi_out_drops_;
     }

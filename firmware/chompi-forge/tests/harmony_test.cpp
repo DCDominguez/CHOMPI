@@ -9,6 +9,7 @@
 #include <set>
 #include <vector>
 #include "../core/harmony.h"
+#include "../core/panel_controller.h"
 
 using namespace forge::harmony;
 
@@ -182,10 +183,63 @@ void Ownership() {
     assert(p.KeyDown(60, 3, out) == 0 && p.KeyDown(200, 0, out) == 0);
     p.Clear(); assert(p.Sounding(0) == 0 && p.KeyUp(48, 0, out) == 0);
 }
+// The engine and panel: chords reach the synth and MIDI out; key-up, harmony off while
+// holding, panic and kit patches never leave notes sounding.
+struct Sink : forge::PanelSink {
+    bool PresetAction(const forge::MenuAction&, const forge::Parameters&) override { return true; }
+    bool SampleJob(const forge::SampleJob&) override { return true; }
+    void Flash(bool) override {}
+};
+void EngineAndPanel() {
+    using forge::Engine;
+    std::vector<float> l(48002), r(48002), rv(forge::Reverb::Required(48000));
+    Engine e; assert(e.Init(48000.f, l.data(), r.data(), l.size(), rv.data(), rv.size()));
+    Player player; e.SetHarmony(&player);
+    forge::Parameters synth; synth.version = 4; synth.synth = true; synth.voices = 7; synth.release = 0.f;
+    assert(e.ApplyPatch(synth));
+    auto run = [&](int blocks) { for(int i = 0; i < blocks * 24; ++i) { float a, b; e.Process(0, 0, a, b); } };
+    // Off: a key is a note.
+    uint8_t played[2 * kMaxNotes]; unsigned released = 9;
+    assert(e.Note(60, 100, 1, played, &released) == 1 && played[0] == 60 && released == 0);
+    e.Note(60, 0, 1); run(200); assert(e.ActiveVoices() == 0);
+    // On: C4 (Static) = the I chord, three notes in the synth and returned for MIDI out.
+    player.state.enabled = true; player.state.extension = Extension::Seventh;
+    const unsigned n = e.Note(60, 100, 1, played, &released);
+    assert(n == 4 && released == 0); run(10); assert(e.ActiveVoices() == 4);
+    std::set<unsigned> pcs; for(unsigned i = 0; i < n; ++i) pcs.insert(played[i] % 12);
+    assert((pcs == std::set<unsigned>{0, 4, 7, 11}));                               // Cmaj7
+    // Harmony switched off while the key is held: key-up still stops the chord.
+    player.state.enabled = false;
+    assert(e.Note(60, 0, 1, played, &released) == 4 && released == 4);
+    run(400); assert(e.ActiveVoices() == 0);
+    // Voices limit the chord: a 4-voice patch plays 9ths as 4 notes.
+    player.state.enabled = true; player.state.extension = Extension::Ninth; synth.voices = 4; assert(e.ApplyPatch(synth));
+    assert(e.Note(55, 100, 1) == 4); run(10); assert(e.ActiveVoices() == 4);
+    e.Panic(); run(10); assert(e.ActiveVoices() == 0 && player.Sounding(1) == 0);
+    assert(e.Note(55, 0, 1) == 1);                                                  // nothing held after panic: a plain note-off
+    // A kit sampler keeps its pads (no chords); outside C3..C5 Static plays plain notes.
+    assert(e.Note(30, 100, 1, played) == 1 && played[0] == 30); e.Note(30, 0, 1);
+    forge::Parameters kit = synth; kit.source = 1; kit.sample_mode = 1; kit.voices = 7;
+    assert(e.ApplyPatch(kit) && !e.HarmonyOn() && e.Note(48, 100, 1) == 1); e.Note(48, 0, 1);
+    assert(e.ApplyPatch(synth) && e.HarmonyOn());
+    // The panel: one key = the chord on MIDI out, notes on then off.
+    forge::PanelController panel; forge::Recorder recorder; Sink sink; forge::PanelInput hw; hw.frames = 24; hw.toggle_up = true;
+    std::vector<int16_t> rec(2 * 48000); forge::SampleTable table; recorder.Init(rec.data(), 48000, &table.slots[forge::kRamSlot], 48000.f);
+    player.state.extension = Extension::Triad;
+    const uint8_t c4 = 18;                                                          // KEY_8 = MIDI 60
+    panel.Block(hw, e, recorder, sink);
+    hw.keys = uint64_t(1) << c4; panel.Block(hw, e, recorder, sink);
+    hw.keys = 0; panel.Block(hw, e, recorder, sink);
+    std::vector<forge::MidiOut> out; forge::MidiOut m; while(panel.PopMidi(m)) out.push_back(m);
+    unsigned ons = 0, offs = 0;
+    for(const auto& x : out) { if((x.status & 0xF0) == 0x90) ++ons; if((x.status & 0xF0) == 0x80) ++offs; }
+    assert(ons == 3 && offs == 3);
+    run(400); assert(e.ActiveVoices() == 0);
+}
 } // namespace
 
 int main() {
-    Identity(); Layouts(); Voicing(); Ownership();
+    Identity(); Layouts(); Voicing(); Ownership(); EngineAndPanel();
     std::cout << "PASS: harmony identity (12 tonics x 9 modes x 7 degrees x 6 extensions), drop rules, Static/Real layouts,"
-                 " chromatic keys, Shift, inversions/spread/range, voice leading, note ownership (200k random events)\n";
+                 " chromatic keys, Shift, inversions/spread/range, voice leading, note ownership (200k random events), engine/panel/MIDI out, panic, kit pass-through\n";
 }

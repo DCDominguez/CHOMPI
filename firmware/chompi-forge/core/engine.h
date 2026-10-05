@@ -5,6 +5,7 @@
 #include "parameters.h"
 #include "reverb.h"
 #include "synth.h"
+#include "harmony.h"
 #include "tape_fx.h"
 
 namespace forge {
@@ -119,11 +120,38 @@ public:
     void ReleaseSampleVoices(bool include_recording) { synth_.ReleaseSampleVoices(include_recording); }
     void SetSampleFilesAvailable(bool available) { synth_.SetSampleFilesAvailable(available); }
     bool SampleVoicesActive(bool include_recording) const { return synth_.SampleVoicesActive(include_recording); }
-    void Note(uint8_t note, uint8_t velocity, uint8_t source) {
+    // A key (note-on with velocity, note-off without). Returns the notes actually started
+    // or stopped, in `played` if given (for MIDI out): with harmony mode a chord, the
+    // first `*released` of them stopped by a retrigger; else the key's own note.
+    unsigned Note(uint8_t note, uint8_t velocity, uint8_t source, uint8_t* played = nullptr, unsigned* released = nullptr) {
         if(velocity && looper_) looper_->NoteStarted();      // an armed looper starts recording
         if(velocity && SlotMode() && Kit()) { const int pad = Synth::KitSlot(note); if(pad >= 0) focus_ = static_cast<uint8_t>(pad); }
+        if(harmony_ && (velocity ? HarmonyOn() && harmony_->Maps(note) : harmony_->Holds(note, source)))
+            return HarmonyNote(note, velocity, source, played, released);
         if(parameters_.synth) synth_.Note(note, velocity, source);
+        if(played) played[0] = note;
+        if(released) *released = velocity ? 0 : 1;
+        return 1;
     }
+    FORGE_COLD unsigned HarmonyNote(uint8_t note, uint8_t velocity, uint8_t source, uint8_t* played, unsigned* released) {
+        {
+            uint8_t out[2 * harmony::kMaxNotes]; unsigned off;
+            unsigned n;
+            if(velocity) { harmony_->state.max_notes = ChordVoices(); n = harmony_->KeyDown(note, source, out); off = harmony_->Released(); }
+            else { n = harmony_->KeyUp(note, source, out); off = n; }
+            for(unsigned i = 0; i < n; ++i) {
+                if(parameters_.synth) synth_.Note(out[i], i < off ? 0 : velocity, source);
+                if(played) played[i] = out[i];
+            }
+            if(released) *released = off;
+            return n;
+        }
+    }
+    // Harmony mode (core/harmony.h): the caller's player (zero-initialised, in .bss).
+    // On for synth and chromatic sampler patches; kit patches keep their pads.
+    void SetHarmony(harmony::Player* player) { harmony_ = player; }
+    harmony::Player* Harmony() const { return harmony_; }
+    bool HarmonyOn() const { return harmony_ && harmony_->state.enabled && parameters_.synth && !(parameters_.Sampler() && Kit()); }
     // Controller state is kept on either route; Panic and route changes reset it.
     void Pedal(uint8_t source, bool down) { synth_.Pedal(source, down); }
     void Bend(uint8_t source, uint16_t value) { synth_.Bend(source, value); }
@@ -343,10 +371,17 @@ private:
     }
     void Silence() {
         synth_.Silence();
+        if(harmony_) harmony_->Clear();
         // O(1) tail suppression: old delay cells are not read until overwritten.
         flushed_ = capacity_;
         reverb_.Clear();
     }
+    // A chord's notes fit the patch's voices (at most harmony::kMaxNotes).
+    uint8_t ChordVoices() const {
+        const unsigned v = parameters_.version < 3 ? 4u : parameters_.voices < 1 ? 1u : parameters_.voices;
+        return static_cast<uint8_t>(v < harmony::kMaxNotes ? v : harmony::kMaxNotes);
+    }
+    harmony::Player* harmony_ = nullptr;
     SlotSettings* slots_ = nullptr;
     uint32_t slots_seen_ = 0;
     uint8_t focus_ = 0;                          // kit: the pad the knobs edit (the last one played)

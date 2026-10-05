@@ -85,7 +85,7 @@ inline Function StaticFunction(uint8_t note) {
 // Real layout: the key is the root. In the scale: that degree's chord. Outside it: the
 // parallel mode's chord on that root (modal interchange); else a dominant if it falls
 // a fifth to a degree with a perfect fifth (V7/x); else a major chord (e.g. bII).
-FORGE_NOINLINE inline Function RealFunction(uint8_t note, uint8_t tonic, Mode mode) {
+FORGE_COLD inline Function RealFunction(uint8_t note, uint8_t tonic, Mode mode) {
     Function f;
     if(note > 127) return f;
     const uint8_t* scale = kScale[static_cast<unsigned>(mode) % kModes];
@@ -111,7 +111,7 @@ inline void QualityStack(Quality q, uint8_t* tone) {
 // The chord a function names in a key, with Shift applied (context-dependent):
 // a dominant -> its tritone substitute; major -> sus4; minor -> dominant on the same
 // root (ii -> II7 = V/V); diminished -> the key's V7 (vii is V7 without its root).
-FORGE_NOINLINE inline Chord Resolve(const Function& f, uint8_t tonic, Mode mode, bool shift) {
+FORGE_COLD inline Chord Resolve(const Function& f, uint8_t tonic, Mode mode, bool shift) {
     Chord c; c.kind = f.kind;
     const uint8_t* scale = kScale[static_cast<unsigned>(mode) % kModes];
     tonic %= 12;
@@ -146,7 +146,7 @@ FORGE_NOINLINE inline Chord Resolve(const Function& f, uint8_t tonic, Mode mode,
 // The chord's tones for an extension, at most `limit`, ascending semitones above the
 // root. Dropped first: the 5th, then the middle extensions (keeps root, 3rd, 7th and
 // the top extension, which carry the chord's sound).
-FORGE_NOINLINE inline uint8_t Tones(const Chord& c, Extension e, unsigned limit, uint8_t* out) {
+FORGE_COLD inline uint8_t Tones(const Chord& c, Extension e, unsigned limit, uint8_t* out) {
     if(limit < 1) return 0;
     if(limit > kMaxNotes) limit = kMaxNotes;
     if(e == Extension::Fifth) { out[0] = 0; if(limit < 2) return 1; out[1] = c.tone[2]; return 2; }
@@ -165,7 +165,7 @@ FORGE_NOINLINE inline uint8_t Tones(const Chord& c, Extension e, unsigned limit,
 
 // Root position near `root_note` (the root's MIDI note), inversion r (lowest r notes up
 // an octave), optional open spread; kept inside kLowest..kHighest.
-FORGE_NOINLINE inline Voiced Place(int root_note, const uint8_t* tones, uint8_t count, unsigned inversion, bool open) {
+FORGE_COLD inline Voiced Place(int root_note, const uint8_t* tones, uint8_t count, unsigned inversion, bool open) {
     Voiced v;
     int n[kMaxNotes];
     for(unsigned i = 0; i < count; ++i) n[i] = root_note + tones[i];
@@ -205,7 +205,7 @@ inline unsigned Movement(const Voiced& from, const Voiced& to) {
 // Voice leading: of every inversion at the root's octave and one either side, the
 // voicing that moves least from `previous` (ties: the earlier candidate, so the
 // result is deterministic). Common tones cost nothing, so they are kept.
-FORGE_NOINLINE inline Voiced Lead(int root_note, const uint8_t* tones, uint8_t count, bool open, const Voiced& previous) {
+FORGE_COLD inline Voiced Lead(int root_note, const uint8_t* tones, uint8_t count, bool open, const Voiced& previous) {
     Voiced best; unsigned best_cost = ~0u;
     for(int shift = 0; shift < 3; ++shift) {
         const int octave = shift == 0 ? 0 : shift == 1 ? -12 : 12;
@@ -227,7 +227,7 @@ public:
     static constexpr unsigned kHeld = 10, kSources = 3;
     State state;
     // Key down: fills `out` with the notes to start (those not already sounding).
-    FORGE_NOINLINE unsigned KeyDown(uint8_t key, uint8_t source, uint8_t* out) {
+    FORGE_COLD unsigned KeyDown(uint8_t key, uint8_t source, uint8_t* out) {
         if(source >= kSources || key > 127) return 0;
         const Function f = state.layout == Layout::Static ? StaticFunction(key) : RealFunction(key, state.tonic, state.mode);
         if(f.kind == Kind::ShiftKey) { shift_ = true; return 0; }
@@ -263,11 +263,13 @@ public:
     // After KeyDown: how many of `out`'s first notes were releases (a retrigger).
     unsigned Released() const { return released_; }
     // Key up: fills `out` with the notes to stop (no other key holds them).
-    FORGE_NOINLINE unsigned KeyUp(uint8_t key, uint8_t source, uint8_t* out) {
+    FORGE_COLD unsigned KeyUp(uint8_t key, uint8_t source, uint8_t* out) {
         if(state.layout == Layout::Static && key == kShiftKey) shift_ = false;
         Held* h = Find(key, source);
         return h ? Release(*h, out) : 0;
     }
+    // Keys harmony mode takes: Static, the keybed C3..C5; Real, every key.
+    bool Maps(uint8_t key) const { return state.layout == Layout::Real ? key < 128 : key >= 48 && key <= 72; }
     bool Holds(uint8_t key, uint8_t source) const { return const_cast<Player*>(this)->Find(key, source) != nullptr; }
     // Panic, a structural patch change: forget everything (the synth is silenced).
     void Clear() { for(auto& h : held_) h = Held{}; for(auto& s : refs_) for(auto& r : s) r = 0; shift_ = false; last_ = Voiced{}; }

@@ -362,6 +362,7 @@ void Send(uint8_t source, uint8_t* envelope, size_t payload_size) {
 // change (TAPE's own way: presets_temp.json, then a rename), once FORGE/presets_backup.json
 // holds the card's original file.
 forge::SlotSettings slot_settings;
+forge::harmony::Player harmony_player;   // harmony mode (core/harmony.h): zero-initialised, audio owner
 alignas(32) char presets_text[forge::SlotSettings::kFileMax];   // whole cache lines: SD DMA reads
 uint32_t slot_settings_failures = 0;
 FORGE_COLD void LoadSlotSettings() {
@@ -938,6 +939,7 @@ FORGE_COLD int main() {
     LoadOptions();
     LoadSlotSettings();
     engine.SetSlotSettings(&slot_settings);
+    engine.SetHarmony(&harmony_player);
     panel_controller.SetInstallGate(&install_gate);
     cpu.Init(hw.seed.AudioSampleRate(), hw.seed.AudioBlockSize());
     hw.StartAudio(AudioCallback);
