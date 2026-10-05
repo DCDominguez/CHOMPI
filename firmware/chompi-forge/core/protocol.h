@@ -5,7 +5,7 @@
 
 namespace forge {
 constexpr uint8_t kProtocolVersion = 1, kPatchVersion = 1;
-constexpr uint8_t kFirmwareMinor = 11; // 0.11: install power check, battery lockout log, start-up fixes; 0.10: TAPE parity (knobs, effects, count-in, restart record); 0.9: key lights while playing (TAPE); 0.8: power as stock (off gesture, SW6 battery, charger hand-over); 0.7: USB file transfer (opcode 0C)
+constexpr uint8_t kFirmwareMinor = 12; // 0.12: TAPE per-slot sample settings (presets.json); 0.11: install power check, battery lockout log, start-up fixes; 0.10: TAPE parity (knobs, effects, count-in, restart record); 0.9: key lights while playing (TAPE); 0.8: power as stock (off gesture, SW6 battery, charger hand-over); 0.7: USB file transfer (opcode 0C)
 // 7-9 are device-preset (SD) errors: empty slot, no/failed card, storage busy.
 // Power (0.11): a firmware install refused because the battery is low on a weak or missing supply.
 enum class Error : uint8_t { None, Length, Version, Checksum, Patch, Opcode, Busy, Empty, Storage, StorageBusy, Power };
@@ -36,6 +36,7 @@ struct Request {
     uint8_t epoch = 0; // main-loop emergency count when queued; never on the wire
     uint8_t bank = 0, slot = 0; // device preset address (Store/Recall/Erase), 0-based
     bool silent = false;        // apply without a reply (on-device recall)
+    bool recall = false;        // a recalled preset: TAPE per-slot settings win (SlotPolicy::Recall); never on the wire
     bool reset_cpu = false;     // Status: start a new CPU peak after reporting (per-step measurements)
     // SampleJob: action, source mode/bank/slot (bank/slot above) and copy destination.
     SampleAction action = SampleAction::Save;

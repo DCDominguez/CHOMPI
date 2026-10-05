@@ -114,6 +114,8 @@ int main(int argc, char** argv) {
     samples.files["cubbi_a1.wav"] = SineWav(4800, 110.f);
     samples.files["cubbi_a2.wav"] = SineWav(4800, 330.f);
     engine.SetSamples(&table);
+    static forge::SlotSettings slot_settings;      // TAPE per-slot settings, in memory (no presets.json here)
+    engine.SetSlotSettings(&slot_settings);
     loader.Init(&table, &handoff, pool.data(), static_cast<uint32_t>(pool.size()), scratch.data(), static_cast<uint32_t>(scratch.size()));
     recorder.Init(recording.data(), 48000 * 4, &table.slots[forge::kRamSlot], 48000.f);
     std::vector<int16_t> loop_memory(2 * 48000 * 20);            // 20 s looper (firmware: ~83 s)
@@ -128,7 +130,7 @@ int main(int argc, char** argv) {
             forge::Error e = forge::Error::None;
             if(a.kind == forge::MenuAction::Kind::Recall) {
                 forge::Parameters patch; e = store->Load(a.bank, a.slot, patch);
-                if(e == forge::Error::None) { engine->ApplyPatch(patch); last_bank = a.bank; last_slot = a.slot; return true; }
+                if(e == forge::Error::None) { engine->ApplyPatch(patch, forge::SlotPolicy::Recall); last_bank = a.bank; last_slot = a.slot; return true; }
             } else if(a.kind == forge::MenuAction::Kind::Save) e = store->Save(a.bank, a.slot, snapshot);
             else if(a.kind == forge::MenuAction::Kind::Erase) e = store->Erase(a.bank, a.slot);
             else if(a.kind == forge::MenuAction::Kind::Copy) e = store->Copy(a.bank, a.slot, a.to_bank, a.to_slot);
@@ -155,6 +157,7 @@ int main(int argc, char** argv) {
         if(loader.Poll(samples, forge::PackSelection(engine.GetParameters()), recording.data(), e, loop_memory.data())) {
             event = e; finished = true;
             if(e.job.kind == forge::SampleJob::Kind::Save) { if(e.job.from_loop) looper.Unlock(); else recorder.Unlock(); }
+            forge::FollowSampleJob(slot_settings, e);
             if(e.job.source == 0xff) sink.Flash(e.ok);
         }
         engine.SetSampleFilesAvailable(handoff.AudioBlock(engine));

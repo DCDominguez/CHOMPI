@@ -1,5 +1,34 @@
 # Forge changelog
 
+## 0.12 Per-slot sample settings — 2026-10-05 (software-tested; not installed yet)
+
+TAPE parity A4. DC's choices: save as TAPE does (the moment a control moves), kit
+pads keep their own settings, the slot's settings win over a Forge preset's, and
+share TAPE's own `presets.json` with a backup. Nothing here is hardware-verified.
+- **Per slot (TAPE's nine):** pitch, start, end, attack, release (TAPE: decay),
+  auto-loop, sustain, gain, pan, in TAPE's layout and units (`core/slot_settings.h`;
+  TAPE's version-1 files read too). The recording keeps a set in memory (TAPE).
+- **Chromatic:** turning or pressing those controls saves them to the slot; choosing
+  a slot in the menu loads its settings (an unsaved slot: TAPE's defaults);
+  recalling a Forge preset on a saved slot loads the slot's, the preset sets the rest;
+  a webapp/AI patch keeps its own values (and later turns save them).
+- **Kit:** each pad's settings play on its own voices (pitch, gain, pan, window,
+  envelope, loop, sustain); the knobs edit the pad last played and their lights show
+  it; the shared pitch/gain/pan stay neutral in kit mode.
+- **Menu:** saving the recording to a slot copies the recording's settings, copying
+  a slot copies its settings, erasing clears them (TAPE).
+- **Card:** read at start-up and when a card goes in; written 2 s after the last
+  change (TAPE: every 5 s while silent) via `presets_temp.json` and a rename, and
+  before an install restart; the card's original goes to `FORGE/presets_backup.json`
+  before the first write.
+- **CPU (emulator):** gate scenarios unchanged within 7 instructions/sample (worst
+  2,677.9 vs WAVE 2,694.9). Found while testing: every voice pitched below 1× (SW4
+  pitch down, or kit pads below 1×) costs 2,800.8 / 2,755.8, about 4 % over WAVE;
+  true since 0.10's TAPE pitch. Added as informational scenarios and hardware step
+  6.2f; not yet decided (options: accept on hardware numbers, or TAPE's linear read).
+- Release 261,072 B, development 277,028 B (layout OK). New TEST_SESSION 3.62–3.64,
+  6.2f.
+
 ## 0.11 Install safety — 2026-10-05 (software-tested; not installed yet)
 
 After DC's 0.10 install left CHOMPI dark (flat battery on a computer's USB port:

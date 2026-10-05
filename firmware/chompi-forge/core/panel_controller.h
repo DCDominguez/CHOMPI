@@ -91,6 +91,7 @@ public:
 #endif
 
     FORGE_COLD void Block(const PanelInput& hardware, Engine& engine, Recorder& recorder, PanelSink& sink) {
+        engine.SyncSlotSettings();                                         // kit pads follow menu copies/erases
         uint64_t keys = hardware.keys | virtual_keys_;
         if(install_gate_) install_gate_->Filter(keys, panel::kChompiKey);   // firmware install confirmation owns CHOMPI
         const bool toggle_up = toggle_override_ >= 0 ? toggle_override_ != 0 : hardware.toggle_up;
@@ -132,7 +133,7 @@ public:
                 const Parameters& p = engine.GetParameters();
                 Parameters take = SelectSample(p, 0, p.sample_bank, kRamSlot);
                 take.sample_start = 0.f; take.sample_end = 1.f;
-                engine.ApplyPatch(take);
+                engine.ApplyPatch(take, SlotPolicy::Select);
                 engine.ResetControl(Parameter::Speed); engine.ResetControl(Parameter::VoiceGain);
                 break;
             }
@@ -458,7 +459,7 @@ private:
         for(MenuAction action; menu_.PopAction(action);) {
             using Kind = MenuAction::Kind;
             if(action.kind == Kind::SampleSelect) {                 // applied here, as TAPE does
-                engine.ApplyPatch(SelectSample(engine.GetParameters(), action.mode, action.bank, action.slot));
+                engine.ApplyPatch(SelectSample(engine.GetParameters(), action.mode, action.bank, action.slot), SlotPolicy::Select);
             } else if(action.kind == Kind::RecordSource) {
                 source_ = static_cast<RecordSource>(action.slot);
             } else if(action.kind == Kind::SampleCopy && action.slot == PresetMenu::kLoopSource) {

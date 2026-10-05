@@ -195,6 +195,21 @@ computer, or over USB with Forge Bridge (*Card & firmware*, section 10).
   Knob page 1 on a sampler patch is TAPE's: pitch (SW4), start (SW1), end (SW2),
   reverb + delay (SW3).
 
+**Each slot remembers its settings (0.12, as TAPE).** Pitch, gain, start, end,
+attack, release, pan, auto-loop and sustain belong to the sample slot, saved the
+moment you turn or press them, in TAPE's own `presets.json` on the card. TAPE and
+Forge share it: what you set in one is there in the other.
+- **Chromatic:** choosing a slot in the menu brings its settings back (a slot
+  never set starts from TAPE's defaults). Recalling a Forge preset that uses the
+  slot also brings the slot's settings; the preset sets everything else (filter,
+  LFO, effects…).
+- **Kit:** every pad has its own. Play a pad, then turn: the knobs edit that pad
+  (its lights show its values). A pad never set follows the preset.
+- Saving the recording to a slot gives the slot the recording's settings; copying
+  a slot copies them; erasing clears them (TAPE's menu).
+- The first time Forge writes `presets.json` it copies the card's original to
+  `FORGE/presets_backup.json`.
+
 ### TAPE's menu page (the menu opens here)
 | Key | Does |
 | --- | --- |
@@ -346,9 +361,11 @@ Warm Pad, Acid Bass, Bell Keys, Knob Pad (synths); Recorded Keys, TAPE Kit A
 | `jammi_…wav`, `cubbi_…wav` | Samples (TAPE's names and format; shared with TAPE) |
 | `FORGE/UPLOAD.TMP`, `FORGE/TMP.FPR`, `FORGE_TMP.WAV` | Temporary files while writing (safe to delete when CHOMPI is off) |
 | `NAME_bin.old` | Other firmware set aside by a USB install |
-| `FORGE/RESTARTS.TXT` | One line per start: why CHOMPI started (power-on, brown-out, reset, software) and any crash Forge recorded |
+| `FORGE/RESTARTS.TXT` | One line per start: why CHOMPI started (power-on, brown-out, reset, software) and any crash Forge recorded; from 0.11 also "battery low" when the stock protection switched it off |
+| `presets.json` | TAPE's per-slot sample settings, shared with TAPE (Forge writes it from 0.12, in TAPE's format, via `presets_temp.json`) |
+| `FORGE/presets_backup.json` | The card's `presets.json` as it was before Forge first wrote it |
 
-Forge never changes TAPE's `presets.json` or `options.json`. It **reads**
+Forge never changes TAPE's `options.json`. It **reads**
 `options.json` at start-up (TAPE writes it with defaults the first time TAPE runs),
 so one card sets both firmwares:
 

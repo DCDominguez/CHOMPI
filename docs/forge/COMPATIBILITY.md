@@ -132,8 +132,9 @@ Device presets (0.4) follow TAPE's panel gestures: toggle in TAPE's menu
 position + CHOMPI key opens the menu; white keys select slots; KEY_23/24/25
 are erase/copy/save; CHOMPI confirms. KEY_16/17 select banks and knob 1 (hw SW4)
 also turns banks. Knob presses step that knob's page (TAPE also uses encoder
-presses as page keys; Forge's pages are its own, [KNOBS.md](KNOBS.md)). TAPE's own files (`presets.json`, samples) are not read or
-written; Forge's live in `FORGE/` and are never `.bin`.
+presses as page keys; Forge's pages are its own, [KNOBS.md](KNOBS.md)). TAPE's samples and, from 0.12, its per-slot settings
+(`presets.json`, TAPE's own format, backup in `FORGE/presets_backup.json`) are shared;
+Forge's own files live in `FORGE/` and are never `.bin`.
 
 ## 5. Toolchains and build reproducibility
 

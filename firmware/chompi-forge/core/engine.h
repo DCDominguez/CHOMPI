@@ -15,6 +15,12 @@ constexpr unsigned kLooperVoiceCap = 6;
 // delay buffers and (optionally) reverb memory and must initialize before
 // starting audio. No IO, locks, parsing or allocation here. Without reverb
 // memory the reverb stage is silent (wet 0) but everything else works.
+// How a patch meets TAPE's per-slot settings (core/slot_settings.h) when it selects a
+// chromatic sample slot: Recall (a Forge preset) and Select (the Samples menu) load the
+// slot's saved settings; Select also resets an unsaved file slot to TAPE's defaults (as
+// TAPE); Patch (the webapp / AI) keeps the patch's own values.
+enum class SlotPolicy : uint8_t { Patch, Recall, Select };
+
 class Engine {
 public:
     bool Init(float sample_rate, float* left, float* right, size_t capacity,
@@ -38,7 +44,7 @@ public:
         parameters_ = patch_ = Parameters{};
         performance_ = Performance{};
         synth_.Init(sample_rate); synth_.Configure(parameters_);
-        synth_.SetPerformance(TapeSpeedRatio(performance_.speed), performance_.voice_gain, performance_.pan);
+        PushPerformance();
         synth_.SnapPerformance();
         effects_.Configure(performance_);
         mix_ = parameters_.mix;
@@ -54,6 +60,7 @@ public:
     }
     bool Apply(Command command) {
         command.parameter = parameters_.Resolve(command.parameter);       // knobs -> their control
+        if(SlotOwned(command.parameter) && SlotMode()) return ApplySlot(command);
         if(IsPerformance(command.parameter)) return ApplyPerformance(command);
         if(!parameters_.Apply(command)) return false;
         const Parameter p = command.parameter;
@@ -68,6 +75,7 @@ public:
     FORGE_NOINLINE float Value(Parameter parameter) const {
         parameter = parameters_.Resolve(parameter);
         if(parameter == Parameter::Space) return split_delay_ ? space_ : parameters_.feedback;
+        if(SlotOwned(parameter) && SlotMode() && Kit()) return Field(PadValues(focus_), parameter);
         if(IsPerformance(parameter)) { float* f = const_cast<Performance&>(performance_).Field(parameter); return f ? *f : 0.f; }
         return parameters_.Value(parameter);
     }
@@ -79,14 +87,31 @@ public:
             if(parameters_.version >= 3) Apply({Parameter::ReverbMix, patch_.reverb_mix});
             return a && b;
         }
+        if(SlotOwned(parameter) && SlotMode()) return Apply({parameter, Field(SlotValues{}, parameter)});   // TAPE's default
         if(IsPerformance(parameter)) return Apply({parameter, Performance::Default(parameter)});
         return Apply({parameter, patch_.Value(parameter)});
     }
     const Performance& GetPerformance() const { return performance_; }
     void SetSplitDelay(bool split) { split_delay_ = split; space_ = .5f; }
     // TAPE menu presses (SW1 / SW2): the sampler's auto-loop and sustain (hold) on/off.
-    void ToggleSampleLoop() { parameters_.sample_loop = !parameters_.sample_loop; synth_.Configure(parameters_); }
-    void ToggleSampleHold() { parameters_.sample_gate = !parameters_.sample_gate; synth_.Configure(parameters_); }
+    // With per-slot settings they belong to the slot (kit: the pad last played).
+    FORGE_COLD void ToggleSampleLoop() {
+        if(SlotMode() && Kit()) { SlotValues v = PadValues(focus_); v.loop = !v.loop; SavePad(v); return; }
+        parameters_.sample_loop = !parameters_.sample_loop; synth_.Configure(parameters_); SaveSlot();
+    }
+    FORGE_COLD void ToggleSampleHold() {
+        if(SlotMode() && Kit()) { SlotValues v = PadValues(focus_); v.sustain = !v.sustain; SavePad(v); return; }
+        parameters_.sample_gate = !parameters_.sample_gate; synth_.Configure(parameters_); SaveSlot();
+    }
+    // TAPE's per-slot settings (shared with the main loop, which loads and writes the file).
+    void SetSlotSettings(SlotSettings* settings) { slots_ = settings; slots_seen_ = settings ? settings->Changes() - 1 : 0; }
+    // Once per block: pads follow changes made elsewhere (menu copy/erase, a new card).
+    void SyncSlotSettings() { if(slots_ && slots_->Changes() != slots_seen_) Resync(); }
+    FORGE_COLD void Resync() {
+        slots_seen_ = slots_->Changes();
+        if(SlotMode() && Kit()) LoadPads();
+    }
+    uint8_t FocusPad() const { return focus_; }
     // TAPE's warble needs 2 * tape::Warble::kLength floats of zeroed memory (off without).
     void SetWarbleMemory(float* memory) { effects_.SetWarbleMemory(memory); }
     // Sampler memory (v4); see sample_table.h. May be set before or after Init.
@@ -96,6 +121,7 @@ public:
     bool SampleVoicesActive(bool include_recording) const { return synth_.SampleVoicesActive(include_recording); }
     void Note(uint8_t note, uint8_t velocity, uint8_t source) {
         if(velocity && looper_) looper_->NoteStarted();      // an armed looper starts recording
+        if(velocity && SlotMode() && Kit()) { const int pad = Synth::KitSlot(note); if(pad >= 0) focus_ = static_cast<uint8_t>(pad); }
         if(parameters_.synth) synth_.Note(note, velocity, source);
     }
     // Controller state is kept on either route; Panic and route changes reset it.
@@ -127,7 +153,7 @@ public:
     unsigned ActiveVoices() const { return synth_.Active(); }
     // Called only by the audio owner, between blocks. Validate before mutation;
     // smoothing and delay state continue uninterrupted across a patch change.
-    FORGE_NOINLINE bool ApplyPatch(const Parameters& patch) {
+    FORGE_NOINLINE bool ApplyPatch(const Parameters& patch, SlotPolicy policy = SlotPolicy::Patch) {
         if(!patch.Valid()) return false;
         // Structural changes (route, waveform, v1/v2 <-> v3 voice architecture) silence.
         if(patch.synth != parameters_.synth || patch.waveform != parameters_.waveform
@@ -139,6 +165,15 @@ public:
 #endif
         synth_.Configure(parameters_);
         if(has_reverb_) reverb_.Configure(parameters_.reverb_size, parameters_.reverb_damping);
+        if(SlotMode()) {
+            if(Kit()) LoadPads();
+            else if(policy != SlotPolicy::Patch) {
+                const unsigned slot = parameters_.sample_slot;
+                if(slots_->Valid(0, parameters_.sample_bank, slot)) LoadSlot(slots_->Get(0, parameters_.sample_bank, slot));
+                else if(policy == SlotPolicy::Select && slot != kRamSlot) LoadSlot(SlotValues{});
+            }
+        }
+        PushPerformance();
         return true;
     }
     const Parameters& GetParameters() const { return parameters_; }
@@ -225,9 +260,86 @@ private:
         float* field = performance_.Field(command.parameter);
         if(!field) return false;
         *field = v;
-        synth_.SetPerformance(TapeSpeedRatio(performance_.speed), performance_.voice_gain, performance_.pan);
+        PushPerformance();
         effects_.Configure(performance_);
         return true;
+    }
+    // Kit pads carry their own pitch, gain and pan, so the shared ones stay neutral there.
+    FORGE_NOINLINE void PushPerformance() {
+        if(SlotMode() && Kit()) synth_.SetPerformance(1.f, kUnityGain, .5f);
+        else synth_.SetPerformance(TapeSpeedRatio(performance_.speed), performance_.voice_gain, performance_.pan);
+    }
+    static constexpr float kUnityGain = .703562f;            // 2v^2 + .01 = 1
+    // Per-slot settings: pitch (Speed), gain, pan, start, end, attack and release (decay)
+    // of a sampler patch belong to its sample slot; loop and sustain too (toggles).
+    static bool SlotOwned(Parameter p) {
+        return p == Parameter::Speed || p == Parameter::VoiceGain || p == Parameter::Pan || p == Parameter::SampleStart
+            || p == Parameter::SampleEnd || p == Parameter::Attack || p == Parameter::Release;
+    }
+    bool SlotMode() const { return slots_ && parameters_.Sampler(); }
+    bool Kit() const { return parameters_.sample_mode == 1; }
+    FORGE_NOINLINE static float Field(const SlotValues& v, Parameter p) {
+        switch(p) {
+            case Parameter::Speed: return v.pitch;       case Parameter::VoiceGain: return v.gain;
+            case Parameter::Pan: return v.pan;           case Parameter::SampleStart: return v.start;
+            case Parameter::SampleEnd: return v.end;     case Parameter::Attack: return v.attack;
+            case Parameter::Release: return v.release;   default: return 0.f;
+        }
+    }
+    // The playing controls as one slot's settings (chromatic, or a kit pad without its own).
+    FORGE_NOINLINE SlotValues Current() const {
+        SlotValues v;
+        v.pitch = performance_.speed; v.gain = performance_.voice_gain; v.pan = performance_.pan;
+        v.start = parameters_.sample_start; v.end = parameters_.sample_end;
+        v.attack = parameters_.attack; v.release = parameters_.release;
+        v.loop = parameters_.sample_loop; v.sustain = parameters_.sample_gate;
+        return v;
+    }
+    FORGE_NOINLINE SlotValues PadValues(unsigned pad) const {
+        return slots_->Valid(1, parameters_.sample_bank, pad) ? slots_->Get(1, parameters_.sample_bank, pad) : Current();
+    }
+    FORGE_COLD bool ApplySlot(Command command) {
+        if(!std::isfinite(command.value)) return false;
+        const float x = Clamp(command.value, 0.f, 1.f);
+        if(Kit()) {
+            SlotValues v = PadValues(focus_);
+            switch(command.parameter) {
+                case Parameter::Speed: v.pitch = x; break;   case Parameter::VoiceGain: v.gain = x; break;
+                case Parameter::Pan: v.pan = x; break;       case Parameter::Attack: v.attack = x; break;
+                case Parameter::Release: v.release = x; break;
+                case Parameter::SampleStart: v.start = std::fmin(x, v.end - .01f); break;
+                case Parameter::SampleEnd: v.end = std::fmax(x, v.start + .01f); break;
+                default: return false;
+            }
+            SavePad(v);
+            return true;
+        }
+        command.value = x;
+        bool ok;
+        if(IsPerformance(command.parameter)) ok = ApplyPerformance(command);
+        else { ok = parameters_.Apply(command); if(ok) synth_.Configure(parameters_); }
+        if(ok) SaveSlot();
+        return ok;
+    }
+    // TAPE saves the moment a knob turns (DumpValuePresets).
+    FORGE_NOINLINE void SaveSlot() { if(SlotMode() && !Kit()) slots_->Set(0, parameters_.sample_bank, parameters_.sample_slot, Current()); }
+    FORGE_COLD void SavePad(const SlotValues& v) {
+        slots_->Set(1, parameters_.sample_bank, focus_, v);
+        synth_.SetPad(focus_, true, v);
+        slots_seen_ = slots_->Changes();
+    }
+    FORGE_COLD void LoadSlot(const SlotValues& v) {
+        performance_.speed = v.pitch; performance_.voice_gain = v.gain; performance_.pan = v.pan;
+        parameters_.sample_start = Clamp(v.start, 0.f, .99f);
+        parameters_.sample_end = std::fmax(Clamp(v.end, 0.f, 1.f), parameters_.sample_start + .01f);
+        parameters_.attack = v.attack; parameters_.release = v.release;
+        parameters_.sample_loop = v.loop; parameters_.sample_gate = v.sustain;
+        synth_.Configure(parameters_);
+    }
+    FORGE_COLD void LoadPads() {
+        for(unsigned pad = 0; pad < kSampleSlots; ++pad)
+            synth_.SetPad(pad, slots_->Valid(1, parameters_.sample_bank, pad), slots_->Get(1, parameters_.sample_bank, pad));
+        slots_seen_ = slots_->Changes();
     }
     void Silence() {
         synth_.Silence();
@@ -235,6 +347,9 @@ private:
         flushed_ = capacity_;
         reverb_.Clear();
     }
+    SlotSettings* slots_ = nullptr;
+    uint32_t slots_seen_ = 0;
+    uint8_t focus_ = 0;                          // kit: the pad the knobs edit (the last one played)
     Looper* looper_ = nullptr;
     bool fx_before_loop_ = true;
     CcButton looper_cc_[2];

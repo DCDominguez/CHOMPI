@@ -38,6 +38,11 @@ Pages follow TAPE first, then Forge's extra controls, then the patch's own knob
 - Pitch, gain, saturation, DJ filter, pan, warble, compressor and input gain are
   device performance state (TAPE's knob positions), kept across preset changes and
   reset at power-up as in TAPE; they are not stored in patches.
+- **Sampler patches (0.12):** pitch, gain, pan, start, end, attack and release
+  (and the menu's auto-loop/sustain presses) belong to the sample slot, saved as you
+  turn into TAPE's `presets.json` (MANUAL section 7). In kit mode they edit the pad
+  last played; the shared pitch/gain/pan stay where they were. A long press resets
+  them to TAPE's defaults (1×, full sample, no attack/release, centre).
 
 Gestures:
 

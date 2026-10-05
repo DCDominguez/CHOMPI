@@ -250,7 +250,7 @@ class BrowserTests(unittest.TestCase):
         sent = self.json()
         p.click("#send"); self.wait_idle()
         self.assertIn("acknowledged", self.notice())
-        self.assertIn("Firmware 0.11", p.inner_text("#device-state"))
+        self.assertIn("Firmware 0.12", p.inner_text("#device-state"))
         # Legacy v1 delay patch switches device to aux path.
         self.choose_preset("Short slap"); p.click("#send"); self.wait_idle()
         p.click("#capture"); self.wait_idle()

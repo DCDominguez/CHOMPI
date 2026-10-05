@@ -63,7 +63,8 @@ Source analysis: TAPE 2.0 (`firmware/chompi-tape/code/src`, read only):
 Kept compatible: the same file names, so a TAPE card's samples play in Forge
 and samples Forge saves play in TAPE (Forge writes TAPE's exact format and
 lets TAPE generate `_double` at its next boot, as TAPE already does for
-missing ones). Forge never writes `.bin` files or touches `presets.json`.
+missing ones). Forge never writes `.bin` files. From 0.12 it shares TAPE's
+`presets.json` (per-slot settings; see below and MANUAL section 7).
 
 ## 3. Memory
 
@@ -166,5 +167,7 @@ TEST_SESSION (one consolidated session).
 
 ## 9. Not in this item
 
-Looping (item 5), per-slot settings like TAPE's `presets.json` (candidate),
+Looping (item 5), per-slot settings in TAPE's `presets.json` (done in 0.12:
+`core/slot_settings.h`; kit pads keep their own pitch, gain, pan, window, envelope,
+loop and sustain per voice),
 threshold-armed recording, sample names, time-stretch, slicing.

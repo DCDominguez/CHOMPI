@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include "parameters.h"
+#include "slot_settings.h"
 #include "sample_table.h"
 #include "inspector.h"
 
@@ -40,6 +41,17 @@ class Synth {
         bool complete = false;
         int32_t win_start = 0, win_end = 0;
         float span = 0, svf_h = 1, svf_dg = 0;
+        // Taken when the note starts: the patch's sampler settings, or a kit pad's own
+        // (TAPE per-slot settings); kept in step with later changes (Configure, SetPad).
+        const Shape* shape = nullptr;   // amplitude envelope
+        float start_frac = 0, end_frac = 1, pan_l = 1, pan_r = 1;   // pan_* include the pad's gain
+        bool loop = false, gate = true, panned = false, pad = false;
+    };
+    // A kit pad's settings (Pad.valid false: the pad follows the patch).
+    struct Pad {
+        bool valid = false, loop = true, gate = true;
+        float ratio = 1, pan_l = 1, pan_r = 1, start = 0, end = 1, attack = 0, release = 0;
+        Shape amp;
     };
 public:
     // Samples for v4 sampler patches (may be null: sampler notes are ignored).
@@ -90,6 +102,7 @@ public:
         xfade_frames_ = p.sample_xfade * 0.25f * rate_;
         fade_frames_ = 0.002f * rate_; inverse_fade_ = 1.f / fade_frames_;
         ++window_epoch_;                                                 // voices recompute their windows
+        FollowConfigure();
         pitch_target_ = std::exp2((p.sample_pitch - 0.5f) * 4.f);       // +/-24 semitones
         for(unsigned i = voices_used_; i < voices_.size(); ++i)
             if(voices_[i].amp.stage != Stage::Off && voices_[i].amp.stage != Stage::Release) Release(voices_[i]);
@@ -104,7 +117,7 @@ public:
         if(note > 127 || velocity > 127 || source >= kSources) return;
         if(!velocity) {
             for(auto& v : voices_) if(v.amp.stage != Stage::Off && v.amp.stage != Stage::Release && v.note == note && v.source == source) {
-                if(v.sampled && !sample_gate_) continue;     // trigger mode ignores key-up
+                if(v.sampled && !v.gate) continue;           // trigger mode ignores key-up
                 if(pedal_[source]) v.sustained = true; else Release(v);
             }
             return;
@@ -171,6 +184,27 @@ public:
         pan_r_target_ = std::fmin(2.f * pan, 1.f); pan_l_target_ = std::fmin(2.f - 2.f * pan, 1.f);
         performance_moving_ = true;
     }
+    // Kit pads (TAPE per-slot settings, core/slot_settings.h), in TAPE's knob units. An
+    // invalid pad follows the patch. Sounding voices of that pad follow at once.
+    FORGE_COLD void SetPad(unsigned slot, bool valid, const SlotValues& values) {
+        if(slot >= pads_.size()) return;
+        Pad& pad = pads_[slot];
+        pad.valid = valid;
+        if(valid) {
+            pad.ratio = TapeSpeedRatio(values.pitch);
+            const float gain = 2.f * values.gain * values.gain + .01f;
+            pad.pan_r = gain * std::fmin(2.f * values.pan, 1.f); pad.pan_l = gain * std::fmin(2.f - 2.f * values.pan, 1.f);
+            pad.start = Clamp(values.start, 0.f, .99f); pad.end = std::fmax(Clamp(values.end, 0.f, 1.f), pad.start + .01f);
+            pad.loop = values.loop; pad.gate = values.sustain; pad.attack = values.attack; pad.release = values.release;
+            PadShape(pad);
+        }
+        ++window_epoch_;
+        for(auto& v : voices_) if(v.sampled && v.slot == slot && kit_ && v.amp.stage != Stage::Off) {
+            if(valid) FollowPad(v, pad); else FollowPatch(v);
+            if(valid && table_ && table_->slots[slot].frames) v.increment = v.target = std::fabs(pad.ratio) * table_->slots[slot].rate_ratio;
+        }
+    }
+    FORGE_COLD void ClearPads() { for(unsigned i = 0; i < pads_.size(); ++i) SetPad(i, false, SlotValues{}); }
     // Sample memory handoff: fade out (2 ms) voices reading file slots (and the
     // recording slot if asked), and report whether any still sound.
     void ReleaseSampleVoices(bool include_recording) {
@@ -304,9 +338,9 @@ private:
         return low * resonance_gain_;          // tiny states are flushed at each coefficient refresh
     }
     // Loop/one-shot window in frames, at least kMinLoop long where possible.
-    void Window(const SampleSlot& s, int32_t& start, int32_t& end) const {
+    static void Window(const SampleSlot& s, const Voice& v, int32_t& start, int32_t& end) {
         const int32_t frames = static_cast<int32_t>(s.frames);
-        start = static_cast<int32_t>(sample_start_ * frames); end = static_cast<int32_t>(sample_end_ * frames);
+        start = static_cast<int32_t>(v.start_frac * frames); end = static_cast<int32_t>(v.end_frac * frames);
         if(end > frames) end = frames;
         if(end - start < kMinLoop) { end = std::min(frames, start + kMinLoop); start = std::max<int32_t>(0, end - kMinLoop); }
     }
@@ -337,12 +371,14 @@ private:
         selected->sampled = true; selected->slot = static_cast<uint8_t>(slot); selected->reverse = sample_reverse_ != speed_reverse_;
         selected->note = note; selected->source = source; selected->velocity = velocity / 127.f;
         selected->gain = selected->velocity;
-        const float key = kit_ ? 1.f : std::exp2((int(note) - 60) / 12.f);
+        const Pad* pad = kit_ && pads_[slot].valid ? &pads_[slot] : nullptr;
+        if(pad) FollowPad(*selected, *pad); else FollowPatch(*selected);
+        const float key = pad ? std::fabs(pad->ratio) : kit_ ? 1.f : std::exp2((int(note) - 60) / 12.f);
         selected->target = key * s.rate_ratio;
         const float from = kit_ || last_target_ <= 0.f ? selected->target : last_target_;
         selected->increment = glide_slew_ < 1.f && !kit_ ? from : selected->target;
         last_target_ = selected->target;
-        int32_t start, stop; Window(s, start, stop);
+        int32_t start, stop; Window(s, *selected, start, stop);
         selected->pos = selected->reverse ? stop - 1 : start;
         selected->amp.stage = selected->filter.stage = Stage::Attack; selected->age = ++age_;
     }
@@ -391,7 +427,7 @@ private:
         const uint32_t readable = v.window_frames == s.frames && v.complete ? s.frames : s.Readable();
         v.complete = readable == s.frames;
         if(v.window_frames != s.frames || v.window_epoch != window_epoch_) {
-            Window(s, v.win_start, v.win_end);
+            Window(s, v, v.win_start, v.win_end);
             v.window_frames = s.frames; v.window_epoch = window_epoch_;
             // Crossfade room: material before the loop start (after the end when reversed).
             const float room = static_cast<float>(v.reverse ? static_cast<int32_t>(s.frames) - v.win_end : v.win_start);
@@ -401,7 +437,7 @@ private:
         const bool cubic = step < 0.999f;
         Read(s, v.pos, v.frac, readable, cubic, l, r);
         float gain = 1.f;
-        if(sample_loop_) {
+        if(v.loop) {
             // Crossfade across the loop point; without room for that, a 2 ms dip.
             const float span = v.span;
             const float at = static_cast<float>(v.pos) + v.frac;
@@ -431,7 +467,7 @@ private:
             v.pos += whole; v.frac -= static_cast<float>(whole);
             if(v.pos < start) v.pos = start;                         // start moved past the playhead
             if(v.pos >= end) {
-                if(!sample_loop_) return false;
+                if(!v.loop) return false;
                 v.pos = start + (v.pos - start) % length;
             }
         } else {
@@ -442,7 +478,7 @@ private:
             }
             if(v.pos >= end) v.pos = end - 1;                        // end moved below the playhead
             if(v.pos < start) {
-                if(!sample_loop_) return false;
+                if(!v.loop) return false;
                 v.pos = end - 1 - (start - 1 - v.pos) % length;
             }
         }
@@ -464,8 +500,8 @@ private:
                 if(std::fabs(v.tail_l) + std::fabs(v.tail_r) < 1e-6f) v.tail_l = v.tail_r = 0.f;
             }
             if(v.amp.stage == Stage::Off || !v.sampled || !table_) continue;
-            Step(v.amp, amp_);
-            if(!sample_gate_ && (v.amp.stage == Stage::Decay || v.amp.stage == Stage::Sustain)) Release(v); // TAPE trigger mode
+            Step(v.amp, *v.shape);
+            if(!v.gate && (v.amp.stage == Stage::Decay || v.amp.stage == Stage::Sustain)) Release(v); // TAPE trigger mode
             if(v.amp.stage == Stage::Off) { v.last_l = v.last_r = 0.f; continue; }
             if(v.increment != v.target) {
                 v.increment += glide_slew_ * (v.target - v.increment);
@@ -486,11 +522,29 @@ private:
             r = Svf(r, v.g, v.svf_dg, v.svf_h, v.low_r, v.band_r);
             v.gain += gain_slew_ * (v.velocity - v.gain);
             const float k = v.amp.value * v.gain * amp_lfo;
-            v.last_l = l * k; v.last_r = r * k;
+            if(v.panned) { v.last_l = l * k * v.pan_l; v.last_r = r * k * v.pan_r; }   // kit pad gain/pan
+            else { v.last_l = l * k; v.last_r = r * k; }
             sum_l += v.last_l; sum_r += v.last_r;
         }
         left = sum_l; right = sum_r;
     }
+    // After Configure: pad envelopes take the patch's decay/sustain, patch voices its settings.
+    FORGE_COLD void FollowConfigure() {
+        for(auto& pad : pads_) if(pad.valid) PadShape(pad);
+        for(auto& v : voices_) if(v.sampled && !v.pad) FollowPatch(v);
+    }
+    FORGE_NOINLINE void FollowPatch(Voice& v) {
+        v.shape = &amp_; v.pad = false; v.panned = false; v.pan_l = v.pan_r = 1.f;
+        v.start_frac = sample_start_; v.end_frac = sample_end_; v.loop = sample_loop_; v.gate = sample_gate_;
+    }
+    FORGE_NOINLINE void FollowPad(Voice& v, const Pad& pad) {
+        v.shape = &pad.amp; v.pad = true;
+        v.panned = pad.pan_l != 1.f || pad.pan_r != 1.f; v.pan_l = pad.pan_l; v.pan_r = pad.pan_r;
+        v.start_frac = pad.start; v.end_frac = pad.end; v.loop = pad.loop; v.gate = pad.gate;
+        v.reverse = sample_reverse_ != (pad.ratio < 0.f);
+    }
+    FORGE_COLD void PadShape(Pad& pad) { pad.amp = amp_; const Shape s = MakeShape(pad.attack, 0.f, 0.f, pad.release);
+        pad.amp.attack_step = s.attack_step; pad.amp.release_samples = s.release_samples; }
     static constexpr float kLog2Of40 = 5.321928f, kLog2Of400 = 8.643856f;
     static uint8_t Clamp(uint8_t v, uint8_t lo, uint8_t hi) { return v < lo ? lo : v > hi ? hi : v; }
     static float Clamp(float v, float lo, float hi) { return forge::Clamp(v, lo, hi); }
@@ -520,7 +574,7 @@ private:
     }
     void Release(Voice& v) {
         v.sustained = false;
-        v.amp.stage = Stage::Release; v.amp.release_step = v.amp.value / amp_.release_samples;
+        v.amp.stage = Stage::Release; v.amp.release_step = v.amp.value / (v.sampled && v.shape ? *v.shape : amp_).release_samples;
         if(v.filter.stage != Stage::Off) {
             v.filter.stage = Stage::Release; v.filter.release_step = v.filter.value / filter_shape_.release_samples;
         }
@@ -553,6 +607,7 @@ private:
     std::array<Voice, 7> voices_{};
     std::array<float, 128> frequencies_{};
     Shape amp_, filter_shape_;
+    std::array<Pad, kSampleSlots> pads_{};
     float rate_ = 48000, filter_ = 0, coefficient_ = 0, target_coefficient_ = 0, gain_slew_ = 1;
     std::array<bool, kSources> pedal_{};
     std::array<float, kSources> bend_{}, bend_target_{};

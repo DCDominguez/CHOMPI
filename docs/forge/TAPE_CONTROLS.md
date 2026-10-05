@@ -100,7 +100,7 @@ No bitcrush, no dedicated reverse/half-speed button. Looper buffers in SDRAM, no
 - **No panic** of any kind (stuck-note hack commented out, ui.h:242-262).
 - `options.json` (rewritten at boot): Record Latch (false), Midi In/Out Channel (1), Tape Slew On (true),
   Monitor Position (1 HP, 2 BOTH, 3 SEND_RET), Pitch Quantize In Shift Menu (true), Split Delay (false).
-- `presets.json`: mode × 5 banks × 14 slots × {pitch, start, end, attack, decay, autoloop, sustain, gain, pan,
+- (Forge 0.12 reads and writes it: `core/slot_settings.h`.) `presets.json`: mode × 5 banks × 14 slots × {pitch, start, end, attack, decay, autoloop, sustain, gain, pan,
   valid}; written every 5 s via `presets_temp.json` → rename, only while silent; slot 15 in RAM only.
 - Samples `jammi_a1.wav` … `cubbi_e14.wav` + `_double`; boot rewrites old/incomplete files.
 

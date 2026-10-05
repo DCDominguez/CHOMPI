@@ -317,7 +317,8 @@ and `cubbi_<a-e><1-14>.wav` (kit). Forge reads PCM 8/16/24-bit or 32-bit
 float, mono or stereo, 8–96 kHz (pitch-corrected). It writes TAPE's format
 (44-byte header, 16-bit stereo, 48 kHz), deletes the slot's stale
 `_double.wav` (TAPE regenerates it at its next boot) and never touches
-`presets.json`/`options.json`. Saves and copies go to `FORGE_TMP.WAV`, then
+`options.json`; from 0.12 a save/copy/erase also moves the slot's TAPE settings in
+`presets.json` (main loop, not on the wire). Saves and copies go to `FORGE_TMP.WAV`, then
 replace the slot file.
 
 **Memory.** The chromatic slot, or every file of a kit bank, is loaded into a

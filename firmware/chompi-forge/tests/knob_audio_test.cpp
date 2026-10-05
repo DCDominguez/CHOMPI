@@ -40,7 +40,7 @@ struct Rig {
     std::vector<float> l = std::vector<float>(48002), r = std::vector<float>(48002), rv = std::vector<float>(Reverb::Required(48000));
     std::vector<float> warble = std::vector<float>(2 * tape::Warble::kLength);
     std::vector<int16_t> rec = std::vector<int16_t>(2 * kSampleFrames);
-    SampleTable table; Engine engine; Recorder recorder; PanelController panel; Sink sink; PanelInput hw;
+    SampleTable table; SlotSettings slots; Engine engine; Recorder recorder; PanelController panel; Sink sink; PanelInput hw;
     explicit Rig(const Parameters& patch, const std::vector<int16_t>& sample) {
         assert(engine.Init(48000.f, l.data(), r.data(), l.size(), rv.data(), rv.size()));
         engine.SetWarbleMemory(warble.data());
@@ -50,7 +50,8 @@ struct Rig {
             slot.loaded.store(kSampleFrames);
         }
         engine.SetSamples(&table);
-        assert(engine.ApplyPatch(patch));
+        engine.SetSlotSettings(&slots);                 // as the firmware (0.12): sampler knobs save to the slot
+        assert(engine.ApplyPatch(patch, SlotPolicy::Recall));
         hw.frames = 24; hw.toggle_up = true;           // menu position: CHOMPI is never pressed here
         Block(0.f, nullptr);
     }
@@ -158,6 +159,9 @@ int main() {
         const bool line_in = !patch.synth;
         for(unsigned knob = 0; knob < 4; ++knob) for(unsigned page = 0; page < knobs::Pages(knob, patch); ++page) {
             Rig plain(patch, saw), turned(patch, saw);
+            if(patch.Sampler() && patch.sample_mode == 1) {   // kit: the knobs edit the pad last played (C4's pad)
+                for(Rig* rig : {&plain, &turned}) { rig->engine.Note(60, 127, 0); rig->engine.Note(60, 0, 0); rig->engine.Panic(); }
+            }
             for(unsigned i = 0; i < page; ++i) { plain.Tap(panel::kKnobEncoder[knob]); turned.Tap(panel::kKnobEncoder[knob]); }
             const Parameter target = knobs::Target(knob, page, patch);
             const int direction = turned.engine.Value(target) < .5f ? 1 : -1;

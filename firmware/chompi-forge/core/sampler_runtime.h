@@ -2,6 +2,7 @@
 #include "protocol.h"
 #include "recorder.h"
 #include "sample_loader.h"
+#include "slot_settings.h"
 
 namespace forge {
 // Sampler plumbing shared by the firmware and the offline harness (forge_probe).
@@ -20,6 +21,19 @@ inline Parameters SelectSample(Parameters p, uint8_t mode, uint8_t bank, uint8_t
     p.sample_bank = bank < kSampleBanks ? bank : 0;
     if(p.sample_mode == 0 && slot < kSampleSlots) p.sample_slot = slot;
     return p;
+}
+
+// Main loop, after a finished sample job: TAPE's menu moves the per-slot settings with
+// the file (Save: the recording's settings to the slot; Copy: the source's; Erase: none).
+// A loop saved from the looper has no settings of its own: the slot's are cleared.
+inline void FollowSampleJob(SlotSettings& settings, const SampleEvent& event) {
+    if(!event.ok) return;
+    const SampleJob& j = event.job;
+    if(j.kind == SampleJob::Kind::Save) {
+        if(j.from_loop) settings.Invalidate(j.mode, j.bank, j.slot);
+        else settings.Copy(0, j.bank, kRamSlot, j.mode, j.bank, j.slot);
+    } else if(j.kind == SampleJob::Kind::Copy) settings.Copy(j.mode, j.bank, j.slot, j.to_mode, j.to_bank, j.to_slot);
+    else settings.Invalidate(j.mode, j.bank, j.slot);
 }
 
 // Audio owner: a host "save recording" locks the take so it cannot be

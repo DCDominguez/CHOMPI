@@ -22,14 +22,14 @@ FORGE_NOINLINE inline bool ExecuteRequest(const Request& request, Engine& engine
     if(request.kind == RequestKind::ModWheel) { engine.ModWheel(static_cast<uint8_t>(request.value)); return false; }
     if(request.kind == RequestKind::Looper) { engine.LooperControl(request.note, static_cast<uint8_t>(request.value)); return false; }
     if(request.kind == RequestKind::Patch && request.silent) {   // on-device recall: no reply
-        engine.ApplyPatch(request.patch); return false;
+        engine.ApplyPatch(request.patch, request.recall ? SlotPolicy::Recall : SlotPolicy::Patch); return false;
     }
     response = Response{};
     response.sequence = request.sequence; response.source = request.source;
     if(request.kind == RequestKind::Store) {     // snapshot for the main loop to write
         response.kind = ResponseKind::Snapshot; response.bank = request.bank; response.slot = request.slot;
     } else if(request.kind == RequestKind::Patch) {
-        if(!engine.ApplyPatch(request.patch)) response.error = Error::Patch;
+        if(!engine.ApplyPatch(request.patch, request.recall ? SlotPolicy::Recall : SlotPolicy::Patch)) response.error = Error::Patch;
     } else if(request.kind == RequestKind::Panic) engine.Panic();
     else if(request.kind != RequestKind::Status) response.error = Error::Opcode;
     response.patch = engine.GetParameters();
@@ -110,7 +110,7 @@ inline Error RecallRequest(PresetStore& store, const Request& request, Request& 
     const Error error = store.Load(request.bank, request.slot, patch);
     if(error != Error::None) return error;
     apply = Request{}; apply.kind = RequestKind::Patch; apply.patch = patch;
-    apply.sequence = request.sequence; apply.source = request.source; apply.silent = request.silent;
+    apply.sequence = request.sequence; apply.source = request.source; apply.silent = request.silent; apply.recall = true;
     return Error::None;
 }
 // Stuck-note recovery used by the audio callback (and host tests). The main

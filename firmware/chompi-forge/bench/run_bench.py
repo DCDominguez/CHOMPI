@@ -132,6 +132,8 @@ def forge_runs():
              ("Forge v4 TAPE Kit A, sampler, 7 one-shots", "12-tape-kit-a.json", 7),
              ("Forge v4 Sampler Stress, 7 voices (worst case)", "13-sampler-stress.json", 7),
              ("Forge v4 Sampler Stress, 7 voices + looper overdub at 1.37x", "13-sampler-stress.json", 7 + 256),
+             ("Forge v4 Sampler Stress, 7 voices, TAPE pitch .75 (informational: hardware 6.2f; found 0.12)", "13-sampler-stress.json", 7 + 2048),
+             ("Forge v4 Sampler Stress as a kit, 7 pads below 1x with own pan/gain (informational: 6.2f)", "13-sampler-stress.json", 7 + 1024),
              ("Forge v4 Sampler Stress, 7 voices + all TAPE effects (informational: hardware 6.2e)", "13-sampler-stress.json", 7 + 512),
              ("Forge v4 Sampler Stress, 7 voices + TAPE effects + overdub (informational: 6.2e)", "13-sampler-stress.json", 7 + 256 + 512),
              ("Forge v3 Warm Pad, 4 voices + looper overdub at 1.37x", "07-warm-pad.json", 4 + 256))

@@ -23,7 +23,30 @@ SD streaming remains gated on physical SD measurements. Older checkpoint and
 PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
 use the latest implementation checkpoint and ledger for present capabilities/budgets.
 
-## Current checkpoint: firmware 0.11 install safety (2026-10-05)
+## Current checkpoint: firmware 0.12 per-slot sample settings (2026-10-05)
+
+A4 built on top of 0.11, per DC's four answers (save as TAPE, per-pad kit settings,
+slot wins over a Forge preset, share TAPE's presets.json with a backup). DC is still
+on stock TAPE while the battery charges; neither 0.11 nor 0.12 is installed.
+- Implemented and software-tested: `core/slot_settings.h` (TAPE layout/units, v1
+  read, 8 KB bound, menu save/copy/erase); Synth per-voice settings (window, loop,
+  gate, envelope pointer, pad pitch/gain/pan) and kit pads; Engine slot ownership
+  (`SlotPolicy` Patch/Recall/Select, focus pad, save on turn, TAPE-default reset);
+  firmware load at start-up and card insert, write 2 s after the last change and
+  before an install restart, backup first; probe and knob audio test use it.
+- Checks: `make test` 13 native (new slot_settings_test) + 119 Python PASS;
+  `make sanitize` 12 PASS; ARM release 261,072 B / development 277,028 B layout OK;
+  `make bench` PASS (worst 2,677.9 vs WAVE 2,694.9); browser 11 + 7 PASS.
+- Open decision for DC: every voice below 1× (SW4 pitch down, or kit pads) is ~4 %
+  over WAVE in the emulator (2,800.8), since 0.10. Informational + hardware 6.2f
+  for now; options: accept if hardware stays < 70 %, or TAPE's linear read below 1×.
+- Not verified: everything on hardware; TAPE reading Forge's file (3.64); FatFS
+  rename/unlink of presets.json on DC's card.
+- Correction to the 0.11 entry below: its `make test` claim was premature; the
+  consistency test failed at `cfcae21` (7.3p missing from the bridge checklist),
+  fixed in `fd08b3e`.
+
+## Checkpoint: firmware 0.11 install safety (2026-10-05)
 
 DC chose "both, safety first": 0.11 install safety, then A4 (per-slot sample
 settings, now 0.12). DC is on stock TAPE 2.0 while the battery charges (yellow at

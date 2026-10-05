@@ -357,6 +357,61 @@ void Send(uint8_t source, uint8_t* envelope, size_t payload_size) {
     if(!outgoing.Push(message)) ++dropped_commands;
 }
 
+// TAPE's per-slot sample settings in presets.json (core/slot_settings.h), shared with TAPE.
+// Read at start-up and when a card goes in; written by the main loop 2 s after the last
+// change (TAPE's own way: presets_temp.json, then a rename), once FORGE/presets_backup.json
+// holds the card's original file.
+forge::SlotSettings slot_settings;
+alignas(32) char presets_text[forge::SlotSettings::kFileMax];   // whole cache lines: SD DMA reads
+uint32_t slot_settings_failures = 0;
+FORGE_COLD void LoadSlotSettings() {
+    slot_settings.Clear();
+    if(!card.Ready()) return;
+    FIL file; UINT read = 0;
+    if(f_open(&file, "presets.json", FA_READ) != FR_OK) return;
+    f_read(&file, presets_text, sizeof(presets_text) - 1, &read);
+    f_close(&file);
+    presets_text[read] = 0;
+    slot_settings.Parse(presets_text, read);
+}
+FORGE_COLD bool CopyFile(const char* from, const char* to) {
+    FIL in, out;
+    if(f_open(&in, from, FA_READ) != FR_OK) return false;
+    bool ok = f_open(&out, to, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK;
+    if(ok) {
+        for(UINT read = 1; ok && read;) {
+            UINT written = 0;
+            ok = f_read(&in, presets_text, sizeof(presets_text), &read) == FR_OK
+                 && (!read || (f_write(&out, presets_text, read, &written) == FR_OK && written == read));
+        }
+        ok = f_close(&out) == FR_OK && ok;
+    }
+    f_close(&in);
+    return ok;
+}
+FORGE_COLD bool WritePresetsFile() {
+    FILINFO info;
+    if(f_stat("FORGE/presets_backup.json", &info) != FR_OK && f_stat("presets.json", &info) == FR_OK) {
+        f_mkdir("FORGE");
+        if(!CopyFile("presets.json", "FORGE/presets_backup.json")) return false;   // never write without the backup
+    }
+    const size_t n = slot_settings.Write(presets_text, sizeof(presets_text));
+    if(!n) return false;
+    FIL file; UINT written = 0;
+    if(f_open(&file, "presets_temp.json", FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) return false;
+    const bool ok = f_write(&file, presets_text, n, &written) == FR_OK && written == n;
+    if(f_close(&file) != FR_OK || !ok) { f_unlink("presets_temp.json"); return false; }
+    f_unlink("presets.json");
+    return f_rename("presets_temp.json", "presets.json") == FR_OK;
+}
+void SaveSlotSettings(uint32_t now) {
+    static uint32_t seen = 0, changed_at = 0;
+    const uint32_t changes = slot_settings.Changes();
+    if(changes != seen) { seen = changes; changed_at = now; return; }
+    if(!slot_settings.Dirty() || now - changed_at < 2000 || sample_loader.Busy() || !card.Ready()) return;
+    slot_settings.TakeDirty();
+    if(!WritePresetsFile()) ++slot_settings_failures;
+}
 // TAPE's options.json (core/options.h), read once before audio starts; Forge never writes it.
 FORGE_COLD void LoadOptions() {
     forge::Options o;
@@ -418,6 +473,7 @@ void ServiceChargerUsb(uint32_t now) {
     DrawLeds();
     uint32_t start = System::GetNow();
     while(sample_loader.Busy() && System::GetNow() - start < 5000) RunSampler();   // never cut a sample save short
+    if(slot_settings.TakeDirty() && card.Ready()) WritePresetsFile();              // nor the last knob turns
     start = System::GetNow();
     while(System::GetNow() - start < 300) { TransmitPending(); SendResponses(); }
     NVIC_SystemReset();
@@ -555,6 +611,7 @@ void RunSampler() {
         InspectorEvent(forge::InspectorEventKind::SampleJobDone,static_cast<uint8_t>(event.job.kind),event.ok?1:0);
 #endif
         if(event.job.kind == forge::SampleJob::Kind::Save) { if(event.job.from_loop) looper.Unlock(); else recorder.Unlock(); }
+        forge::FollowSampleJob(slot_settings, event);
         if(event.job.source == 0xff) Flash(event.ok);
         else {
             const forge::Response reply = forge::SampleDoneReply(event);
@@ -642,6 +699,7 @@ void WatchCard() {
         if(!card.Ready()) InspectorStorageError(forge::Error::Storage);
 #endif
         store.Rescan();
+        LoadSlotSettings();
     }
     was_ready = present && card.Ready();
 }
@@ -874,6 +932,8 @@ FORGE_COLD int main() {
     store.Rescan();
     LogRestart();
     LoadOptions();
+    LoadSlotSettings();
+    engine.SetSlotSettings(&slot_settings);
     panel_controller.SetInstallGate(&install_gate);
     cpu.Init(hw.seed.AudioSampleRate(), hw.seed.AudioBlockSize());
     hw.StartAudio(AudioCallback);
@@ -909,6 +969,7 @@ FORGE_COLD int main() {
             battery_check = now;
         }
         ServiceChargerUsb(now);
+        SaveSlotSettings(now);
         if(install_gate.Poll(now)) {
             if(InstallPowerOk()) Restart();
             else install_gate.Cancel();       // power changed since the request: the host sees the power flag
