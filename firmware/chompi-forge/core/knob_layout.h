@@ -80,7 +80,7 @@ inline Rgb Scale(Rgb c, float k) { return {c.r * k, c.g * k, c.b * k}; }
 // A knob's light for its page and value (TAPE pages: TAPE's value colours;
 // Forge's extra pages: red then green; the patch page and the effects-only delay
 // knobs: dim to bright white).
-FORGE_NOINLINE inline Rgb KnobColour(unsigned knob, unsigned page, float value, bool patch_page, bool effects = false) {
+FORGE_COLD inline Rgb KnobColour(unsigned knob, unsigned page, float value, bool patch_page, bool effects = false) {
     using namespace colour;
     value = Clamp(value, 0.f, 1.f);
     if(patch_page || (effects && (knob & 3) != 3)) return Scale(white, .12f + .5f * value);

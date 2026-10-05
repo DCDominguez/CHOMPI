@@ -120,7 +120,7 @@ public:
     }
     // One step. `wanted` comes from PackSelection; `recording` is the RAM
     // slot's data for Save jobs. Returns true with `event` when a job ends.
-    FORGE_NOINLINE bool Poll(SampleFiles& files, uint32_t wanted, const int16_t* recording, SampleEvent& event,
+    FORGE_COLD bool Poll(SampleFiles& files, uint32_t wanted, const int16_t* recording, SampleEvent& event,
                              const int16_t* loop = nullptr) {
         loop_ = loop;
         if(rescan_ && state_ == State::Idle && head_ == tail_) { rescan_ = false; scanned_ = false; current_ = kNone; }
@@ -217,7 +217,7 @@ private:
         if(!scanned_) ++inspector_errors_;
 #endif
     }
-    FORGE_NOINLINE void Header(SampleFiles& files, uint8_t slot) {
+    FORGE_COLD void Header(SampleFiles& files, uint8_t slot) {
         const uint8_t mode = (target_ >> 1) & 1u, bank = (target_ >> 2) & 7u;
         char path[24]; SamplePath(mode, bank, slot, false, path);
         uint32_t size = 0, got = 0;
@@ -276,7 +276,7 @@ private:
         if(done + frames >= s.frames) NextSlot(files);
     }
     void NextSlot(SampleFiles& files) { files.CloseRead(); open_ = false; ++index_; }
-    FORGE_NOINLINE void StartJob(SampleFiles& files, const int16_t* recording, SampleEvent& event) {
+    FORGE_COLD void StartJob(SampleFiles& files, const int16_t* recording, SampleEvent& event) {
         job_ = jobs_[tail_]; tail_ = (tail_ + 1) % kJobs;
         if(job_.kind == SampleJob::Kind::Save && job_.from_loop) recording = loop_;
         progress_ = 0;
@@ -299,7 +299,7 @@ private:
         }
         state_ = State::Job;
     }
-    FORGE_NOINLINE bool StepJob(SampleFiles& files, const int16_t* recording, SampleEvent& event) {
+    FORGE_COLD bool StepJob(SampleFiles& files, const int16_t* recording, SampleEvent& event) {
         uint32_t bytes = 0;
         if(job_.from_loop) recording = loop_;
         if(job_.kind == SampleJob::Kind::Save) {

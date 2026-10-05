@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include "parameters.h"
 
 // TAPE's options.json (OptionsManager.h), read at start-up so one card works for both
 // firmwares. Forge only reads it (TAPE rewrites it at every boot). Format:
@@ -39,7 +40,7 @@ inline bool Find(const char* text, size_t size, const char* name, long& value) {
     }
     return false;
 }
-inline Options Parse(const char* text, size_t size) {
+FORGE_COLD inline Options Parse(const char* text, size_t size) {
     Options o; long v;
     if(Find(text, size, "Record Latch", v)) o.record_latch = v != 0;
     if(Find(text, size, "Midi In Channel", v) && v >= 1 && v <= 16) o.midi_in = static_cast<uint8_t>(v - 1);

@@ -111,7 +111,7 @@ inline size_t PatchDataSize(uint8_t version) {
     return version == 1 ? 10 : version == 2 ? 22 : version == 3 ? kV3Request - 8 : version == 4 ? kV4Request - 8
          : version == 5 ? kMaxRequest - 8 : 0;
 }
-FORGE_NOINLINE inline Error DecodePatchData(const uint8_t* data, size_t size, Parameters& out) {
+FORGE_COLD inline Error DecodePatchData(const uint8_t* data, size_t size, Parameters& out) {
     if(!size || data[0] < 1 || data[0] > 5) return Error::Version;
     if(size != PatchDataSize(data[0])) return Error::Length;
     for(size_t i = 0; i < size; ++i) if(data[i] > 127) return Error::Patch;
@@ -158,7 +158,7 @@ inline bool IsRequest(const uint8_t* bytes, size_t size) {
     return size >= 7 && bytes[0] == 0x7d && bytes[1] == 'F'
         && bytes[2] == 'G' && bytes[4] < 0x40;
 }
-FORGE_NOINLINE inline Error DecodeRequest(const uint8_t* bytes, size_t size, Request& out) {
+FORGE_COLD inline Error DecodeRequest(const uint8_t* bytes, size_t size, Request& out) {
     if(!IsRequest(bytes, size) || size < 8) return Error::Length;
     for(size_t i = 0; i < size; ++i) if(bytes[i] > 127) return Error::Patch;
     if(bytes[3] != kProtocolVersion) return Error::Version;
@@ -242,7 +242,7 @@ inline size_t EncodeError(uint16_t sequence, Error error, uint8_t* bytes) {
 }
 // All sizes here exclude MIDI's F0/F7 envelope. Caller supplies >= kMaxReply bytes.
 // Writes patch DATA (see DecodePatchData); returns its size.
-FORGE_NOINLINE inline size_t EncodePatchData(const Parameters& p, uint8_t* data) {
+FORGE_COLD inline size_t EncodePatchData(const Parameters& p, uint8_t* data) {
     auto at = [data](size_t request_index) { return data + request_index - 7; };
     data[0] = p.version;
     WriteNormalized(at(8), p.mix);
@@ -274,7 +274,7 @@ FORGE_NOINLINE inline size_t EncodePatchData(const Parameters& p, uint8_t* data)
     if(p.version >= 5) for(unsigned k = 0; k < 4; ++k) *at(83 + k) = p.knobs[k];
     return PatchDataSize(p.version);
 }
-FORGE_NOINLINE inline size_t EncodeResponse(const Response& response, uint32_t dropped,
+FORGE_COLD inline size_t EncodeResponse(const Response& response, uint32_t dropped,
                              uint32_t rejected, uint8_t* bytes) {
     if(response.error != Error::None) return EncodeError(response.sequence, response.error, bytes);
     if(response.kind == ResponseKind::Stored || response.kind == ResponseKind::Erased) {

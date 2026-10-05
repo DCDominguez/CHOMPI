@@ -65,7 +65,7 @@ class PresetStore {
 public:
     explicit PresetStore(Storage& storage) : storage_(storage) {}
     // Scans all slots (call once after mounting and whenever the card changes).
-    void Rescan() {
+    FORGE_COLD void Rescan() {
         for(uint8_t b = 0; b < kPresetBanks; ++b) {
             occupancy_[b] = 0;
             for(uint8_t s = 0; s < kPresetSlots; ++s) {
@@ -78,7 +78,7 @@ public:
     uint16_t Occupancy(uint8_t bank) const { return bank < kPresetBanks ? occupancy_[bank] : 0; }
     bool Occupied(uint8_t bank, uint8_t slot) const { return slot < kPresetSlots && (Occupancy(bank) >> slot) & 1u; }
 
-    Error Save(uint8_t bank, uint8_t slot, const Parameters& patch) {
+    FORGE_COLD Error Save(uint8_t bank, uint8_t slot, const Parameters& patch) {
         if(bank >= kPresetBanks || slot >= kPresetSlots || !patch.Valid()) return Error::Patch;
         if(!storage_.Ready()) return Error::Storage;
         uint8_t record[kMaxPresetRecord];
@@ -91,7 +91,7 @@ public:
         occupancy_[bank] |= static_cast<uint16_t>(1u << slot);
         return Error::None;
     }
-    Error Load(uint8_t bank, uint8_t slot, Parameters& out) {
+    FORGE_COLD Error Load(uint8_t bank, uint8_t slot, Parameters& out) {
         if(bank >= kPresetBanks || slot >= kPresetSlots) return Error::Patch;
         if(!storage_.Ready()) return Error::Storage;
         uint8_t record[kMaxPresetRecord + 1];
@@ -100,7 +100,7 @@ public:
         if(!storage_.Read(path, record, sizeof(record), size)) return Error::Empty;
         return DecodePresetRecord(record, size, out) == Error::None ? Error::None : Error::Empty;
     }
-    Error Erase(uint8_t bank, uint8_t slot) {
+    FORGE_COLD Error Erase(uint8_t bank, uint8_t slot) {
         if(bank >= kPresetBanks || slot >= kPresetSlots) return Error::Patch;
         if(!storage_.Ready()) return Error::Storage;
         char path[20]; PresetPath(bank, slot, path);

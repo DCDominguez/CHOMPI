@@ -24,7 +24,7 @@ enum class SlotPolicy : uint8_t { Patch, Recall, Select };
 
 class Engine {
 public:
-    bool Init(float sample_rate, float* left, float* right, size_t capacity,
+    FORGE_COLD bool Init(float sample_rate, float* left, float* right, size_t capacity,
               float* reverb_memory, size_t reverb_capacity) {
         if(!Init(sample_rate, left, right, capacity)) return false;
         has_reverb_ = reverb_.Init(sample_rate, reverb_memory, reverb_capacity);
@@ -81,7 +81,7 @@ public:
         return parameters_.Value(parameter);
     }
     // Back to the patch's value (performance controls: TAPE's default). Knob long press.
-    FORGE_NOINLINE bool ResetControl(Parameter parameter) {
+    FORGE_COLD bool ResetControl(Parameter parameter) {
         parameter = parameters_.Resolve(parameter);
         if(parameter == Parameter::Space) {
             const bool a = Apply({Parameter::Mix, patch_.mix}), b = Apply({Parameter::Feedback, patch_.feedback});
@@ -167,7 +167,7 @@ public:
     bool FxBeforeLoop() const { return fx_before_loop_; }
     // MIDI: CC 26 PLAY, CC 27 LOOP (as TAPE); CC 24 follows SW5: the looper
     // transport while a loop exists, else the filter cutoff.
-    FORGE_NOINLINE void LooperControl(uint8_t control, uint8_t value) {
+    FORGE_COLD void LooperControl(uint8_t control, uint8_t value) {
         if(control == 2) {
             if(looper_ && looper_->HasLoop()) looper_->SetSpeed(value * (4.f / 127.f) - 2.f);
             else { Command command; if(DecodeCC(0, 24, value, command)) Apply(command); }
@@ -181,7 +181,7 @@ public:
     unsigned ActiveVoices() const { return synth_.Active(); }
     // Called only by the audio owner, between blocks. Validate before mutation;
     // smoothing and delay state continue uninterrupted across a patch change.
-    FORGE_NOINLINE bool ApplyPatch(const Parameters& patch, SlotPolicy policy = SlotPolicy::Patch) {
+    FORGE_COLD bool ApplyPatch(const Parameters& patch, SlotPolicy policy = SlotPolicy::Patch) {
         if(!patch.Valid()) return false;
         // Structural changes (route, waveform, v1/v2 <-> v3 voice architecture) silence.
         if(patch.synth != parameters_.synth || patch.waveform != parameters_.waveform

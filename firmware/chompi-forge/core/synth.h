@@ -68,7 +68,7 @@ public:
         for(unsigned n = 0; n < 128; ++n)
             frequencies_[n] = 440.f * std::pow(2.f, (int(n) - 69) / 12.f) / rate;
     }
-    FORGE_NOINLINE void Configure(const Parameters& p) {
+    FORGE_COLD void Configure(const Parameters& p) {
         legacy_ = p.version < 3;
         waveform_ = p.waveform;
         amp_ = MakeShape(p.attack, p.decay, p.sustain, p.release);

@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "parameters.h"
 
 // Why CHOMPI last started (DC's "random shut-off", 2026-10-05): the STM32H7 reset
 // flags (RCC_RSR) read once at start-up, and a crash record that Forge's fault handler
@@ -30,7 +31,7 @@ struct FaultRecord {
 
 // One line for FORGE/RESTARTS.TXT, e.g. "boot 3: power-on brown-out; crash pc=0x24012345 cfsr=0x00008200".
 // Returns the length written (always NUL-terminated, at most `size` - 1 characters).
-inline unsigned Describe(uint32_t boot, uint8_t flags, const FaultRecord* fault, char* out, unsigned size) {
+FORGE_COLD inline unsigned Describe(uint32_t boot, uint8_t flags, const FaultRecord* fault, char* out, unsigned size) {
     unsigned n = 0;
     auto put = [&](const char* s) { while(*s && n + 1 < size) out[n++] = *s++; };
     auto hex = [&](uint32_t v) { char b[11] = "0x00000000"; for(int i = 0; i < 8; ++i) b[9 - i] = "0123456789abcdef"[(v >> (4 * i)) & 15u]; put(b); };

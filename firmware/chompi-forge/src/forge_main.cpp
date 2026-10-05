@@ -1,3 +1,4 @@
+#include <new>
 #include "hardware.h"
 #include "command_queue.h"
 #include "engine.h"
@@ -60,7 +61,10 @@ forge::SpscQueue<Outgoing, 32> outgoing; // producer and consumer both main loop
 Outgoing pending;
 bool has_pending = false;
 uint32_t pending_since = 0;
-forge::Engine engine;
+// Objects whose default members are not all zero would carry a .data image in SRAM_EXEC
+// (code space); they are built at start-up in zeroed storage instead (RESOURCE_LEDGER).
+template<typename T> T& Construct() { alignas(T) static unsigned char storage[sizeof(T)]; return *new(storage) T(); }
+forge::Engine& engine = Construct<forge::Engine>();
 // Emergency count: main loop is the only writer; audio reads it each block.
 std::atomic<uint32_t> emergency_epoch{0};
 bool discard_ingress = false; // main-loop owned
@@ -177,9 +181,9 @@ int16_t DSY_SDRAM_BSS loop_memory[2 * kLoopFrames];
 forge::Looper looper;                                         // audio owner
 std::atomic<uint32_t> looper_state{0};                        // audio -> main: PackLooper, for the LEDs
 uint8_t __attribute__((aligned(32))) sample_scratch[16384];   // D1 SRAM: reachable by SD DMA
-forge::SampleTable sample_table;
+forge::SampleTable& sample_table = Construct<forge::SampleTable>();
 forge::SampleHandoff sample_handoff;
-forge::SampleLoader sample_loader;                            // main loop
+forge::SampleLoader& sample_loader = Construct<forge::SampleLoader>();                            // main loop
 forge::Recorder recorder;                                     // audio owner (Unlock: main)
 FatFsSampleFiles sample_files(card);
 // USB file transfer and firmware install (core/file_transfer.h; main loop, gate shared with audio).
@@ -194,10 +198,10 @@ forge::SpscQueue<forge::SampleJob, 4> sample_jobs;            // audio -> main: 
 uint8_t led_shadow[26][3];                                    // main loop: what the LEDs show now (probe page 1)
 
 #ifdef FORGE_TEST_HOOKS
-forge::InspectorMailbox inspector_mailbox;
-forge::InspectorAudio inspector_latest;
-forge::InspectorSnapshot inspector_snapshot;
-forge::InspectorLog inspector_log;
+forge::InspectorMailbox& inspector_mailbox = Construct<forge::InspectorMailbox>();
+forge::InspectorAudio& inspector_latest = Construct<forge::InspectorAudio>();
+forge::InspectorSnapshot& inspector_snapshot = Construct<forge::InspectorSnapshot>();
+forge::InspectorLog& inspector_log = Construct<forge::InspectorLog>();
 forge::SpscQueue<forge::InspectorEvent,64> inspector_edges;
 std::atomic<uint32_t> inspector_event_drops{0}, inspector_panel_drops{0}, inspector_sample_drops{0};
 uint32_t inspector_tx[2]{}, inspector_tx_errors[2]{};
@@ -231,7 +235,7 @@ struct FirmwarePanelSink : forge::PanelSink {
     }
     void Flash(bool ok) override { audio_flash.store(ok ? 1 : 2, std::memory_order_relaxed); }
 };
-forge::PanelController panel_controller;                      // audio owner
+forge::PanelController& panel_controller = Construct<forge::PanelController>();                      // audio owner
 
 void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, size_t size) {
     cpu.OnBlockStart();
@@ -543,7 +547,7 @@ void SendResponse(const forge::Response& response) {
 void Flash(bool ok) { flash_ok = ok; flash_until = System::GetNow() + 400; }
 // Loads a slot and queues it for the audio owner. Silent requests (panel,
 // program change) get no reply; a host recall is acknowledged with status.
-forge::Error RecallPreset(forge::Request& request) {
+FORGE_COLD forge::Error RecallPreset(forge::Request& request) {
     forge::Request apply;
     const forge::Error error = forge::RecallRequest(store, request, apply);
     if(error != forge::Error::None) { if(request.silent) Flash(false); return error; }
@@ -574,7 +578,7 @@ forge::Error HandleStorage(forge::Request& request) {
     return forge::Error::None;
 }
 // Panel menu actions (queued by the audio callback).
-void RunPanelActions() {
+FORGE_COLD void RunPanelActions() {
     PanelAction item;
     while(panel_actions.Pop(item)) {
         const forge::MenuAction& a = item.action;
@@ -598,7 +602,7 @@ void RunPanelActions() {
     }
 }
 // Sampler main-loop work: panel jobs, one loader step, job replies.
-void RunSampler() {
+FORGE_COLD void RunSampler() {
     for(forge::SampleJob job; sample_jobs.Pop(job);) {
         job.source = 0xff;
         if(!sample_loader.Queue(job)) {
@@ -691,7 +695,7 @@ FORGE_COLD void DrawLeds() {
     }
 }
 // Card insert/remove: remount and rescan when the card comes back.
-void WatchCard() {
+FORGE_COLD void WatchCard() {
     static uint32_t last_check = 0; static bool was_ready = false;
     const uint32_t now = System::GetNow();
     if(now - last_check < 1000) return;
@@ -840,7 +844,7 @@ template<typename Midi> void PollMidi(Midi& midi, uint8_t source) {
     for(unsigned i = 0; i < 8 && midi.frames.Pop(frame); ++i) HandleFrame(frame, source);
 }
 
-void SendResponses() {
+FORGE_COLD void SendResponses() {
     forge::Response response;
     for(unsigned i = 0; i < 4 && outgoing.HasSpace() && responses.Pop(response); ++i) {
         if(response.kind == forge::ResponseKind::SampleSnapshot) {   // host save: the take is locked

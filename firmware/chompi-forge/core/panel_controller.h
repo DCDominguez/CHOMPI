@@ -533,7 +533,7 @@ struct LedView {
 // Menu closed (TAPE NormalPage): a key lights white while held. With a sampler patch,
 // kit mode shows the bank's occupied slots dim in the bank colour (the recording key
 // dim pink); chromatic mode marks C3, C4 and C5 dim (pink when playing the recording).
-inline void RenderPlayLeds(uint64_t keys_down, uint32_t live, uint16_t kit_occupancy, bool recording, Rgb (&leds)[25]) {
+FORGE_COLD inline void RenderPlayLeds(uint64_t keys_down, uint32_t live, uint16_t kit_occupancy, bool recording, Rgb (&leds)[25]) {
     for(auto& led : leds) led = Rgb{};
     auto dim = [](Rgb c) { return Rgb{c.r * .25f, c.g * .25f, c.b * .25f}; };
     const Rgb pink{1, .2f, .6f};
@@ -614,7 +614,7 @@ inline void ComposeMenuKnobLeds(uint8_t lights, Rgb (&rings)[4], Rgb& volume) {
     static const Rgb monitor[3] = {knobs::colour::orange, knobs::colour::blue, knobs::colour::yellow};
     volume = monitor[((lights >> 3) & 3u) % 3];
 }
-inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chompi) {
+FORGE_COLD inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chompi) {
     if(!(v.menu & 1u))
         RenderPlayLeds(v.keys_down, v.live, v.kit_occupancy, v.recording_present, keys);
     else if((v.menu >> 21) & 1u)

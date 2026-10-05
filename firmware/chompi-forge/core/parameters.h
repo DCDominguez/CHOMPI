@@ -74,7 +74,7 @@ struct Parameters {
     bool Sampler() const { return version >= 4 && source == 1; }
     uint8_t MaxVoices() const { return version >= 4 ? 7 : 4; }
 
-    FORGE_NOINLINE bool Valid() const {
+    FORGE_COLD bool Valid() const {
         return version >= 1 && version <= 5 && waveform < 4 && !(version == 1 && synth)
             && Unit(attack) && Unit(decay) && Unit(sustain) && Unit(release) && Unit(cutoff)
             && Unit(mix) && Unit(time) && Unit(feedback) && Unit(level)

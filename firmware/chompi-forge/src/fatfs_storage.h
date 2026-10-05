@@ -64,7 +64,7 @@ public:
         UINT written = 0;
         return open_ && f_write(&file_, data, size, &written) == FR_OK && written == size;
     }
-    bool Finish(const char* temp, const char* final_path, bool verify, uint32_t size, uint32_t crc) override {
+    FORGE_COLD bool Finish(const char* temp, const char* final_path, bool verify, uint32_t size, uint32_t crc) override {
         if(!open_) return false;
         open_ = false;
         const bool synced = f_sync(&file_) == FR_OK;
@@ -80,7 +80,7 @@ public:
     bool Exists(const char* path) override { FILINFO info; return Ready() && f_stat(path, &info) == FR_OK; }
     // The bootloader takes the first visible root name containing ".bin"/".BIN": rename
     // all but FORGE.bin (a batch per directory pass, renaming after the listing).
-    bool SetAsideOtherFirmware() override {
+    FORGE_COLD bool SetAsideOtherFirmware() override {
         if(!Ready()) return false;
         for(unsigned pass = 0; pass < 16; ++pass) {
             DIR dir; FILINFO info;

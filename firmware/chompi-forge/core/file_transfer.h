@@ -100,7 +100,7 @@ struct FileRequest {
     uint16_t length = 0;
 };
 // Validates a complete 0C request (F0/F7 excluded). Nothing changes on error.
-FORGE_NOINLINE inline Error DecodeFileRequest(const uint8_t* bytes, size_t size, FileRequest& out) {
+FORGE_COLD inline Error DecodeFileRequest(const uint8_t* bytes, size_t size, FileRequest& out) {
     if(!IsRequest(bytes, size) || bytes[4] != kFileOpcode || size < 9) return Error::Length;
     for(size_t i = 0; i < size; ++i) if(bytes[i] > 127) return Error::Patch;
     if(bytes[3] != kProtocolVersion) return Error::Version;
@@ -217,7 +217,7 @@ public:
              | (power_ok ? 0 : kFilePowerLow);
     }
     void Touch(uint32_t now) { touched_ = now; }
-    Error Begin(UploadFiles& files, const FileRequest& r) {
+    FORGE_COLD Error Begin(UploadFiles& files, const FileRequest& r) {
         if(!files.Ready()) return Error::Storage;
         if(active_) files.Abort(kTemp);
         active_ = done_ = false;
@@ -235,7 +235,7 @@ public:
         crc_ = Crc32(crc_, r.data, r.length); offset_ += r.length;
         return Error::None;
     }
-    Error End(UploadFiles& files, const FileRequest& r) {
+    FORGE_COLD Error End(UploadFiles& files, const FileRequest& r) {
         // A repeated End (its reply was lost) for the file just written succeeds again.
         if(!active_) return done_ && r.crc == crc_ ? Error::None : Error::Empty;
         active_ = false;
@@ -253,7 +253,7 @@ public:
     // Firmware on the card, nothing half-written and safe power (power::InstallPowerOk):
     // ask for the panel press. A transfer nobody has touched for kStaleTransferMs (a host
     // that went away) is abandoned.
-    Error Install(UploadFiles& files, InstallGate& gate, uint32_t now, bool power_ok = true) {
+    FORGE_COLD Error Install(UploadFiles& files, InstallGate& gate, uint32_t now, bool power_ok = true) {
         if(active_ && now - touched_ < kStaleTransferMs) return Error::StorageBusy;
         Abort(files);
         if(!files.Ready()) return Error::Storage;
@@ -271,7 +271,7 @@ private:
 };
 // One 0C request -> its reply (0x48, or 0x41 with the error). Shared by the
 // firmware's main loop and the offline probe.
-FORGE_NOINLINE inline size_t ServeFileRequest(const uint8_t* bytes, size_t size, FileTransfer& transfer, UploadFiles& files,
+FORGE_COLD inline size_t ServeFileRequest(const uint8_t* bytes, size_t size, FileTransfer& transfer, UploadFiles& files,
                                               InstallGate& gate, uint32_t now, uint8_t* reply, bool samples_busy = false,
                                               bool power_ok = true) {
     FileRequest r;

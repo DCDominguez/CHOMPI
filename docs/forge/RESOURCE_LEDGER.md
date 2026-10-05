@@ -104,6 +104,23 @@ unknown, particularly with seven sampler voices and background SD/MIDI traffic.
 
 ## First optimization decisions to investigate
 
+0. **Second pass, 2026-10-05 (DC: keep the audio buffers, "look at other things"):**
+   (a) every control-rate / main-loop function compiled for size (`FORGE_COLD` =
+   noinline + `-Os`): request/response codecs, `ExecuteRequest`, file transfer,
+   preset store, sample-loader control (not `Stream`), LEDs, options/restart
+   parsing, `Engine::Init/ApplyPatch/ResetControl/LooperControl`,
+   `Synth::Configure`, `Parameters::Valid`, main-loop services; per-sample DSP
+   untouched. (b) Engine, panel controller, sample loader/table and Inspector
+   buffers built at start-up in zeroed storage (`Construct<T>()` in
+   `forge_main.cpp`) instead of `.data` images. Measured: release 240,948 →
+   **215,160 B**, development 255,632 → **227,120 B**; `.data` 1,732 B; bench
+   unchanged (worst 2,677.9). Total for the day: release 267,876 → 215,160
+   (−52,716), development 283,856 → 227,120 (−56,736). Hardware note: control
+   paths (knob turns reconfiguring the synth, requests) run `-Os` in the audio
+   callback; CPU peaks in TEST_SESSION 6.2 confirm. Left alone: libDaisy (upstream,
+   already `-O2`; USB-host IRQ code 1.9 KB is linked by its vector table), whole-
+   firmware `-O2/-Os` (would change DSP timing: needs hardware numbers), audio
+   buffers (DC).
 1. **Done 2026-10-05 (0.13 in progress, DC: "implement our memory savings plan"):**
    `SpscQueue` now keeps raw zeroed storage copied with `memcpy` (entries must be
    trivially copyable, checked at compile time), so every queue is in `.bss`.

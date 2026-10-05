@@ -315,7 +315,7 @@ inline Rgb SampleBankColour(uint8_t bank) {
     static const Rgb kBankColours[kSampleBanks] = {{.6f, .1f, 1}, {1, .45f, 0}, {0, .8f, .7f}, {.8f, .25f, 0}, {.6f, 1, 0}};
     return kBankColours[bank < kSampleBanks ? bank : 0];
 }
-FORGE_NOINLINE inline void RenderSampleLeds(uint32_t packed, uint16_t occupancy, bool card_ready, bool recording, uint32_t live,
+FORGE_COLD inline void RenderSampleLeds(uint32_t packed, uint16_t occupancy, bool card_ready, bool recording, uint32_t live,
                              bool blink_on, Rgb (&leds)[25]) {
     for(auto& led : leds) led = Rgb{};
     if(!(packed & 1u)) return;
