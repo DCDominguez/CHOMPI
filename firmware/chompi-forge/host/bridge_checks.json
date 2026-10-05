@@ -169,8 +169,8 @@
   },
   {
     "id": "3.17",
-    "do": "Toggle to menu position, hold the CHOMPI key",
-    "expect": "Key LEDs light: bank keys (KEY_16/17) in bank 1's colour, save/copy/erase dim blue/green/red, white keys off (empty card); playing keys makes no sound while held",
+    "do": "Toggle down (menu position), hold the CHOMPI key; then hold KEY_22 for 1 s",
+    "expect": "The menu opens on TAPE's page (0.10): KEY_16/17 chromatic/kit, the record source key lit; after holding KEY_22 1 s, Forge's presets page: bank keys (KEY_16/17) in bank 1's colour, save/copy/erase dim blue/green/red, white keys off (empty card); playing keys makes no sound while held",
     "group": "3C. Device presets on the SD card (TAPE-style keys + encoder)"
   },
   {
@@ -247,8 +247,8 @@
   },
   {
     "id": "3.30",
-    "do": "Menu → KEY_22 (Samples page)",
-    "expect": "Page key magenta; KEY_17 lit in bank a's colour; occupied kit slots dim/white; KEY_19 (line) or KEY_18 (mic) lit depending on the line-in jack",
+    "do": "Menu (opens on TAPE's page; from Forge's presets page tap KEY_22)",
+    "expect": "Page key magenta; KEY_17 lit in bank a's colour; occupied kit slots dim/white; KEY_19 (line) or KEY_18 (mic) lit depending on the line-in jack. On this page a KEY_22 tap = effects after the looper, KEY_21 = before (TAPE)",
     "group": "3D. Sampler (TAPE-style, firmware 0.5)"
   },
   {
@@ -412,6 +412,18 @@
     "do": "**Automatic (bridge):** SW4 pitch, SW1 attack, SW2 release, SW3 reverb + delay and DJ filter, SW5 cutoff: a held note recorded before and after 10 clicks",
     "expect": "Each pair of recordings differs by at least 5 % (spectrum, envelope, loudness or stereo balance); the same check runs on every page of every starter preset in the simulation (`tests/knob_audio_test.cpp`)",
     "group": "3F. Knob pages and patch knobs (firmware 0.6)"
+  },
+  {
+    "id": "3.58",
+    "group": "3F. Knob pages and patch knobs (firmware 0.6)",
+    "do": "**TAPE's menu knobs:** sampler patch, open the menu (TAPE's page) and hold CHOMPI. SW4: turn (pitch in fifths/octaves, 4 clicks a step), press (1×); SW1/SW2: turn (moves the start-end window), press (SW1 auto-loop, SW2 sustain on/off: their lights white/dim); SW3: turn (delay time; page 2 warble, page 3 DJ resonance), press (all effects back to default); SW5: turn (loop speed, also when paused); SW6: turn (output compressor)",
+    "expect": "Each does what TAPE's shift menu does; knob pages never change in the menu; holding a knob in the menu never resets it; closing the menu gives the knobs back"
+  },
+  {
+    "id": "3.59",
+    "group": "3F. Knob pages and patch knobs (firmware 0.6)",
+    "do": "**Monitor positions:** in the menu press SW6 (cycles: orange = headphones, blue = both, yellow = send/return). With line in playing: headphones = heard in the headphones only in the record position (toggle up); both = always heard, through the effects, on both outputs; send/return = line in always in the headphones",
+    "expect": "As described; the main out carries the input only in *both* (and the mic in *send/return* in the record position); the CHOMPI light meters the input"
   },
   {
     "id": "4.1",

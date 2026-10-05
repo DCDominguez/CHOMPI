@@ -81,8 +81,9 @@ public:
     FORGE_NOINLINE bool Key(uint8_t button, bool pressed) {
         if(!active_ || !pressed) return false;
         if(button == panel::kPage) {
-            page_ = page_ == MenuPage::Presets ? MenuPage::Samples : MenuPage::Presets;
-            mode_ = MenuMode::None; selected_ = source_ = panel::kNoSlot; loop_source_ = false;
+            // TAPE's page: KEY_22 is "effects after the looper" (a tap) and a 1 s hold opens
+            // Forge's presets page (PanelController); on the presets page a tap goes back.
+            if(page_ == MenuPage::Presets) ShowPage(MenuPage::Samples);
             return true;
         }
         const uint8_t slot = panel::KeyToSlot(button);
@@ -115,6 +116,7 @@ public:
         return true;
     }
     bool Active() const { return active_; }
+    void ShowPage(MenuPage page) { page_ = page; mode_ = MenuMode::None; selected_ = source_ = panel::kNoSlot; loop_source_ = false; }
     MenuPage Page() const { return page_; }
     uint8_t SampleMode() const { return sample_mode_; }
     uint8_t SampleBank() const { return sample_bank_[sample_mode_]; }
@@ -239,7 +241,7 @@ private:
     MenuMode mode_ = MenuMode::None;
     uint8_t bank_ = 0, selected_ = panel::kNoSlot, selected_bank_ = 0, source_ = panel::kNoSlot, source_bank_ = 0;
     bool loop_source_ = false;
-    MenuPage page_ = MenuPage::Presets;
+    MenuPage page_ = MenuPage::Samples;           // TAPE's menu first (0.10); Forge presets: hold KEY_22
     uint8_t sample_mode_ = 0, sample_bank_[2]{}, chromatic_slot_ = 0, selected_mode_ = 0, source_mode_ = 0, record_source_ = 1;
 };
 

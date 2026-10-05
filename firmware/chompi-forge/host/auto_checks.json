@@ -339,7 +339,7 @@
   },
   {
    "id": "3.17",
-   "title": "Menu opens: toggle in the menu position (down) + hold CHOMPI, bank keys lit",
+   "title": "Menu opens on TAPE's page (toggle down + hold CHOMPI); hold KEY_22 1 s: Forge presets page, bank keys lit",
    "do": [
     {
      "panel": [

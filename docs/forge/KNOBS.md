@@ -59,7 +59,8 @@ Gestures:
   In the record position knob lights 1–4 are off and PLAY/LOOP/SW5 dim to 70 %
   (TAPE). SW5's two lights show the loop speed (LED 6 forward, 5 reverse). SW6:
   dim to bright green for volume, blue → red for input gain.
-- The menu still uses SW4 to pick the bank (TAPE's menu knob layer is stage 2).
+- In the menu's TAPE page the knobs are TAPE's second layer (MANUAL section 7);
+  on Forge's presets page SW4 picks the preset bank.
 
 ## Patch knobs (patch version 5)
 

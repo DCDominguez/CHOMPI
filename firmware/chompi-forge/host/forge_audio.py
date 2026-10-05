@@ -442,6 +442,21 @@ def setup_check(device, audio, output_found, log=print):
     return {"ok": all(f["status"] != "fail" for f in findings), "findings": findings}
 
 
+def show_presets_page(device, timeout=3.0):
+    """With the menu open on TAPE's page, hold KEY_22 until Forge's presets page shows
+    (firmware 0.10: 1 s; a tap is TAPE's "effects after the looper"). Polling the device
+    also advances the simulation, which runs only on requests."""
+    for event in panel_gesture("hold KEY_22"): device.panel(event)
+    try:
+        end = time.time() + timeout
+        while time.time() < end:
+            if ((device.snapshot() or {}).get("panel") or {}).get("menu", {}).get("page") == "presets": return True
+            time.sleep(0.01)
+        return False
+    finally:
+        for event in panel_gesture("let KEY_22"): device.panel(event)
+
+
 def restart_state(device):
     """Why CHOMPI last started, from the Inspector system page (firmware 0.10+), or None."""
     try: return ((device.snapshot() or {}).get("system") or {}).get("restart")
@@ -570,7 +585,7 @@ class Runner:
                 pages = host.knob_pages(state["engine"]["patch"], knob)     # TAPE pages + extras (+ patch page)
                 for _ in range((pages + 1 - page) % pages): tap(name)
         elif what == "menu_presets":                           # with the menu open
-            if snap()["panel"]["menu"]["page"] == "samples": tap("KEY_22")
+            if snap()["panel"]["menu"]["page"] == "samples": show_presets_page(self.device)
         elif what == "looper_empty":
             if snap()["storage"]["looper"]["state"] != "empty":
                 for gesture in ("hold KEY_27", "hold KEY_28"):

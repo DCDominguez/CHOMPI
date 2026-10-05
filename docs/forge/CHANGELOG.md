@@ -31,6 +31,16 @@ parity checklist ([TAPE_CONTROLS.md](TAPE_CONTROLS.md), [KNOBS.md](KNOBS.md)).
   every TAPE effect on at once 3,052.9, informational, measured on hardware in 6.2e.
 - Firmware minor 10. Release 252,420 B (+14,328), development 268,720 B.
 
+Stage 2 so far (same version; software-tested only):
+- **TAPE's menu first:** the menu opens on TAPE's page with TAPE's keys (KEY_21 /
+  KEY_22 tap = effects before / after the looper); hold KEY_22 1 s for Forge's
+  presets page (the menu remembers the last page).
+- **TAPE's menu knob layer:** SW4 quantised pitch (fifths/octaves) / pan, SW1+SW2
+  move the start-end window (synth: attack and release together), SW3 delay time /
+  warble / DJ resonance, SW5 loop speed, SW6 compressor; presses: pitch or gain+pan
+  reset, auto-loop and sustain on/off (lights), all effects reset, monitor position.
+- **TAPE's monitor positions:** headphones (default), both, send/return.
+
 ## Bridge: starter presets — 2026-10-05
 
 No firmware change. *Card & firmware → Load starter presets* writes 12 of the

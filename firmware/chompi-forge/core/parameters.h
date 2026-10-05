@@ -207,6 +207,29 @@ inline float TapeSpeedRatio(float knob) {
     return (val - .66f * inv) * 2.941176f + 1.f * inv;
 }
 
+// Inverse of TapeSpeedRatio: the knob position for a signed ratio (|ratio| .01..2).
+inline float TapeSpeedKnob(float ratio) {
+    const float r = Clamp(std::fabs(ratio), .01f, 2.f);
+    const float a = r < .5f ? (r - .01f) / 1.484848f : r < 1.f ? (r - .5f) / 1.515151f + .33f : (r - 1.f) / 2.941176f + .66f;
+    return Clamp(ratio < 0.f ? .5f - .5f * a : .5f + .5f * a, 0.f, 1.f);
+}
+// TAPE's quantised pitch (SetGlobalPitchQuantized): fifths and fourths alternately,
+// up to 2x, down to 1/16x, then through to reverse. One step per 4 knob clicks.
+inline float QuantisedSpeedStep(float ratio, int direction) {
+    static const float kSteps[11] = {.0625f, .09375f, .125f, .1875f, .25f, .375f, .5f, .75f, 1.f, 1.5f, 2.f};
+    // Signed positions -11..-1 (reverse) and 1..11 (forward); index of the nearest.
+    int best = 1; float error = 1e9f;
+    for(int i = 0; i < 11; ++i) for(int sign : {-1, 1}) {
+        const float e = std::fabs(ratio - sign * kSteps[i]);
+        if(e < error) { error = e; best = sign * (i + 1); }
+    }
+    int next = best + direction;
+    if(next == 0) next = direction > 0 ? 1 : -1;
+    if(next > 11) next = 11;
+    if(next < -11) next = -11;
+    return next > 0 ? kSteps[next - 1] : -kSteps[-next - 1];
+}
+
 // MIDI channel 1 (zero-based channel 0); full patches use protocol.h.
 // Stock CHOMPI convention: CC20+n sets encoder n's position (absolute), so
 // CC20-25 = knobs 1-4, SW5, SW6: knobs follow the patch (mix, time, feedback,

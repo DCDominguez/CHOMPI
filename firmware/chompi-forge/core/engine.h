@@ -83,6 +83,9 @@ public:
         return Apply({parameter, patch_.Value(parameter)});
     }
     const Performance& GetPerformance() const { return performance_; }
+    // TAPE menu presses (SW1 / SW2): the sampler's auto-loop and sustain (hold) on/off.
+    void ToggleSampleLoop() { parameters_.sample_loop = !parameters_.sample_loop; synth_.Configure(parameters_); }
+    void ToggleSampleHold() { parameters_.sample_gate = !parameters_.sample_gate; synth_.Configure(parameters_); }
     // TAPE's warble needs 2 * tape::Warble::kLength floats of zeroed memory (off without).
     void SetWarbleMemory(float* memory) { effects_.SetWarbleMemory(memory); }
     // Sampler memory (v4); see sample_table.h. May be set before or after Init.
@@ -155,7 +158,9 @@ public:
     }
 #endif
 
-    void Process(float left, float right, float& out_left, float& out_right) {
+    // monitor_l/r: input monitored before the effects (TAPE monitor modes BOTH and
+    // SEND_RET); it goes through the effects and the looper like the instrument.
+    void Process(float left, float right, float& out_left, float& out_right, float monitor_l = 0.f, float monitor_r = 0.f) {
         if(!ready_) { out_left = out_right = 0.f; return; }
         left = Sanitize(left);
         right = Sanitize(right);
@@ -163,6 +168,7 @@ public:
         // so the worst case stays within the CPU budget (docs/forge/LOOPING.md).
         if(looper_) synth_.SetVoiceCap(looper_->Writing() ? kLooperVoiceCap : 7);
         if(parameters_.synth) synth_.Process(left, right);
+        left += monitor_l; right += monitor_r;
         if(looper_ && !fx_before_loop_) looper_->Process(left, right);     // effects after the loop
         effects_.Process(left, right);                                      // TAPE: filter, saturation, warble
         Smooth(mix_, parameters_.bypass ? 0.f : parameters_.mix);

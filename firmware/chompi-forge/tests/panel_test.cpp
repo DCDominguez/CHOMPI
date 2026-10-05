@@ -83,6 +83,10 @@ void MenuAndRecordingThroughTheController() {
     // Toggle up + CHOMPI opens the menu; a white key recalls preset 1/4.
     rig.Inject(PanelEvent::Kind::Toggle, 0, 1);
     rig.Key(panel::kChompiKey, true); assert(rig.panel.MenuPacked() & 1u);
+    assert((rig.panel.MenuPacked() >> 21) & 1u);                                   // 0.10: TAPE's page first
+    rig.Key(panel::kPage, true); for(int i = 0; i < 2000; ++i) rig.Block();         // hold KEY_22 1 s: Forge presets
+    rig.Key(panel::kPage, false);
+    assert(!((rig.panel.MenuPacked() >> 21) & 1u) && rig.engine.FxBeforeLoop());   // the hold did not move the effects
     rig.Tap(kWhite[3]);
     assert(rig.sink.presets.size() == 1 && rig.sink.presets[0].kind == MenuAction::Kind::Recall && rig.sink.presets[0].slot == 3);
     // Samples page: kit, bank b; a white key selects the kit for the live patch.
@@ -233,6 +237,9 @@ void LooperThroughThePanel() {
     rig.hw.toggle_up = true; rig.Key(panel::kChompiKey, true);
     rig.Tap(panel::kPlayKey); rig.Tap(panel::kPlayKey);
     assert(std::fabs(looper.Feedback() - 0.8f) < 1e-6f && looper.GetState() == Looper::State::Playing);
+    rig.Tap(panel::kPage); assert(!rig.engine.FxBeforeLoop());                    // TAPE's page: KEY_22 = effects after
+    rig.Tap(panel::kFxBefore); assert(rig.engine.FxBeforeLoop());                 // KEY_21 = before
+    rig.Key(panel::kPage, true); for(int i = 0; i < 2000; ++i) rig.Block(); rig.Key(panel::kPage, false);   // Forge presets page
     rig.Tap(panel::kFxAfter); assert(!rig.engine.FxBeforeLoop());
     LedView v; v.menu = rig.panel.MenuPacked(); v.looper = PackLooper(looper, rig.engine.FxBeforeLoop());
     Rgb keys[25], chompi; ComposeLeds(v, keys, chompi);
@@ -392,6 +399,46 @@ void KnobPages() {
     ComposeKnobLeds(0u, 0u, true, leds); for(auto& l : leds) assert(l.r == 0.f && l.g == 0.f && l.b == 0.f);
     for(int i = 0; i < 200; ++i) rig.Block();
 }
+// TAPE's menu knob layer (MenuPage.h): while the TAPE menu page is open the knobs do
+// TAPE's shift functions and their presses reset or toggle; pages never step.
+void MenuKnobLayer() {
+    Rig rig;
+    Parameters sampler; sampler.version = 4; sampler.synth = true; sampler.source = 1; sampler.sample_end = .5f;
+    assert(rig.engine.ApplyPatch(sampler));
+    rig.Inject(PanelEvent::Kind::Toggle, 0, 1); rig.Key(panel::kChompiKey, true);
+    assert((rig.panel.MenuPacked() & 1u) && ((rig.panel.MenuPacked() >> 21) & 1u) && (rig.panel.MenuLights() & 1u));
+    const Parameters& p = rig.engine.GetParameters(); const Performance& perf = rig.engine.GetPerformance();
+    auto turn = [&](unsigned enc, int amount) { rig.Inject(PanelEvent::Kind::Turn, enc, static_cast<int8_t>(amount)); };
+    // SW4: quantised pitch, one step per 4 clicks (1x -> 1.5x -> 2x); press: back to 1x.
+    turn(panel::kKnobEncoder[0], 3); assert(std::fabs(TapeSpeedRatio(perf.speed) - 1.f) < .01f);
+    turn(panel::kKnobEncoder[0], 1); assert(std::fabs(TapeSpeedRatio(perf.speed) - 1.5f) < .01f);
+    turn(panel::kKnobEncoder[0], 4); assert(std::fabs(TapeSpeedRatio(perf.speed) - 2.f) < .01f);
+    rig.Tap(panel::kKnobEncoder[0]); assert(std::fabs(perf.speed - .83f) < 1e-6f && rig.panel.KnobPages() == 0);
+    // SW1 / SW2 page 1 (sampler): move the start-end window together, .03 per click.
+    turn(panel::kKnobEncoder[1], 2); assert(std::fabs(p.sample_start - .06f) < 1e-5f && std::fabs(p.sample_end - .56f) < 1e-5f);
+    turn(panel::kKnobEncoder[2], -5); assert(p.sample_start == 0.f && std::fabs(p.sample_end - .5f) < 1e-5f);   // stops at 0
+    // SW1 press: auto-loop on/off; SW2 press: sustain (hold) on/off; the lights follow.
+    const bool loop = p.sample_loop, hold = p.sample_gate;
+    rig.Tap(panel::kKnobEncoder[1]); rig.Tap(panel::kKnobEncoder[2]);
+    assert(p.sample_loop == !loop && p.sample_gate == !hold && rig.panel.KnobPages() == 0);
+    assert(((rig.panel.MenuLights() >> 1) & 1u) == p.sample_loop && ((rig.panel.MenuLights() >> 2) & 1u) == p.sample_gate);
+    // SW3 page 1: delay time (and reverb size); SW3 press resets every effect.
+    const float time = p.time; turn(panel::kKnobEncoder[3], 5); assert(std::fabs(p.time - (time + .15f)) < 1e-5f);
+    rig.engine.Apply({Parameter::Saturation, .7f});
+    rig.Tap(panel::kKnobEncoder[3]); assert(std::fabs(p.time - time) < 1e-5f && perf.saturation == 0.f);
+    // SW6: compressor; press: next monitor position (the volume page does not change).
+    turn(panel::kVolumeEncoder, 10); assert(std::fabs(perf.compressor - .3f) < 1e-5f);
+    assert(rig.panel.Monitor() == panel::MonitorMode::Headphones);
+    rig.Tap(panel::kVolumePress); assert(rig.panel.Monitor() == panel::MonitorMode::Both && !rig.panel.VolumePage());
+    assert(((rig.panel.MenuLights() >> 3) & 3u) == 1);
+    rig.Tap(panel::kVolumePress); rig.Tap(panel::kVolumePress); assert(rig.panel.Monitor() == panel::MonitorMode::Headphones);
+    Rgb rings[4], volume; ComposeMenuKnobLeds(rig.panel.MenuLights(), rings, volume);
+    assert((rings[1].r == 1.f) == p.sample_loop && (rings[2].r == 1.f) == p.sample_gate && volume.r == 1.f && volume.b < .3f);   // orange: headphones
+    // Closing the menu gives the knobs back; a hold inside the menu never resets.
+    rig.Key(panel::kChompiKey, false); assert(!(rig.panel.MenuLights() & 1u));
+    turn(panel::kKnobEncoder[0], 10); assert(std::fabs(perf.speed - (.83f + .03f)) < 1e-5f);
+    for(int i = 0; i < 200; ++i) rig.Block();
+}
 // TAPE: SW6 (volume) held 2 s shows the battery on its light while held; a short press does not.
 void BatteryHold() {
     Rig rig; rig.Block();
@@ -414,7 +461,7 @@ void BatteryHold() {
 }
 
 int main() {
-    KnobPages(); BatteryHold();
+    KnobPages(); BatteryHold(); MenuKnobLayer();
     KeysKnobsAndOverrides(); MenuAndRecordingThroughTheController(); LedComposition(); DevelopmentOpcodes(); LooperThroughThePanel(); LooperVoiceCap(); LooperSaveGesture();
     std::cout << "PASS: panel controller keys/knobs/overrides, menu + recording via injection, LED composition, dev opcodes, looper via panel/MIDI, knob pages/LEDs/v5 assignment, SW6 battery hold\n";
 }

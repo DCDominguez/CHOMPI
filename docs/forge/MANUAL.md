@@ -138,8 +138,10 @@ Details: [KNOBS.md](KNOBS.md).
 
 8 banks × 15 slots on the SD card. They start empty — save sounds into them first.
 
-Open the menu: **toggle down, hold CHOMPI.** While it is open, occupied slots are
-lit dim, the last recalled one white, the bank keys show the bank's colour.
+Open the menu: **toggle down, hold CHOMPI.** It opens on TAPE's page (section 7);
+**hold KEY_22 for 1 s** to reach Forge's presets page (a tap on the presets page goes
+back; the menu remembers the last page). On the presets page occupied slots are lit
+dim, the last recalled one white, the bank keys show the bank's colour.
 
 | To | Do |
 | --- | --- |
@@ -184,7 +186,7 @@ computer, or over USB with Forge Bridge (*Card & firmware*, section 10).
   Knob page 1 on a sampler patch is TAPE's: pitch (SW4), start (SW1), end (SW2),
   reverb + delay (SW3).
 
-### Samples page (menu → KEY_22)
+### TAPE's menu page (the menu opens here)
 | Key | Does |
 | --- | --- |
 | KEY_16 | Chromatic (press again: next bank a–e) |
@@ -194,6 +196,22 @@ computer, or over USB with Forge Bridge (*Card & firmware*, section 10).
 | KEY_25 | Save the recording into a slot (white key, CHOMPI) |
 | KEY_24 | Copy a sample (source, destination, CHOMPI); press LOOP as the source to save the loop |
 | KEY_23 | Erase a sample (white key, CHOMPI) |
+| KEY_21 / KEY_22 (tap) | Effects before / after the looper (TAPE). Hold KEY_22 1 s: Forge's presets page |
+
+While the menu is open the knobs are TAPE's second layer:
+
+| Knob | Turn | Press |
+| --- | --- | --- |
+| SW4 | Pitch in fifths and octaves (4 clicks per step); on page 2: pan | Pitch back to 1× (page 2: gain and pan back) |
+| SW1 / SW2 | Move the start–end window together (synth: attack and release together) | SW1: auto-loop on/off · SW2: sustain on/off (lights white when on) |
+| SW3 | Delay time (page 2: warble, page 3: DJ filter resonance) | Every effect back to its default |
+| SW5 | Loop speed, also while paused | Speed back to 1× |
+| SW6 | Output compressor | Next monitor position: orange headphones, blue both, yellow send/return |
+
+**Monitor positions (TAPE):** *headphones* (default) — in the record position you
+hear the input in the headphones only; *both* — the input is always heard, through
+the effects and the looper, on both outputs; *send/return* — the mic goes through
+the effects in the record position, line in always returns to the headphones.
 
 ### Recording
 1. Toggle **up** (the record position). The CHOMPI light becomes the input meter
@@ -235,9 +253,9 @@ red; 75 % at power-on, as TAPE); short-press again for the volume. Up to about
 | **SW5** push and turn / click | Playing: loop speed (below zero = reverse) / back to 1×. Paused: scrub. A plain turn is always the filter cutoff |
 
 Up to about 83 s. Everything you hear goes into the loop. In the menu: PLAY/LOOP
-lower/raise the overdub feedback; KEY_21 = effects before the loop (default),
-KEY_20 = effects after it. Panic pauses the loop without losing it. Save the loop
-as a sample: Samples page, KEY_24, LOOP, a white key, CHOMPI.
+lower/raise the overdub feedback; on TAPE's page KEY_21 = effects before the loop
+(default), a KEY_22 tap = after it (on Forge's presets page: KEY_21 / KEY_20). Panic pauses the loop without losing it. Save the loop
+as a sample: TAPE's menu page, KEY_24, LOOP, a white key, CHOMPI.
 
 ---
 

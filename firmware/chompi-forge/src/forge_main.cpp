@@ -262,24 +262,36 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     loop_speed.store(looper.Speed(), std::memory_order_relaxed);
 
     const bool recording = recorder.Recording();
-    // TAPE: in the record position the input is monitored (headphones) and metered.
-    const bool monitor = panel_controller.RecordPosition() || recording;
+    // TAPE's monitor positions (menu SW6 press, options.json): Headphones = in the record
+    // position the dry input goes to the headphones; Both = the input always goes through
+    // the effects and looper to both outputs; SendReturn = the mic through the effects in
+    // the record position, line in always back to the headphones. The meter follows the input.
+    const bool record_position = panel_controller.RecordPosition();
+    const forge::panel::MonitorMode mode = panel_controller.Monitor();
+    const bool monitor = record_position || recording || mode != forge::panel::MonitorMode::Headphones;
     float peak = 0.f;
     for(size_t i = 0; i < size; ++i) {
-        float left, right;
-        // Upstream channel map: mic 0, aux L/R = 2/3 (aux feeds the delay route).
-        engine.Process(in[2][i], in[3][i], left, right);
-        float hp_l = left, hp_r = right;
+        float left, right, rec_l = 0.f, rec_r = 0.f, pre_l = 0.f, pre_r = 0.f;
+        bool post = false;                               // dry input into the headphones after the effects
         if(monitor) {
-            float rec_l, rec_r;
-            recorder.Input(source, in[0][i], in[2][i], in[3][i], left, right, rec_l, rec_r);
-            if(recording) recorder.Write(rec_l, rec_r);
-            if(source != forge::RecordSource::Resample) {      // TAPE's default monitor position: headphones
-                hp_l = forge::Clamp(left + 0.5f * rec_l, -1.f, 1.f);
-                hp_r = forge::Clamp(right + 0.5f * rec_r, -1.f, 1.f);
+            recorder.Input(source, in[0][i], in[2][i], in[3][i], 0.f, 0.f, rec_l, rec_r);
+            if(source != forge::RecordSource::Resample) {
+                const bool mic = source == forge::RecordSource::Mic;
+                if(mode == forge::panel::MonitorMode::Both) { pre_l = rec_l; pre_r = rec_r; }
+                else if(mode == forge::panel::MonitorMode::SendReturn) {
+                    if(mic && record_position) { pre_l = rec_l; pre_r = rec_r; } else if(!mic) post = true;
+                } else post = record_position;
                 peak = std::fmax(peak, std::fmax(std::fabs(rec_l), std::fabs(rec_r)));
             }
         }
+        // Upstream channel map: mic 0, aux L/R = 2/3 (aux feeds the delay route).
+        engine.Process(in[2][i], in[3][i], left, right, 0.5f * pre_l, 0.5f * pre_r);
+        if(recording) {
+            if(source == forge::RecordSource::Resample) recorder.Input(source, 0.f, 0.f, 0.f, left, right, rec_l, rec_r);
+            recorder.Write(rec_l, rec_r);
+        }
+        float hp_l = left, hp_r = right;
+        if(post) { hp_l = forge::Clamp(left + 0.5f * rec_l, -1.f, 1.f); hp_r = forge::Clamp(right + 0.5f * rec_r, -1.f, 1.f); }
         out[0][i] = hp_l; out[1][i] = hp_r;              // headphones
         out[2][i] = left; out[3][i] = right;             // main (line) out
     }
@@ -524,6 +536,9 @@ void DrawLeds() {
     Pth(forge::panel::kPlayLed, play); Pth(forge::panel::kLoopLed, loop);
     forge::Rgb knobs[4], reverse, forward;
     forge::ComposeKnobLeds(panel_controller.KnobValues(), panel_controller.KnobState(), view.record_position, knobs);
+    const uint32_t knob_state = panel_controller.KnobState();
+    forge::Rgb volume = forge::knobs::VolumeColour((knob_state >> 20) & 1u, (knob_state >> 24) / 255.f);
+    forge::ComposeMenuKnobLeds(panel_controller.MenuLights(), knobs, volume);   // TAPE's menu page
     for(unsigned k = 0; k < 4; ++k) Pth(forge::panel::kKnobLed[k], knobs[k]);
     forge::ComposeTransportLeds((view.looper & 7u) == static_cast<uint32_t>(forge::Looper::State::Playing),
                                 loop_speed.load(std::memory_order_relaxed), view.record_position, reverse, forward);
@@ -531,8 +546,6 @@ void DrawLeds() {
     for(unsigned i = 0; i < 25; ++i) { const forge::Rgb c = Balance(keys[i]); SetSmtLedFloat(i, c.r, c.g, c.b); }
     Pth(0, chompi);
     // SW6 (TAPE): held 2 s = battery; otherwise its page (volume / input gain) and value.
-    const uint32_t knob_state = panel_controller.KnobState();
-    forge::Rgb volume = forge::knobs::VolumeColour((knob_state >> 20) & 1u, (knob_state >> 24) / 255.f);
     if(panel_controller.BatteryView()) {
         const auto b = forge::power::BatteryColour(static_cast<forge::power::Battery>(hw.GetBatteryLevel()));
         volume = forge::Rgb{b.r, b.g, b.b};

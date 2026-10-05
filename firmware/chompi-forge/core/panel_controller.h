@@ -26,6 +26,9 @@ constexpr uint8_t kVolumePress = 32, kVolumeLed = 9;
 // Knob n's ring LED is through-hole LED n + 1 (ENC_4, ENC_1, ENC_2, ENC_3 as TAPE); SW5's are 5 and 6.
 constexpr uint8_t kKnobLed[4] = {1, 2, 3, 4};
 constexpr uint32_t kResetHoldFrames = 48 * 1500, kPanicHoldFrames = 48 * 1000;   // 48 kHz
+constexpr uint32_t kPresetsHoldFrames = 48 * 1000;     // menu: hold KEY_22 1 s = Forge presets page
+// TAPE's monitor positions (options.json "Monitor Position" 1-3; menu SW6 press cycles).
+enum class MonitorMode : uint8_t { Headphones, Both, SendReturn };
 } // namespace panel
 
 // One block of debounced hardware input (audio owner).
@@ -140,7 +143,8 @@ public:
         if((keys >> panel::kVolumePress) & 1u) {
             if(volume_held_ < kBatteryHoldFrames) volume_held_ += hardware.frames;
         } else {
-            if((falling >> panel::kVolumePress) & 1u && volume_held_ < kBatteryHoldFrames) volume_page_ = !volume_page_;
+            if((falling >> panel::kVolumePress) & 1u && volume_held_ < kBatteryHoldFrames && !volume_in_menu_) volume_page_ = !volume_page_;
+            if((falling >> panel::kVolumePress) & 1u) volume_in_menu_ = false;
             volume_held_ = 0;
         }
         battery_view_.store(volume_held_ >= kBatteryHoldFrames, std::memory_order_relaxed);
@@ -153,7 +157,6 @@ public:
         if(looper) {
             // PLAY / LOOP. In the menu they set the overdub feedback (-/+ 10 %, as TAPE);
             // releases always reach the looper so no key can stay held there.
-            const bool presets_page = menu_.Active() && !((menu_.Packed() >> 21) & 1u);
             for(const uint8_t key : {panel::kPlayKey, panel::kLoopKey}) {
                 const bool play = key == panel::kPlayKey;
                 if((rising >> key) & 1u) {
@@ -162,10 +165,22 @@ public:
                 }
                 if((falling >> key) & 1u) { if(play) looper->Play(false); else looper->Loop(false); }
             }
-            if(presets_page && ((rising >> panel::kFxBefore) & 1u)) engine.SetFxBeforeLoop(true);
-            if(presets_page && ((rising >> panel::kFxAfter) & 1u)) engine.SetFxBeforeLoop(false);
             looper->Tick(hardware.frames);
         }
+        // Effects before/after the looper (menu keys), outside the looper so it works without one.
+        const bool presets_page = menu_.Active() && menu_.Page() == MenuPage::Presets;
+        if(presets_page && ((rising >> panel::kFxBefore) & 1u)) engine.SetFxBeforeLoop(true);
+        if(presets_page && ((rising >> panel::kFxAfter) & 1u)) engine.SetFxBeforeLoop(false);
+        // TAPE's menu page: KEY_21 effects before the looper, KEY_22 after (on release, so a
+        // 1 s hold can open Forge's presets page instead).
+        const bool tape_page = menu_.Active() && menu_.Page() == MenuPage::Samples;
+        if(tape_page && ((rising >> panel::kFxBefore) & 1u)) engine.SetFxBeforeLoop(true);
+        if(tape_page && ((rising >> panel::kPage) & 1u)) { page_key_frames_ = 0; page_key_armed_ = true; }
+        if(page_key_armed_ && ((keys >> panel::kPage) & 1u)) {
+            page_key_frames_ += hardware.frames;
+            if(page_key_frames_ >= panel::kPresetsHoldFrames) { menu_.ShowPage(MenuPage::Presets); page_key_armed_ = false; }
+        }
+        if(page_key_armed_ && ((falling >> panel::kPage) & 1u)) { if(tape_page) engine.SetFxBeforeLoop(false); page_key_armed_ = false; }
         RunActions(engine, recorder, sink);
         const Parameters& live = engine.GetParameters();
         if(live.Sampler()) menu_.FollowSampler(live.sample_mode, live.sample_bank, live.sample_slot);
@@ -180,51 +195,55 @@ public:
             if(turns[i]) LogEdge(InspectorEventKind::Knob, i, uint32_t(turns[i]));
         }
 #endif
-        // SW5 (virtual: 2 = one click, 1 = held).
-        const bool tone_down = hardware.tone_down || virtual_tone_ != 0;
-        if(virtual_tone_ == 2) virtual_tone_ = 3; else if(virtual_tone_ == 3) virtual_tone_ = 0;   // click: down one block
-        if(tone_down && !tone_was_down_) tone_turned_ = false;
-        if(const int t = turns[panel::kToneEncoder]) {
-            if(tone_down) {
-                tone_turned_ = true;
-                if(looper && looper->HasLoop()) {
-                    if(looper->GetState() == Looper::State::Playing) looper->NudgeSpeed(t * knobs::kLoopSpeedPerClick);
-                    else looper->Scrub(t);
-                }
-            } else engine.Apply({Parameter::Cutoff, engine.Value(Parameter::Cutoff) + t * knobs::Step(4, Parameter::Cutoff)});
-        }
-        if(!tone_down && tone_was_down_ && !tone_turned_ && looper) looper->ResetSpeed();
-        tone_was_down_ = tone_down;
-        // Knobs 1-4. Presses act on release (TAPE); a 1.5 s hold resets; SW4 + SW3 = panic.
-        const Parameters& patch = engine.GetParameters();
-        const bool combo = hold_[0].down && hold_[3].down;
-        if(combo) {
-            combo_frames_ += hardware.frames;
-            if(combo_frames_ >= panel::kPanicHoldFrames && !hold_[0].used) { engine.Panic(); hold_[0].used = hold_[3].used = true; }
-        } else combo_frames_ = 0;
-        for(unsigned knob = 0; knob < 4; ++knob) {
-            KnobHold& h = hold_[knob];
-            if(knob_page_[knob] >= knobs::Pages(knob, patch)) knob_page_[knob] = 0;   // a new patch has fewer pages
-            const Parameter target = knobs::Target(knob, knob_page_[knob], patch);
-            const bool down = (keys >> panel::kKnobEncoder[knob]) & 1u;
-            const int increment = turns[panel::kKnobEncoder[knob]];
-            if(down) {
-                if(!h.down) h = KnobHold{}, h.down = true; else h.frames += hardware.frames;
-                if(increment) h.turned = true;
-                if(!h.used && !h.turned && !combo && h.frames >= panel::kResetHoldFrames && !menu_.Active()) {
-                    engine.ResetControl(target); h.used = true; reset_flash_[knob] = 48 * 300;
-                }
-            } else if(h.down) {
-                if(!h.used) knob_page_[knob] = static_cast<uint8_t>((knob_page_[knob] + 1) % knobs::Pages(knob, patch));
-                h = KnobHold{};
+        // TAPE's menu page: the knobs are TAPE's shift layer (MenuControls).
+        if(menu_.Active() && menu_.Page() == MenuPage::Samples) MenuControls(hardware, keys, rising, turns, engine);
+        else {
+            // SW5 (virtual: 2 = one click, 1 = held).
+            const bool tone_down = hardware.tone_down || virtual_tone_ != 0;
+            if(virtual_tone_ == 2) virtual_tone_ = 3; else if(virtual_tone_ == 3) virtual_tone_ = 0;   // click: down one block
+            if(tone_down && !tone_was_down_) tone_turned_ = false;
+            if(const int t = turns[panel::kToneEncoder]) {
+                if(tone_down) {
+                    tone_turned_ = true;
+                    if(looper && looper->HasLoop()) {
+                        if(looper->GetState() == Looper::State::Playing) looper->NudgeSpeed(t * knobs::kLoopSpeedPerClick);
+                        else looper->Scrub(t);
+                    }
+                } else engine.Apply({Parameter::Cutoff, engine.Value(Parameter::Cutoff) + t * knobs::Step(4, Parameter::Cutoff)});
             }
-            if(reset_flash_[knob]) reset_flash_[knob] = reset_flash_[knob] > hardware.frames ? reset_flash_[knob] - hardware.frames : 0;
-            if(increment && !menu_.Encoder(static_cast<uint8_t>(knob), increment))   // knob 1 picks the bank while the menu is open
-                engine.Apply({target, engine.Value(target) + increment * knobs::Step(knob, target)});
+            if(!tone_down && tone_was_down_ && !tone_turned_ && looper) looper->ResetSpeed();
+            tone_was_down_ = tone_down;
+            // Knobs 1-4. Presses act on release (TAPE); a 1.5 s hold resets; SW4 + SW3 = panic.
+            const Parameters& patch = engine.GetParameters();
+            const bool combo = hold_[0].down && hold_[3].down;
+            if(combo) {
+                combo_frames_ += hardware.frames;
+                if(combo_frames_ >= panel::kPanicHoldFrames && !hold_[0].used) { engine.Panic(); hold_[0].used = hold_[3].used = true; }
+            } else combo_frames_ = 0;
+            for(unsigned knob = 0; knob < 4; ++knob) {
+                KnobHold& h = hold_[knob];
+                if(knob_page_[knob] >= knobs::Pages(knob, patch)) knob_page_[knob] = 0;   // a new patch has fewer pages
+                const Parameter target = knobs::Target(knob, knob_page_[knob], patch);
+                const bool down = (keys >> panel::kKnobEncoder[knob]) & 1u;
+                const int increment = turns[panel::kKnobEncoder[knob]];
+                if(down) {
+                    if(!h.down) h = KnobHold{}, h.down = true; else h.frames += hardware.frames;
+                    if(increment) h.turned = true;
+                    if(!h.used && !h.turned && !combo && h.frames >= panel::kResetHoldFrames && !menu_.Active()) {
+                        engine.ResetControl(target); h.used = true; reset_flash_[knob] = 48 * 300;
+                    }
+                } else if(h.down) {
+                    if(!h.used) knob_page_[knob] = static_cast<uint8_t>((knob_page_[knob] + 1) % knobs::Pages(knob, patch));
+                    h = KnobHold{};
+                }
+                if(reset_flash_[knob]) reset_flash_[knob] = reset_flash_[knob] > hardware.frames ? reset_flash_[knob] - hardware.frames : 0;
+                if(increment && !menu_.Encoder(static_cast<uint8_t>(knob), increment))   // knob 1 picks the bank while the menu is open
+                    engine.Apply({target, engine.Value(target) + increment * knobs::Step(knob, target)});
+            }
+            const Parameter volume = volume_page_ ? Parameter::InputGain : Parameter::Level;
+            if(turns[panel::kVolumeEncoder])
+                engine.Apply({volume, engine.Value(volume) + turns[panel::kVolumeEncoder] * knobs::Step(5, volume)});
         }
-        const Parameter volume = volume_page_ ? Parameter::InputGain : Parameter::Level;
-        if(turns[panel::kVolumeEncoder])
-            engine.Apply({volume, engine.Value(volume) + turns[panel::kVolumeEncoder] * knobs::Step(5, volume)});
         recorder.SetInputGain(engine.GetPerformance().input_gain);
         PublishKnobs(engine);
     }
@@ -240,6 +259,11 @@ public:
     bool RecordPosition() const { return recording_position_.load(std::memory_order_relaxed); }
     uint8_t CountIn() const { return count_in_.load(std::memory_order_relaxed); }
     bool VolumePage() const { return volume_page_; }
+    panel::MonitorMode Monitor() const { return monitor_; }
+    void SetMonitor(panel::MonitorMode mode) { monitor_ = mode; }
+    // Main loop (lights): bit 0 TAPE menu page open, 1 sample loop on, 2 sample hold (sustain) on,
+    // bits 3-4 monitor mode.
+    uint8_t MenuLights() const { return menu_lights_.load(std::memory_order_relaxed); }
     RecordSource Source() const { return source_; }
     // Main loop (LED drawing): SW6 has been held long enough to show the battery.
     bool BatteryView() const { return battery_view_.load(std::memory_order_relaxed); }
@@ -275,7 +299,82 @@ private:
         const float vol = Clamp(engine.Value(volume_page_ ? Parameter::InputGain : Parameter::Level), 0.f, 1.f);
         state |= static_cast<uint32_t>(vol * 255.f + .5f) << 24;
         knob_values_.store(values, std::memory_order_relaxed); knob_state_.store(state, std::memory_order_relaxed);
+        const bool tape_menu = menu_.Active() && menu_.Page() == MenuPage::Samples;
+        menu_lights_.store(static_cast<uint8_t>((tape_menu ? 1u : 0u) | (p.sample_loop ? 2u : 0u) | (p.sample_gate ? 4u : 0u)
+                                                | (static_cast<unsigned>(monitor_) << 3)), std::memory_order_relaxed);
     }
+    // TAPE's menu knob layer (MenuPage.h): turns and presses while the TAPE menu page is open.
+    FORGE_NOINLINE void MenuControls(const PanelInput& hardware, uint64_t keys, uint64_t rising, const int16_t (&turns)[panel::kEncoders], Engine& engine) {
+        const Parameters& p = engine.GetParameters();
+        for(unsigned knob = 0; knob < 4; ++knob) {
+            KnobHold& h = hold_[knob];
+            const bool down = (keys >> panel::kKnobEncoder[knob]) & 1u;
+            if(down && !h.down) { h = KnobHold{}; h.down = true; h.used = true; MenuPress(knob, engine); }   // no page step after
+            const int t = turns[panel::kKnobEncoder[knob]];
+            if(!t) continue;
+            const unsigned page = knob_page_[knob];
+            auto nudge = [&](Parameter q, float step) { engine.Apply({q, engine.Value(q) + t * step}); };
+            switch(knob) {
+                case 0:
+                    if(page == 0) {                         // the other pitch mode: quantised (TAPE default)
+                        menu_detents_ += t;
+                        while(menu_detents_ >= 4 || menu_detents_ <= -4) {
+                            const int dir = menu_detents_ > 0 ? 1 : -1; menu_detents_ -= 4 * dir;
+                            const float r = QuantisedSpeedStep(TapeSpeedRatio(engine.GetPerformance().speed), dir);
+                            engine.Apply({Parameter::Speed, TapeSpeedKnob(r)});
+                        }
+                    } else nudge(Parameter::Pan, .01f);
+                    break;
+                case 1: case 2:
+                    if(page == 0 && p.Sampler()) {          // move the start-end window together (.03 per click)
+                        const float start = p.sample_start, end = p.sample_end;      // p follows the engine: copy first
+                        const float d = Clamp(t * .03f, -start, 1.f - end);
+                        if(d > 0.f) { engine.Apply({Parameter::SampleEnd, end + d}); engine.Apply({Parameter::SampleStart, start + d}); }
+                        else { engine.Apply({Parameter::SampleStart, start + d}); engine.Apply({Parameter::SampleEnd, end + d}); }
+                    } else {                                // attack and release together (TAPE: attack and "decay")
+                        const float v = Clamp(engine.Value(Parameter::Attack) + t * .03f, 0.f, 1.f);
+                        engine.Apply({Parameter::Attack, v}); engine.Apply({Parameter::Release, v});
+                    }
+                    break;
+                default:
+                    if(page == 0) { nudge(Parameter::Time, .03f); engine.Apply({Parameter::ReverbSize, engine.Value(Parameter::Time)}); }
+                    else if(page == 1) nudge(Parameter::Warble, .03f);
+                    else nudge(Parameter::DjResonance, .03f);
+                    break;
+            }
+        }
+        for(unsigned knob = 0; knob < 4; ++knob) if(!((keys >> panel::kKnobEncoder[knob]) & 1u)) hold_[knob].down = false;
+        // SW5: the looper's pitch (TAPE: free even while paused); click: back to 1x.
+        Looper* looper = engine.GetLooper();
+        if(looper && turns[panel::kToneEncoder]) looper->NudgeSpeed(turns[panel::kToneEncoder] * knobs::kLoopSpeedPerClick);
+        if(looper && hardware.tone_down && !tone_was_down_) looper->ResetSpeed();
+        tone_was_down_ = hardware.tone_down;
+        // SW6: the output compressor; press: next monitor position.
+        if(turns[panel::kVolumeEncoder])
+            engine.Apply({Parameter::Compressor, engine.Value(Parameter::Compressor) + turns[panel::kVolumeEncoder] * .03f});
+        if((rising >> panel::kVolumePress) & 1u) { monitor_ = static_cast<panel::MonitorMode>((static_cast<unsigned>(monitor_) + 1) % 3); volume_in_menu_ = true; }
+    }
+    // TAPE menu presses: SW4 resets pitch (page 1) or gain and pan (page 2); SW1 auto-loop
+    // on/off; SW2 sustain (hold) on/off; SW3 resets every effect.
+    void MenuPress(unsigned knob, Engine& engine) {
+        switch(knob) {
+            case 0:
+                if(knob_page_[0] == 0) engine.ResetControl(Parameter::Speed);
+                else { engine.ResetControl(Parameter::VoiceGain); engine.ResetControl(Parameter::Pan); }
+                break;
+            case 1: engine.ToggleSampleLoop(); break;
+            case 2: engine.ToggleSampleHold(); break;
+            default:
+                for(Parameter q : {Parameter::Space, Parameter::Saturation, Parameter::DjFilter, Parameter::Time,
+                                   Parameter::DjResonance, Parameter::Warble}) engine.ResetControl(q);
+                break;
+        }
+    }
+    int menu_detents_ = 0;
+    uint32_t page_key_frames_ = 0;
+    bool page_key_armed_ = false, volume_in_menu_ = false;
+    panel::MonitorMode monitor_ = panel::MonitorMode::Headphones;
+    std::atomic<uint8_t> menu_lights_{0};
     KnobHold hold_[4];
     uint32_t combo_frames_ = 0, reset_flash_[4]{};
     bool tone_was_down_ = false, tone_turned_ = false, volume_page_ = false;
@@ -435,6 +534,17 @@ inline void ComposeKnobLeds(uint32_t values, uint32_t state, bool record_positio
         if((state >> (16 + k)) & 1u) rings[k] = Rgb{1.f, 1.f, 1.f};
         else if(record_position) rings[k] = Rgb{};
     }
+}
+// TAPE's menu page (MenuLights bit 0): SW1 white while auto-loop is on, SW2 white while
+// sustain is on (dim otherwise); SW6 shows the monitor position (orange headphones, blue
+// both, yellow send/return).
+inline void ComposeMenuKnobLeds(uint8_t lights, Rgb (&rings)[4], Rgb& volume) {
+    if(!(lights & 1u)) return;
+    const Rgb on{1.f, 1.f, 1.f}, off{.08f, .08f, .08f};
+    rings[1] = (lights >> 1) & 1u ? on : off;
+    rings[2] = (lights >> 2) & 1u ? on : off;
+    static const Rgb monitor[3] = {knobs::colour::orange, knobs::colour::blue, knobs::colour::yellow};
+    volume = monitor[((lights >> 3) & 3u) % 3];
 }
 inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chompi) {
     if(!(v.menu & 1u))

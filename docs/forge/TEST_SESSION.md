@@ -129,7 +129,7 @@ toggle position in which TAPE's CHOMPI key opens its menu (down on DC's unit; up
 
 | # | Do | Pass when |
 | --- | --- | --- |
-| 3.17 | Toggle to menu position, hold the CHOMPI key | Key LEDs light: bank keys (KEY_16/17) in bank 1's colour, save/copy/erase dim blue/green/red, white keys off (empty card); playing keys makes no sound while held |
+| 3.17 | Toggle down (menu position), hold the CHOMPI key; then hold KEY_22 for 1 s | The menu opens on TAPE's page (0.10): KEY_16/17 chromatic/kit, the record source key lit; after holding KEY_22 1 s, Forge's presets page: bank keys (KEY_16/17) in bank 1's colour, save/copy/erase dim blue/green/red, white keys off (empty card); playing keys makes no sound while held |
 | 3.18 | `H send presets/07-warm-pad.json`. Menu: press SAVE (KEY_25), release CHOMPI, press white key 1 (it turns blue), press CHOMPI | Panel LED flashes green; white key 1 now dim (occupied). `FORGE/B1S01.FPR` exists on the card afterwards |
 | 3.19 | Send `08-acid-bass.json`, save it to slot 2 the same way. Release CHOMPI | Menu closes; keys play Acid Bass again |
 | 3.20 | Hold CHOMPI (menu), press white key 1, release CHOMPI, play | Warm Pad plays; key 1 shows white while the menu is open. Repeat with key 2 → Acid Bass |
@@ -149,7 +149,7 @@ Card prepared in 0.6. "Menu" = toggle down (the menu position) + CHOMPI key, as 
 | --- | --- | --- |
 | 3.28 | `H samples ...` | JSON lists chromatic a and kit a slots matching the files you copied; `card` true; no recording yet |
 | 3.29 | `H send presets/12-tape-kit-a.json`; play the white keys | Each white key plays its TAPE kit sample (one-shots), as on stock TAPE; black keys silent; no clicks at sample ends. Note how long after Send the first key sounds (loading time) |
-| 3.30 | Menu → KEY_22 (Samples page) | Page key magenta; KEY_17 lit in bank a's colour; occupied kit slots dim/white; KEY_19 (line) or KEY_18 (mic) lit depending on the line-in jack |
+| 3.30 | Menu (opens on TAPE's page; from Forge's presets page tap KEY_22) | Page key magenta; KEY_17 lit in bank a's colour; occupied kit slots dim/white; KEY_19 (line) or KEY_18 (mic) lit depending on the line-in jack. On this page a KEY_22 tap = effects after the looper, KEY_21 = before (TAPE) |
 | 3.31 | Samples page: KEY_16 (chromatic), white key 1; close the menu; play keys across the keybed | `jammi_a1` plays chromatically, KEY_8 (middle C) at original pitch; press KEY_16 again in the menu → bank b (your own WAV if added in 0.6 plays at the right pitch) |
 | 3.32 | Turn knobs 1–3 while holding a key | Pitch, start and end change like TAPE's first page; knob 4 changes the delay mix |
 | 3.33 | Webapp: Capture to editor (chromatic `jammi_a1` playing), set Start 0.2, End 0.4, Loop on, Crossfade 50 ms, Send, hold a key | The loop repeats without a click or level dip at the loop point; Reverse on → plays backwards |
@@ -199,6 +199,8 @@ down which one lit — that mapping is not yet hardware-verified.
 | 3.55 | Send `14-knob-pad.json` (a v5 patch). Step SW4 to page 5, SW1 to page 4, SW2 to page 5, SW3 to page 4 (each knob's last page, dim white light); turn them; then `H cc 20 0` and `H cc 20 127` | SW4 = cutoff, SW1 = LFO speed, SW2 = reverb size, SW3 = reverb mix (the patch chose them, on the last page); CC 20 moves the cutoff the same way |
 | 3.56 | Send `12-tape-kit-a.json` and play: SW1 page 1 = sample start, SW2 page 1 = sample end, SW2 page 4 = loop crossfade. Send `02-slap.json` (effects only) and turn the knobs while playing into line in. Webapp: open any preset, **Convert to v5**, choose a job for each knob under *Panel knobs*, Send | Sampler: start/end move in fine steps (TAPE), crossfade changes on looped samples only, no crash; effects-only: SW4 = delay mix (page 2 level), SW1 = delay time, SW2 = feedback, SW3 = TAPE's effects on the line input; the webapp patch's knobs are on each knob's last page |
 | 3.57 | **Automatic (bridge):** SW4 pitch, SW1 attack, SW2 release, SW3 reverb + delay and DJ filter, SW5 cutoff: a held note recorded before and after 10 clicks | Each pair of recordings differs by at least 5 % (spectrum, envelope, loudness or stereo balance); the same check runs on every page of every starter preset in the simulation (`tests/knob_audio_test.cpp`) |
+| 3.58 | **TAPE's menu knobs:** sampler patch, open the menu (TAPE's page) and hold CHOMPI. SW4: turn (pitch in fifths/octaves, 4 clicks a step), press (1×); SW1/SW2: turn (moves the start-end window), press (SW1 auto-loop, SW2 sustain on/off: their lights white/dim); SW3: turn (delay time; page 2 warble, page 3 DJ resonance), press (all effects back to default); SW5: turn (loop speed, also when paused); SW6: turn (output compressor) | Each does what TAPE's shift menu does; knob pages never change in the menu; holding a knob in the menu never resets it; closing the menu gives the knobs back |
+| 3.59 | **Monitor positions:** in the menu press SW6 (cycles: orange = headphones, blue = both, yellow = send/return). With line in playing: headphones = heard in the headphones only in the record position (toggle up); both = always heard, through the effects, on both outputs; send/return = line in always in the headphones | As described; the main out carries the input only in *both* (and the mic in *send/return* in the record position); the CHOMPI light meters the input |
 
 ## 4. Panic and recovery
 

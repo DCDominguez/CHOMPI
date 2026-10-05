@@ -4,7 +4,7 @@ that arrives on a different control. Then it lights known states and asks what c
 optionally with a camera photo as evidence. Development firmware only; it never writes the SD card."""
 import time
 
-from forge_audio import PANEL_BUTTONS, panel_gesture, ROOT
+from forge_audio import PANEL_BUTTONS, panel_gesture, ROOT, show_presets_page
 import forge_host as host
 
 NAMES = {index: name for name, index in PANEL_BUTTONS.items()}
@@ -185,7 +185,7 @@ class Walk:
         self.clear_loop()
         for event in panel_gesture("toggle menu") + panel_gesture("hold CHOMPI"): self.device.panel(event)
         time.sleep(0.3)
-        if self.snap()["panel"]["menu"]["page"] == "samples": self.tap("KEY_22"); time.sleep(0.2)
+        if self.snap()["panel"]["menu"]["page"] == "samples": show_presets_page(self.device); time.sleep(0.2)
         self.ask("light.menu", "Menu key lights", "The menu is open on its Presets page. Are the three black keys on the right "
                  "(KEY_23, KEY_24, KEY_25) lit dim red, green and blue, and KEY_22 (PAGE) white?", "Yes", ["Yes", "No"])
         self.device.panel({"kind": 5, "id": 0, "value": 0})

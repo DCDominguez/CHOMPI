@@ -108,6 +108,8 @@ void MenuGestures() {
     p.toggle = false; p.Chompi(true); p.Chompi(false); assert(!p.menu.Active() && !p.Press(kWhite[0]));
     // Toggle up + CHOMPI opens; hold CHOMPI + white key recalls; release closes.
     p.toggle = true; p.Chompi(true); assert(p.menu.Active());
+    assert(p.menu.Page() == MenuPage::Samples);                 // 0.10: TAPE's page first
+    p.menu.ShowPage(MenuPage::Presets);                          // (the panel: hold KEY_22 1 s)
     assert(p.Press(kWhite[3]));
     p.Press(panel::kBankUp); p.Press(panel::kBankUp); p.Press(kWhite[14]);
     p.Press(panel::kBankDown); p.Press(panel::kBankDown); p.Press(panel::kBankDown); assert(p.menu.Bank() == 7);  // wraps
@@ -196,7 +198,8 @@ void SamplesPage() {
     p.Press(panel::kErase); p.Press(kWhite[4]); p.Chompi(false); p.Chompi(true); a = p.Actions();
     assert(a.size() == 1 && a[0].kind == MenuAction::Kind::SampleErase && a[0].mode == 0 && a[0].bank == 2 && a[0].slot == 4);
     // Switching page cancels a pending function; the presets page still works.
-    p.Press(panel::kSave); p.Press(panel::kPage); assert(p.menu.Mode() == MenuMode::None && p.menu.Page() == MenuPage::Presets);
+    p.Press(panel::kSave); p.Press(panel::kPage); assert(p.menu.Mode() == MenuMode::Save && p.menu.Page() == MenuPage::Samples);   // a tap is TAPE's "effects after"
+    p.menu.ShowPage(MenuPage::Presets); assert(p.menu.Mode() == MenuMode::None && p.menu.Page() == MenuPage::Presets);
     p.Press(kWhite[3]); a = p.Actions(); assert(a.size() == 1 && a[0].kind == MenuAction::Kind::Recall && a[0].slot == 3);
     // The page and sample state persist between openings; FollowSampler tracks recalls.
     p.Press(panel::kPage); p.Chompi(false); p.Chompi(true); assert(p.menu.Page() == MenuPage::Samples);
@@ -234,7 +237,7 @@ void LedModel() {
     PresetMenu menu; Rgb leds[25];
     RenderMenuLeds(menu.Packed(), 0x7fff, true, 0, 0, true, leds);
     for(auto& l : leds) assert(l.r == 0 && l.g == 0 && l.b == 0);         // closed: all off
-    menu.Update(true, true);
+    menu.Update(true, true); menu.ShowPage(MenuPage::Presets);
     RenderMenuLeds(menu.Packed(), 0b101, true, 0, 2, true, leds);
     assert(leds[panel::SlotLed(2)].r == 1 && leds[panel::SlotLed(2)].g == 1);   // last recalled: white
     assert(leds[panel::SlotLed(0)].r > 0 && leds[panel::SlotLed(0)].r < 1);     // occupied: dim
