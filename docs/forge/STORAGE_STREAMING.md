@@ -33,9 +33,9 @@ Branch head `753078b` (the brief named `b7d098b`; 23 commits later: knob pages,
 | Delay lines | `kDelayCapacity` 48,002 floats × 2 (not in the brief) | 384,016 |
 | **Free** | | **393,200 (0.37 MiB)** |
 
-Executable space (SRAM_EXEC 282 KiB = 288,768 B): release **217,104 B, headroom
-71,664 B**; development 229,768 B, headroom 59,000 B (0.13: harmony menu page,
-Inspector page 8 and patch v6 +1.9 / +2.6 KB after the savings; harmony
+Executable space (SRAM_EXEC 282 KiB = 288,768 B): release **221,712 B, headroom
+67,056 B**; development 234,376 B, headroom 54,392 B (0.13: CPU fix A cubic table
++4.6 KB; harmony menu page, Inspector page 8 and patch v6 +1.9 / +2.6 KB after the savings; harmony
 core +6.6 KB, queues moved to `.bss` −26.9 KB, cold code `-Os` and start-up
 construction −25.8 KB; 0.12 was 261,224 / 277,268 B. 0.12: per-slot
 settings, +6.3 KB after moving the cold paths out of line, then the safety extras

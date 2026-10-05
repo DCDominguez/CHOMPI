@@ -1,7 +1,9 @@
 #include <cassert>
 #include <cmath>
 #include <cstdio>
+#include <initializer_list>
 #include <iostream>
+#include <random>
 #include <string>
 #include <vector>
 #include "../core/runtime.h"
@@ -629,14 +631,53 @@ void SamplerRequests() {
     const Parameters kit = SelectSample(tuned, 1, 2, 5);
     assert(kit.sample_mode == 1 && kit.sample_bank == 2 && kit.sample_slot == kRamSlot && kit.cutoff == 0.3f);  // sampler settings kept
 }
+// 0.13: the pitched-down read uses kCubic (Q14 weights, 512 steps, M7 dual multiply-
+// accumulate) instead of the float Hermite. It must match the Hermite closely on real
+// material: a full-scale sweep of sines read at random positions, stereo and mono.
+void CubicTableRead() {
+    // Table: weights sum to 1 (DC passes unchanged), exact at the ends.
+    for(unsigned i = 0; i <= 512; ++i) {
+        const auto w = [&](unsigned k) { return static_cast<int16_t>((kCubic.w[i][k / 2] >> (16 * (k % 2))) & 0xFFFFu); };
+        const int sum = w(0) + w(1) + w(2) + w(3);
+        assert(sum >= 16383 && sum <= 16385);
+    }
+    assert(kCubic.w[0][0] == (16384u << 16) && kCubic.w[0][1] == 0 && kCubic.w[512][0] == 0 && kCubic.w[512][1] == 16384u);
+    std::mt19937 random(13);
+    for(uint8_t channels = 1; channels <= 2; ++channels) {
+        for(const float cycles : {0.002f, 0.02f, 0.1f, 0.25f}) {        // 96 Hz .. 12 kHz at 48 kHz
+            const uint32_t frames = 4096;
+            std::vector<int16_t> data(frames * channels);
+            for(uint32_t i = 0; i < frames; ++i) for(uint8_t c = 0; c < channels; ++c)
+                data[i * channels + c] = static_cast<int16_t>(32000.f * std::sin(6.2831853f * cycles * i + c));
+            SampleSlot s; s.data = data.data(); s.frames = frames; s.channels = channels; s.gain = 1.f;
+            double error = 0, signal = 0;
+            for(int n = 0; n < 20000; ++n) {
+                const int32_t pos = 1 + static_cast<int32_t>(random() % (frames - 4));
+                const float frac = std::uniform_real_distribution<float>(0.f, 0.9999999f)(random);
+                float l, r; Synth::Read(s, pos, frac, frames, true, l, r);
+                const int16_t* p = data.data() + (pos - 1) * channels;
+                const float scale = 0.5f / 32768.f;
+                const int c1 = channels == 2 ? 1 : 0;
+                const float el = Synth::Hermite(p[0], p[channels], p[2 * channels], p[3 * channels], frac) * scale;
+                const float er = Synth::Hermite(p[c1], p[channels + c1], p[2 * channels + c1], p[3 * channels + c1], frac) * scale;
+                error += (l - el) * (l - el) + (r - er) * (r - er); signal += el * el + er * er;
+                assert(std::fabs(l - el) < 2e-3f && std::fabs(r - er) < 2e-3f);
+            }
+            const double snr = 10 * std::log10(signal / error);
+            // Measured 88.9 / 82.0 / 69.0 / 60.8 dB (2026-10-05); the Hermite's own error at
+            // 12 kHz is far larger, so the table adds nothing audible.
+            assert(snr > (cycles <= 0.002f ? 86 : cycles <= 0.02f ? 79 : cycles <= 0.1f ? 66 : 58));
+        }
+    }
+}
 } // namespace
 
 int main() {
-    WavFormats(); WavRejections(); HeaderRoundTrip(); FactoryTapeFiles();
+    CubicTableRead(); WavFormats(); WavRejections(); HeaderRoundTrip(); FactoryTapeFiles();
     ProtocolV4(); ChromaticPitch(); KitMapping(); OneShotLoopReverse(); GateAndTrigger(); LoadingAndHandoff();
     StereoVoicesAndCompatibility(); RetriggerAndFuzz();
     Recording(); Names(); ChromaticAndKitLoading(); ProgressiveAndDetach(); PoolLimitsAndCardRemoval(); SaveCopyErase(); SamplerRequests();
-    std::cout << "PASS: WAV formats/rejections/header, factory TAPE files, v4 protocol, chromatic pitch, kit map, "
+    std::cout << "PASS: cubic table read vs Hermite, WAV formats/rejections/header, factory TAPE files, v4 protocol, chromatic pitch, kit map, "
                  "one-shot/loop/reverse, gate/trigger, loading/handoff, stereo/voices/compatibility, retrigger/fuzz, "
                  "recorder, TAPE names, chromatic/kit loading, progressive/detach, pool limits/card removal, save/copy/erase, sampler requests\n";
 }

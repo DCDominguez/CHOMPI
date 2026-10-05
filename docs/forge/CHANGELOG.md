@@ -23,8 +23,23 @@ hardware-verified.
   (e.g. *Am7 · I · tonic*); a HARMONY line in the text Inspector.
 - **Memory (DC: "implement our memory savings plan", keep the audio buffers):**
   queues in `.bss`, control code `-Os`, start-up construction: release 267,876 →
-  215,160 B before the menu/v6 work; 0.13 release **217,104 B**, development
-  229,768 B (headroom 71,664 / 59,000 B; 0.12: 27,544 / 11,500 B). CPU gate unchanged.
+  215,160 B before the menu/v6 work; 0.13 release **221,712 B**, development
+  234,376 B (headroom 67,056 / 54,392 B; 0.12: 27,544 / 11,500 B), including the
+  4 KB cubic table.
+- **CPU fix A (DC's item 2):** the pitched-down sample read (every voice below 1×:
+  SW4 pitch down, kit pads below 1×) is now a 4 KB table of Q14 Hermite weights read
+  with the M7's dual 16-bit multiply-accumulate, two taps per instruction; within
+  61–89 dB of the exact Hermite (sampler_test). Profiling the emulator also found:
+  (1) a glide fix: the slide toward the target stopped on float rounding before it
+  arrived (up to ~1.2 cents short per second of glide, never finishing, ~11
+  instructions per gliding voice every sample, synth and sampler); glides now end on
+  the target (v3_test); (2) restarted-voice declick tails are tracked in a bit mask
+  instead of two float tests per voice per sample; (3) smaller per-voice checks.
+  Emulator, instructions/sample vs WAVE 2,694.9: pitch .75 **2,669.2** (was 2,800.8),
+  kit pads below 1× 2,564.2 (2,755.8), 1× worst case 2,603.5 (2,677.9); both
+  pitched-down scenarios are now gated, not informational. The bench now settles
+  TAPE's pitch slide before the notes; a new informational row measures it still
+  sliding (2,690.5, as while SW4 turns). Hardware 6.2f confirms on CHOMPI.
 - New TEST_SESSION 3.65–3.67 (bridge checklist 102 steps).
 
 ## 0.12 Per-slot sample settings — 2026-10-05 (software-tested; not installed yet)

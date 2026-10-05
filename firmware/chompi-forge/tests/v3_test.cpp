@@ -137,6 +137,18 @@ void VoiceLimitAndGlide() {
     p.glide = 0; Synth i; i.Init(kRate); i.Configure(p); i.Note(57, 100, 0); Render(i, 9600);
     i.Note(69, 100, 0); auto y = Render(i, 4800);
     assert(Crossings(y, 0, 2400) >= 21);                                      // no glide: ~440 Hz at once
+    // Every glide ends exactly on its target (0.13): the old 1e-9 rule let slow glides stall
+    // up to ~1.2 cents short and keep running every sample.
+    for(const float seconds : {0.01f, 0.08f, 0.5f, 2.f}) for(const float from : {0.25f, 1.f, 3.7f})
+        for(const float target : {0.001f, 0.0372f, 0.5f, 1.f, 1.4983f, 7.9f}) {
+            const float slew = 1.f - std::exp(-1.f / (seconds * 0.25f * kRate)), snap = GlideSnap(slew);
+            float x = from * target, prev = x; int n = 0;
+            while(x != target && n < 40 * static_cast<int>(seconds * kRate) + 100) { prev = x; GlideStep(x, target, slew, snap); ++n; }
+            assert(x == target);
+            // The last jump: no more than the old rule's stall left for good (~1.2 cents per
+            // second of glide), and only 1e-6 for short glides.
+            assert(std::fabs(prev / target - 1.f) <= std::fmax(1.2e-6f, 1.5e-3f * seconds / 2.f));
+        }
 }
 struct Rig {
     std::vector<float> l = std::vector<float>(48002), r = std::vector<float>(48002), rv = std::vector<float>(Reverb::Required(kRate));

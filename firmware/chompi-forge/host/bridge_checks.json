@@ -531,7 +531,7 @@
     "id": "6.2f",
     "group": "6. Sustained run and power",
     "do": "**Sampler, pitched down (0.12):** as 6.2c, then turn SW4 page 1 (TAPE pitch) down to about 0.75× (below the 1× light, still forwards); hold seven keys for 1 minute, `H status`. Then the same in kit mode with seven pads each turned below 1× (press a pad, turn SW4)",
-    "expect": "Record average and peak; must stay < 70 % (the emulator puts every voice below 1× about 4 % above WAVE's engine: the cubic read; found in 0.12, also true of 0.10–0.11)"
+    "expect": "Record average and peak; must stay < 70 % (0.13: the emulator puts this 1 % below WAVE's engine after the table cubic read; it was 4 % above in 0.10–0.12)"
   },
   {
     "id": "6.3",

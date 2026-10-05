@@ -2,12 +2,79 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#if defined(__ARM_FEATURE_SIMD32)
+#include <arm_acle.h>
+#endif
 #include "parameters.h"
 #include "slot_settings.h"
 #include "sample_table.h"
 #include "inspector.h"
 
 namespace forge {
+
+// The sampler's 4-point Hermite (Catmull-Rom), as a weight table for the M7's dual
+// 16-bit multiply-accumulate: 512 steps of the fractional position (+1, so rounding to
+// the nearest step stays inside), weights in Q14 (1.0 = 16384; the largest is 1.0)
+// packed in pairs: w[0] = w0 | w1 << 16, w[1] = w2 | w3 << 16. Built at compile time.
+struct CubicTable { uint32_t w[513][2]; };
+constexpr uint32_t CubicQ14(double x) {
+    return static_cast<uint32_t>(x >= 0 ? static_cast<int32_t>(x * 16384 + 0.5) : -static_cast<int32_t>(-x * 16384 + 0.5)) & 0xFFFFu;
+}
+constexpr CubicTable MakeCubicTable() {
+    CubicTable c{};
+    for(int i = 0; i <= 512; ++i) {
+        const double t = i / 512.0, t2 = t * t, t3 = t2 * t;
+        c.w[i][0] = CubicQ14(-0.5 * t3 + t2 - 0.5 * t) | CubicQ14(1.5 * t3 - 2.5 * t2 + 1.0) << 16;
+        c.w[i][1] = CubicQ14(-1.5 * t3 + 2.0 * t2 + 0.5 * t) | CubicQ14(0.5 * t3 - 0.5 * t2) << 16;
+    }
+    return c;
+}
+constexpr CubicTable kCubic = MakeCubicTable();
+// Two int16 halves: (a.lo, b.lo) and (a.hi, b.hi) (PKHBT / PKHTB on the M7).
+inline uint32_t PackLow(uint32_t a, uint32_t b) {
+#if defined(__ARM_FEATURE_SIMD32)
+    uint32_t r; __asm__("pkhbt %0, %1, %2, lsl #16" : "=r"(r) : "r"(a), "r"(b)); return r;
+#else
+    return (a & 0xFFFFu) | b << 16;
+#endif
+}
+inline uint32_t PackHigh(uint32_t a, uint32_t b) {
+#if defined(__ARM_FEATURE_SIMD32)
+    uint32_t r; __asm__("pkhtb %0, %1, %2, asr #16" : "=r"(r) : "r"(b), "r"(a)); return r;
+#else
+    return a >> 16 | (b & 0xFFFF0000u);
+#endif
+}
+// A 32-bit read at any 2-byte boundary (int16 sample data).
+typedef uint32_t __attribute__((may_alias, aligned(2))) Unaligned32;
+// One glide (portamento) step toward a positive target. It ends on the target within
+// `snap` of it (relative): 1e-6 (0.002 cents), or for slow glides where float rounding
+// would stop the step (a step under half a float ulp: within 2^-24 / slew). Before 0.13
+// such glides stalled there for good (up to ~2.5 cents off at the 2 s maximum) and kept
+// running every sample; now they jump that last distance and stop.
+inline float GlideSnap(float slew) { return std::fmax(1e-6f, 6.1e-8f / slew); }
+FORGE_INLINE void GlideStep(float& x, float target, float slew, float snap) {
+    const float d = target - x;
+    if(std::fabs(d) <= snap * target) x = target; else x += slew * d;
+}
+// a.lo * b.lo + a.hi * b.hi, signed 16-bit halves (SMUAD on the M7).
+inline int32_t Dual16(uint32_t a, uint32_t b) {
+#if defined(__ARM_FEATURE_SIMD32)
+    return __smuad(static_cast<int32_t>(a), static_cast<int32_t>(b));
+#else
+    return static_cast<int16_t>(a & 0xFFFFu) * static_cast<int16_t>(b & 0xFFFFu)
+         + static_cast<int16_t>(a >> 16) * static_cast<int16_t>(b >> 16);
+#endif
+}
+// The same plus acc (SMLAD).
+inline int32_t Dual16(uint32_t a, uint32_t b, int32_t acc) {
+#if defined(__ARM_FEATURE_SIMD32)
+    return __smlad(static_cast<int32_t>(a), static_cast<int32_t>(b), acc);
+#else
+    return acc + static_cast<int16_t>(a & 0xFFFFu) * static_cast<int16_t>(b & 0xFFFFu)
+               + static_cast<int16_t>(a >> 16) * static_cast<int16_t>(b >> 16);
+#endif
+}
 // Up to four voices (seven on v4). All calls belong to the audio owner. Source
 // IDs separate keybed, UART and USB so one player's note-off cannot release
 // another's note. Version 1/2 patches use the original path (one shared
@@ -93,6 +160,7 @@ public:
         lfo_amp_ = legacy_ ? 0.f : p.lfo_amp;
         const float glide_s = legacy_ ? 0.f : 2.f * p.glide;
         glide_slew_ = glide_s > 0.f ? 1.f - std::exp(-1.f / (glide_s * 0.25f * rate_)) : 1.f; // ~98% there after glide time
+        glide_snap_ = GlideSnap(glide_slew_);
         voices_used_ = legacy_ ? 4 : Clamp(p.voices, 1, p.MaxVoices());
         // v4 sampler
         sampler_ = p.Sampler();
@@ -170,7 +238,7 @@ public:
     // Mod wheel (CC1, 0..127): scales LFO depth when the patch sets lfo_wheel.
     void ModWheel(uint8_t value) { if(value <= 127) wheel_ = value / 127.f; }
     void ResetControllers(uint8_t source) { Pedal(source, false); Bend(source, 8192); wheel_ = 0; }
-    void Silence() { voices_ = {}; filter_ = 0; wheel_ = 0; ResetAllControllers(); }
+    void Silence() { voices_ = {}; tails_ = 0; filter_ = 0; wheel_ = 0; ResetAllControllers(); }
     // TAPE's performance knobs: speed (signed ratio, negative = reverse; oscillators
     // use its size), voice gain (2v^2 + .01) and pan (TAPE's law). Smoothed per sample.
     void SetPerformance(float speed, float voice_gain, float pan) {
@@ -272,10 +340,7 @@ public:
             float sample = Oscillator(waveform_, v.phase, dt);
             v.phase += dt; if(v.phase >= 1.f) v.phase -= 1.f;
             if(!legacy_) {
-                if(v.increment != v.target) {
-                    v.increment += glide_slew_ * (v.target - v.increment);
-                    if(std::fabs(v.target - v.increment) < 1e-9f) v.increment = v.target;
-                }
+                if(v.increment != v.target) Portamento(v.increment, v.target);
                 if(osc2_level_ > 0.f) {
                     const float dt2 = std::min(dt * osc2_ratio_, 0.45f);
                     sample += osc2_level_ * Oscillator(osc2_waveform_, v.phase2, dt2);
@@ -367,7 +432,10 @@ private:
         const bool sounding = selected->amp.stage != Stage::Off;
         const Voice prior = *selected;
         *selected = Voice{};
-        if(sounding) { selected->tail_l = prior.last_l + prior.tail_l; selected->tail_r = prior.last_r + prior.tail_r; }
+        if(sounding) {
+            selected->tail_l = prior.last_l + prior.tail_l; selected->tail_r = prior.last_r + prior.tail_r;
+            tails_ |= 1u << (selected - voices_.data());
+        }
         selected->sampled = true; selected->slot = static_cast<uint8_t>(slot); selected->reverse = sample_reverse_ != speed_reverse_;
         selected->note = note; selected->source = source; selected->velocity = velocity / 127.f;
         selected->gain = selected->velocity;
@@ -382,6 +450,8 @@ private:
         selected->pos = selected->reverse ? stop - 1 : start;
         selected->amp.stage = selected->filter.stage = Stage::Attack; selected->age = ++age_;
     }
+    FORGE_INLINE void Portamento(float& x, float target) const { GlideStep(x, target, glide_slew_, glide_snap_); }
+public:   // pure sample reads (tested directly in sampler_test)
     static float Hermite(float x0, float x1, float x2, float x3, float frac) {
         const float c1 = 0.5f * (x2 - x0);
         const float c2 = x0 - 2.5f * x1 + 2.f * x2 - 0.5f * x3;
@@ -395,10 +465,21 @@ private:
         const float scale = s.gain * (0.5f / 32768.f);   // 0.5: two full-scale voices reach 1.0
         if(pos >= 1 && static_cast<uint32_t>(pos) + 2 < readable) {          // common case: all four taps loaded
             const int16_t* p = s.data + static_cast<size_t>(pos - 1) * s.channels;
-            if(s.channels == 2) {
-                if(cubic) { l = Hermite(p[0], p[2], p[4], p[6], frac) * scale; r = Hermite(p[1], p[3], p[5], p[7], frac) * scale; }
-                else { l = (p[2] + frac * (p[4] - p[2])) * scale; r = (p[3] + frac * (p[5] - p[3])) * scale; }
-            } else l = r = (cubic ? Hermite(p[0], p[1], p[2], p[3], frac) : p[1] + frac * (p[2] - p[1])) * scale;
+            const float q = scale * (1.f / 16384.f);
+            const Unaligned32* a = reinterpret_cast<const Unaligned32*>(p);   // little-endian int16 pairs
+            if(s.channels == 2) {                                // frames: L | R << 16
+                if(cubic) {                                      // kCubic: two taps per multiply-accumulate
+                    const uint32_t* w = kCubic.w[static_cast<unsigned>(frac * 512.f + 0.5f)];
+                    const uint32_t w01 = w[0], w23 = w[1], a0 = a[0], a1 = a[1];
+                    int32_t sl = Dual16(PackLow(a0, a1), w01), sr = Dual16(PackHigh(a0, a1), w01);
+                    const uint32_t a2 = a[2], a3 = a[3];
+                    sl = Dual16(PackLow(a2, a3), w23, sl); sr = Dual16(PackHigh(a2, a3), w23, sr);
+                    l = static_cast<float>(sl) * q; r = static_cast<float>(sr) * q;
+                } else { l = (p[2] + frac * (p[4] - p[2])) * scale; r = (p[3] + frac * (p[5] - p[3])) * scale; }
+            } else if(cubic) {
+                const uint32_t* w = kCubic.w[static_cast<unsigned>(frac * 512.f + 0.5f)];
+                l = r = static_cast<float>(Dual16(a[1], w[1], Dual16(a[0], w[0]))) * q;
+            } else l = r = (p[1] + frac * (p[2] - p[1])) * scale;
             return;
         }
         ReadEdge(s, pos, frac, readable, l, r);
@@ -419,13 +500,14 @@ private:
         l = Hermite(x[0][0], x[0][1], x[0][2], x[0][3], frac) * scale;
         r = Hermite(x[1][0], x[1][1], x[1][2], x[1][3], frac) * scale;
     }
+private:
     // One sample of a sampler voice; returns false when the voice has finished.
     FORGE_INLINE bool SampleFrame(Voice& v, float step, float& l, float& r) {
         const SampleSlot& s = table_->slots[v.slot];
         if(!s.frames || !s.channels) return false;                  // slot emptied (new recording)
         // Once a slot is fully loaded the voice stops re-reading the atomic count.
-        const uint32_t readable = v.window_frames == s.frames && v.complete ? s.frames : s.Readable();
-        v.complete = readable == s.frames;
+        uint32_t readable = s.frames;
+        if(v.window_frames != s.frames || !v.complete) { readable = s.Readable(); v.complete = readable == s.frames; }
         if(v.window_frames != s.frames || v.window_epoch != window_epoch_) {
             Window(s, v, v.win_start, v.win_end);
             v.window_frames = s.frames; v.window_epoch = window_epoch_;
@@ -493,20 +575,19 @@ private:
         cutoff_ += 0.002f * (cutoff_target_ - cutoff_);
         const float base_octave = kLog2Of40 + cutoff_ * kLog2Of400 + lfo_octaves;
         float sum_l = 0.f, sum_r = 0.f;
-        for(auto& v : voices_) {
-            if(v.tail_l != 0.f || v.tail_r != 0.f) {          // declick tail of a restarted voice
-                sum_l += v.tail_l; sum_r += v.tail_r;
-                v.tail_l *= 0.98f; v.tail_r *= 0.98f;
-                if(std::fabs(v.tail_l) + std::fabs(v.tail_r) < 1e-6f) v.tail_l = v.tail_r = 0.f;
-            }
-            if(v.amp.stage == Stage::Off || !v.sampled || !table_) continue;
+        // Declick tails of restarted voices (tails_: which voices have one; rarely any).
+        if(tails_) for(unsigned i = 0; i < voices_.size(); ++i) if((tails_ >> i) & 1u) {
+            Voice& v = voices_[i];
+            sum_l += v.tail_l; sum_r += v.tail_r;
+            v.tail_l *= 0.98f; v.tail_r *= 0.98f;
+            if(std::fabs(v.tail_l) + std::fabs(v.tail_r) < 1e-6f) { v.tail_l = v.tail_r = 0.f; tails_ &= ~(1u << i); }
+        }
+        if(table_) for(auto& v : voices_) {             // no table: every voice is silent
+            if(v.amp.stage == Stage::Off || !v.sampled) continue;
             Step(v.amp, *v.shape);
             if(!v.gate && (v.amp.stage == Stage::Decay || v.amp.stage == Stage::Sustain)) Release(v); // TAPE trigger mode
             if(v.amp.stage == Stage::Off) { v.last_l = v.last_r = 0.f; continue; }
-            if(v.increment != v.target) {
-                v.increment += glide_slew_ * (v.target - v.increment);
-                if(std::fabs(v.target - v.increment) < 1e-9f) v.increment = v.target;
-            }
+            if(v.increment != v.target) Portamento(v.increment, v.target);
             const float step = std::min(v.increment * rate * bend_[v.source], 8.f);
             float l, r;
             if(!SampleFrame(v, step, l, r)) { v.amp = Envelope{}; v.last_l = v.last_r = 0.f; continue; }
@@ -618,7 +699,7 @@ private:
     float osc2_level_ = 0, osc2_ratio_ = 1, noise_ = 0, mix_scale_ = 1;
     float damping_ = 1.41421356f, resonance_gain_ = 1, filter_octaves_ = 0, cutoff_ = 0.5f, cutoff_target_ = 0.5f;
     float lfo_phase_ = 0, lfo_value_ = 0, lfo_increment_ = 0, lfo_cents_ = 0, lfo_octaves_ = 0, lfo_amp_ = 0, held_ = 0;
-    float glide_slew_ = 1, last_target_ = 0;
+    float glide_slew_ = 1, glide_snap_ = 1e-6f, last_target_ = 0;
     // v4 sampler
     const SampleTable* table_ = nullptr;
     bool files_available_ = true, sampler_ = false, kit_ = false, sample_gate_ = true, sample_loop_ = false, sample_reverse_ = false;
@@ -650,7 +731,7 @@ private:
     bool speed_reverse_ = false;
     float speed_ = 1.f, speed_target_ = 1.f, out_gain_ = 1.f, gain_target_ = 1.f;
     float pan_l_ = 1.f, pan_r_ = 1.f, pan_l_target_ = 1.f, pan_r_target_ = 1.f;
-    uint32_t window_epoch_ = 0;
+    uint32_t window_epoch_ = 0, tails_ = 0;
     uint32_t noise_state_ = 0x12345678u, age_ = 0, tick_ = 0;
 };
 } // namespace forge

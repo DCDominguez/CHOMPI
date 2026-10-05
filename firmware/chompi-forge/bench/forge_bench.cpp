@@ -34,13 +34,16 @@ float out_l[24], out_r[24];
 // Returns 0 on success. notes: how many voices to start (chord from MIDI 48);
 // + 256: the looper overdubs a 1 s loop at 1.37x while they play.
 // + 512: every TAPE effect on (DJ filter low-pass, saturation, warble, compressor).
-// + 2048: TAPE pitch (SW4) at .75: every voice below 1x reads with the cubic.
+// + 2048: TAPE pitch (SW4) at .75: every voice below 1x reads with the cubic (the pitch
+// settled before the notes start; with + 4096 instead it is still sliding there, as while
+// SW4 turns).
 // + 1024: kit mode, every played pad with its own saved settings (0.12: own pitch below 1x,
 // off-centre pan and gain, so each voice takes the panned path).
 float warble_mem[2 * forge::tape::Warble::kLength];
 forge::SlotSettings slot_settings;
 int bench_init(int notes) {
-    const bool with_looper = notes & 256, with_effects = notes & 512, with_pads = notes & 1024, slow = notes & 2048; notes &= 255;
+    const bool with_looper = notes & 256, with_effects = notes & 512, with_pads = notes & 1024, slow = notes & 2048,
+               moving = notes & 4096; notes &= 255;
     engine = new(engine_storage) forge::Engine();
     if(!engine->Init(48000.f, delay_l, delay_r, kDelay, reverb_mem, 8704)) return 1;
     forge::Request r;
@@ -60,7 +63,8 @@ int bench_init(int notes) {
         engine->SetSlotSettings(&slot_settings);
     }
     if(!engine->ApplyPatch(r.patch, forge::SlotPolicy::Recall)) return 3;
-    if(slow && !engine->Apply({forge::Parameter::Speed, .75f})) return 6;
+    if((slow || moving) && !engine->Apply({forge::Parameter::Speed, .75f})) return 6;
+    if(slow) for(int i = 0; i < 9600; ++i) { float l, r; engine->Process(0.f, 0.f, l, r); }   // TAPE's pitch slide settles
     if(with_effects) {
         engine->SetWarbleMemory(warble_mem);
         for(const forge::Command c : {forge::Command{forge::Parameter::DjFilter, .25f}, forge::Command{forge::Parameter::DjResonance, .5f},

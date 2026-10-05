@@ -44,8 +44,13 @@ installed. One consolidated hardware session covers them all (TEST_SESSION).
   STORAGE_STREAMING figures.
 - Not verified: everything on hardware, including the harmony page lights, chord
   sound and MIDI out (3.65–3.67), and CPU peaks of the `-Os` control paths (6.2).
-- Next: item 2, CPU fix A (a table-based cubic sample read so every voice below 1×
-  is under the WAVE gate), then items 3 and 4.
+- Item 2, CPU fix A (after `2180da2`): table cubic read with the M7's dual multiply-
+  accumulate, plus a glide fix (glides stalled short of the target and never ended),
+  declick tails in a bit mask, fewer per-voice checks. Emulator: pitch .75 2,669.2,
+  kit below 1× 2,564.2, 1× worst 2,603.5 vs WAVE 2,694.9 (pitched-down rows now
+  gated). Checks: make test 14 native + 121 Python, sanitize 13, browser 11 + 7 PASS;
+  release 221,712 / development 234,376 B layout OK. Not verified on hardware (6.2f).
+- Next: item 3, clock + arp + bass (harmony Phase 2), then item 4.
 
 ## Checkpoint: firmware 0.12 per-slot sample settings (2026-10-05)
 

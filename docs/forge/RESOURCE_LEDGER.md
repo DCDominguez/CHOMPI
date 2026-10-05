@@ -186,3 +186,15 @@ docs, recheck `forge/foundation`; never overwrite a concurrent implementation.
 | QA | 14 native + 121 Python PASS; 13 ASan/UBSan PASS (`detect_leaks=0`); browser 11 + 7 PASS. No hardware |
 | Value | Harmony menu page (keys = tonic), Inspector chord page, patch v6 (presets, webapp, AI) for ~2 KB |
 | Decision | Hardware evidence still needed: TEST_SESSION 3.65–3.67 and the 6.2 CPU peaks with the `-Os` control paths |
+
+## Snapshot 2026-10-05: CPU fix A (0.13, not installed)
+
+| Field | Record |
+| --- | --- |
+| Identity | Commit after `2180da2` (parent, previous measured); firmware 0.13 (unchanged wire format) |
+| Build | xPack GCC 10.3.1, unchanged flags. Release 221,712 B, development 234,376 B; layout OK both |
+| Memory | +4,608 B both builds (`forge::kCubic` 4,104 B table + code). SRAM_EXEC headroom 67,056 / 54,392 B. No RAM or SDRAM change |
+| CPU | Emulator vs WAVE 2,694.9: pitch .75 2,669.2 (was 2,800.8), kit below 1× 2,564.2 (2,755.8), 1× worst 2,603.5 (2,677.9), sliding pitch 2,690.5 (informational). Causes found by per-address profiling: float Hermite 59 instructions per stereo read → table + SMUAD/SMLAD ~30; glides that never ended (11 per voice per sample); tail tests (8 per voice); `table_` and `complete` checks. Pitched-down scenarios are now gated |
+| QA | 14 native (new: cubic table vs Hermite, glide end) + 121 Python PASS; 13 ASan/UBSan PASS; browser 11 + 7 PASS |
+| Value | Every pitched-down voice within the WAVE budget; glide pitch now exact |
+| Decision | Hardware 6.2f (and 6.2 peaks) still decide; unaligned 32-bit reads rely on SDRAM being normal memory (libDaisy MPU region 1) and the default no-trap setting |
