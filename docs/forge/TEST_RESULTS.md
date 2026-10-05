@@ -27,6 +27,18 @@
   refused, so those pages do nothing there. Candidates: encoder acceleration,
   v1/v2 page fallbacks. Requested for later: **long-press a knob to reset** its
   control to the patch's value.
+- **All knobs, simulation sweep (2026-10-05, for later):** every knob and page on
+  the 12 starter presets, 20 clicks each way. Every knob moves 1/127 of its range
+  per click, so the "small steps" issue is the same for all of them (and SW5/SW6).
+  Pages that change nothing, by patch version:
+  - v1 (Dry, Slap, Long echoes; effects only, no synth): SW4 p2–p4, SW1 p2–p4,
+    SW2 p2–p4, SW3 p4.
+  - v2 (Glass Keys, Soft Pad, Saw Bass): SW4 p3–p4 (resonance, filter envelope),
+    SW2 p2–p4 (LFO, detune), SW3 p4 (reverb).
+  - v3, v4, v5 (Warm Pad, Acid Bass, Bell Keys, Recorded Keys, TAPE Kit A, Knob
+    Pad): none dead.
+  Options for later: upgrade the starter presets to v3+ (same sound, all pages
+  live), or on v1/v2 patches skip dead pages; plus encoder acceleration.
 - Requested (to build after DC's findings, one install): 1–2 s record count-in
   with blinking lights after pressing CHOMPI.
 
