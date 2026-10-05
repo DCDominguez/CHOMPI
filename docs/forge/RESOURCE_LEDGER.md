@@ -104,7 +104,16 @@ unknown, particularly with seven sampler voices and background SD/MIDI traffic.
 
 ## First optimization decisions to investigate
 
-1. **Initialized queues before new memory hardware.** Release `requests` and
+1. **Done 2026-10-05 (0.13 in progress, DC: "implement our memory savings plan"):**
+   `SpscQueue` now keeps raw zeroed storage copied with `memcpy` (entries must be
+   trivially copyable, checked at compile time), so every queue is in `.bss`.
+   Measured: release 267,876 → **240,948 B (−26,928)**, development 283,856 →
+   **255,632 B (−28,224)**; `.data` 33,248 → 6,304 B (release); D1 static use
+   unchanged (130,724 B: the bytes moved from `.data` to `.bss`); bench unchanged
+   (worst 2,677.9). Remaining `.data`: engine 3,372 B, inspector snapshot/log ~2.5 KB
+   (development), sample loader/table/panel ~1.4 KB — candidates for placement
+   construction later. Original note:
+   **Initialized queues before new memory hardware.** Release `requests` and
    `responses` occupy 11,272 + 14,088 = **25,360 B** in `.data`, charged to both
    the image and D1 RAM. Their entries contain default-initialized full patches.
    Investigate zero-backed/pre-audio initialization or compact event payloads;

@@ -33,7 +33,10 @@ chord, `Silence`/panic clear ownership; firmware and probe own a zero-initialise
 player. Tests: `harmony_test` (identity, layouts, Shift, voicing, 200k ownership events,
 engine/panel/MIDI) + full suite, sanitizers (13), bench unchanged, browser PASS.
 Size: release 267,876 B (+6,652 over 0.12's 261,224), development 283,856 B
-(headroom 4,912 B: tight). Next: menu harmony page, Inspector page, patch v6.
+(headroom 4,912 B: tight). Then the RESOURCE_LEDGER savings plan item 1 (DC): queues
+in `.bss` → release 240,948 B, development 255,632 B (headroom 47,820 / 33,136 B);
+all tests, sanitizers (13), bench (unchanged) and browser PASS. Next: menu harmony
+page, Inspector page, patch v6.
 
 ## Current checkpoint: firmware 0.12 per-slot sample settings (2026-10-05)
 
