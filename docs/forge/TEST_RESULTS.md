@@ -1,13 +1,20 @@
 # Forge test results
 
-## 2026-10-05 — line in wired, 0.7 on CHOMPI, 0.8 bridge (DC, verbal)
+## 2026-10-05 — line in wired, 0.7 on CHOMPI, 0.8 bridge
 
-DC rewired: CHOMPI main out → interface inputs, interface output → CHOMPI line in.
-Automatic checks: **all pass except 1.3** (the 0.8 bridge expects firmware 0.8;
-CHOMPI still ran 0.7). So the line-in steps (2.1, 2.2, 2.4, 3.34, 3.42) and the
-kit sample (3.29) passed on hardware for the first time. Reports not received
-(verbal result). Next: install 0.8 over USB (first real USB install), re-run 1.3,
-TEST_SESSION section 8 (power).
+DC rewired: CHOMPI main out → interface inputs 1/2, interface output → CHOMPI
+line in. Report `20261005-113009`: **26 pass, 1 fail, 0 skipped**; the failure is
+1.3 (the 0.8 bridge expects firmware 0.8; CHOMPI still ran 0.7).
+- First hardware passes of the line-in steps: 2.1 dry tone 1,000 Hz both channels
+  (−24.9/−27.0 dB), 2.2 slap echo, 2.4 bypass, 3.34 recording 440 Hz played back
+  at 440.01 Hz, 3.42 line-in loop repeats without a click; 3.29 kit sample plays.
+- **CPU per step:** 6.2b synth worst case 37.5 %; **6.2c seven sampler voices on a
+  real recording 54.6 %** (the first valid sampler figure; under the 70 % comfort
+  target); no drops anywhere.
+- Floor −70.4 dB RMS; panic leaves −82 dB; no clipping; no clicks except two in
+  the 3.34 recording capture (the take's edges; the check passed).
+- Not run: 6.2d (sampler + looper), so the looper voice cap stays at 6.
+Next: install 0.8 over USB (first real USB install), re-run 1.3, TEST_SESSION 8.
 
 ## 2026-10-04 evening — first 0.7 session (DC), development firmware (`b36ba99`)
 

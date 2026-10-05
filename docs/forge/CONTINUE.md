@@ -745,8 +745,9 @@ webapp + bench optimisation, then docs.
 
 ## Next actions (priority order)
 
-0. DC: update to 0.8 over USB (Card & firmware → Install), then TEST_SESSION
-   section 8 (power) along with the open items (3.29 kit sample, line in).
+0. DC: update to 0.8 over USB (Card & firmware → Install), re-run 1.3, then
+   TEST_SESSION section 8 (power). All other automatic checks pass on hardware
+   (report 20261005-113009; 7 sampler voices 54.6 % CPU).
 1. DC, at home: [HOME_CHECKLIST.md](HOME_CHECKLIST.md): one last card flash of
    0.7 (only FORGE.bin may contain ".bin" in the card root), rig fixes, Check
    setup, panel walk, automatic checks, one USB install and one sample upload;
