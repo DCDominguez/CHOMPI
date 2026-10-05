@@ -56,6 +56,12 @@ here is hardware-verified; causes are not established.
   and the schematic brings no BOOT/RESET out: STM32 ROM DFU through CHOMPI's USB-C
   is therefore not expected to work (earlier advice corrected). Test points: TP15
   BATT_P (battery voltage), TP14 VSYS_BMC.
+- Bootloader detail (v6.4-beta source, `boot_hardware.h` LowBatteryLockoutCheck): the
+  wait `while(batt_low && (legacy_cable || iindpm_stat)) {}` never re-reads the
+  charger, so once entered it lasts until power is cycled, however long it charges.
+  DC's power bank showed 2.5 W (0.5 A default USB) on USB-A, 9.4 W on USB-C. Told DC
+  to switch off and on with USB-C attached. (Assumes units' v6.2 does the same;
+  only its binary is in the repo.)
 
 ## Checkpoint: firmware 0.10 TAPE parity, ready for DC's install (2026-10-05)
 
