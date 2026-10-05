@@ -42,6 +42,11 @@ here is hardware-verified; causes are not established.
   one `.bin` on the card root, either Forge 0.9 (dev build of `1e0e35a`, xPack
   10.3.1, 253,696 B, sha256 8a9b4785…ac9100) or `card-profiles/tape-2.0`. Waiting
   for DC's light description and `FORGE/RESTARTS.TXT`.
+- DC, later: the bridge lost CHOMPI during the install (expected: the install
+  restarts it); with the switch on there are no lights at all at power-on, red
+  charge light only. The bootloader's battery check runs before its first light and
+  before it reads the card, so no light at all means no firmware (0.9 or 0.10) has
+  run yet. That supports the battery hypothesis; DC is charging from a wall charger.
 
 ## Checkpoint: firmware 0.10 TAPE parity, ready for DC's install (2026-10-05)
 
