@@ -65,8 +65,10 @@ here is hardware-verified; causes are not established.
 - Outcome (DC, photos): after switching off and on with USB-C (9.4 W), the bootloader
   ran (gradient lights across the keys) and CHOMPI started; the knob lights then
   match 0.10's sampler-page colours (SW4 green, SW1 yellow, SW2 red, SW3 teal).
-  Cause: the bootloader's low-battery wait (flat battery + 0.5 A USB-A supply), not
-  0.10. Still unconfirmed: firmware version and Last start via the bridge (Check
+  Correction: DC then said they loaded TAPE, so those lights may be TAPE's own
+  (0.10 copies TAPE's colours); whether 0.10 ever ran on hardware is unknown. DC is
+  on stock TAPE 2.0 for now. Cause of the dark unit: the bootloader's low-battery
+  wait (flat battery + 0.5 A USB-A supply), not established to be 0.10. Still unconfirmed: firmware version and Last start via the bridge (Check
   setup). For hardware sessions: power CHOMPI from USB-C to USB-C. Pending, low
   priority: 0.10.1 hardening (clean D-cache after the vector-table copy or place it
   in DTCM; 32-byte-align the options.json buffer; stop restarting after repeated
