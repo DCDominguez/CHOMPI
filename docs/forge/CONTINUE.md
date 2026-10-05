@@ -47,6 +47,15 @@ here is hardware-verified; causes are not established.
   charge light only. The bootloader's battery check runs before its first light and
   before it reads the card, so no light at all means no firmware (0.9 or 0.10) has
   run yet. That supports the battery hypothesis; DC is charging from a wall charger.
+- Hardware (Rev4 schematic sheets 1-2, BOM): both red LEDs (LED_STAT1 charge,
+  LED_PG1 input power good) are driven by the MP2722 charger itself, so they say
+  nothing about the Daisy. Power: USB-C -> SW7 (battery bypass) -> MP2722 SYS ->
+  S1 main switch -> VSYS -> LMR62421 boost (VBOOST ~9.6 V) -> Daisy Seed2 DFM VIN; the
+  35 RGB LEDs only light when the Daisy sends data. USB data passes a USB3740 switch
+  whose select (USB_SW, PC3) is pulled low = charger side until firmware drives it,
+  and the schematic brings no BOOT/RESET out: STM32 ROM DFU through CHOMPI's USB-C
+  is therefore not expected to work (earlier advice corrected). Test points: TP15
+  BATT_P (battery voltage), TP14 VSYS_BMC.
 
 ## Checkpoint: firmware 0.10 TAPE parity, ready for DC's install (2026-10-05)
 
