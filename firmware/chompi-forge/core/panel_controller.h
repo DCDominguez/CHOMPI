@@ -141,6 +141,7 @@ public:
             if(volume_held_ < kBatteryHoldFrames) volume_held_ += hardware.frames;
         } else volume_held_ = 0;
         battery_view_.store(volume_held_ >= kBatteryHoldFrames, std::memory_order_relaxed);
+        keys_down_.store(static_cast<uint32_t>(keys), std::memory_order_relaxed);   // all 25 note keys are switches 0-31
         for(unsigned key = 0; key < panel::kButtons; ++key) if(panel::kKeyNotes[key]) {
             if(((rising >> key) & 1u) && !menu_.Key(static_cast<uint8_t>(key), true)) engine.Note(panel::kKeyNotes[key], 100, 2);
             if((falling >> key) & 1u) { menu_.Key(static_cast<uint8_t>(key), false); engine.Note(panel::kKeyNotes[key], 0, 2); }
@@ -210,6 +211,9 @@ public:
     RecordSource Source() const { return source_; }
     // Main loop (LED drawing): SW6 has been held long enough to show the battery.
     bool BatteryView() const { return battery_view_.load(std::memory_order_relaxed); }
+    // Main loop (LED drawing): note keys held this block (physical and injected); switches 0-31
+    // (32 bits: the Cortex-M7 has no lock-free 64-bit atomics).
+    uint32_t KeysDown() const { return keys_down_.load(std::memory_order_relaxed); }
     const PresetMenu& Menu() const { return menu_; }
 #ifdef FORGE_TEST_HOOKS
     void Inspect(InspectorAudio& a) const {
@@ -223,6 +227,7 @@ private:
     static constexpr uint32_t kBatteryHoldFrames = 48 * power::kBatteryHoldMs;   // 48 kHz
     uint32_t volume_held_ = 0;
     std::atomic<bool> battery_view_{false};
+    std::atomic<uint32_t> keys_down_{0};
 #ifdef FORGE_TEST_HOOKS
     uint64_t physical_keys_=0, logical_keys_=0;
     uint32_t raw_turns_[6]{}, turns_[6]{};
@@ -294,7 +299,32 @@ struct LedView {
     bool saving = false;                          // a sample save/copy is running
     uint32_t looper = 0;                          // PackLooper()
     uint8_t install = 0;                          // 1 waiting for the CHOMPI press, 2 restarting
+    uint64_t keys_down = 0;                       // panel keys held (PanelController::KeysDown)
+    uint16_t kit_occupancy = 0;                   // sample files of the live kit bank
 };
+// Menu closed (TAPE NormalPage): a key lights white while held. With a sampler patch,
+// kit mode shows the bank's occupied slots dim in the bank colour (the recording key
+// dim pink); chromatic mode marks C3, C4 and C5 dim (pink when playing the recording).
+inline void RenderPlayLeds(uint64_t keys_down, uint32_t live, uint16_t kit_occupancy, bool recording, Rgb (&leds)[25]) {
+    for(auto& led : leds) led = Rgb{};
+    auto dim = [](Rgb c) { return Rgb{c.r * .25f, c.g * .25f, c.b * .25f}; };
+    const Rgb pink{1, .2f, .6f};
+    if(live & 1u) {
+        const bool kit = (live >> 1) & 1u;
+        const uint8_t bank = (live >> 2) & 7u, slot = (live >> 5) & 15u;
+        const Rgb colour = !kit && slot == kRamSlot ? pink : SampleBankColour(bank);
+        if(kit) {
+            for(uint8_t s = 0; s < kRamSlot; ++s) if((kit_occupancy >> s) & 1u) leds[panel::SlotLed(s)] = dim(colour);
+            if(recording) leds[panel::SlotLed(kRamSlot)] = dim(pink);
+        } else for(uint8_t s : {uint8_t(0), uint8_t(7), uint8_t(14)}) leds[panel::SlotLed(s)] = dim(colour);
+    }
+    for(uint8_t key = 0; key < panel::kButtons; ++key) {
+        if(!panel::kKeyNotes[key] || !((keys_down >> key) & 1u)) continue;
+        const uint8_t slot = panel::KeyToSlot(key);
+        const uint8_t led = slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key);
+        if(led < 25) leds[led] = Rgb{1, 1, 1};
+    }
+}
 // Looper state for the LEDs (audio -> main loop in one word): bits 0-2 state,
 // 3 overdub, 4 effects before the loop, 5 has a loop, 6-15 position x 1023.
 inline uint32_t PackLooper(const Looper& l, bool fx_before) {
@@ -327,7 +357,9 @@ inline void ComposeKnobLeds(uint8_t pages, Rgb (&knobs)[4]) {
     for(unsigned k = 0; k < 4; ++k) knobs[k] = colours[(pages >> (2 * k)) & 3u];
 }
 inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chompi) {
-    if((v.menu >> 21) & 1u)
+    if(!(v.menu & 1u))
+        RenderPlayLeds(v.keys_down, v.live, v.kit_occupancy, v.recording_present, keys);
+    else if((v.menu >> 21) & 1u)
         RenderSampleLeds(v.menu, v.sample_occupancy, v.sample_card, v.recording_present, v.live, v.blink, keys);
     else
         RenderMenuLeds(v.menu, v.preset_occupancy, v.preset_card, v.last_bank, v.last_slot, v.blink, keys);

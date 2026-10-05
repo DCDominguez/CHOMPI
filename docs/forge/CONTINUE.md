@@ -23,7 +23,18 @@ SD streaming remains gated on physical SD measurements. Older checkpoint and
 PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
 use the latest implementation checkpoint and ledger for present capabilities/budgets.
 
-## Current checkpoint: firmware 0.8, power as stock, 2026-10-05
+## Current checkpoint: firmware 0.9, key lights while playing, 2026-10-05
+
+DC reported no lights on key presses. Added TAPE's NormalPage key lights with
+the menu closed (`RenderPlayLeds` in core/panel_controller.h): held keys white,
+sampler kit slots dim in the bank colour (recording slot pink), chromatic C3/C4/C5
+markers. Held keys reach the main loop as a 32-bit atomic (`KeysDown()`; note keys
+are switches 0–31; a 64-bit atomic does not link on the M7). Checks: `make test`
+(11 native + 112 Python), `make sanitize`, `make browser-test`, ARM release
+238,092 B / development 253,696 B, layout OK. Not on hardware. Storage-streaming
+figures unaffected (no SDRAM, sampler path or loader change; code +1 KB).
+
+## Previous checkpoint: firmware 0.8, power as stock, 2026-10-05
 
 DC's battery ran flat on 0.7 and DC asked for power/charging "and any other thing
 we missed". Review: COMPATIBILITY §7 (stock TAPE/WAVE/TEMPO main loops and

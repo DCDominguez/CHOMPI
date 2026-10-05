@@ -266,6 +266,12 @@ power is the usual way out of it (DC to confirm on hardware).
 | Deletes `.batt_log.txt` at boot | yes | yes | yes | no | no (Forge never writes it) |
 | Zeroes all SDRAM at boot | yes | yes | — | no | no (Forge never reads SDRAM it has not written) |
 
+Key lights while playing (TAPE `NormalPage`, menu closed; Forge 0.9): a held key
+white; sampler kit mode occupied slots dim in the bank colour (TAPE's five bank
+colours), the recording slot dim pink; chromatic mode C3/C4/C5 dim markers. Forge
+0.1–0.8 left the keys dark outside the menu. WAVE and TEMPO light keys
+differently (their own pages); Forge follows TAPE.
+
 Still unverified on hardware: leaving shipping mode (plugging USB in is the usual
 exit for this charger family), charge time with S1 off, and the stock warning and
 shutdown in Forge.

@@ -5,7 +5,7 @@
 
 namespace forge {
 constexpr uint8_t kProtocolVersion = 1, kPatchVersion = 1;
-constexpr uint8_t kFirmwareMinor = 8; // 0.8: power as stock (off gesture, SW6 battery, charger hand-over); 0.7: USB file transfer (opcode 0C)
+constexpr uint8_t kFirmwareMinor = 9; // 0.9: key lights while playing (TAPE); 0.8: power as stock (off gesture, SW6 battery, charger hand-over); 0.7: USB file transfer (opcode 0C)
 // 7-9 are device-preset (SD) errors: empty slot, no/failed card, storage busy.
 enum class Error : uint8_t { None, Length, Version, Checksum, Patch, Opcode, Busy, Empty, Storage, StorageBusy };
 // Device presets: 8 banks x 15 slots on the SD card (see preset_store.h).

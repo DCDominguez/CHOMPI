@@ -240,6 +240,7 @@ int main(int argc, char** argv) {
                 v.sample_occupancy = loader.Occupancy((menu >> 22) & 1u, (menu >> 4) & 7u); v.sample_card = samples.Ready();
                 v.recording_present = table.slots[forge::kRamSlot].loaded.load() > 0; v.recording_now = recorder.Recording();
                 v.live = forge::PackSelection(engine.GetParameters()); v.blink = true;
+                v.keys_down = panel.KeysDown(); v.kit_occupancy = loader.Occupancy(1, (v.live >> 2) & 7u);
                 forge::Rgb keys[25], chompi; forge::ComposeLeds(v, keys, chompi);
                 uint8_t leds[26][3];
                 for(unsigned i = 0; i < 26; ++i) {

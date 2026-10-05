@@ -443,6 +443,8 @@ void DrawLeds() {
     view.recording_present = sample_table.slots[forge::kRamSlot].loaded.load(std::memory_order_acquire) > 0;
     view.recording_now = recording_now.load(std::memory_order_relaxed);
     view.live = sample_wanted.load(std::memory_order_relaxed);
+    view.keys_down = panel_controller.KeysDown();
+    view.kit_occupancy = sample_loader.Occupancy(1, (view.live >> 2) & 7u);
     view.blink = (now / 250) % 2 == 0; view.slow_blink = (now / 300) % 2 != 0;
     view.flash = now < flash_until ? (flash_ok ? 1 : 0) : -1;
     view.saving = sample_loader.Busy() && !sample_loader.Loading();

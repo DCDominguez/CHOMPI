@@ -120,6 +120,31 @@ void LedComposition() {
     v.slow_blink = false; ComposeLeds(v, keys, chompi); assert(chompi.r == 0.f && chompi.b == 0.f);
     PresetMenu menu; menu.Update(true, true); v.menu = menu.Packed(); v.preset_card = true; v.preset_occupancy = 1;
     ComposeLeds(v, keys, chompi); assert(keys[panel::SlotLed(0)].r > 0.f);                       // presets page drawn
+    // Menu closed (TAPE NormalPage): held keys light white; nothing else without a sampler patch.
+    LedView play; play.keys_down = (uint64_t(1) << 18) | (uint64_t(1) << 7);   // KEY_8 (C4, slot 7), KEY_16 (black)
+    ComposeLeds(play, keys, chompi);
+    for(unsigned i = 0; i < 25; ++i) {
+        const bool lit = i == panel::SlotLed(7) || i == panel::BlackLed(7);
+        assert(lit ? (keys[i].r == 1.f && keys[i].g == 1.f && keys[i].b == 1.f) : (keys[i].r == 0.f && keys[i].g == 0.f && keys[i].b == 0.f));
+    }
+    play.keys_down = uint64_t(1) << panel::kChompiKey;                 // CHOMPI, toggle, knobs: no key light
+    ComposeLeds(play, keys, chompi); for(const Rgb& k : keys) assert(k.r == 0.f && k.g == 0.f && k.b == 0.f);
+    // Kit bank b: its occupied slots dim in bank b's colour, the recording key dim pink; a held key is white.
+    play.live = 1u | (1u << 1) | (1u << 2); play.kit_occupancy = 0b101; play.recording_present = true;
+    play.keys_down = uint64_t(1) << 8;                                 // KEY_2 = slot 1 (empty)
+    ComposeLeds(play, keys, chompi);
+    const Rgb b = SampleBankColour(1);
+    assert(std::fabs(keys[panel::SlotLed(0)].r - b.r * .25f) < 1e-6f && std::fabs(keys[panel::SlotLed(2)].g - b.g * .25f) < 1e-6f);
+    assert(keys[panel::SlotLed(1)].r == 1.f && keys[panel::SlotLed(3)].r == 0.f);
+    assert(keys[panel::SlotLed(kRamSlot)].r > 0.f && keys[panel::SlotLed(kRamSlot)].b > keys[panel::SlotLed(kRamSlot)].g);
+    // Chromatic bank a: C3, C4, C5 marked; playing the recording marks them pink.
+    play.live = 1u; play.keys_down = 0; ComposeLeds(play, keys, chompi);
+    for(uint8_t s = 0; s < 15; ++s) assert((keys[panel::SlotLed(s)].r > 0.f) == (s == 0 || s == 7 || s == 14));
+    play.live = 1u | (uint32_t(kRamSlot) << 5); ComposeLeds(play, keys, chompi);
+    assert(keys[panel::SlotLed(7)].b > keys[panel::SlotLed(7)].g);
+    // The controller publishes what is held.
+    Rig rig; rig.hw.keys = uint64_t(1) << 18; rig.Block(); assert(rig.panel.KeysDown() == uint32_t(1) << 18);
+    rig.hw.keys = 0; rig.Block(); assert(rig.panel.KeysDown() == 0);
 }
 
 void DevelopmentOpcodes() {

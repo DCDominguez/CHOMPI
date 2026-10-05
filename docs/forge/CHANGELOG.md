@@ -1,5 +1,17 @@
 # Forge changelog
 
+## 0.9 Key lights while playing — 2026-10-05
+
+Software-tested only. DC: "we dont have indicator lights on key presses". As
+TAPE's NormalPage, with the menu closed:
+- A held note key lights white.
+- Sampler kit mode: the keys that hold a sample glow dim in the bank's colour
+  (TAPE's bank colours); the recording key (white key 15) glows dim pink when a
+  recording exists.
+- Sampler chromatic mode: C3, C4 and C5 (white keys 1, 8, 15) glow dim in the
+  bank's colour, pink while playing the recording.
+- Firmware minor 9. Release 238,092 B (+1,024), development 253,696 B.
+
 ## 0.8 Power as stock — 2026-10-05
 
 Software-tested only. After DC's battery ran flat on 0.7, a review against

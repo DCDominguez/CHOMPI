@@ -89,7 +89,10 @@ Rename `CHOMPI_TAPEv2_0_bin.old` back to `CHOMPI_TAPEv2_0.bin`, rename or remove
 | PLAY (KEY_27), LOOP (KEY_28) | Looper (section 8) | Overdub feedback − / + |
 | Line in jack | Plugging in selects line in for recording; unplugging selects the mic | — |
 
-Lights: the four knob lights show each knob's page; PLAY/LOOP show the looper;
+Lights: a held key lights white. In a sampler patch the keys also glow dim in
+the bank's colour: in kit mode the keys that hold a sample (the recording key
+pink when there is a recording), in chromatic mode C3, C4 and C5 as guides
+(pink while playing the recording). The four knob lights show each knob's page; PLAY/LOOP show the looper;
 the CHOMPI light shows recording (red), saving (pink blink), install (white blink)
 and results (green/red flash).
 

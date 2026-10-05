@@ -90,7 +90,7 @@ def main():
     if args.windows_runtime:
         runtime = windows_runtime(args.windows_runtime, files)
         files["Start Forge bridge.cmd"] = b'@echo off\r\ncall "%~dp0host\\start_bridge.cmd"\r\n'
-    manifest = {"candidate": "Forge Bridge 0.8 development" if args.development else "Forge 0.8", "hardware_verified": False,
+    manifest = {"candidate": "Forge Bridge 0.9 development" if args.development else "Forge 0.9", "hardware_verified": False,
                 "development_hooks": args.development,
                 "simulation_platform": sys.platform if args.include_probe else None,
                 "windows_runtime": runtime,
@@ -105,7 +105,7 @@ def main():
     files["manifest.json"] = (json.dumps(manifest, indent=2) + "\n").encode()
     with zipfile.ZipFile(args.output, "x", compression=zipfile.ZIP_DEFLATED) as archive:
         for name, data in sorted(files.items()):
-            prefix = "Forge-Bridge-dev" if args.development else "Forge-0.8-test"
+            prefix = "Forge-Bridge-dev" if args.development else "Forge-0.9-test"
             info = zipfile.ZipInfo(f"{prefix}-{commit[:7]}/" + name, date_time=(2026, 10, 3, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = (0o100755 if name.startswith("build/") else 0o100644) << 16

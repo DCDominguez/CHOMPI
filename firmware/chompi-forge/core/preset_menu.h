@@ -291,6 +291,11 @@ FORGE_NOINLINE inline void RenderMenuLeds(uint32_t packed, uint16_t occupancy, b
 }
 // Samples page LEDs. occupancy: file slots of the shown mode/bank; recording:
 // the RAM slot holds a take; live: PackSelection of the playing patch.
+// TAPE's sample bank colours (a-e): purple, orange, teal, dark orange, yellow-green.
+inline Rgb SampleBankColour(uint8_t bank) {
+    static const Rgb kBankColours[kSampleBanks] = {{.6f, .1f, 1}, {1, .45f, 0}, {0, .8f, .7f}, {.8f, .25f, 0}, {.6f, 1, 0}};
+    return kBankColours[bank < kSampleBanks ? bank : 0];
+}
 FORGE_NOINLINE inline void RenderSampleLeds(uint32_t packed, uint16_t occupancy, bool card_ready, bool recording, uint32_t live,
                              bool blink_on, Rgb (&leds)[25]) {
     for(auto& led : leds) led = Rgb{};
@@ -300,13 +305,11 @@ FORGE_NOINLINE inline void RenderSampleLeds(uint32_t packed, uint16_t occupancy,
     const uint8_t source = (packed >> 14) & 0xfu, source_bank = (packed >> 18) & 7u;
     const uint8_t sample_mode = (packed >> 22) & 1u, selected_mode = (packed >> 23) & 1u, source_mode = (packed >> 24) & 1u;
     const uint8_t record_source = (packed >> 25) & 3u;
-    // TAPE's bank colours: purple, orange, teal, dark orange, yellow-green.
-    static const Rgb kBankColours[kSampleBanks] = {{.6f, .1f, 1}, {1, .45f, 0}, {0, .8f, .7f}, {.8f, .25f, 0}, {.6f, 1, 0}};
     const Rgb red{1, 0, 0}, green{0, 1, 0}, blue{0, .4f, 1}, white{1, 1, 1}, dim{.25f, .2f, .12f}, pink{1, .2f, .6f};
     auto scaled = [](Rgb c, float k) { return Rgb{c.r * k, c.g * k, c.b * k}; };
     leds[panel::BlackLed(panel::kPage)] = Rgb{.8f, 0, .8f};
-    leds[panel::BlackLed(panel::kChromatic)] = scaled(kBankColours[bank], sample_mode == 0 ? 1.f : .15f);
-    leds[panel::BlackLed(panel::kKit)] = scaled(kBankColours[bank], sample_mode == 1 ? 1.f : .15f);
+    leds[panel::BlackLed(panel::kChromatic)] = scaled(SampleBankColour(bank), sample_mode == 0 ? 1.f : .15f);
+    leds[panel::BlackLed(panel::kKit)] = scaled(SampleBankColour(bank), sample_mode == 1 ? 1.f : .15f);
     const uint8_t source_keys[3] = {panel::kMic, panel::kLine, panel::kResample};
     for(uint8_t s = 0; s < 3; ++s) leds[panel::BlackLed(source_keys[s])] = scaled(pink, s == record_source ? 1.f : .15f);
     leds[panel::BlackLed(panel::kSave)] = scaled(blue, mode == MenuMode::Save ? 1.f : .25f);
