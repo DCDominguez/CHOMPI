@@ -1,5 +1,24 @@
 # Forge test results
 
+## 2026-10-05 — 0.9 on CHOMPI (DC, verbal): open issue, random shut-off
+
+- **Recording works** on hardware (toggle + hold CHOMPI, play back).
+- **Toggle labels are backwards in the docs and bridge:** on DC's unit the menu
+  position is toggle **down** and recording is **up**. Firmware behaviour equals
+  TAPE (`GetToggleState()` true = menu); only Forge's naming ("up = menu") was
+  wrong. Fix pending DC's findings (docs, panel map, walk prompts, check titles).
+- **OPEN: random shut-off while playing keys** (firmware 0.9). Not reproduced
+  yet; not understood. To capture next time: on battery or USB; did it restart
+  by itself (lights come back) or stay off until the switch; amber flashing
+  before it (the stock low-battery shutdown); SW6 battery colour just before and
+  after; patch (synth/sampler); how many keys held; looper running; how long
+  after power-on. Candidates to rule out: low-battery shutdown (the battery ran
+  flat once on 0.7; 0.9's key lights draw more LED current, so a weak battery
+  could dip lower), a brown-out reset, or a firmware fault (Forge does not yet
+  record the reset cause, so a crash and a power loss look the same).
+- Requested (to build after DC's findings, one install): 1–2 s record count-in
+  with blinking lights after pressing CHOMPI.
+
 ## 2026-10-05 — power on 0.8 (DC, verbal): TEST_SESSION 8
 
 - 8.1 pass: unplugged, Forge runs normally on the battery.

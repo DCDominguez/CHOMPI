@@ -34,6 +34,15 @@ are switches 0–31; a 64-bit atomic does not link on the M7). Checks: `make tes
 238,092 B / development 253,696 B, layout OK. Not on hardware. Storage-streaming
 figures unaffected (no SDRAM, sampler path or loader change; code +1 KB).
 
+**Hardware feedback on 0.9 (DC, 2026-10-05):** recording works. Open: random
+shut-off while playing keys (not reproduced; details to capture and candidates in
+TEST_RESULTS 2026-10-05); toggle labels backwards everywhere (menu = toggle
+DOWN, record = UP; firmware matches TAPE, naming only); requested record
+count-in (~1.5 s, CHOMPI + white keys blink red 3×, release cancels). DC asked
+to wait for the rest of the hardware findings before any firmware change, then
+one install. Idea for the shut-off: record the STM32 reset cause (RCC_RSR) and a
+fault marker in backup SRAM, show them in Check setup.
+
 ## Previous checkpoint: firmware 0.8, power as stock, 2026-10-05
 
 DC's battery ran flat on 0.7 and DC asked for power/charging "and any other thing
