@@ -39,6 +39,14 @@
     Pad): none dead.
   Options for later: upgrade the starter presets to v3+ (same sound, all pages
   live), or on v1/v2 patches skip dead pages; plus encoder acceleration.
+  **Tests to add with those fixes (DC: check the audio, not just the values):**
+  (1) a native test that renders each starter preset through the engine, turns
+  every knob/page a fixed number of clicks and fails unless the output changes by
+  a measurable amount (level, spectrum or echo energy) — runs in CI, catches dead
+  or inaudible pages; (2) an automatic hardware check per knob: hold a note,
+  capture, turn N clicks, capture, compare (same measures), so CHOMPI's real knob
+  path and audio are covered. Today's checks only confirm the parameter value
+  changed.
 - Requested (to build after DC's findings, one install): 1–2 s record count-in
   with blinking lights after pressing CHOMPI.
 
