@@ -1,5 +1,17 @@
 # Forge test results
 
+## 2026-10-05 — firmware 0.8 installed over USB: all automatic checks pass
+
+- **USB firmware install verified on hardware:** DC installed 0.8 with the bridge's
+  *Card & firmware → Install* (CHOMPI-key confirmation, restart, bootloader flash);
+  1.3 then reported firmware 0.8 (report `20261005-113455`). First card-free update.
+- Report `20261005-113455`: 25 pass, 2 fail (0.n, 4.1 noise floor: a loose cable,
+  DC fixed it); re-run of those two (`20261005-113653`): both pass. With
+  `20261005-113009` (everything else on the same rig), **every automatic check passes
+  on 0.8**. CPU per step on 0.8: synth 38.9 %, seven sampler voices 54.8 %, no drops.
+- Still open on hardware: TEST_SESSION 8 (battery, SW6 light, plug-in hand-over,
+  storage gesture), 6.2d (sampler + looper CPU), the QA-sheet listening checks.
+
 ## 2026-10-05 — line in wired, 0.7 on CHOMPI, 0.8 bridge
 
 DC rewired: CHOMPI main out → interface inputs 1/2, interface output → CHOMPI
