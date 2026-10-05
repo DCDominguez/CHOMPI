@@ -1,5 +1,23 @@
 # Forge test results
 
+## 2026-10-05 — DC's panel-map walk-through on 0.9 (verbal)
+
+- **Works:** SW5 filter cutoff (clearly audible on Acid Bass); SW6 volume; webapp
+  preset loading; saving to device presets (bank 1 slots 1, 2, 5); preset recall.
+- **SW6 press does nothing.** TAPE: a short press switches SW6 between output
+  volume and **input gain** (mic/line, light blue → red; 75 % at power-on); holding
+  2 s still shows the battery. Forge has no input gain control. To add (TAPE).
+- **SW5 while a loop exists:** DC wants SW5 to stay on filter cutoff and get loop
+  speed/scrub with a modifier (CHOMPI held or SW5 held were suggested; SW5 press
+  is panic now). Note: in TAPE SW5 is only the looper transport (speed/scrub, press
+  resets speed); TAPE's filter is a knob page. Decision pending.
+- **Direction from DC:** keep TAPE's workflow wherever possible (familiar to DC and
+  to CHOMPI owners).
+- Not tested yet: the AI patch author; device samples on the SD card (DC did not
+  find how; the manual needs a clearer how-to). Webapp text still says "toggle
+  down + hold CHOMPI" for recording and its footer says candidate 0.5 (stale).
+- Automated tests: add audio-based knob checks (planned below).
+
 ## 2026-10-05 — 0.9 on CHOMPI (DC, verbal): open issue, random shut-off
 
 - **Recording works** on hardware (toggle + hold CHOMPI, play back).
