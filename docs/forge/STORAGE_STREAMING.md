@@ -33,9 +33,10 @@ Branch head `753078b` (the brief named `b7d098b`; 23 commits later: knob pages,
 | Delay lines | `kDelayCapacity` 48,002 floats × 2 (not in the brief) | 384,016 |
 | **Free** | | **393,200 (0.37 MiB)** |
 
-Executable space (SRAM_EXEC 282 KiB = 288,768 B): release **261,072 B, headroom
-27,696 B**; development 277,028 B, headroom 11,740 B (firmware 0.12: per-slot
-settings, +6.3 KB after moving the cold paths out of line; 0.11 was 254,756 /
+Executable space (SRAM_EXEC 282 KiB = 288,768 B): release **261,224 B, headroom
+27,544 B**; development 277,268 B, headroom 11,500 B (firmware 0.12: per-slot
+settings, +6.3 KB after moving the cold paths out of line, then the safety extras
++152 B; 0.11 was 254,756 /
 269,808 B, 0.10 253,636 / 268,728 B, 0.9
 was 238,092 / 253,696 B, 0.7 235,980 / 251,684 B; the brief's 223,444 B / 63.8 KiB predates 0.6–0.7). D1 SRAM (`SRAM`, .data + .bss) 130,148 / 235,520 B used (0.12: + the 8 KB `presets.json` buffer and the 2.9 KB settings table; 0.11 118,236 B); DTCM .dtcmram_bss 35,480 B (reverb 34,816 + the 664-byte vector table copy from 0.11).
 

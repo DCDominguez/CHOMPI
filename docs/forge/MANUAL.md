@@ -79,8 +79,16 @@ Rename `CHOMPI_TAPEv2_0_bin.old` back to `CHOMPI_TAPEv2_0.bin`, rename or remove
 - **Storage mode** (as stock): hold **CHOMPI + PLAY + LOOP** while switching on.
   The battery is disconnected for long storage; plugging in USB should bring it
   back (expected from the charger chip; not yet tried on Forge).
-- On a weak USB port with a flat battery, CHOMPI may look dead while it charges.
-  Give it time, preferably on a wall charger.
+- On a weak USB port (a computer, or a USB-A cable) with a low battery, CHOMPI's
+  stock protection switches the lights off and stops it **at once**, without the
+  amber warning; after an install or a restart it stays dark until the power switch
+  is turned off and on (DC, 2026-10-05). Use a USB-C to USB-C charger (2 A or more):
+  plug it in, switch off, wait 5 s, switch on.
+- **Warning (0.12):** while the battery is yellow and CHOMPI is not on a strong
+  charger, the **SW6 light blinks yellow twice every 4 s**; when a reading drops
+  below the shut-off mark it **blinks fast** — charge now. Nothing blinks on a
+  USB-C charger (it is charging). *Check setup* reports the same, and firmware
+  installs are refused then (section 2).
 
 ---
 

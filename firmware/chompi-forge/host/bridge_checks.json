@@ -580,5 +580,17 @@
     "do": "Storage mode: switch CHOMPI off, unplug USB, then hold CHOMPI + PLAY + LOOP while switching it on (the stock gesture, same as TAPE); keep holding about 1 s",
     "expect": "All lights go out and stay out, even with the switch on: the battery is disconnected for storage. Plugging USB in brings CHOMPI back. (Normal on/off is the power switch; charging also works with it off)",
     "group": "8. Power and battery (firmware 0.8)"
+  },
+  {
+    "id": "8.5",
+    "do": "**Low-battery warning (0.12, only when the battery is yellow anyway):** unplug USB, or use the computer's USB port; watch SW6 for 10 s; then plug in a USB-C to USB-C charger",
+    "expect": "Unplugged / computer port: SW6 blinks yellow twice every 4 s (fast blinking means the shut-off is near: charge now); on the USB-C charger the blinking stops",
+    "group": "8. Power and battery (firmware 0.8)"
+  },
+  {
+    "id": "8.6",
+    "do": "**Power in Check setup (0.12):** on the computer's USB port, then on a USB-C charger, run Check setup each time",
+    "expect": "Computer port: the Power line mentions a weak USB supply (a warning if the battery is low, saying installs are refused); USB-C charger: no weak-supply note",
+    "group": "8. Power and battery (firmware 0.8)"
   }
 ]

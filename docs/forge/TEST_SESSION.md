@@ -268,6 +268,8 @@ The power switch is the normal on/off. Do not run the battery flat on purpose.
 | 8.2 | Hold the SW6 (volume) knob pressed for 2 s, then let go; also give it a short press | While held after 2 s its light shows the battery: white = charged (on the charger), green = good, yellow = low (below ~3.3 V). Dark again on release. A short press does nothing |
 | 8.3 | Plug the USB cable back in (wall charger first, then the PC), wait 5 s; in the bridge press Connect CHOMPI and Check setup | CHOMPI keeps playing; the bridge connects (USB may drop for a moment while the charger identifies the source); Check setup's Power line says on USB power and a charge state; SW6 held shows yellow/green while charging, white when charged |
 | 8.4 | Storage mode: switch CHOMPI off, unplug USB, then hold CHOMPI + PLAY + LOOP while switching it on (the stock gesture, same as TAPE); keep holding about 1 s | All lights go out and stay out, even with the switch on: the battery is disconnected for storage. Plugging USB in brings CHOMPI back. (Normal on/off is the power switch; charging also works with it off) |
+| 8.5 | **Low-battery warning (0.12, only when the battery is yellow anyway):** unplug USB, or use the computer's USB port; watch SW6 for 10 s; then plug in a USB-C to USB-C charger | Unplugged / computer port: SW6 blinks yellow twice every 4 s (fast blinking means the shut-off is near: charge now); on the USB-C charger the blinking stops |
+| 8.6 | **Power in Check setup (0.12):** on the computer's USB port, then on a USB-C charger, run Check setup each time | Computer port: the Power line mentions a weak USB supply (a warning if the battery is low, saying installs are refused); USB-C charger: no weak-supply note |
 
 ## Results — copy into docs/forge/TEST_RESULTS.md
 

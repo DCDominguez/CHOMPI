@@ -26,8 +26,12 @@ share TAPE's own `presets.json` with a backup. Nothing here is hardware-verified
   pitch down, or kit pads below 1×) costs 2,800.8 / 2,755.8, about 4 % over WAVE;
   true since 0.10's TAPE pitch. Added as informational scenarios and hardware step
   6.2f. DC (2026-10-05): keep the cubic read; accepted if 6.2f stays below 70 % on CHOMPI.
-- Release 261,072 B, development 277,028 B (layout OK). New TEST_SESSION 3.62–3.64,
-  6.2f.
+- **Safety extras (DC: "include the extras"):** SW6 blinks yellow twice every 4 s
+  while the battery is yellow off a strong charger, fast when a reading is below the
+  3.0 V shut-off mark (the stock protection gives no warning on a weak supply);
+  Inspector power flags 8 weak supply, 16 low reading, 32 install refused; Check
+  setup warns on them. TEST_SESSION 8.5, 8.6.
+- Release 261,224 B, development 277,268 B (layout OK). New TEST_SESSION 3.62–3.64, 6.2f, 8.5, 8.6.
 
 ## 0.11 Install safety — 2026-10-05 (software-tested; not installed yet)
 

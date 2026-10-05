@@ -83,10 +83,12 @@ def decode(data, sequence, expected_page=None):
         result["power"]=None; result["restart"]=None
         if len(data) >= 91:
             level,flags,charge=byte(),byte(),byte()
-            if level>4 or flags>7 or charge>7: raise ValueError("Invalid Inspector power fields")
+            if level>4 or flags>63 or charge>7: raise ValueError("Invalid Inspector power fields")
             result["power"]={"battery":["full","high","medium","low","unknown"][level],"usb_power":bool(flags&1),
                              "charger_fault":bool(flags&2),"usb_lines_to_charger":bool(flags&4),"charge_state":charge,
-                             "charge_done":charge==5}
+                             "charge_done":charge==5,
+                             # 0.12: weak USB supply, a reading below 3.0 V, an install would be refused
+                             "weak_supply":bool(flags&8),"battery_low_reading":bool(flags&16),"install_blocked":bool(flags&32)}
         if len(data) == 98:
             flags,crashed=byte(),byte()
             if crashed>1: raise ValueError("Invalid Inspector restart fields")

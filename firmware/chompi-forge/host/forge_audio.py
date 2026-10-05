@@ -426,7 +426,12 @@ def setup_check(device, audio, output_found, log=print):
         if power["charger_fault"]:
             add("Power", "warn", detail + " The charger reports a battery or temperature-sensor fault.",
                 "Note it in the results; if it persists, check the battery connection (stock TAPE's test mode reports the same).")
-        else: add("Power", "ok", detail)
+        elif power.get("install_blocked") or power.get("battery_low_reading"):
+            add("Power", "warn", detail + (" The USB supply is weak (a computer port or a USB-A cable)." if power.get("weak_supply") else "")
+                + " The battery is low: CHOMPI may switch itself off, and firmware installs are refused.",
+                "Charge CHOMPI until the battery light (hold SW6 for 2 s) is green or white, or use a USB-C to USB-C charger (2 A or more).")
+        else: add("Power", "ok", detail + (" The USB supply is weak (a computer port or a USB-A cable); fine while the battery is charged."
+                                           if power.get("weak_supply") else ""))
     restart = restart_state(device)
     if restart:
         causes = ", ".join(restart["causes"]) or "no reset flags"

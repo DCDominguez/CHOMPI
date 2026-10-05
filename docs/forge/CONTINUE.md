@@ -44,8 +44,14 @@ on stock TAPE while the battery charges; neither 0.11 nor 0.12 is installed.
 - Decided (DC, 2026-10-05: "keep it"): every voice below 1× (SW4 pitch down, or kit
   pads) is ~4 % over WAVE in the emulator (2,800.8), since 0.10; the cubic read stays,
   accepted if hardware 6.2f stays < 70 %. Revisit only if 6.2f fails.
+- Safety extras (DC: "include the extras"): SW6 low-battery warning blink, Inspector
+  power flags 8/16/32 and Check setup warning, TEST_SESSION 8.5/8.6. Checks: make
+  test 13 native + 119 Python, sanitize 12, browser 11 + 7 PASS; release 261,224 B /
+  development 277,268 B layout OK; no DSP change (bench as above).
 - Not verified: everything on hardware; TAPE reading Forge's file (3.64); FatFS
-  rename/unlink of presets.json on DC's card.
+  rename/unlink of presets.json on DC's card; the warning blink's readings on a real
+  weak supply (8.5).
+- Next: Harmony Phase 0 discussion with DC (HARMONY_BRIEF.md).
 - Correction to the 0.11 entry below: its `make test` claim was premature; the
   consistency test failed at `cfcae21` (7.3p missing from the bridge checklist),
   fixed in `fd08b3e`.

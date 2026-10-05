@@ -121,6 +121,18 @@ void InstallPower() {
         Readings dipped = pc; dipped.battery_low = 0x01;                                      // a low reading contradicts the colour
         assert(!InstallPowerOk(ok, dipped));
     }
+    // 0.12 warning on SW6 and the Inspector flags.
+    assert(BatteryWarning(Battery::Medium, flat_strong) == Warning::None);                  // charging: no warning
+    assert(BatteryWarning(Battery::Medium, Readings{}) == Warning::None);                  // strong supply, yellow
+    assert(BatteryWarning(Battery::Medium, pc) == Warning::Low && BatteryWarning(Battery::Medium, unplugged) == Warning::Low);
+    assert(BatteryWarning(Battery::High, pc) == Warning::None && BatteryWarning(Battery::Unknown, pc) == Warning::None);
+    assert(BatteryWarning(Battery::High, flat_pc) == Warning::Critical && BatteryWarning(Battery::Medium, flat_unplugged) == Warning::Critical);
+    unsigned low_on = 0, critical_on = 0;
+    for(uint32_t t = 0; t < 4000; t += 10) { low_on += WarningLit(Warning::Low, t); critical_on += WarningLit(Warning::Critical, t); }
+    assert(low_on == 24 && critical_on == 208 && !WarningLit(Warning::None, 0));          // two 120 ms blinks; 4 Hz
+    assert(SupplyFlags(Battery::High, Readings{}) == 0 && SupplyFlags(Battery::Medium, pc) == (8 | 32));
+    assert(SupplyFlags(Battery::Medium, flat_unplugged) == (16 | 32) && SupplyFlags(Battery::High, pc) == 8);
+    assert(SupplyFlags(Battery::Medium, flat_pc) == (8 | 16 | 32) && SupplyFlags(Battery::Medium, flat_pc) < 64);
     char line[160];
     const unsigned n = forge::restart::DescribeEvent(12, LockoutText(Lockout::WeakSupply), line, sizeof line);
     assert(n == std::strlen(line) && std::strncmp(line, "boot 12: battery low on a weak USB supply", 41) == 0 && line[n - 1] == '\n');
@@ -130,5 +142,5 @@ void InstallPower() {
 int main() {
     BootGestureOff(); Colours(); ChargerHandover(); StatusDecode(); RestartReason(); OptionsFile(); InstallPower();
     std::cout << "PASS: power off gesture, battery colours, charger/USB hand-over (edges, timeout, wrap), status decode, restart reason, options.json,"
-                 " stock battery lockout, install power check\n";
+                 " stock battery lockout, install power check, low-battery warning, supply flags\n";
 }

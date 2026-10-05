@@ -204,6 +204,13 @@ class SetupCheckTests(unittest.TestCase):
         found = {f["what"]: f for f in result["findings"]}
         self.assertEqual(found["Power"]["status"], "warn"); self.assertIn("charged", found["Power"]["detail"])
         self.assertTrue(result["ok"])                                    # a warning does not fail the rig
+        # 0.12: a weak supply alone is fine; with a low battery it warns (installs refused, may switch off).
+        power.update(charger_fault=False, charge_done=False, weak_supply=True, battery_low_reading=False, install_blocked=False)
+        found = {f["what"]: f for f in audio.setup_check(device, self.rig(False, False, False), True, log=lambda l: None)["findings"]}
+        self.assertEqual(found["Power"]["status"], "ok"); self.assertIn("weak", found["Power"]["detail"])
+        power.update(install_blocked=True)
+        found = {f["what"]: f for f in audio.setup_check(device, self.rig(False, False, False), True, log=lambda l: None)["findings"]}
+        self.assertEqual(found["Power"]["status"], "warn"); self.assertIn("USB-C", found["Power"]["fix"])
 
     def test_last_start_is_reported(self):
         device = self.Device(True)

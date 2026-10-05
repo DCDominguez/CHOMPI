@@ -677,6 +677,9 @@ FORGE_COLD void DrawLeds() {
     if(panel_controller.BatteryView()) {
         const auto b = forge::power::BatteryColour(static_cast<forge::power::Battery>(hw.GetBatteryLevel()));
         volume = forge::Rgb{b.r, b.g, b.b};
+    } else {                                                       // 0.12: low battery warning (core/power.h)
+        const auto warning = forge::power::BatteryWarning(static_cast<forge::power::Battery>(hw.GetBatteryLevel()), ChargerReadings());
+        if(forge::power::WarningLit(warning, now)) volume = forge::Rgb{forge::power::kWarningColour.r, forge::power::kWarningColour.g, forge::power::kWarningColour.b};
     }
     Pth(forge::panel::kVolumeLed, volume);
     fill_led_data();
@@ -739,7 +742,8 @@ FORGE_COLD void CaptureInspector() {
     const auto power=forge::power::DecodeStatus(hw.mp_buff_, static_cast<forge::power::Battery>(hw.GetBatteryLevel()),
                                                 charger_usb.Handover() || !usb_lines_to_daisy);
     sys.battery=static_cast<uint8_t>(power.level);
-    sys.power_flags=static_cast<uint8_t>((power.usb_power?1:0)|(power.fault?2:0)|(power.usb_to_charger?4:0));
+    sys.power_flags=static_cast<uint8_t>((power.usb_power?1:0)|(power.fault?2:0)|(power.usb_to_charger?4:0)
+                                         |forge::power::SupplyFlags(power.level,ChargerReadings()));
     sys.charge_state=power.charge_state;
     sys.reset_flags=reset_flags; sys.crashed=last_fault.Valid(); sys.crash_pc=last_fault.pc;
     auto& st=s.storage; sample_loader.Inspect(st);

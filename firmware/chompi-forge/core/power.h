@@ -93,6 +93,22 @@ inline Lockout StockLockout(const Readings& r) {
     if(r.legacy == 0xff || r.input_limit == 0xff) return Lockout::WeakSupply;
     return Lockout::None;
 }
+// A warning on SW6 before the stock protection acts (on a weak supply it gives none):
+// Low = battery yellow (below 3.3 V) and not on a strong supply; Critical = a reading
+// below the 3.0 V mark too, the protection is near. Nothing on a strong supply (it charges).
+enum class Warning : uint8_t { None, Low, Critical };
+inline Warning BatteryWarning(Battery level, const Readings& r) {
+    if(r.usb_good == 0xff && r.legacy == 0 && r.input_limit == 0) return Warning::None;
+    if(r.battery_low != 0) return Warning::Critical;
+    return level == Battery::Medium || level == Battery::Low ? Warning::Low : Warning::None;
+}
+// Low: two short blinks every 4 s; Critical: 4 Hz. In the stock lockout's yellow.
+inline bool WarningLit(Warning w, uint32_t now_ms) {
+    if(w == Warning::Critical) return (now_ms / 125) % 2 == 0;
+    const uint32_t t = now_ms % 4000;
+    return w == Warning::Low && (t < 120 || (t >= 240 && t < 360));
+}
+constexpr Colour kWarningColour{1.f, .95f, .05f};
 // The line Forge appends to FORGE/RESTARTS.TXT just before the stock protection acts.
 inline const char* LockoutText(Lockout l) {
     return l == Lockout::Unplugged ? "battery low, no USB power: 15 s amber flashes, then off (stock protection)"
@@ -108,6 +124,13 @@ inline bool InstallPowerOk(Battery level, const Readings& r) {
     const bool charged = (level == Battery::Full || level == Battery::High) && r.battery_low == 0;
     const bool strong_supply = r.usb_good == 0xff && r.legacy == 0 && r.input_limit == 0;
     return charged || strong_supply;
+}
+// Inspector page 2 power flags from 0.12 (bits 0-2 are DecodeStatus's): 8 weak supply
+// (legacy source or at its current limit in the last 8 readings), 16 a reading below
+// the 3.0 V mark, 32 an install would be refused now.
+inline uint8_t SupplyFlags(Battery level, const Readings& r) {
+    const bool weak = r.usb_good == 0xff && (r.legacy != 0 || r.input_limit != 0);
+    return static_cast<uint8_t>((weak ? 8u : 0u) | (r.battery_low != 0 ? 16u : 0u) | (InstallPowerOk(level, r) ? 0u : 32u));
 }
 
 // Charger status for the Inspector (development): register bytes from the upstream
