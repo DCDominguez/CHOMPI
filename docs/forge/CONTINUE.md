@@ -23,32 +23,23 @@ SD streaming remains gated on physical SD measurements. Older checkpoint and
 PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
 use the latest implementation checkpoint and ledger for present capabilities/budgets.
 
-## In progress: firmware 0.10 TAPE parity — stage 1 done, stage 2 next (not installed)
+## Current checkpoint: firmware 0.10 TAPE parity, ready for DC's install (2026-10-05)
 
-DC chose the recommended answer for every parity row (and asked for one install at
-the end). Stage 1 is complete and pushed (CHANGELOG "0.10 TAPE parity, stage 1";
-KNOBS.md; TAPE_CONTROLS.md). Version is already 0.10 (minor 10).
-Checks at this checkpoint: `make test` (12 native suites incl. knob_audio_test:
-127 knob pages audible, 24 dependent with reasons; 116 Python), `make sanitize`,
-`make browser-test` (11 + 7), `make bench` PASS (worst 2,664.9 ≤ WAVE 2,694.9;
-every TAPE effect at once 3,052.9 informational → hardware 6.2e), ARM release
-252,420 B / development 268,720 B layout OK (boot_info at 0x38800000; Forge's
-fault/boot records follow it in .backup_sram.forge).
-Unverified on hardware: everything in 0.10; the Daisy bootloader may clear RCC_RSR
-before Forge reads it (then *Last start* shows no flags); white-balance factors are
-a guess (G .85, B .6); TAPE's knob light colours.
-Findings for DC: Acid Bass and Bell Keys put their LFO on the mod wheel, so their
-LFO pages do nothing from the panel; Saw Bass's v5 conversion is ~20 % different in
-spectrum (newer voice), listen.
-Stage 2 (to build before the single install): TAPE's menu knob layer (SW4 quantised
-pitch/pan, SW1+SW2 window and attack+decay, SW3 delay time/warble/DJ resonance, SW5
-looper pitch, SW6 compressor; presses: resets, auto-loop, sustain, monitor mode);
-monitor modes (HP/both/send-return); options.json (record latch, MIDI channels, tape
-slew, monitor position, pitch quantise, split delay); presets.json per-slot settings
-(A4: picking a slot loads its values, a patch applies until another slot is picked,
-turns save into the slot); quantised loop speed (fifths/octaves) and tape slew; MIDI
-out (keys, knob CCs, PLAY/LOOP/CHOMPI CCs); menu: TAPE's page first with TAPE's keys,
-Forge presets on a second page. Code budget: development headroom is 20 KB.
+Everything DC chose in the parity checklist is built and software-tested except A4
+(TAPE presets.json per-slot settings), which DC moved to 0.11 (install 0.10 first).
+See CHANGELOG 0.10 (stage 1, 2a, 2b), KNOBS.md, MANUAL sections 4–11, TAPE_CONTROLS.md.
+Checks at afc64be: make test (12 native + 116 Python), make sanitize, browser tests
+(11 + 7), make bench PASS (2,670.9 ≤ WAVE 2,694.9; all TAPE effects 3,077.9
+informational → 6.2e), ARM release 253,636 B / development 268,728 B layout OK.
+Nothing hardware-verified. On install, run: Check setup (Last start line), the
+panel walk (new light answers), automatic checks (3.57a–f knob audio, 6.2e CPU),
+then TEST_SESSION 3.51–3.61 by hand.
+Unverified/risks: Daisy bootloader may clear RCC_RSR; white-balance factors guessed;
+Saw Bass v5 conversion sounds ~20 % different in spectrum; Acid Bass/Bell Keys LFO
+is on the mod wheel (panel can't reach it); MIDI out on USB unverified; FORGE_COLD
+(-Os) panel code — check no audio glitches when turning knobs.
+Next (0.11): A4 per-slot settings (read/write TAPE presets.json, back it up first);
+DC's hardware findings from 0.10.
 
 ## Previous checkpoint: firmware 0.9, key lights while playing, 2026-10-05
 

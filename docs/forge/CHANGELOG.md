@@ -1,6 +1,6 @@
 # Forge changelog
 
-## 0.10 TAPE parity, stage 1 — 2026-10-05 (in progress; stage 2 follows before the install)
+## 0.10 TAPE parity — 2026-10-05 (ready to install; per-slot settings moved to 0.11)
 
 Software-tested only. DC chose the recommended answer for every row of the TAPE
 parity checklist ([TAPE_CONTROLS.md](TAPE_CONTROLS.md), [KNOBS.md](KNOBS.md)).
