@@ -51,7 +51,7 @@ on stock TAPE while the battery charges; neither 0.11 nor 0.12 is installed.
 - Not verified: everything on hardware; TAPE reading Forge's file (3.64); FatFS
   rename/unlink of presets.json on DC's card; the warning blink's readings on a real
   weak supply (8.5).
-- Next: Harmony Phase 0 discussion with DC (HARMONY_BRIEF.md).
+- Next: Harmony Phase 1 (0.13), decisions and plan in HARMONY_BRIEF.md "Phase 0 decisions".
 - Correction to the 0.11 entry below: its `make test` claim was premature; the
   consistency test failed at `cfcae21` (7.3p missing from the bridge checklist),
   fixed in `fd08b3e`.

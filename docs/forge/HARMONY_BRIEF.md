@@ -41,6 +41,34 @@ Review of the brief against the code (2026-10-05; details in Phase 0):
   `FORGE_COLD` trimming. Measure after each phase.
 - Avoid "Nopia" in user-facing text (trademark); "harmony mode" instead.
 
+## Phase 0 decisions (DC, 2026-10-05)
+
+Status: Phase 1 started after the 0.12 safety extras (`715b1e3`).
+- **Entry:** harmony on/off from a menu page, and presets can store it (patch v6).
+  Off = the keybed plays notes exactly as before.
+- **Static layout:** white keys C3–B4 = degrees I–vii twice (lower and upper
+  register); black keys = chromatic chords (secondary dominants V/ii, V/iii, V/V,
+  V/vi and borrowed chords); C5 = Shift (hold).
+- **Real layout:** the key pressed is the chord's root; the key/mode decides the
+  quality; a root outside the scale gives a chromatic chord.
+- **Output:** internal sound plus the same notes on MIDI out; per-part routing comes
+  with bass/arp.
+
+Plan (Phase 1 = 0.13, one hardware test):
+- `core/harmony.h`: 9 mode interval tables (incl. Locrian), chords by stacked thirds
+  (fifth, triad, 7, 9, 11, 13; drop order root, 3rd, 7th, top extension, 5th, rest),
+  Static/Real mapping, chromatic table, context-dependent Shift, inversion/spread,
+  greedy voice leading (≤ 5 inversions × 3 octaves), MIDI 0–127 clamp; integer only.
+- Engine: resolves on note-on/off only; each held key keeps its notes (≤ 5) and a
+  per-pitch count, so overlapping chords, key-up, mode change, harmony off and panic
+  never leave notes stuck; panel MIDI out sends the chord notes.
+- Panel: menu harmony page (hold KEY_21 1 s, as KEY_22's hold opens presets): keys
+  show the scale (tonic bright, scale dim); SW4 tonic, SW1 mode, SW2 extension, SW3
+  inversion; presses SW4 on/off, SW1 Static/Real, SW2 voice leading, SW3 spread.
+- Inspector: one compact page with the state and the last voiced chord.
+- Patch v6 (presets, host, webapp, AI) right after the core, in the same 0.13.
+- Phase 2: clock, bass, arp, per-part routing, seed use.
+
 ---
 
 DC's brief, as given:
