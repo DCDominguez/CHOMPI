@@ -14,6 +14,33 @@ Notes added when the brief was filed (2026-10-05, branch head `9ea9fcd`):
 - Clean-room: O'PIAN is AGPL-3.0, so use it only as a behavioural reference and copy
   no code. Name any source used beyond general music theory in the report.
 
+Review of the brief against the code (2026-10-05; details in Phase 0):
+- **No clock exists.** Forge ignores MIDI real-time bytes (`midi_framer.h`) and has no
+  tempo; the looper times itself by loop length. The arpeggiator and the "tempo /
+  clock phase" part of MusicalState need a small new clock (internal BPM, later MIDI
+  clock in). The brief's "reuse existing timing" can't apply.
+- **One instrument.** Forge plays one patch with 4 oscillator voices (v1–v3) or up to 7
+  (v4). Internal roles (chord + bass + arp) share that sound and those voices; separate
+  sounds per role only exist on MIDI out (per-channel). 9th–13th chords need the
+  note-dropping rules before they reach 4 voices.
+- **Note ownership.** Each held key must remember exactly the notes it started, so
+  key-up, voice-led chord changes, mode change and panic can't leave notes stuck.
+  Phase 1 needs this, not Phase 4.
+- **The keybed fits Static mode.** The 15 white keys (C3–C5) can map to degrees I–vii
+  over two octaves, and the black keys to the chromatic functions (V/ii, V/iii, V/V,
+  V/vi…). Kit mode keeps its pads (harmony off).
+- **Phase 1 needs some panel access**, or the one consolidated hardware test can only
+  reach it over MIDI/the host. Suggest a harmony on/off mode and tonic/mode selection in
+  the menu in Phase 1, with the full mapping in Phase 5.
+- **Presets:** storing harmony settings means patch v6 (wire, host, webapp, AI, starter
+  presets); v1–v5 stay valid. **Inspector:** one new compact page (≤ 100 bytes).
+- **Real mode** needs one definition from DC: the key pressed is the chord root and the
+  scale decides the chord quality (a key outside the scale → a chromatic function).
+- **Size:** at 11,740 B of development headroom, Phases 1–3 should fit (a few KB of
+  integer code, tables tiny); bass/arp/clock and protocol may need another round of
+  `FORGE_COLD` trimming. Measure after each phase.
+- Avoid "Nopia" in user-facing text (trademark); "harmony mode" instead.
+
 ---
 
 DC's brief, as given:

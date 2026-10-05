@@ -41,9 +41,9 @@ on stock TAPE while the battery charges; neither 0.11 nor 0.12 is installed.
 - Checks: `make test` 13 native (new slot_settings_test) + 119 Python PASS;
   `make sanitize` 12 PASS; ARM release 261,072 B / development 277,028 B layout OK;
   `make bench` PASS (worst 2,677.9 vs WAVE 2,694.9); browser 11 + 7 PASS.
-- Open decision for DC: every voice below 1× (SW4 pitch down, or kit pads) is ~4 %
-  over WAVE in the emulator (2,800.8), since 0.10. Informational + hardware 6.2f
-  for now; options: accept if hardware stays < 70 %, or TAPE's linear read below 1×.
+- Decided (DC, 2026-10-05: "keep it"): every voice below 1× (SW4 pitch down, or kit
+  pads) is ~4 % over WAVE in the emulator (2,800.8), since 0.10; the cubic read stays,
+  accepted if hardware 6.2f stays < 70 %. Revisit only if 6.2f fails.
 - Not verified: everything on hardware; TAPE reading Forge's file (3.64); FatFS
   rename/unlink of presets.json on DC's card.
 - Correction to the 0.11 entry below: its `make test` claim was premature; the

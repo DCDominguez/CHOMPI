@@ -25,7 +25,7 @@ share TAPE's own `presets.json` with a backup. Nothing here is hardware-verified
   2,677.9 vs WAVE 2,694.9). Found while testing: every voice pitched below 1× (SW4
   pitch down, or kit pads below 1×) costs 2,800.8 / 2,755.8, about 4 % over WAVE;
   true since 0.10's TAPE pitch. Added as informational scenarios and hardware step
-  6.2f; not yet decided (options: accept on hardware numbers, or TAPE's linear read).
+  6.2f. DC (2026-10-05): keep the cubic read; accepted if 6.2f stays below 70 % on CHOMPI.
 - Release 261,072 B, development 277,028 B (layout OK). New TEST_SESSION 3.62–3.64,
   6.2f.
 
