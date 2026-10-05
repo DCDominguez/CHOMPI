@@ -511,8 +511,8 @@
   },
   {
     "id": "8.4",
-    "do": "Unplug USB. Hold CHOMPI + PLAY + LOOP while CHOMPI starts up (the stock power-off gesture, same as TAPE), keep holding about 1 s",
-    "expect": "All lights go out and stay out: CHOMPI is off. Plugging USB in (or however you normally switch it on) brings it back. Note how you started CHOMPI for this step",
+    "do": "Storage mode: switch CHOMPI off, unplug USB, then hold CHOMPI + PLAY + LOOP while switching it on (the stock gesture, same as TAPE); keep holding about 1 s",
+    "expect": "All lights go out and stay out, even with the switch on: the battery is disconnected for storage. Plugging USB in brings CHOMPI back. (Normal on/off is the power switch; charging also works with it off)",
     "group": "8. Power and battery (firmware 0.8)"
   }
 ]

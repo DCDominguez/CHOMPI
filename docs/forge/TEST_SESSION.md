@@ -244,16 +244,16 @@ From 0.7 on, files and firmware go to the card over the USB cable (bridge:
 
 ## 8. Power and battery (firmware 0.8)
 
-As stock TAPE: the start-up power-off gesture, the SW6 battery light, and the
-USB/charger hand-over when power is plugged in while CHOMPI runs. Do not run the
-battery flat on purpose.
+As stock TAPE: the start-up storage (shipping-mode) gesture, the SW6 battery
+light, and the USB/charger hand-over when power is plugged in while CHOMPI runs.
+The power switch is the normal on/off. Do not run the battery flat on purpose.
 
 | # | Do | Pass when |
 | --- | --- | --- |
 | 8.1 | Unplug the USB cable and play for a few minutes on the battery (keys, a preset, the looper) | Forge keeps running normally on the battery: sound, keys, lights |
 | 8.2 | Hold the SW6 (volume) knob pressed for 2 s, then let go; also give it a short press | While held after 2 s its light shows the battery: white = charged (on the charger), green = good, yellow = low (below ~3.3 V). Dark again on release. A short press does nothing |
 | 8.3 | Plug the USB cable back in (wall charger first, then the PC), wait 5 s; in the bridge press Connect CHOMPI and Check setup | CHOMPI keeps playing; the bridge connects (USB may drop for a moment while the charger identifies the source); Check setup's Power line says on USB power and a charge state; SW6 held shows yellow/green while charging, white when charged |
-| 8.4 | Unplug USB. Hold CHOMPI + PLAY + LOOP while CHOMPI starts up (the stock power-off gesture, same as TAPE), keep holding about 1 s | All lights go out and stay out: CHOMPI is off. Plugging USB in (or however you normally switch it on) brings it back. Note how you started CHOMPI for this step |
+| 8.4 | Storage mode: switch CHOMPI off, unplug USB, then hold CHOMPI + PLAY + LOOP while switching it on (the stock gesture, same as TAPE); keep holding about 1 s | All lights go out and stay out, even with the switch on: the battery is disconnected for storage. Plugging USB in brings CHOMPI back. (Normal on/off is the power switch; charging also works with it off) |
 
 ## Results — copy into docs/forge/TEST_RESULTS.md
 

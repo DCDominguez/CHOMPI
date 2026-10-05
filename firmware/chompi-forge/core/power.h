@@ -9,7 +9,8 @@ namespace power {
 
 // Start-up: all three stock firmwares scan the keys 5,000 times at 100 us (0.5 s)
 // and, if CHOMPI + PLAY + LOOP (KEY_26, KEY_27, KEY_28) were held for more than
-// 4,000 of them, put the charger IC into shipping mode: CHOMPI switches off.
+// 4,000 of them, put the charger IC into shipping mode (battery disconnected for
+// storage; USB power wakes it). The hardware switch S1 is the normal on/off.
 constexpr unsigned kBootScans = 5000, kBootScanUs = 100, kBootHoldThreshold = 4000;
 class BootGesture {
 public:

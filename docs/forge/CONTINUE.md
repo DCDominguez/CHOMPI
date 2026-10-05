@@ -27,9 +27,9 @@ use the latest implementation checkpoint and ledger for present capabilities/bud
 
 DC's battery ran flat on 0.7 and DC asked for power/charging "and any other thing
 we missed". Review: COMPATIBILITY §7 (stock TAPE/WAVE/TEMPO main loops and
-TAPE's NormalPage). Found and fixed (software-tested, not on hardware):
-**Forge had no way to switch CHOMPI off** (stock: hold CHOMPI + PLAY + LOOP at
-start-up → shipping mode); no battery display (TAPE: SW6 held 2 s); no runtime
+TAPE's NormalPage). Found and fixed (software-tested, not on hardware): no
+shipping/storage mode (stock: hold CHOMPI + PLAY + LOOP at start-up; CHOMPI's
+hardware switch S1 is the normal on/off and was never affected); no battery display (TAPE: SW6 held 2 s); no runtime
 USB/charger hand-over (TAPE only). Added battery/charger state to Inspector page 2
 and Check setup. Also fixed the bridge's line-in hint that contradicted the
 headphone-out advice. Not ported: the factory test page (SW6 at start-up) — use

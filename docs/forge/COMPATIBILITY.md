@@ -243,14 +243,21 @@ Files: `firmware/chompi-forge/bench/` (`run_bench.py`, `*_bench.cpp`,
 
 Reviewed against `chompi_main.cpp` of TAPE, WAVE and TEMPO and TAPE's
 `NormalPage.h` after DC's battery ran flat on 0.7. The charger IC (MP2722) charges
-by itself; firmware only configures it, warns and switches off.
+by itself; firmware only configures it, warns and enters shipping mode.
+
+Hardware (Rev 4 schematic): the **on/off switch S1** (SPDT) connects the charger's
+system output (`VSYS_SW`, from `VSYS_BMC` through SW7) to `VSYS`, which feeds the
+system regulator (U11). Off = everything after the charger unpowered; the charger
+itself still charges from USB. Shipping mode is a deeper off (battery disconnected
+inside the charger, for storage); the low-battery shutdown uses it too, and USB
+power is the usual way out of it (DC to confirm on hardware).
 
 | Behaviour | TAPE | WAVE | TEMPO | Forge 0.7 | Forge 0.8 |
 | --- | --- | --- | --- | --- | --- |
 | Boot: BATT_LOW threshold 3 V, 10 low-battery checks | yes | yes | yes | yes | yes |
 | Low battery on battery power: 15 s amber flashing, then shipping mode (off); plugging in cancels | yes (shared hardware class) | yes | yes | yes | yes |
 | Low battery on a weak USB source: LEDs off, STOP mode while it charges (looks dead) | yes | yes | yes | yes | yes |
-| Boot: 0.5 s key scan; **CHOMPI + PLAY + LOOP held → shipping mode (power off)** | yes | yes | yes | **no** (CHOMPI could not be switched off) | yes |
+| Boot: 0.5 s key scan; CHOMPI + PLAY + LOOP held → charger shipping mode (battery disconnected inside the charger IC: storage) | yes | yes | yes | no | yes |
 | Boot: SW6 held → factory test page (keys, LEDs, charger/NTC check) | yes | yes | yes | no | no (use stock firmware for the factory test) |
 | Boot: USB data lines to the charger, auto D+/D− detection, lines back | yes | yes | yes | yes | yes |
 | Running: charger interrupt → if the USB source is unidentified, lines to the charger, force detection, lines back once identified | yes | no | no | no | yes (TAPE's; I2C wait bounded at 50 ms, TAPE waits forever) |
@@ -259,6 +266,6 @@ by itself; firmware only configures it, warns and switches off.
 | Deletes `.batt_log.txt` at boot | yes | yes | yes | no | no (Forge never writes it) |
 | Zeroes all SDRAM at boot | yes | yes | — | no | no (Forge never reads SDRAM it has not written) |
 
-Not changed and still unverified on hardware: how CHOMPI is switched back on after
-shipping mode (plugging USB in is the usual exit for this charger family; DC to
-confirm), charge time, and the stock warning/shutdown in Forge.
+Still unverified on hardware: leaving shipping mode (plugging USB in is the usual
+exit for this charger family), charge time with S1 off, and the stock warning and
+shutdown in Forge.

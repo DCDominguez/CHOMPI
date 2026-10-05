@@ -3,10 +3,11 @@
 ## 0.8 Power as stock — 2026-10-05
 
 Software-tested only. After DC's battery ran flat on 0.7, a review against
-TAPE/WAVE/TEMPO (COMPATIBILITY §7) found Forge could not be switched off.
-- Start-up power-off gesture as all stock firmwares: hold CHOMPI + PLAY + LOOP
-  while CHOMPI starts → charger shipping mode (off). The 0.5 s start-up key scan
-  also clears shift-register junk, as stock.
+TAPE/WAVE/TEMPO (COMPATIBILITY §7). CHOMPI's hardware switch S1 always switched it
+off; what Forge lacked is listed here.
+- Start-up storage gesture as all stock firmwares: hold CHOMPI + PLAY + LOOP
+  while CHOMPI starts → charger shipping mode (battery disconnected; USB power
+  wakes it). The 0.5 s start-up key scan also clears shift-register junk, as stock.
 - TAPE's battery light: hold SW6 (volume) 2 s, its light shows white (charged),
   green, or yellow (below ~3.3 V) while held.
 - TAPE's USB/charger hand-over when power is plugged in or changes while running
