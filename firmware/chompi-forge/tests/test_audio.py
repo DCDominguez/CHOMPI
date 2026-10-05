@@ -43,6 +43,19 @@ class AnalysisTests(unittest.TestCase):
         self.assertIsNone(audio.analyze(audio.FakeAudio().source(RATE, None, RATE))["pitch_hz"])   # -80 dB noise
         json.dumps(a)                                                  # plain Python types for reports
 
+    def test_audible_change(self):
+        # Knob audio checks (3.57): the same phrase twice is no change; pitch, level, decay or pan are.
+        t = np.arange(48000) / 48000
+        def note(hz=220, level=.3, decay=3.0, pan=.5):
+            mono = level * np.sin(2 * np.pi * hz * t) * np.exp(-t * decay)
+            return np.stack([mono * (1 - pan) * 2, mono * pan * 2], axis=1) * .5
+        base = note()
+        self.assertLess(audio.audible_change(base, base.copy())[0], .01)
+        self.assertGreater(audio.audible_change(base, note(hz=233))[0], 20)                 # a semitone
+        change, what = audio.audible_change(base, note(level=.15)); self.assertGreater(change, 5); self.assertEqual(what, "loudness")
+        self.assertGreater(audio.audible_change(base, note(decay=8))[0], 5)
+        change, what = audio.audible_change(base, note(pan=.8)); self.assertGreater(change, 5)
+
     def test_onset_clip_and_clicks(self):
         x = np.zeros((RATE, 2), np.float32); x[RATE // 2:] = np.roll(sine(220, 0.5), -RATE // 880, axis=0)
         a = audio.analyze(x)                                           # starts at a peak: a step, i.e. a click
@@ -252,7 +265,7 @@ class BridgeAutomaticTests(unittest.TestCase):
         ports = FakePorts(["Microsoft GS Wavetable Synth", "Arturia KeyStep", "CHOMPI 0"],
                           ["Microsoft GS Wavetable Synth", "Arturia KeyStep", "CHOMPI 1"])
         found = self.make(ports).request("discover", {})
-        self.assertEqual((found["input"], found["output"], found["firmware"]), ("CHOMPI 0", "CHOMPI 1", "0.9"))
+        self.assertEqual((found["input"], found["output"], found["firmware"]), ("CHOMPI 0", "CHOMPI 1", "0.10"))
         self.assertEqual(ports.opened, [("CHOMPI 0", "CHOMPI 1")])
         self.assertFalse(self.lock.locked())
 

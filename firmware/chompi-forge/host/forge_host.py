@@ -283,7 +283,8 @@ def upgrade_patch(patch, to=3):
     """Return a v3, v4 or v5 patch with the same delay/output (and v2 synth)
     settings; new modules start neutral (osc2/noise/LFO depths/reverb mix 0,
     filter envelope 0; v4 adds the sampler module, unused until routing selects
-    it; v5 adds knob assignments, all "default"). The v3 filter is a steeper
+    it; v5 adds knob assignments, all "default"). The filter envelope copies the amp
+    envelope's shape at zero depth. The v3 filter is a steeper
     resonant low-pass, so tone can differ slightly."""
     patch = validate_patch(patch)
     if to not in (3, 4, 5) or patch["version"] > to: raise ValueError("Upgrade target must be 3, 4 or 5 and not older")
@@ -306,8 +307,10 @@ def upgrade_patch(patch, to=3):
                else "aux>delay>reverb>output")
     upgraded = {"version": 3, "name": patch["name"], "engine": "instrument", "routing": routing, "modules": {
         "synth": synth,
+        # The filter envelope starts neutral (0 octaves) but follows the amp envelope's shape,
+        # so turning its amount on the panel is heard over the whole note.
         "filter": {"cutoff_hz": old_synth["cutoff_hz"], "resonance": 0, "env_octaves": 0,
-                   "attack_ms": 10, "decay_ms": 300, "sustain": 0, "release_ms": 300},
+                   **{key: old_synth[key] for key in ("attack_ms", "decay_ms", "sustain", "release_ms")}},
         "lfo": {"waveform": "sine", "rate_hz": 5, "pitch_cents": 0, "filter_octaves": 0, "amp_depth": 0, "mod_wheel": False},
         "delay": {key: source[key] for key in ("mix", "time_ms", "feedback", "bypass")},
         "reverb": {"mix": 0, "size": 0.5, "damping": 0.5},

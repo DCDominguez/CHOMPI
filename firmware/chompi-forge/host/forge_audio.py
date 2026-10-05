@@ -247,6 +247,23 @@ def analyze(x, rate=RATE):
     return result
 
 
+def audible_change(a, b, rate=RATE):
+    """How much two recordings of the same phrase differ, in percent, and by what:
+    spectrum, 20 ms envelope, loudness (dB / 6) or stereo balance (as tests/knob_audio_test.cpp)."""
+    a = np.asarray(a, dtype=np.float64).reshape(len(a), -1); b = np.asarray(b, dtype=np.float64).reshape(len(b), -1)
+    n = min(len(a), len(b)); a, b = a[:n], b[:n]
+    sa, sb = np.abs(np.fft.rfft(a.sum(axis=1))), np.abs(np.fft.rfft(b.sum(axis=1)))
+    frame = max(1, rate // 50)
+    def env(x): m = (x ** 2).sum(axis=1)[: n // frame * frame].reshape(-1, frame).sum(axis=1); return np.sqrt(m)
+    ea, eb = env(a), env(b)
+    def rms(x): return np.sqrt(np.mean(x ** 2)) + 1e-12
+    def balance(x): return (np.sum(x[:, 0] ** 2) - np.sum(x[:, -1] ** 2)) / (np.sum(x ** 2) + 1e-18)
+    measures = {"spectrum": np.sum(np.abs(sa - sb)) / (np.sum(sa) + 1e-18), "envelope": np.sum(np.abs(ea - eb)) / (np.sum(ea) + 1e-18),
+                "loudness": abs(20 * np.log10(rms(b) / rms(a))) / 6, "balance": abs(balance(a) - balance(b))}
+    what = max(measures, key=measures.get)
+    return float(measures[what] * 100), what
+
+
 def spectrogram(x, rate=RATE, top_hz=12000):
     """Log-magnitude spectrogram of the mono sum as PNG bytes (time left to right, low notes at the bottom)."""
     mono = np.asarray(x, dtype=np.float64).reshape(len(x), -1).mean(axis=1)
@@ -410,8 +427,25 @@ def setup_check(device, audio, output_found, log=print):
             add("Power", "warn", detail + " The charger reports a battery or temperature-sensor fault.",
                 "Note it in the results; if it persists, check the battery connection (stock TAPE's test mode reports the same).")
         else: add("Power", "ok", detail)
+    restart = restart_state(device)
+    if restart:
+        causes = ", ".join(restart["causes"]) or "no reset flags"
+        if restart["crashed"]:
+            add("Last start", "warn", f"CHOMPI restarted after a firmware crash (pc {restart['crash_pc']:#010x}); "
+                f"reset flags: {causes}.",
+                "Send this line and FORGE/RESTARTS.TXT from the card with the results.")
+        elif "brown-out" in restart["causes"] and "power-on" not in restart["causes"]:
+            add("Last start", "warn", f"The last start was a brown-out (the supply dipped); reset flags: {causes}.",
+                "Check the battery and the USB cable; note what was happening when it switched off.")
+        else: add("Last start", "ok", f"Reset flags: {causes}. No crash recorded.")
     device.send_patch(host.load_patch(ROOT / "presets/01-dry.json"))
     return {"ok": all(f["status"] != "fail" for f in findings), "findings": findings}
+
+
+def restart_state(device):
+    """Why CHOMPI last started, from the Inspector system page (firmware 0.10+), or None."""
+    try: return ((device.snapshot() or {}).get("system") or {}).get("restart")
+    except Exception: return None
 
 
 def power_state(device):
@@ -442,7 +476,7 @@ class Runner:
         self.report = Path(report_dir) if report_dir else None
         if self.report: self.report.mkdir(parents=True, exist_ok=True)
         self.progress, self.cancel = progress or (lambda entry: None), cancel or threading.Event()
-        self.captures, self.images, self.last = {}, {}, {}
+        self.captures, self.images, self.last, self.raw = {}, {}, {}, {}
         self.cpu_reset = None                                  # unknown until the first step that reads status
 
     def fresh_cpu_peak(self, entry):
@@ -555,6 +589,7 @@ class Runner:
     def store(self, name, x, entry):
         key = f"{entry['id']}-{name}"
         self.captures[name] = analyze(x, self.audio.rate)
+        self.raw[name] = np.asarray(x, dtype=np.float64)
         self.images[key] = spectrogram(x, self.audio.rate)
         if self.report:
             write_wav(self.report / f"{key}.wav", x, self.audio.rate)
@@ -569,6 +604,12 @@ class Runner:
                 rgb = leds[key_led(key)]
                 ok = (max(rgb) > 8) if want == "lit" else (max(rgb) <= 8) if want == "off" else all(abs(a - b) <= 12 for a, b in zip(rgb, want))
                 entry["checks"].append({"what": f"led {key}", "expected": want, "actual": rgb, "ok": bool(ok)})
+            return
+        if kind == "differs":                                  # a knob turn must change what you hear
+            change, measure = audible_change(self.raw[expected["before"]], self.raw[expected["after"]], self.audio.rate)
+            want = float(expected.get("min_percent", 5))
+            entry["checks"].append({"what": f"change {expected['before']} -> {expected['after']} ({measure})",
+                                    "expected": f">= {want:g}%", "actual": round(change, 1), "ok": change >= want})
             return
         if kind == "capture": data, items = self.captures[expected["name"]], {k: v for k, v in expected.items() if k != "name"}
         else: data, items = self.last[kind], expected

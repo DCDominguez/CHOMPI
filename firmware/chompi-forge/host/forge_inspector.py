@@ -49,7 +49,7 @@ def decode(data, sequence, expected_page=None):
         return {"page": 1, "rgb": [data[9+3*i:12+3*i] for i in range(26)]}
     if page not in range(2,8) or len(data) < 16 or data[9] != 1:
         raise ValueError("Unsupported Inspector schema/page; use the matching host")
-    lengths = {2:(88, 91), 3:(97,), 4:(88,), 5:(94,)}       # page 2: 91 from firmware 0.8 (power)
+    lengths = {2:(88, 91, 98), 3:(97,), 4:(88,), 5:(94,)}  # page 2: 91 from firmware 0.8 (power), 98 from 0.10 (restart)
     if page in lengths and len(data) not in lengths[page]:
         raise ValueError("Invalid Inspector page length")
     pos = 10
@@ -80,13 +80,20 @@ def decode(data, sequence, expected_page=None):
                       heap_used_bytes=None, stack_headroom_bytes=None)
         if result["simulated"] or not result["audio_blocks"]:
             result["cpu_average_percent"]=result["cpu_peak_percent"]=None
-        result["power"]=None
-        if len(data) == 91:
+        result["power"]=None; result["restart"]=None
+        if len(data) >= 91:
             level,flags,charge=byte(),byte(),byte()
             if level>4 or flags>7 or charge>7: raise ValueError("Invalid Inspector power fields")
             result["power"]={"battery":["full","high","medium","low","unknown"][level],"usb_power":bool(flags&1),
                              "charger_fault":bool(flags&2),"usb_lines_to_charger":bool(flags&4),"charge_state":charge,
                              "charge_done":charge==5}
+        if len(data) == 98:
+            flags,crashed=byte(),byte()
+            if crashed>1: raise ValueError("Invalid Inspector restart fields")
+            pc=u32()
+            names=("power-on","brown-out","reset pin","software","watchdog","window watchdog","low-power")
+            result["restart"]={"causes":[n for i,n in enumerate(names) if flags>>i&1],"crashed":bool(crashed),
+                               "crash_pc":pc if crashed else None}
     elif page == 3:
         for name in ("physical","logical"):
             chunks=[byte() for _ in range(6)]

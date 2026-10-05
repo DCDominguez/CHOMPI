@@ -33,8 +33,10 @@ uint32_t request_size;
 float out_l[24], out_r[24];
 // Returns 0 on success. notes: how many voices to start (chord from MIDI 48);
 // + 256: the looper overdubs a 1 s loop at 1.37x while they play.
+// + 512: every TAPE effect on (DJ filter low-pass, saturation, warble, compressor).
+float warble_mem[2 * forge::tape::Warble::kLength];
 int bench_init(int notes) {
-    const bool with_looper = notes & 256; notes &= 255;
+    const bool with_looper = notes & 256, with_effects = notes & 512; notes &= 255;
     engine = new(engine_storage) forge::Engine();
     if(!engine->Init(48000.f, delay_l, delay_r, kDelay, reverb_mem, 8704)) return 1;
     forge::Request r;
@@ -48,6 +50,13 @@ int bench_init(int notes) {
         engine->SetSamples(&samples);
     }
     if(!engine->ApplyPatch(r.patch)) return 3;
+    if(with_effects) {
+        engine->SetWarbleMemory(warble_mem);
+        for(const forge::Command c : {forge::Command{forge::Parameter::DjFilter, .25f}, forge::Command{forge::Parameter::DjResonance, .5f},
+                                      forge::Command{forge::Parameter::Saturation, .6f}, forge::Command{forge::Parameter::Warble, .6f},
+                                      forge::Command{forge::Parameter::Compressor, .6f}})
+            if(!engine->Apply(c)) return 5;
+    }
     // First four notes as before (v1-v3 results unchanged); v4 adds up to seven.
     static const uint8_t chord[7] = {48, 55, 60, 64, 67, 71, 72};
     static const uint8_t white[7] = {48, 50, 52, 53, 55, 57, 59};          // kit mode: one slot each

@@ -1,88 +1,111 @@
-# Forge knob pages and patch knobs (firmware 0.6)
+# Forge knobs: TAPE's layout plus Forge's pages (firmware 0.10)
 
-Status: **implemented and software-tested** on 2026-10-04; nothing is
-hardware-verified. TEST_SESSION 3F (3.52–3.56) covers it; the bridge runs
-3.52, 3.53 and 3.55 automatically (they also pass in the simulation).
+Status: **implemented and software-tested** on 2026-10-05; nothing is
+hardware-verified. TEST_SESSION 3F (3.51–3.57) covers it; the bridge runs 3.52,
+3.53, 3.55 and the audio checks 3.57a–f automatically. Earlier layout (0.6–0.9):
+see git history of this file.
 
-DC's decisions (2026-10-04): both a fixed page set and patch/AI-assigned
-knobs; press a knob to change its page and its light shows the page; SW6's
-press does nothing for now; build before the hardware test.
+DC's decisions (2026-10-05, the TAPE parity checklist): keep TAPE's workflow;
+TAPE's knob layout, step sizes and gestures, but keep Forge's synth controls on
+extra pages; SW5 stays filter cutoff with the loop speed on push-and-turn; panic
+moves to SW4 + SW3; a long press resets a knob. TAPE's controls are listed with
+source lines in [TAPE_CONTROLS.md](TAPE_CONTROLS.md).
 
 ## What the player sees
 
-The four knobs are logical knobs 1–4 = **SW4, SW1, SW2, SW3** (stock order,
-MIDI CC 20–23). Each has four pages. **Pressing a knob steps its page**
-(1 → 2 → 3 → 4 → 1); the light at that knob shows the page:
+The four page knobs are **SW4, SW1, SW2, SW3** (TAPE's knobs 0–3, MIDI CC 20–23).
+Pages follow TAPE first, then Forge's extra controls, then the patch's own knob
+(v5 `knobs`) as one last page when the patch sets it:
 
-| Page | Light | Knob 1 (SW4) | Knob 2 (SW1) | Knob 3 (SW2) | Knob 4 (SW3) |
-| --- | --- | --- | --- | --- | --- |
-| 1 | dim white | the patch's knob 1 | the patch's knob 2 | the patch's knob 3 | the patch's knob 4 |
-| 2 | red | filter cutoff | attack | LFO rate | delay mix |
-| 3 | green | resonance | decay | LFO filter depth | delay feedback |
-| 4 | blue | filter envelope amount | release | osc 2 detune (sampler: loop crossfade) | reverb mix |
+| Knob | Sampler patch | Synth patch | Effects-only patch (line in) |
+| --- | --- | --- | --- |
+| SW4 | 1 pitch · 2 gain · 3 resonance · 4 filter envelope | same | 1 delay mix · 2 output level |
+| SW1 | 1 sample start · 2 attack · 3 LFO speed | 1 attack · 2 decay · 3 LFO speed | 1 delay time |
+| SW2 | 1 sample end · 2 release · 3 LFO filter · 4 loop crossfade | 1 release · 2 sustain · 3 LFO filter · 4 osc 2 detune | 1 feedback |
+| SW3 | 1 reverb + delay · 2 saturation · 3 DJ filter | same | same (on the line input) |
+| SW5 | turn: filter cutoff · push and turn: loop speed (scrub when paused) · click: speed 1× | same | same |
+| SW6 | turn: volume · short press: input gain page · hold 2 s: battery | same | same |
 
-Page 1 is what the patch says (v5 `knobs`), or, when it says `default` or the
-patch is v1–v4, the old behaviour: delay mix, time, feedback, output level; on
-sampler patches TAPE's page 0: pitch, start, end, delay mix.
+- **Pitch** (SW4 page 1) is TAPE's: 0.83 = 1×, the centre (0.5) stops, below the
+  centre plays backwards (samples); thirds of each side are .01–.5×, .5–1×, 1–2×.
+  On oscillators it transposes by the same ratio.
+- **Gain** (SW4 page 2): TAPE's voice gain, 2v² + 0.01 (0.704 ≈ 1×).
+- **Reverb + delay** (SW3 page 1): one value sets the delay feedback, half of it
+  the delay mix and the reverb mix (TAPE drives delay and reverb together).
+- **Saturation** (SW3 page 2): TAPE's soft clip with level compensation.
+- **DJ filter** (SW3 page 3): TAPE's: left of centre low-pass, right high-pass,
+  centre open. The resonance is in the menu (stage 2).
+- Pitch, gain, saturation, DJ filter, pan, warble, compressor and input gain are
+  device performance state (TAPE's knob positions), kept across preset changes and
+  reset at power-up as in TAPE; they are not stored in patches.
 
-- Pages are per knob and belong to the panel: they survive preset changes and
-  reset at power-up (not stored, like TAPE's encoder pages).
-- A control the patch version cannot carry is ignored (v1 has no envelope,
-  v1/v2 no resonance/LFO/reverb, v1–v3 no sampler). Turning does nothing; it
-  never fails or crashes.
-- Knob 1 still selects the bank while the menu is open; presses still step
-  pages. SW5 (cutoff/panic, looper transport) and SW6 (level) are unchanged.
-  SW6's press does nothing (DC: "nothing for now"), except as TAPE: held for
-  2 s, its light shows the battery (firmware 0.8; COMPATIBILITY §7).
-- Each turn step is 1/127 of the control's range, as before.
+Gestures:
+
+- **Step size (TAPE):** SW4 and SW5 count one step per click, the others three;
+  coarse controls move 0.01 per step, sample start/end and pitch 0.003. So SW1–SW3
+  and SW6 move 3 % per click (33 clicks end to end), start/end 0.9 %, pitch 0.3 %.
+  Forge 0.6–0.9 moved 1/127 per click, which made single clicks inaudible (DC).
+- **Page:** changes when the knob is **released** (TAPE). Pages are per knob,
+  survive preset changes (a patch with fewer pages sends that knob back to page 1)
+  and reset at power-up.
+- **Reset:** hold a knob **1.5 s** without turning: its current control goes back
+  to the preset's value (performance controls to TAPE's default); the light
+  flashes white; the page does not change.
+- **Panic:** hold **SW4 and SW3 together 1 s** (also MIDI CC 120/123).
+- **Lights:** TAPE's value colours on TAPE's pages (SW4 pitch: blue → green →
+  yellow → red away from the centre; gain blue → pink → red; SW1 yellow → orange;
+  SW2 orange → red; SW3 teal → blue, yellow → red, purple → pink → white); Forge's
+  extra pages red (first) and green (second); the patch page dim to bright white.
+  In the record position knob lights 1–4 are off and PLAY/LOOP/SW5 dim to 70 %
+  (TAPE). SW5's two lights show the loop speed (LED 6 forward, 5 reverse). SW6:
+  dim to bright green for volume, blue → red for input gain.
+- The menu still uses SW4 to pick the bank (TAPE's menu knob layer is stage 2).
 
 ## Patch knobs (patch version 5)
 
-v5 = v4 + four bytes: what knobs 1–4 do on page 1. JSON:
+v5 = v4 + four bytes: what knobs 1–4 control on their last page and through MIDI
+CC 20–23. JSON:
 
 ```json
 "knobs": ["filter.cutoff_hz", "lfo.rate_hz", "reverb.size", "reverb.mix"]
 ```
 
 Each entry is `"default"` or one of 26 `module.key` controls
-(`forge_host.KNOB_TARGETS`): delay mix/time/feedback, output level, filter
-cutoff/resonance/envelope amount, amplitude attack/decay/sustain/release, LFO
-rate/vibrato/filter/tremolo depth, osc 2 level/detune, noise, glide, reverb
-mix/size/damping, sampler pitch/start/end/crossfade. Delay bypass is not a
-knob target. MIDI CC 20–23 always move the page-1 controls, whatever page the
-panel shows. The AI authoring mode now writes v5 and chooses the four knobs
-for the sound; the webapp's *Panel knobs* group edits them; *Convert to v5*
-upgrades any older patch with all four `default`. Factory preset
-`14-knob-pad.json` shows it.
+(`forge_host.KNOB_TARGETS`). `"default"` adds no page; CC 20–23 then move the
+source's default (delay mix/time/feedback/level, or the sampler's pitch, start,
+end, delay mix). Performance controls (pitch, gain, saturation…) are not knob
+targets. The AI authoring mode writes v5 and chooses the knobs; the webapp's
+*Panel knobs* group edits them; `14-knob-pad.json` shows it.
 
-Wire: request 88 bytes (index 83–86 = Parameter id + 1, 0 = default; see
-PROTOCOL.md), status 100 bytes (`kMaxReply` 96 → 100). v1–v4 requests and
-presets are unchanged and still accepted; device presets store v5 like the
-others. Firmware minor 6 (0.6).
+Wire: unchanged from 0.6 (request 88 bytes, index 83–86 = Parameter id + 1,
+0 = default). Inspector page 3 reports knob n's page in bits 3n..3n+2 (0.10;
+0.6–0.9: 2 bits).
 
 ## Code
 
-- `core/parameters.h`: Parameter ids for every continuous control, `knobs[4]`,
-  `Resolve`, `Field`, `MinVersion`, version-gated `Apply`.
-- `core/protocol.h`: v5 layout, sizes. `core/engine.h`: knob resolution,
-  reverb reconfiguration for size/damping.
-- `core/panel_controller.h`: `KnobPageParameter` (the table above), page per
-  knob, `KnobPages()`, `ComposeKnobLeds`. Encoder switches are buttons 0–3
-  (ENC_1..4_SW); logical knob n's switch is `kKnobEncoder[n]`.
-- `src/forge_main.cpp`: through-hole LEDs 1–4 (TAPE's ENC_4, ENC_1, ENC_2,
-  ENC_3 lights), redrawn at ~30 Hz.
-- Inspector page 3 gains the knob pages (97 bytes); the bridge shows each
-  knob's page and control.
-- Host: `forge_host` (schema, codec, upgrade, `knob_control`), `forge_ai`,
-  `forge_inspector`, webapp, automatic checks, presets.
+- `core/knob_layout.h`: the table above (`LayoutTarget`, `Pages`, `Target`), step
+  sizes (`Step`), TAPE's colours (`KnobColour`, `VolumeColour`).
+- `core/parameters.h`: performance controls (`Performance`, ids after
+  `SampleXfade`, never on the wire), `TapeSpeedRatio`.
+- `core/engine.h`: `Value`, `ResetControl` (the patch's value is kept as
+  `patch_`), performance and the Space macro; `core/tape_fx.h`: TAPE's DJ filter,
+  saturation, warble and compressor; `core/synth.h`: speed (with reverse), gain, pan.
+- `core/panel_controller.h`: presses on release, hold reset, SW4 + SW3 panic,
+  SW5 push-and-turn, SW6 pages, `PublishKnobs` (values and state for the lights),
+  `ComposeKnobLeds`, `ComposeTransportLeds`.
+- Host: `forge_host.KNOB_LAYOUT`, `knob_pages`, `knob_control`; the inspector,
+  walk and automatic checks use them.
 
-## Costs and limits
+## Tests
 
-- Code: release 227,060 B (78.6 %, +3.6 KB), development 242,512 B. RAM:
-  D1 SRAM 93,532 B release (4 bytes of knob pages; MIDI frames 4 bytes larger).
-- CPU: a knob turn reconfigures the synth (or reverb) once per audio block,
-  as SW5's cutoff already did; `make bench` unchanged (worst 2,671 ≤ WAVE 2,695).
-- Taken from TAPE 2.0's source, not yet seen on hardware in Forge: the knob
-  lights (TAPE `NormalPage.h` `led_map`: ENC_1_SW → 2, ENC_2_SW → 3,
-  ENC_3_SW → 4, ENC_4_SW → 1) and the encoder presses (TAPE also uses them as
-  page keys). Also unverified: zipper noise on fast turns.
+- `tests/panel_test.cpp` `KnobPages`: every page and step size, release paging,
+  hold reset, patch page, page clamp on patch change, lights.
+- `tests/knob_audio_test.cpp`: every page of every starter preset (as stored by
+  the bridge: v5) must change the rendered sound by at least 5 % after 10 clicks
+  (spectrum, envelope, loudness or balance). 2026-10-05: 127 pages audible; 24
+  need another control first and are listed with the reason (LFO speed without an
+  LFO depth; LFO on the mod wheel, which CHOMPI's panel lacks — Acid Bass, Bell
+  Keys; detune without oscillator 2; crossfade with loop off; delay time/feedback
+  with delay mix 0; filter pages on a pure, wide-open sine; decay with sustain ≥ 0.7;
+  sample end beyond a short note).
+- Bridge 3.57a–f: the same comparison on CHOMPI's real output.

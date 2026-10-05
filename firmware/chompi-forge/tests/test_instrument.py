@@ -104,7 +104,7 @@ class InstrumentTests(unittest.TestCase):
             self.assertEqual(len(reply), 81)
             self.assertEqual(reply[8:69], packet[7:68])                  # device echoes exactly what was sent
             captured = host.decode_response(reply, host.read14(packet, 5))
-            self.assertEqual(captured["firmware"], "0.9")
+            self.assertEqual(captured["firmware"], "0.10")
             self.assertEqual(host.encode_patch(captured["patch"], host.read14(packet, 5)), packet)
 
     def test_v3_rejection_is_atomic(self):

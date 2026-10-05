@@ -188,13 +188,15 @@ class BridgeCardTests(unittest.TestCase):
         self.assertEqual(job["result"]["stored"], [s for s in range(1, 13) if s != 3])
         self.assertEqual(job["result"]["kept"], [3])
         self.assertEqual(transport.exchange(host.preset_message(7, seq()))["occupied"][2], list(range(1, 13)))
-        def sounds_like(name):                                          # the device's own reading of a patch file
-            transport.exchange(host.encode_patch(host.load_patch(ROOT / "presets" / name), seq()))
+        def sounds_like(name):                                          # the device's own reading of the v5 upgrade
+            transport.exchange(host.encode_patch(host.upgrade_patch(host.load_patch(ROOT / "presets" / name), 5), seq()))
             return transport.exchange(host.message(2, seq()))["patch"]
         for slot, name in ((1, "01-dry.json"), (3, "06-saw-bass.json"), (9, "09-bell-keys.json"), (12, "14-knob-pad.json")):
-            expected = sounds_like(name)
+            expected = sounds_like(name) if slot != 3 else None
             transport.exchange(host.preset_message(5, seq(), 2, slot))
-            self.assertEqual(transport.exchange(host.message(2, seq()))["patch"], expected, slot)
+            stored = transport.exchange(host.message(2, seq()))["patch"]
+            if slot == 3: self.assertEqual(stored["modules"]["synth"]["waveform"], "saw")   # the player's own Saw Bass (v2 sent, kept)
+            else: self.assertEqual(stored, expected, slot); self.assertEqual(stored["version"], 5)
         self.call("presets", bank=2, confirm=True)                     # again: everything is kept
         self.assertEqual(self.wait()["result"]["stored"], [])
 

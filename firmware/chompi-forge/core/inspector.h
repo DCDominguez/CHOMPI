@@ -83,6 +83,8 @@ struct InspectorSystem {
     // Charger/battery (main loop, power::Status): level 0 full .. 3 low, 4 unknown;
     // flags bit 0 USB power, 1 charger fault, 2 USB lines handed to the charger IC.
     uint8_t battery = 4, power_flags = 0, charge_state = 0;
+    // Why this start (core/restart.h): reset flags, and a crash Forge recorded before restarting.
+    uint8_t reset_flags = 0; bool crashed = false; uint32_t crash_pc = 0;
 };
 struct InspectorStorage {
     bool present = false, mounted = false, busy = false, loading = false;
@@ -115,6 +117,7 @@ FORGE_NOINLINE inline size_t EncodeInspector(uint16_t sequence, uint8_t page, co
         for(unsigned i=0;i<2;++i) { word(sys.rx[i]); word(sys.tx[i]); word(sys.tx_errors[i]); word(sys.ingress_drops[i]); }
         word(sys.dropped); word(sys.rejected);
         byte(sys.battery); byte(sys.power_flags); byte(sys.charge_state);   // firmware 0.8: page 2 is 91 bytes
+        byte(sys.reset_flags); byte(sys.crashed ? 1 : 0); word(sys.crash_pc);   // 0.10: 98 bytes (CFSR: FORGE/RESTARTS.TXT)
     } else if(page == 3) {
         for(uint64_t keys : {a.physical_keys, a.logical_keys}) for(unsigned i=0;i<6;++i) byte((keys>>(7*i))&127);
         byte(a.physical_flags); byte(a.logical_flags); word(a.menu);

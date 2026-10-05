@@ -37,6 +37,8 @@ class InspectorTests(unittest.TestCase):
         key=host.message(0x0a,13,[0,15,65])
         replies=probe(inspector.request(2,1),turn,key,inspector.request(3,2),inspector.request(2,3),inspector.request(3,4))
         old=inspector.decode(replies[3],2,3); new=inspector.decode(replies[5],4,3)
+        self.assertEqual(inspector.decode(replies[0],1,2)['restart'],          # 0.10: why it started (none simulated)
+                         {'causes':[],'crashed':False,'crash_pc':None})
         self.assertEqual(old['logical_keys'],[]); self.assertEqual(old['generation'],1)
         self.assertEqual(new['physical_keys'],[]); self.assertEqual(new['logical_keys'],[15])
         self.assertEqual(new['held_notes'],[48]); self.assertTrue(new['logical']['overridden'])

@@ -5,6 +5,7 @@
 #include "midi_framer.h"
 #include "panel_controller.h"
 #include "preset_menu.h"
+#include "restart.h"
 #include "runtime.h"
 #include "sampler_runtime.h"
 #include "usb_packets.h"
@@ -74,6 +75,38 @@ constexpr size_t kReverbCapacity = 8704; // >= Reverb::Required(48000) = 8606
 // The FDN lines exceed the 16 KB D-cache, so SDRAM would mean cache misses.
 // Not zeroed at boot; Reverb's unread counter hides stale cells until rewritten.
 float __attribute__((section(".dtcmram_bss"))) reverb_memory[kReverbCapacity];
+// Why CHOMPI last started (core/restart.h). Backup SRAM keeps these across a reset
+// (not a power loss); NOLOAD, so they are validated by a magic number.
+struct BootCount { uint32_t magic, boots; };
+__attribute__((section(".backup_sram.forge"))) forge::restart::FaultRecord fault_record;   // after boot_info (0x38800000)
+__attribute__((section(".backup_sram.forge"))) BootCount boot_count;
+uint8_t reset_flags = 0;                       // this start's RCC_RSR, compacted
+forge::restart::FaultRecord last_fault{};      // the crash that caused this start, if any
+// Forge's fault handler replaces libDaisy's (a breakpoint that freezes CHOMPI without a
+// debugger) through a copy of the vector table: record where it crashed, then restart.
+alignas(1024) uint32_t vector_table[166];
+extern "C" __attribute__((used)) void ForgeFaultRecord(const uint32_t* frame) {
+    fault_record.pc = frame[6]; fault_record.lr = frame[5];
+    fault_record.cfsr = SCB->CFSR; fault_record.hfsr = SCB->HFSR;
+    fault_record.count = fault_record.Valid() ? fault_record.count + 1 : 1;
+    fault_record.magic = forge::restart::FaultRecord::kMagic;
+    __DSB();
+    NVIC_SystemReset();
+}
+extern "C" __attribute__((naked)) void ForgeFaultHandler() {
+    __asm volatile("tst lr, #4\n ite eq\n mrseq r0, msp\n mrsne r0, psp\n b ForgeFaultRecord\n");
+}
+void InstallFaultHandler() {
+    PWR->CR1 |= PWR_CR1_DBP;                               // backup SRAM writable
+    RCC->AHB4ENR |= RCC_AHB4ENR_BKPRAMEN;
+    const uint32_t* current = reinterpret_cast<const uint32_t*>(SCB->VTOR);
+    for(unsigned i = 0; i < 166; ++i) vector_table[i] = current[i];
+    vector_table[3] = reinterpret_cast<uint32_t>(&ForgeFaultHandler);   // HardFault (other faults escalate to it)
+    __disable_irq();
+    SCB->VTOR = reinterpret_cast<uint32_t>(vector_table);
+    __DSB(); __ISB();
+    __enable_irq();
+}
 // TAPE's warble line (8 KB): ordinary .bss, zeroed at start-up, so no image space.
 float warble_memory[2 * forge::tape::Warble::kLength];
 uint32_t dropped_commands = 0, rejected_messages = 0; // main-loop owned
@@ -84,6 +117,20 @@ SdmmcHandler sdmmc;
 FatFSInterface fsi;
 FatFsStorage card;
 forge::PresetStore store(card);
+// One line per start in FORGE/RESTARTS.TXT on the card (kept under 16 KB).
+void LogRestart() {
+    if(!card.Ready()) return;
+    char line[160];
+    const unsigned n = forge::restart::Describe(boot_count.boots, reset_flags, &last_fault, line, sizeof(line));
+    f_mkdir("FORGE");
+    FIL file;
+    FILINFO info;
+    const bool big = f_stat("FORGE/RESTARTS.TXT", &info) == FR_OK && info.fsize > 16384;
+    if(f_open(&file, "FORGE/RESTARTS.TXT", big ? (FA_WRITE | FA_CREATE_ALWAYS) : (FA_WRITE | FA_OPEN_APPEND)) != FR_OK) return;
+    UINT written = 0;
+    f_write(&file, line, n, &written);
+    f_close(&file);
+}
 struct PanelAction { forge::MenuAction action; forge::Parameters patch; };
 forge::SpscQueue<PanelAction, 8> panel_actions;   // audio -> main
 std::atomic<uint32_t> menu_state{0};               // PresetMenu::Packed(), for LEDs
@@ -552,6 +599,7 @@ void CaptureInspector() {
     sys.battery=static_cast<uint8_t>(power.level);
     sys.power_flags=static_cast<uint8_t>((power.usb_power?1:0)|(power.fault?2:0)|(power.usb_to_charger?4:0));
     sys.charge_state=power.charge_state;
+    sys.reset_flags=reset_flags; sys.crashed=last_fault.Valid(); sys.crash_pc=last_fault.pc;
     auto& st=s.storage; sample_loader.Inspect(st);
     st.present=disk_status(0)==RES_OK; st.mounted=card.Mounted(); st.record_capacity_frames=kRecordFrames;
     st.errors+=inspector_storage_errors;
@@ -670,7 +718,14 @@ void SendResponses() {
 } // namespace
 
 int main() {
+    const uint32_t rsr = RCC->RSR;                 // why this start, before anything clears it
+    RCC->RSR |= RCC_RSR_RMVF;
+    reset_flags = forge::restart::Flags(rsr);
     hw.Init();
+    InstallFaultHandler();
+    if(fault_record.Valid()) { last_fault = fault_record; fault_record.magic = 0; }
+    if(boot_count.magic != forge::restart::FaultRecord::kMagic) { boot_count.magic = forge::restart::FaultRecord::kMagic; boot_count.boots = 0; }
+    ++boot_count.boots;
     LedSetup();
     hw.MpWrite(0x0c, 0B01010001); // retain upstream 3 V battery threshold
     hw.MpReadAll();
@@ -733,6 +788,7 @@ int main() {
     if(disk_status(0)==RES_OK && !card.Ready()) InspectorStorageError(forge::Error::Storage);
 #endif
     store.Rescan();
+    LogRestart();
     panel_controller.SetInstallGate(&install_gate);
     cpu.Init(hw.seed.AudioSampleRate(), hw.seed.AudioBlockSize());
     hw.StartAudio(AudioCallback);

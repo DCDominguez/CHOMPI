@@ -1,6 +1,8 @@
 #include <cassert>
+#include <cstring>
 #include <iostream>
 #include "../core/power.h"
+#include "../core/restart.h"
 
 using namespace forge::power;
 
@@ -61,7 +63,22 @@ void StatusDecode() {
     assert(!s.usb_power && s.charge_state == 3 && s.fault && s.usb_to_charger);
 }
 
+// Restart reason (core/restart.h): RCC_RSR flags and the crash record, as logged.
+void RestartReason() {
+    using namespace forge::restart;
+    assert(Flags(0) == 0 && Flags(kPowerOn | kBrownOut | kPin) == 7 && Flags(kSoftware) == 8 && Flags(kWatchdog | kLowPower) == 80);
+    char line[200];
+    FaultRecord none{}; assert(!none.Valid());
+    Describe(3, Flags(kPowerOn | kBrownOut), &none, line, sizeof(line));
+    assert(std::strcmp(line, "boot 3: power-on brown-out\n") == 0);
+    FaultRecord crash{FaultRecord::kMagic, 0x24012345u, 0x24000101u, 0x8200u, 0x40000000u, 1};
+    Describe(12, Flags(kSoftware), &crash, line, sizeof(line));
+    assert(std::strcmp(line, "boot 12: software; crash pc=0x24012345 lr=0x24000101 cfsr=0x00008200 hfsr=0x40000000\n") == 0);
+    Describe(1, 0, nullptr, line, sizeof(line)); assert(std::strcmp(line, "boot 1: (no reset flags)\n") == 0);
+    char small[8]; assert(Describe(1, 0, nullptr, small, sizeof(small)) == 7 && small[7] == 0);   // truncated, terminated
+}
+
 int main() {
-    BootGestureOff(); Colours(); ChargerHandover(); StatusDecode();
-    std::cout << "PASS: power off gesture, battery colours, charger/USB hand-over (edges, timeout, wrap), status decode\n";
+    BootGestureOff(); Colours(); ChargerHandover(); StatusDecode(); RestartReason();
+    std::cout << "PASS: power off gesture, battery colours, charger/USB hand-over (edges, timeout, wrap), status decode, restart reason\n";
 }

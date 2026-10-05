@@ -153,11 +153,14 @@ STARTER_PRESETS = ((1, "01-dry.json"), (2, "02-slap.json"), (3, "03-long-echo.js
 
 
 def load_starter_presets(device, bank, say, cancel, folder=None):
-    """Store the starter presets into `bank` (1-8) through the device's own Store
-    request (send the patch, then store it). Occupied slots are never overwritten.
+    """Store the starter presets into `bank` (1-8), upgraded to the current patch format,
+    through the device's own Store request (send the patch, then store it). Occupied slots are never overwritten.
     The sound that was playing is sent back afterwards."""
     folder = Path(folder) if folder else ROOT.parent / "presets"
-    patches = [(slot, host.load_patch(folder / name)) for slot, name in STARTER_PRESETS]   # all valid before writing
+    # Older formats (v1-v4) are upgraded to v5 first, so every knob page works on CHOMPI
+    # (the files in presets/ stay as they are: they are also the compatibility examples).
+    def current(patch): return patch if patch["version"] >= 5 else host.upgrade_patch(patch, 5)
+    patches = [(slot, current(host.load_patch(folder / name))) for slot, name in STARTER_PRESETS]   # all valid before writing
     try: playing = device.status().get("patch")
     except (ValueError, RuntimeError): playing = None
     occupied = set(device.exchange(host.preset_message(7, device.bridge.seq()))["occupied"][bank])

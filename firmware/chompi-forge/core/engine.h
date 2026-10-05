@@ -39,6 +39,7 @@ public:
         performance_ = Performance{};
         synth_.Init(sample_rate); synth_.Configure(parameters_);
         synth_.SetPerformance(TapeSpeedRatio(performance_.speed), performance_.voice_gain, performance_.pan);
+        synth_.SnapPerformance();
         effects_.Configure(performance_);
         mix_ = parameters_.mix;
         feedback_ = parameters_.feedback * 0.85f;

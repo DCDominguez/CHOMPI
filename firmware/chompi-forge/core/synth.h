@@ -169,6 +169,7 @@ public:
         }
         gain_target_ = 2.f * voice_gain * voice_gain + .01f;
         pan_r_target_ = std::fmin(2.f * pan, 1.f); pan_l_target_ = std::fmin(2.f - 2.f * pan, 1.f);
+        performance_moving_ = true;
     }
     // Sample memory handoff: fade out (2 ms) voices reading file slots (and the
     // recording slot if asked), and report whether any still sound.
@@ -216,12 +217,10 @@ public:
 #endif
     // Mono patches (v1-v3, oscillators) return the same value on both sides.
     void Process(float& left, float& right) {
-        speed_ += 0.002f * (speed_target_ - speed_);
-        out_gain_ += 0.001f * (gain_target_ - out_gain_);
-        pan_l_ += 0.001f * (pan_l_target_ - pan_l_); pan_r_ += 0.001f * (pan_r_target_ - pan_r_);
+        if(performance_moving_) Glide();
         if(sampler_) ProcessSampler(left, right);
         else left = right = Process();
-        left *= out_gain_ * pan_l_; right *= out_gain_ * pan_r_;
+        left *= out_l_; right *= out_r_;
     }
     float Process() {
         float sum = 0;
@@ -453,6 +452,7 @@ private:
         float pitch_ratio = 1.f, amp_lfo = 1.f, lfo_octaves = 0.f;
         Modulation(pitch_ratio, amp_lfo, lfo_octaves);
         pitch_ += 0.002f * (pitch_target_ - pitch_);
+        const float rate = pitch_ * speed_ * pitch_ratio;   // per sample, not per voice
         const bool refresh = (tick_++ & 15u) == 0;
         cutoff_ += 0.002f * (cutoff_target_ - cutoff_);
         const float base_octave = kLog2Of40 + cutoff_ * kLog2Of400 + lfo_octaves;
@@ -471,7 +471,7 @@ private:
                 v.increment += glide_slew_ * (v.target - v.increment);
                 if(std::fabs(v.target - v.increment) < 1e-9f) v.increment = v.target;
             }
-            const float step = std::min(v.increment * pitch_ * speed_ * bend_[v.source] * pitch_ratio, 8.f);
+            const float step = std::min(v.increment * rate * bend_[v.source], 8.f);
             float l, r;
             if(!SampleFrame(v, step, l, r)) { v.amp = Envelope{}; v.last_l = v.last_r = 0.f; continue; }
             Step(v.filter, filter_shape_);
@@ -571,6 +571,27 @@ private:
     float sample_start_ = 0, sample_end_ = 1, xfade_frames_ = 0, pitch_ = 1, pitch_target_ = 1;
     float fade_frames_ = 96, inverse_fade_ = 1.f / 96;
     // TAPE performance (SetPerformance); defaults are TAPE's knob defaults (1x, ~1x gain, centre).
+    // Smoothed per sample only while moving; out_l_/out_r_ = gain x pan.
+public:
+    // Jump to the targets (start-up): nothing to smooth from.
+    void SnapPerformance() {
+        speed_ = speed_target_; out_gain_ = gain_target_; pan_l_ = pan_l_target_; pan_r_ = pan_r_target_;
+        out_l_ = out_gain_ * pan_l_; out_r_ = out_gain_ * pan_r_; performance_moving_ = false;
+    }
+private:
+    void Glide() {
+        speed_ += 0.002f * (speed_target_ - speed_);
+        out_gain_ += 0.001f * (gain_target_ - out_gain_);
+        pan_l_ += 0.001f * (pan_l_target_ - pan_l_); pan_r_ += 0.001f * (pan_r_target_ - pan_r_);
+        if(std::fabs(speed_ - speed_target_) < 1e-6f && std::fabs(out_gain_ - gain_target_) < 1e-6f
+           && std::fabs(pan_l_ - pan_l_target_) < 1e-6f && std::fabs(pan_r_ - pan_r_target_) < 1e-6f) {
+            speed_ = speed_target_; out_gain_ = gain_target_; pan_l_ = pan_l_target_; pan_r_ = pan_r_target_;
+            performance_moving_ = false;
+        }
+        out_l_ = out_gain_ * pan_l_; out_r_ = out_gain_ * pan_r_;
+    }
+    bool performance_moving_ = true;
+    float out_l_ = 1.f, out_r_ = 1.f;
     bool speed_reverse_ = false;
     float speed_ = 1.f, speed_target_ = 1.f, out_gain_ = 1.f, gain_target_ = 1.f;
     float pan_l_ = 1.f, pan_r_ = 1.f, pan_l_target_ = 1.f, pan_r_target_ = 1.f;

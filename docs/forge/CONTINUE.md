@@ -23,29 +23,32 @@ SD streaming remains gated on physical SD measurements. Older checkpoint and
 PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
 use the latest implementation checkpoint and ledger for present capabilities/budgets.
 
-## In progress: firmware 0.10 TAPE parity, stage 1 (not released; version still 0.9)
+## In progress: firmware 0.10 TAPE parity — stage 1 done, stage 2 next (not installed)
 
-DC chose the recommended answers for every parity row. Stage 1 done so far
-(software-tested, not on hardware): TAPE knob layout (core/knob_layout.h: TAPE pages
-first, Forge's extra synth pages after, the patch's knob as a last page; effects-only
-patches put the delay on knobs 1-3), TAPE step sizes, page change on release, 1.5 s
-hold = reset to the patch value, SW4 + SW3 held 1 s = panic, SW5 turn = cutoff /
-push-and-turn = loop speed (.012 per click) / click = 1x, SW6 short press = input gain
-(.75, recorder x mic 5 / line 3 as TAPE), 1.5 s record count-in (CHOMPI and white keys
-blink red; release cancels), velocity 127, after a take TAPE's speed/gain/start/end
-reset; TAPE performance controls (core/parameters.h Performance: speed with reverse,
-voice gain, pan, saturation, warble, DJ filter + resonance, compressor, input gain;
-device state, not in patches); TAPE effects ported (core/tape_fx.h; warble line is
-caller memory so no image cost); lights: TAPE value colours on knob rings (off in
-the record position), CHOMPI input meter / purple / count-in, PLAY/LOOP/SW5 dim in the
-record position, SW5 transport LEDs, SW6 page colour, white balance (G .85, B .6) at
-the driver; monitoring in the record position to the headphones (TAPE default);
-bridge: toggle menu/record wording, new knob model, walk/auto checks updated.
-Checks at this point: make test (11 native + 114 Python), make sanitize, browser
-tests (11 + 7) PASS; ARM release 249,188 B layout OK. Next: restart reason (L2),
-convert old starter presets (L3), audio knob test (L4), docs/manual (L5, E1),
-version 0.10, then stage 2 (menu shift layer, monitor modes, options.json/presets.json,
-quantised loop speed, tape slew, MIDI out, menu reorder).
+DC chose the recommended answer for every parity row (and asked for one install at
+the end). Stage 1 is complete and pushed (CHANGELOG "0.10 TAPE parity, stage 1";
+KNOBS.md; TAPE_CONTROLS.md). Version is already 0.10 (minor 10).
+Checks at this checkpoint: `make test` (12 native suites incl. knob_audio_test:
+127 knob pages audible, 24 dependent with reasons; 116 Python), `make sanitize`,
+`make browser-test` (11 + 7), `make bench` PASS (worst 2,664.9 ≤ WAVE 2,694.9;
+every TAPE effect at once 3,052.9 informational → hardware 6.2e), ARM release
+252,420 B / development 268,720 B layout OK (boot_info at 0x38800000; Forge's
+fault/boot records follow it in .backup_sram.forge).
+Unverified on hardware: everything in 0.10; the Daisy bootloader may clear RCC_RSR
+before Forge reads it (then *Last start* shows no flags); white-balance factors are
+a guess (G .85, B .6); TAPE's knob light colours.
+Findings for DC: Acid Bass and Bell Keys put their LFO on the mod wheel, so their
+LFO pages do nothing from the panel; Saw Bass's v5 conversion is ~20 % different in
+spectrum (newer voice), listen.
+Stage 2 (to build before the single install): TAPE's menu knob layer (SW4 quantised
+pitch/pan, SW1+SW2 window and attack+decay, SW3 delay time/warble/DJ resonance, SW5
+looper pitch, SW6 compressor; presses: resets, auto-loop, sustain, monitor mode);
+monitor modes (HP/both/send-return); options.json (record latch, MIDI channels, tape
+slew, monitor position, pitch quantise, split delay); presets.json per-slot settings
+(A4: picking a slot loads its values, a patch applies until another slot is picked,
+turns save into the slot); quantised loop speed (fifths/octaves) and tape slew; MIDI
+out (keys, knob CCs, PLAY/LOOP/CHOMPI CCs); menu: TAPE's page first with TAPE's keys,
+Forge presets on a second page. Code budget: development headroom is 20 KB.
 
 ## Previous checkpoint: firmware 0.9, key lights while playing, 2026-10-05
 

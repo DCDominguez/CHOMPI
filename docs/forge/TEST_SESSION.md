@@ -125,7 +125,7 @@ injections or simulated file loading as a physical pass.
 ## 3C. Device presets on the SD card (TAPE-style keys + encoder)
 
 Use the test card from 1.1 (it may be otherwise empty). "Menu position" means the
-toggle position in which TAPE's CHOMPI key opens its menu; note which way that is.
+toggle position in which TAPE's CHOMPI key opens its menu (down on DC's unit; up is the record position).
 
 | # | Do | Pass when |
 | --- | --- | --- |
@@ -143,7 +143,7 @@ toggle position in which TAPE's CHOMPI key opens its menu; note which way that i
 
 ## 3D. Sampler (TAPE-style, firmware 0.5)
 
-Card prepared in 0.6. "Menu" = toggle up + CHOMPI key, as in 3.17.
+Card prepared in 0.6. "Menu" = toggle down (the menu position) + CHOMPI key, as in 3.17.
 
 | # | Do | Pass when |
 | --- | --- | --- |
@@ -153,9 +153,9 @@ Card prepared in 0.6. "Menu" = toggle up + CHOMPI key, as in 3.17.
 | 3.31 | Samples page: KEY_16 (chromatic), white key 1; close the menu; play keys across the keybed | `jammi_a1` plays chromatically, KEY_8 (middle C) at original pitch; press KEY_16 again in the menu → bank b (your own WAV if added in 0.6 plays at the right pitch) |
 | 3.32 | Turn knobs 1–3 while holding a key | Pitch, start and end change like TAPE's first page; knob 4 changes the delay mix |
 | 3.33 | Webapp: Capture to editor (chromatic `jammi_a1` playing), set Start 0.2, End 0.4, Loop on, Crossfade 50 ms, Send, hold a key | The loop repeats without a click or level dip at the loop point; Reverse on → plays backwards |
-| 3.34 | **Record (line):** line in plugged, source KEY_19 lit. Toggle down, hold CHOMPI while playing audio into line in for ~5 s, release | CHOMPI LED red while recording; input audible while recording; on release the keys play the recording chromatically at once, normalised (similar loudness to the kit) and without clicks at its start/end |
+| 3.34 | **Record (line):** line in plugged, source KEY_19 lit. Toggle up (the record position), hold CHOMPI while playing audio into line in for ~6 s, release | CHOMPI and the white keys blink red three times (1.5 s count-in; letting go earlier records nothing), then CHOMPI is red while recording; the input is heard in the headphones in the record position (TAPE); on release the keys play the recording chromatically at once, normalised (similar loudness to the kit) and without clicks at its start/end |
 | 3.35 | **Record (mic):** unplug line in (source switches to the mic), record a few words, release | Plays back; record the level (too quiet / ok / distorted) and any hum |
-| 3.36 | **Resample:** menu, KEY_20; send `07-warm-pad.json` (oscillators), toggle down, hold CHOMPI while playing a chord, release | The recording is the instrument's own output and plays chromatically |
+| 3.36 | **Resample:** menu, KEY_20; send `07-warm-pad.json` (oscillators), toggle up (record position), hold CHOMPI through the count-in while playing a chord, release | The recording is the instrument's own output and plays chromatically |
 | 3.37 | Menu, Samples page: KEY_25 (save), KEY_17 kit, white key 9, CHOMPI | CHOMPI LED blinks pink, then green flash; key 9 of kit bank a now occupied. `cubbi_a9.wav` on the card afterwards |
 | 3.38 | Put the card in a computer: open `cubbi_a9.wav` | Plays in any audio app (16-bit stereo 48 kHz) |
 | 3.39 | Menu: KEY_24 copy kit a9 → chromatic c2 (KEY_16, bank c, key 2), CHOMPI; then KEY_23 erase kit a9, CHOMPI | Copy and erase confirmed (green flashes); `H samples` agrees |
@@ -176,10 +176,10 @@ key lights. The loop records what you hear (effects before the loop). Up to
 | 3.45 | Hold PLAY + LOOP 2 s | The loop fades out and is gone (LEDs dark); SW5 turns the cutoff again |
 | 3.46 | With no loop: press PLAY + LOOP together, release, then play a key | LOOP LED blinks red (armed); recording starts with the first note |
 | 3.47 | With a loop playing: turn SW5, press SW5; pause and turn SW5 | Loop pitch/speed follows (reverse below zero), press = back to normal; paused, turning scrubs (tape-like); SW5 never changes the cutoff while a loop exists |
-| 3.48 | Menu (toggle up + CHOMPI): PLAY / LOOP a few times; KEY_20 then KEY_21 | Overdub feedback down / up (older layers fade faster or stay); KEY_20 = effects after the loop (the delay/reverb applies to the loop too), KEY_21 = before (default); the lit key shows which |
+| 3.48 | Menu (toggle down + CHOMPI): PLAY / LOOP a few times; KEY_20 then KEY_21 | Overdub feedback down / up (older layers fade faster or stay); KEY_20 = effects after the loop (the delay/reverb applies to the loop too), KEY_21 = before (default); the lit key shows which |
 | 3.49 | Menu, Samples page: KEY_24 (copy), LOOP, a white key, CHOMPI | CHOMPI LED pink, then green; the loop is now that sample slot and plays on the keys; while saving, LOOP cannot overdub |
 | 3.50 | `H cc 27 127`, `H cc 27 0`, `H cc 26 127`, `H cc 26 0`, `H cc 24 100` | CC 27 = LOOP, CC 26 = PLAY (as TAPE); CC 24 changes the loop speed while a loop exists |
-| 3.51 | Panic (`H panic`, SW5 without a loop, CC 120) while a loop plays; then switch presets | Panic stops the loop at once (it stays, PLAY resumes it); a preset change does not stop the loop |
+| 3.51 | Panic (`H panic`, SW4 + SW3 held together 1 s, CC 120) while a loop plays; then switch presets | Panic stops the loop at once (it stays, PLAY resumes it); a preset change does not stop the loop; the two knobs do not change page |
 
 ## 3F. Knob pages and patch knobs (firmware 0.6)
 
@@ -193,11 +193,12 @@ down which one lit — that mapping is not yet hardware-verified.
 
 | # | Do | Pass when |
 | --- | --- | --- |
-| 3.52 | Send `07-warm-pad.json`. Look at the four knob lights; turn each knob a little; then press SW4 once and turn it while holding a chord | All four lights dim white and the knobs do mix / time / feedback / level as before; after the press SW4's light is red and SW4 sweeps the filter cutoff (SW5 still does too) |
-| 3.53 | Press SW4 again (green: resonance), again (blue: filter envelope amount, play short notes), again (white). Press SW1 once and check that only SW1's light changed | Each page audibly does its job; the fourth press is back to page 1; pages are per knob |
-| 3.54 | SW1 pages 2–4 = attack, decay, release (play short notes); SW2 = LFO rate, LFO filter depth (on Warm Pad the sweep is audible), oscillator 2 detune; SW3 = delay mix, delay feedback, reverb mix. Then put every knob back to page 1 (white) | Each control is audible and moves smoothly, without zipper noise or clicks; no stuck notes; the lights follow every press |
-| 3.55 | Send `14-knob-pad.json` (a v5 patch). With all knobs on page 1: turn SW4, SW1, SW2, SW3; then `H cc 20 0` and `H cc 20 127` | SW4 = cutoff, SW1 = LFO speed, SW2 = reverb size, SW3 = reverb mix (the patch chose them); CC 20 moves the cutoff the same way |
-| 3.56 | Send `12-tape-kit-a.json` and play: SW2 on page 4 (blue) = loop crossfade. Send `02-slap.json` (v1 delay) and try SW1's pages. Webapp: open any preset, **Convert to v5**, choose a job for each knob under *Panel knobs*, Send; optionally ask the AI for a patch and look at its knob choices | Sampler: no crash, crossfade changes on looped samples only; v1: SW1 pages 2–4 do nothing (a delay patch has no envelope), no crash; the webapp patch's knobs do what you chose |
+| 3.52 | Send `07-warm-pad.json`, toggle in the menu position (down). Look at the knob lights; turn each knob while holding a chord; then press and release SW4 once and turn it | Lights in TAPE's colours (SW4 green-yellow at 1x pitch, SW1 yellow-orange, SW2 orange-red, SW3 teal-blue); SW4 = pitch (TAPE: centre stops, below plays backwards on samples), SW1 = attack, SW2 = release, SW3 = reverb + delay together; one click is clearly audible (TAPE's step: 3 % on SW1-SW3, pitch finer). After the release SW4 = voice gain (blue to pink to red) |
+| 3.53 | Step each knob through its pages (press and release): SW4 pitch, gain, resonance (red), filter envelope (green); SW1 attack, decay, LFO speed (red); SW2 release, sustain, LFO filter (red), detune (green); SW3 reverb + delay, saturation (yellow to red), DJ filter (purple to pink to white: left of centre low-pass, right high-pass) | Each page audibly does its job; the page changes when the knob is released (as TAPE); pages are per knob and wrap back to page 1 |
+| 3.54 | Hold a knob 1.5 s without turning; hold SW4 + SW3 together 1 s while a note plays; flip the toggle up (record position); short-press SW6 and turn it, then short-press again | The held knob's light flashes white and its control goes back to the preset's value (no page change); SW4 + SW3 stops all sound; in the record position the knob lights go out, PLAY/LOOP dim and CHOMPI's light shows the input level; SW6's light turns blue to red for input gain (TAPE), then back to volume |
+| 3.55 | Send `14-knob-pad.json` (a v5 patch). Step SW4 to page 5, SW1 to page 4, SW2 to page 5, SW3 to page 4 (each knob's last page, dim white light); turn them; then `H cc 20 0` and `H cc 20 127` | SW4 = cutoff, SW1 = LFO speed, SW2 = reverb size, SW3 = reverb mix (the patch chose them, on the last page); CC 20 moves the cutoff the same way |
+| 3.56 | Send `12-tape-kit-a.json` and play: SW1 page 1 = sample start, SW2 page 1 = sample end, SW2 page 4 = loop crossfade. Send `02-slap.json` (effects only) and turn the knobs while playing into line in. Webapp: open any preset, **Convert to v5**, choose a job for each knob under *Panel knobs*, Send | Sampler: start/end move in fine steps (TAPE), crossfade changes on looped samples only, no crash; effects-only: SW4 = delay mix (page 2 level), SW1 = delay time, SW2 = feedback, SW3 = TAPE's effects on the line input; the webapp patch's knobs are on each knob's last page |
+| 3.57 | **Automatic (bridge):** SW4 pitch, SW1 attack, SW2 release, SW3 reverb + delay and DJ filter, SW5 cutoff: a held note recorded before and after 10 clicks | Each pair of recordings differs by at least 5 % (spectrum, envelope, loudness or stereo balance); the same check runs on every page of every starter preset in the simulation (`tests/knob_audio_test.cpp`) |
 
 ## 4. Panic and recovery
 
@@ -225,6 +226,7 @@ Record provider/model/seconds, never the key.
 | 6.2b | **Worst case:** reboot (resets peak), `H send presets/10-cpu-stress.json`, hold four keys for 1 minute, `H status` | Record average and peak. If peak ≥ 70 %, set voices to 3 then 2 in the webapp, Send, repeat, and record each. This sets the v3 CPU budget |
 | 6.2c | **Sampler worst case:** record a ≥ 5 s take (3.34), reboot is not needed but note the peak first, `H send presets/13-sampler-stress.json`, hold seven keys for 1 minute, `H status` | Record average and peak. If peak ≥ 70 %, lower voices to 5 then 4 and repeat. Sample reads come from SDRAM, so this is the number the emulator cannot predict |
 | 6.2d | **Sampler + looper:** as 6.2c, then tap LOOP and overdub for 1 minute while holding the seven keys, `H status` | Record average and peak. While the looper records or overdubs, a seventh sampler voice is released (6 voices max, by design); report whether that is noticeable |
+| 6.2e | **Sampler + TAPE effects:** as 6.2c, with SW3 on page 2 (saturation) turned well up and page 3 (DJ filter) turned left (low-pass), and the warble and compressor up in the menu once they exist (stage 2); hold seven keys for 1 minute, `H status` | Record average and peak; must stay < 70 % (the emulator puts every TAPE effect at once about 15 % above WAVE's engine, ~63 % on CHOMPI by projection) |
 | 6.3 | Reboot; `H status`; resend a saved patch | Boots to dry aux defaults; recall works |
 | 6.4 | Optional: restore stock firmware with your normal card (or copy a folder from `firmware/card-profiles/` to a card) | Stock works again |
 

@@ -271,8 +271,8 @@
   },
   {
     "id": "3.34",
-    "do": "**Record (line):** line in plugged, source KEY_19 lit. Toggle down, hold CHOMPI while playing audio into line in for ~5 s, release",
-    "expect": "CHOMPI LED red while recording; input audible while recording; on release the keys play the recording chromatically at once, normalised (similar loudness to the kit) and without clicks at its start/end",
+    "do": "**Record (line):** line in plugged, source KEY_19 lit. Toggle up (the record position), hold CHOMPI while playing audio into line in for ~6 s, release",
+    "expect": "CHOMPI and the white keys blink red three times (1.5 s count-in; letting go earlier records nothing), then CHOMPI is red while recording; the input is heard in the headphones in the record position (TAPE); on release the keys play the recording chromatically at once, normalised (similar loudness to the kit) and without clicks at its start/end",
     "group": "3D. Sampler (TAPE-style, firmware 0.5)"
   },
   {
@@ -283,7 +283,7 @@
   },
   {
     "id": "3.36",
-    "do": "**Resample:** menu, KEY_20; send `07-warm-pad.json` (oscillators), toggle down, hold CHOMPI while playing a chord, release",
+    "do": "**Resample:** menu, KEY_20; send `07-warm-pad.json` (oscillators), toggle up (record position), hold CHOMPI through the count-in while playing a chord, release",
     "expect": "The recording is the instrument's own output and plays chromatically",
     "group": "3D. Sampler (TAPE-style, firmware 0.5)"
   },
@@ -355,7 +355,7 @@
   },
   {
     "id": "3.48",
-    "do": "Menu (toggle up + CHOMPI): PLAY / LOOP a few times; KEY_20 then KEY_21",
+    "do": "Menu (toggle down + CHOMPI): PLAY / LOOP a few times; KEY_20 then KEY_21",
     "expect": "Overdub feedback down / up (older layers fade faster or stay); KEY_20 = effects after the loop (the delay/reverb applies to the loop too), KEY_21 = before (default); the lit key shows which",
     "group": "3E. Looper (TAPE-style, roadmap item 5)"
   },
@@ -373,38 +373,44 @@
   },
   {
     "id": "3.51",
-    "do": "Panic (`H panic`, SW5 without a loop, CC 120) while a loop plays; then switch presets",
-    "expect": "Panic stops the loop at once (it stays, PLAY resumes it); a preset change does not stop the loop",
+    "do": "Panic (`H panic`, SW4 + SW3 held together 1 s, CC 120) while a loop plays; then switch presets",
+    "expect": "Panic stops the loop at once (it stays, PLAY resumes it); a preset change does not stop the loop; the two knobs do not change page",
     "group": "3E. Looper (TAPE-style, roadmap item 5)"
   },
   {
     "id": "3.52",
-    "do": "Send `07-warm-pad.json`. Look at the four knob lights; turn each knob a little; then press SW4 once and turn it while holding a chord",
-    "expect": "All four lights dim white and the knobs do mix / time / feedback / level as before; after the press SW4's light is red and SW4 sweeps the filter cutoff (SW5 still does too)",
+    "do": "Send `07-warm-pad.json`, toggle in the menu position (down). Look at the knob lights; turn each knob while holding a chord; then press and release SW4 once and turn it",
+    "expect": "Lights in TAPE's colours (SW4 green-yellow at 1x pitch, SW1 yellow-orange, SW2 orange-red, SW3 teal-blue); SW4 = pitch (TAPE: centre stops, below plays backwards on samples), SW1 = attack, SW2 = release, SW3 = reverb + delay together; one click is clearly audible (TAPE's step: 3 % on SW1-SW3, pitch finer). After the release SW4 = voice gain (blue to pink to red)",
     "group": "3F. Knob pages and patch knobs (firmware 0.6)"
   },
   {
     "id": "3.53",
-    "do": "Press SW4 again (green: resonance), again (blue: filter envelope amount, play short notes), again (white). Press SW1 once and check that only SW1's light changed",
-    "expect": "Each page audibly does its job; the fourth press is back to page 1; pages are per knob",
+    "do": "Step each knob through its pages (press and release): SW4 pitch, gain, resonance (red), filter envelope (green); SW1 attack, decay, LFO speed (red); SW2 release, sustain, LFO filter (red), detune (green); SW3 reverb + delay, saturation (yellow to red), DJ filter (purple to pink to white: left of centre low-pass, right high-pass)",
+    "expect": "Each page audibly does its job; the page changes when the knob is released (as TAPE); pages are per knob and wrap back to page 1",
     "group": "3F. Knob pages and patch knobs (firmware 0.6)"
   },
   {
     "id": "3.54",
-    "do": "SW1 pages 2–4 = attack, decay, release (play short notes); SW2 = LFO rate, LFO filter depth (on Warm Pad the sweep is audible), oscillator 2 detune; SW3 = delay mix, delay feedback, reverb mix. Then put every knob back to page 1 (white)",
-    "expect": "Each control is audible and moves smoothly, without zipper noise or clicks; no stuck notes; the lights follow every press",
+    "do": "Hold a knob 1.5 s without turning; hold SW4 + SW3 together 1 s while a note plays; flip the toggle up (record position); short-press SW6 and turn it, then short-press again",
+    "expect": "The held knob's light flashes white and its control goes back to the preset's value (no page change); SW4 + SW3 stops all sound; in the record position the knob lights go out, PLAY/LOOP dim and CHOMPI's light shows the input level; SW6's light turns blue to red for input gain (TAPE), then back to volume",
     "group": "3F. Knob pages and patch knobs (firmware 0.6)"
   },
   {
     "id": "3.55",
-    "do": "Send `14-knob-pad.json` (a v5 patch). With all knobs on page 1: turn SW4, SW1, SW2, SW3; then `H cc 20 0` and `H cc 20 127`",
-    "expect": "SW4 = cutoff, SW1 = LFO speed, SW2 = reverb size, SW3 = reverb mix (the patch chose them); CC 20 moves the cutoff the same way",
+    "do": "Send `14-knob-pad.json` (a v5 patch). Step SW4 to page 5, SW1 to page 4, SW2 to page 5, SW3 to page 4 (each knob's last page, dim white light); turn them; then `H cc 20 0` and `H cc 20 127`",
+    "expect": "SW4 = cutoff, SW1 = LFO speed, SW2 = reverb size, SW3 = reverb mix (the patch chose them, on the last page); CC 20 moves the cutoff the same way",
     "group": "3F. Knob pages and patch knobs (firmware 0.6)"
   },
   {
     "id": "3.56",
-    "do": "Send `12-tape-kit-a.json` and play: SW2 on page 4 (blue) = loop crossfade. Send `02-slap.json` (v1 delay) and try SW1's pages. Webapp: open any preset, **Convert to v5**, choose a job for each knob under *Panel knobs*, Send; optionally ask the AI for a patch and look at its knob choices",
-    "expect": "Sampler: no crash, crossfade changes on looped samples only; v1: SW1 pages 2–4 do nothing (a delay patch has no envelope), no crash; the webapp patch's knobs do what you chose",
+    "do": "Send `12-tape-kit-a.json` and play: SW1 page 1 = sample start, SW2 page 1 = sample end, SW2 page 4 = loop crossfade. Send `02-slap.json` (effects only) and turn the knobs while playing into line in. Webapp: open any preset, **Convert to v5**, choose a job for each knob under *Panel knobs*, Send",
+    "expect": "Sampler: start/end move in fine steps (TAPE), crossfade changes on looped samples only, no crash; effects-only: SW4 = delay mix (page 2 level), SW1 = delay time, SW2 = feedback, SW3 = TAPE's effects on the line input; the webapp patch's knobs are on each knob's last page",
+    "group": "3F. Knob pages and patch knobs (firmware 0.6)"
+  },
+  {
+    "id": "3.57",
+    "do": "**Automatic (bridge):** SW4 pitch, SW1 attack, SW2 release, SW3 reverb + delay and DJ filter, SW5 cutoff: a held note recorded before and after 10 clicks",
+    "expect": "Each pair of recordings differs by at least 5 % (spectrum, envelope, loudness or stereo balance); the same check runs on every page of every starter preset in the simulation (`tests/knob_audio_test.cpp`)",
     "group": "3F. Knob pages and patch knobs (firmware 0.6)"
   },
   {
@@ -454,6 +460,12 @@
     "do": "**Sampler + looper:** as 6.2c, then tap LOOP and overdub for 1 minute while holding the seven keys, `H status`",
     "expect": "Record average and peak. While the looper records or overdubs, a seventh sampler voice is released (6 voices max, by design); report whether that is noticeable",
     "group": "6. Sustained run and power"
+  },
+  {
+    "id": "6.2e",
+    "group": "6. Sustained run and power",
+    "do": "**Sampler + TAPE effects:** as 6.2c, with SW3 on page 2 (saturation) turned well up and page 3 (DJ filter) turned left (low-pass), and the warble and compressor up in the menu once they exist (stage 2); hold seven keys for 1 minute, `H status`",
+    "expect": "Record average and peak; must stay < 70 % (the emulator puts every TAPE effect at once about 15 % above WAVE's engine, ~63 % on CHOMPI by projection)"
   },
   {
     "id": "6.3",

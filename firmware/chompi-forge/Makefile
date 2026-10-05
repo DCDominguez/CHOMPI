@@ -2,7 +2,7 @@ CXX ?= c++
 HOST_FLAGS = -std=c++14 -Wall -Wextra -Werror -pedantic -pthread
 HEADERS = $(wildcard core/*.h)
 .PHONY: test sanitize firmware firmware-dev libdaisy browser-test bench
-test: build/core_test build/protocol_test build/synth_test build/v3_test build/preset_test build/sampler_test build/panel_test build/inspector_test build/looper_test build/file_transfer_test build/power_test build/forge_probe
+test: build/core_test build/protocol_test build/synth_test build/v3_test build/preset_test build/sampler_test build/panel_test build/inspector_test build/looper_test build/file_transfer_test build/power_test build/knob_audio_test build/starter_patches.txt build/forge_probe
 	./build/core_test
 	./build/protocol_test
 	./build/synth_test
@@ -14,7 +14,14 @@ test: build/core_test build/protocol_test build/synth_test build/v3_test build/p
 	./build/looper_test
 	./build/file_transfer_test
 	./build/power_test
+	./build/knob_audio_test
 	python3 -m unittest discover -s tests -p 'test_*.py' -v
+build/knob_audio_test: tests/knob_audio_test.cpp $(HEADERS)
+	mkdir -p build
+	$(CXX) $(HOST_FLAGS) -DFORGE_TEST_HOOKS -O2 tests/knob_audio_test.cpp -o $@
+build/starter_patches.txt: tests/dump_starter_patches.py host/forge_host.py host/forge_bridge.py $(wildcard presets/*.json)
+	mkdir -p build
+	python3 tests/dump_starter_patches.py > $@
 build/core_test: tests/core_test.cpp $(HEADERS)
 	mkdir -p build
 	$(CXX) $(HOST_FLAGS) -O2 tests/core_test.cpp -o $@

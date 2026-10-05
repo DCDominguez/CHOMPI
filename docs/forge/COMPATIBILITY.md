@@ -272,6 +272,17 @@ colours), the recording slot dim pink; chromatic mode C3/C4/C5 dim markers. Forg
 0.1–0.8 left the keys dark outside the menu. WAVE and TEMPO light keys
 differently (their own pages); Forge follows TAPE.
 
+TAPE parity (Forge 0.10, DC's choices): see [TAPE_CONTROLS.md](TAPE_CONTROLS.md)
+for every stock control and [KNOBS.md](KNOBS.md) for Forge's knobs. Same as TAPE
+since 0.10: knob layout and steps, page on release, SW5 press (speed 1×), SW6 input
+gain page, DJ filter / saturation / warble / compressor, pitch with reverse, voice
+gain, velocity 127, record-position monitoring (headphones) and lights, after-take
+resets. Forge differs on purpose: SW5's plain turn is the filter cutoff (TAPE: looper
+only; the loop speed is push-and-turn), SW4 + SW3 = panic (TAPE has none), a 1.5 s
+record count-in, knob long-press reset, extra synth pages. Still to come (stage 2):
+the menu knob layer, monitor modes, options.json, presets.json per slot, quantised
+loop speed, tape slew, MIDI out, TAPE's menu page first.
+
 Still unverified on hardware: leaving shipping mode (plugging USB in is the usual
 exit for this charger family), charge time with S1 off, and the stock warning and
 shutdown in Forge.

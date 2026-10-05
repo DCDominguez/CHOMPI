@@ -1,5 +1,36 @@
 # Forge changelog
 
+## 0.10 TAPE parity, stage 1 — 2026-10-05 (in progress; stage 2 follows before the install)
+
+Software-tested only. DC chose the recommended answer for every row of the TAPE
+parity checklist ([TAPE_CONTROLS.md](TAPE_CONTROLS.md), [KNOBS.md](KNOBS.md)).
+- **Knobs as TAPE:** TAPE's pages first (SW4 pitch/gain, SW1 start/attack, SW2
+  end/release, SW3 reverb+delay / saturation / DJ filter), Forge's synth controls
+  on extra pages, the patch's own knob as a last page; TAPE's step sizes (3 % per
+  click on SW1–SW3 and SW6, 1/127 before); page changes on release; hold 1.5 s =
+  reset to the preset's value; SW4 + SW3 held 1 s = panic.
+- **SW5:** turn = cutoff always; push and turn = loop speed (scrub when paused);
+  click = 1×. **SW6:** short press = input gain (75 % at power-on, as TAPE).
+- **TAPE's effects ported:** DJ filter, saturation, warble, output compressor
+  (`core/tape_fx.h`); pitch with reverse, voice gain, pan as performance state.
+- **Recording:** 1.5 s count-in (CHOMPI and the white keys blink red; letting go
+  cancels); input monitored in the headphones in the record position; after a take
+  pitch/gain/start/end return to default (TAPE); keys play at full velocity.
+- **Lights as TAPE:** knob value colours (off in the record position), CHOMPI input
+  meter / purple when held, PLAY/LOOP/SW5 dimmed in the record position, SW5 speed
+  lights, SW6 page colours; white balance trimmed (green .85, blue .6) for the
+  light-blue whites DC saw.
+- **Restart record:** reset cause and crash location (backup SRAM + Forge's own
+  fault handler, which restarts instead of freezing) in Inspector page 2 (98 bytes),
+  Check setup's *Last start* line and `FORGE/RESTARTS.TXT`.
+- **Toggle wording fixed everywhere:** down = menu, up = record (firmware unchanged).
+- Bridge: starter presets are upgraded to v5 before storing; knob model, walk and
+  checks updated; automatic audio checks 3.57a–f and CPU check 6.2e; Check setup
+  *Last start*. Tests: `tests/knob_audio_test.cpp` (127 knob pages audible).
+- CPU (emulated): every preset scenario cheaper than 0.9 (worst 2,664.9 vs 2,671);
+  every TAPE effect on at once 3,052.9, informational, measured on hardware in 6.2e.
+- Firmware minor 10. Release 252,420 B (+14,328), development 268,720 B.
+
 ## Bridge: starter presets — 2026-10-05
 
 No firmware change. *Card & firmware → Load starter presets* writes 12 of the

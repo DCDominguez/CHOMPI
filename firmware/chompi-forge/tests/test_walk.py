@@ -205,6 +205,20 @@ class SetupCheckTests(unittest.TestCase):
         self.assertEqual(found["Power"]["status"], "warn"); self.assertIn("charged", found["Power"]["detail"])
         self.assertTrue(result["ok"])                                    # a warning does not fail the rig
 
+    def test_last_start_is_reported(self):
+        device = self.Device(True)
+        restart = {"causes": ["power-on", "brown-out"], "crashed": False, "crash_pc": None}
+        device.snapshot = lambda: {"panel": {"physical": {"line_jack": True}}, "system": {"restart": restart}}
+        found = {f["what"]: f for f in audio.setup_check(device, self.rig(False, False, False), True, log=lambda l: None)["findings"]}
+        self.assertEqual(found["Last start"]["status"], "ok"); self.assertIn("power-on, brown-out", found["Last start"]["detail"])
+        restart.update(causes=["brown-out"])                             # a dip without a power-on: the supply sagged
+        found = {f["what"]: f for f in audio.setup_check(device, self.rig(False, False, False), True, log=lambda l: None)["findings"]}
+        self.assertEqual(found["Last start"]["status"], "warn"); self.assertIn("supply dipped", found["Last start"]["detail"])
+        restart.update(causes=["software"], crashed=True, crash_pc=0x24012345)
+        found = {f["what"]: f for f in audio.setup_check(device, self.rig(False, False, False), True, log=lambda l: None)["findings"]}
+        self.assertEqual(found["Last start"]["status"], "warn"); self.assertIn("pc 0x24012345", found["Last start"]["detail"])
+        self.assertIn("RESTARTS.TXT", found["Last start"]["fix"])
+
     def test_good_rig_passes(self):
         result = audio.setup_check(self.Device(True), self.rig(False, False, False), True, log=lambda line: None)
         self.assertTrue(result["ok"], result)
