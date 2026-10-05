@@ -175,6 +175,33 @@ class BridgeCardTests(unittest.TestCase):
         self.assertIsNone(job["error"]); self.assertFalse(job["result"]["restarting"])
         self.assertIn("nothing installed", job["progress"][-1])
 
+    def test_starter_presets_fill_free_slots_and_keep_used_ones(self):
+        with self.assertRaisesRegex(ValueError, "Bank"): self.call("presets", bank=9, confirm=True)
+        with self.assertRaisesRegex(ValueError, "Confirm"): self.call("presets", bank=2)
+        transport, seq = self.bridge.transport, self.bridge.seq
+        transport.exchange(host.encode_patch(host.load_patch(ROOT / "presets/06-saw-bass.json"), seq()))
+        transport.exchange(host.preset_message(4, seq(), 2, 3))          # the player's own preset in slot 3
+        transport.exchange(host.encode_patch(host.load_patch(ROOT / "presets/02-slap.json"), seq()))
+        self.call("presets", bank=2, confirm=True)
+        job = self.wait()
+        self.assertIsNone(job["error"])
+        self.assertEqual(job["result"]["stored"], [s for s in range(1, 13) if s != 3])
+        self.assertEqual(job["result"]["kept"], [3])
+        self.assertEqual(transport.exchange(host.preset_message(7, seq()))["occupied"][2], list(range(1, 13)))
+        def sounds_like(name):                                          # the device's own reading of a patch file
+            transport.exchange(host.encode_patch(host.load_patch(ROOT / "presets" / name), seq()))
+            return transport.exchange(host.message(2, seq()))["patch"]
+        for slot, name in ((1, "01-dry.json"), (3, "06-saw-bass.json"), (9, "09-bell-keys.json"), (12, "14-knob-pad.json")):
+            expected = sounds_like(name)
+            transport.exchange(host.preset_message(5, seq(), 2, slot))
+            self.assertEqual(transport.exchange(host.message(2, seq()))["patch"], expected, slot)
+        self.call("presets", bank=2, confirm=True)                     # again: everything is kept
+        self.assertEqual(self.wait()["result"]["stored"], [])
+
+    def test_starter_preset_files_exist_and_validate(self):
+        for slot, name in bridge.STARTER_PRESETS: host.load_patch(ROOT / "presets" / name)
+        self.assertEqual([s for s, _ in bridge.STARTER_PRESETS], list(range(1, 13)))
+
 
 if __name__ == "__main__":
     unittest.main()

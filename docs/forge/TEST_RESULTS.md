@@ -17,6 +17,16 @@
   flat once on 0.7; 0.9's key lights draw more LED current, so a weak battery
   could dip lower), a brown-out reset, or a firmware fault (Forge does not yet
   record the reset cause, so a crash and a power loss look the same).
+- **Knob/LED feedback (DC):** "white" knob lights look light blue. TAPE drives
+  white the same way (full R, G, B, no correction), so it is the LEDs; a white
+  balance trim is a candidate for the next firmware. **SW4 on Glass Keys: no
+  audible change.** In the simulation SW4 (page 1, dim white) does change delay mix,
+  but by 1/127 per click (20 clicks: 0.30 → 0.46), and Glass Keys' echo is quiet,
+  so a few clicks are inaudible. Also found: on v1/v2 patches (Glass Keys is v2)
+  the newer page 2–4 controls (resonance, LFO, filter envelope, reverb…) are
+  refused, so those pages do nothing there. Candidates: encoder acceleration,
+  v1/v2 page fallbacks. Requested for later: **long-press a knob to reset** its
+  control to the patch's value.
 - Requested (to build after DC's findings, one install): 1–2 s record count-in
   with blinking lights after pressing CHOMPI.
 

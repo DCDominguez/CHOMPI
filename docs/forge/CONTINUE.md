@@ -40,7 +40,10 @@ TEST_RESULTS 2026-10-05); toggle labels backwards everywhere (menu = toggle
 DOWN, record = UP; firmware matches TAPE, naming only); requested record
 count-in (~1.5 s, CHOMPI + white keys blink red 3×, release cancels). DC asked
 to wait for the rest of the hardware findings before any firmware change, then
-one install. Idea for the shut-off: record the STM32 reset cause (RCC_RSR) and a
+one install. Later feedback: knob "white" looks light blue (LED balance; TAPE is the same);
+SW4 on Glass Keys inaudible (1/127 per click; pages 2–4 dead on v1/v2 patches);
+wants long-press knob reset (later). Starter presets: bridge job `presets`
+(no firmware change), done. Idea for the shut-off: record the STM32 reset cause (RCC_RSR) and a
 fault marker in backup SRAM, show them in Check setup.
 
 ## Previous checkpoint: firmware 0.8, power as stock, 2026-10-05

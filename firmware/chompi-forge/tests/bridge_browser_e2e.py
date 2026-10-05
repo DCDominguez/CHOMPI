@@ -127,6 +127,13 @@ class BridgeBrowserTests(unittest.TestCase):
         expect(self.page.locator("#card-log")).to_contain_text("written")
         self.page.locator("#card").screenshot(path=str(ROOT/"build/browser/bridge-card.png"))
 
+    def test_card_section_loads_starter_presets(self):
+        self.page.select_option("#preset-bank", "4")
+        self.page.once("dialog", lambda d: d.accept())
+        self.page.click("#preset-load")
+        expect(self.page.locator("#notice")).to_contain_text("Starter presets in bank 4: 12 written", timeout=20000)
+        expect(self.page.locator("#card-log")).to_contain_text("Bank 4 slot 12")
+
     def test_mobile_layout_and_connection_failure(self):
         self.page.set_viewport_size({"width":390,"height":844})
         self.assertLessEqual(self.page.evaluate("document.documentElement.scrollWidth"),390)

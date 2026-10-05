@@ -144,6 +144,41 @@ class Transport:
                 if self.source: self.source.close()
 
 
+# Starter presets the bridge can write into one bank of CHOMPI's device presets
+# (slot, file in presets/). The test patches (CPU/sampler stress) are left out.
+STARTER_PRESETS = ((1, "01-dry.json"), (2, "02-slap.json"), (3, "03-long-echo.json"), (4, "04-glass-keys.json"),
+                   (5, "05-soft-pad.json"), (6, "06-saw-bass.json"), (7, "07-warm-pad.json"), (8, "08-acid-bass.json"),
+                   (9, "09-bell-keys.json"), (10, "11-recorded-keys.json"), (11, "12-tape-kit-a.json"),
+                   (12, "14-knob-pad.json"))
+
+
+def load_starter_presets(device, bank, say, cancel, folder=None):
+    """Store the starter presets into `bank` (1-8) through the device's own Store
+    request (send the patch, then store it). Occupied slots are never overwritten.
+    The sound that was playing is sent back afterwards."""
+    folder = Path(folder) if folder else ROOT.parent / "presets"
+    patches = [(slot, host.load_patch(folder / name)) for slot, name in STARTER_PRESETS]   # all valid before writing
+    try: playing = device.status().get("patch")
+    except (ValueError, RuntimeError): playing = None
+    occupied = set(device.exchange(host.preset_message(7, device.bridge.seq()))["occupied"][bank])
+    stored, kept = [], []
+    try:
+        for slot, patch in patches:
+            if cancel.is_set(): break
+            if slot in occupied:
+                kept.append(slot); say(f"Bank {bank} slot {slot}: already used, kept"); continue
+            device.send_patch(patch)
+            reply = device.exchange(host.preset_message(4, device.bridge.seq(), bank, slot))
+            if reply.get("action") != "stored" or (reply["bank"], reply["slot"]) != (bank, slot):
+                raise RuntimeError(f"CHOMPI did not confirm bank {bank} slot {slot}")
+            stored.append(slot); say(f"Bank {bank} slot {slot}: {patch['name']}")
+    finally:
+        if playing:
+            try: device.send_patch(playing)
+            except (ValueError, RuntimeError, TimeoutError): pass
+    return {"bank": bank, "stored": stored, "kept": kept}
+
+
 def midi_ports():
     midi = host.midi_module()
     return midi.get_input_names(), midi.get_output_names()
@@ -321,7 +356,7 @@ class Bridge:
             self.touched = time.monotonic()
             if self.busy() and operation not in self.DURING_JOB:
                 raise RuntimeError("Automatic checks are running; wait for them or Cancel")
-            if operation in ("audio_detect", "autorun", "setup", "walk", "card_upload", "install"): return self.start_job(operation, body)
+            if operation in ("audio_detect", "autorun", "setup", "walk", "card_upload", "install", "presets"): return self.start_job(operation, body)
             if operation == "card_list": return self.card_list()
             if operation == "disconnect":
                 self.disconnect("Operator disconnected")
@@ -402,7 +437,7 @@ class Bridge:
     def start_job(self, kind, body):
         if kind == "autorun" and body.get("confirm") is not True:
             raise ValueError("Confirm that automatic checks may send patches, notes, tones and virtual panel presses")
-        if forge_audio is None and kind not in ("card_upload", "install"): raise RuntimeError(AUDIO_MISSING)
+        if forge_audio is None and kind not in ("card_upload", "install", "presets"): raise RuntimeError(AUDIO_MISSING)
         only = None
         if kind == "autorun":
             plan = json.loads(self.plan.read_text(encoding="utf-8"))
@@ -427,6 +462,10 @@ class Bridge:
         if kind == "install":
             if not self.firmware.is_file(): raise RuntimeError("This kit has no firmware/FORGE.bin to install")
             if body.get("confirm") is not True: raise ValueError("Confirm that CHOMPI may restart to install firmware")
+        if kind == "presets":
+            if type(body.get("bank")) is not int or not 1 <= body["bank"] <= host.PRESET_BANKS:
+                raise ValueError(f"Bank must be 1-{host.PRESET_BANKS}")
+            if body.get("confirm") is not True: raise ValueError("Confirm that the starter presets may be written to the card")
         if kind == "setup" and self.mode == "simulation":
             raise RuntimeError("The simulation has no audio; the setup check measures your interface and cables")
         if kind == "audio_detect" and self.mode == "simulation":
@@ -476,6 +515,11 @@ class Bridge:
                             if restarted else "No CHOMPI key press within 15 seconds: nothing installed (FORGE.bin stays on the card).")
                         if restarted and self.mode == "hardware":
                             with self.lock: self.disconnect("CHOMPI restarting to install firmware")
+                    job["result"] = result
+                elif kind == "presets":
+                    say(f"Writing the starter presets into bank {body['bank']} (used slots are kept)…")
+                    result = load_starter_presets(device, body["bank"], say, job["cancel"])
+                    say(f"Done: {len(result['stored'])} written, {len(result['kept'])} kept.")
                     job["result"] = result
                 elif kind == "walk":
                     walk = forge_walk.Walk(device, lambda p: job.__setitem__("prompt", p), job["answers"], job["cancel"], say)

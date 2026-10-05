@@ -25,6 +25,8 @@
 <div id="card-files" class="card-files"></div>
 <div class="button-row"><button id="card-refresh" disabled>Refresh list</button><button id="card-upload" disabled>Copy selected to CHOMPI</button><button id="fw-install" class="primary" disabled>Install this kit's firmware</button></div>
 <p id="fw-info" class="hint"></p>
+<div class="button-row"><label for="preset-bank">Starter presets into bank</label><select id="preset-bank"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select><button id="preset-load" disabled>Load starter presets</button></div>
+<p class="hint">Writes 12 starter sounds (pads, basses, keys, echoes, the TAPE kit) into slots 1–12 of the chosen bank on CHOMPI's card. Slots that already hold a preset are kept, never overwritten. Recall them on CHOMPI: toggle down, hold CHOMPI, press the white key.</p>
 <progress id="card-progress" max="1" value="0" hidden></progress>
 <div id="install-box" hidden><p class="walk-text">Press the CHOMPI key on the panel now.</p><p class="hint">Its light blinks white for 15 seconds. CHOMPI then restarts; the bootloader installs the new firmware (rainbow lights) and Forge starts. Then press Connect CHOMPI again.</p></div>
 <pre id="card-log" aria-label="Card and firmware progress">Nothing copied yet.</pre></section>

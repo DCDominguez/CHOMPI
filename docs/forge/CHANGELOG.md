@@ -1,5 +1,12 @@
 # Forge changelog
 
+## Bridge: starter presets — 2026-10-05
+
+No firmware change. *Card & firmware → Load starter presets* writes 12 of the
+factory patches into slots 1–12 of a chosen bank through the device's own store
+request (send patch, store), keeps occupied slots, and sends the sound that was
+playing back afterwards. Test patches (CPU/sampler stress) are left out.
+
 ## 0.9 Key lights while playing — 2026-10-05
 
 Software-tested only. DC: "we dont have indicator lights on key presses". As

@@ -135,6 +135,13 @@ lit dim, the last recalled one white, the bank keys show the bank's colour.
 All white keys red = no usable SD card. **MIDI program change** (channel 1)
 recalls slots too: program = (bank − 1) × 15 + (slot − 1).
 
+**Starter presets:** Forge Bridge → *Card & firmware* → choose a bank →
+*Load starter presets* writes 12 sounds into slots 1–12 of that bank: 1 Dry,
+2 Slap echo, 3 Long echoes, 4 Glass Keys, 5 Soft Pad, 6 Saw Bass, 7 Warm Pad,
+8 Acid Bass, 9 Bell Keys, 10 Recorded Keys (plays the recording), 11 TAPE Kit A
+(needs the TAPE samples), 12 Knob Pad. Slots already holding a preset are kept,
+never overwritten. No firmware update needed (it uses the normal store request).
+
 CHOMPI always starts in the pass-through mode; recall a preset after switching on.
 TAPE's own presets are not used by Forge.
 

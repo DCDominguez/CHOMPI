@@ -14,6 +14,7 @@ function controls() {
   for (const id of ["detect", "autorun", "setup", "walk-start", "walk-knobs", "walk-lights", "card-refresh"]) $(id).disabled = busy || !connected || jobActive;
   $("card-upload").disabled = busy || !connected || jobActive || !document.querySelector("#card-files input:checked");
   $("fw-install").disabled = busy || !connected || jobActive || !cardInfo || !cardInfo.firmware;
+  $("preset-load").disabled = busy || !connected || jobActive;
   $("rerun").disabled = busy || !connected || jobActive || !failedSteps().length;
   $("cancel-job").disabled = !jobActive;
   for (const id of ["export", "jsonl"]) $(id).disabled = busy || !owner;
@@ -190,7 +191,7 @@ function showRun(result) {
 }
 async function followJob() {
   const j=await bridge("job");
-  const cardJob=j.kind==="card_upload"||j.kind==="install";
+  const cardJob=j.kind==="card_upload"||j.kind==="install"||j.kind==="presets";
   text(cardJob?"card-log":"job-log",j.progress.join("\n")||"Starting…");
   if(j.kind==="walk") showPrompt(j.finished?null:j.prompt);
   if(cardJob) {
@@ -201,9 +202,10 @@ async function followJob() {
   if(!j.finished) return false;
   jobActive=false; controls();
   showPrompt(null);
-  const names={autorun:"Automatic checks",audio_detect:"Audio search",setup:"Setup check",walk:"Panel walk",card_upload:"Copying to the card",install:"Firmware install"};
+  const names={autorun:"Automatic checks",audio_detect:"Audio search",setup:"Setup check",walk:"Panel walk",card_upload:"Copying to the card",install:"Firmware install",presets:"Starter presets"};
   if(cardJob && !j.error) {
     if(j.kind==="install" && j.result.restarting) { notice("CHOMPI is restarting to install the firmware. Wait for the rainbow lights to finish, then press Connect CHOMPI."); try { const r=await bridge("job"); } catch {} disconnected(); controls(); return true; }
+    if(j.kind==="presets") { notice(`Starter presets in bank ${j.result.bank}: ${j.result.stored.length} written${j.result.kept.length?`, slots ${j.result.kept.join(", ")} kept (already used)`:""}.`); controls(); nextPoll=Date.now(); return true; }
     notice(j.kind==="install"?"No CHOMPI key press: nothing was installed. FORGE.bin stays on the card.":`Copied to CHOMPI's card: ${j.result.written.join(", ")}.`, j.kind==="install");
     controls(); nextPoll=Date.now(); return true;
   }
@@ -217,7 +219,7 @@ async function followJob() {
 }
 async function startJob(op, body={}) {
   await bridge(op, body); jobActive=true; controls();
-  if(op==="card_upload"||op==="install") text("card-log","Starting…");
+  if(op==="card_upload"||op==="install"||op==="presets") text("card-log","Starting…");
   else { text("job-log","Starting…"); if(op==="autorun") $("auto-results").replaceChildren(); }
 }
 bind("detect",()=>startJob("audio_detect"));
@@ -242,6 +244,11 @@ bind("card-upload",()=>startJob("card_upload",{files:[...document.querySelectorA
 bind("fw-install",async()=>{
   if(!window.confirm("Install this kit's firmware on CHOMPI? It is copied over USB, then you press the CHOMPI key and CHOMPI restarts to install it (about a minute). Keep the USB cable connected.")) return;
   await startJob("install",{confirm:true});
+});
+bind("preset-load",async()=>{
+  const bank=Number($("preset-bank").value);
+  if(!window.confirm(`Write the 12 starter presets into bank ${bank} on CHOMPI's card? Used slots are kept. The current sound comes back afterwards.`)) return;
+  await startJob("presets",{bank,confirm:true});
 });
 bind("rerun",()=>startJob("autorun",{confirm:true,only:failedSteps()}));
 bind("walk-start",()=>startJob("walk"));
