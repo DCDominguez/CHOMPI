@@ -25,6 +25,10 @@ use the latest implementation checkpoint and ledger for present capabilities/bud
 
 ## Current checkpoint: firmware 0.12 per-slot sample settings (2026-10-05)
 
+**Queued next (DC, 2026-10-05):** the Harmony / Intent Engine brief,
+[HARMONY_BRIEF.md](HARMONY_BRIEF.md), to start after the safety additions are done.
+Begin with its Phase 0 / first deliverable (architecture and proposal) before code.
+
 A4 built on top of 0.11, per DC's four answers (save as TAPE, per-pad kit settings,
 slot wins over a Forge preset, share TAPE's presets.json with a backup). DC is still
 on stock TAPE while the battery charges; neither 0.11 nor 0.12 is installed.

@@ -1,0 +1,303 @@
+# Harmony / Intent Engine — brief (queued)
+
+Status: **queued, not started.** DC brought this brief over from a ChatGPT
+brainstorm on 2026-10-05, to run **after the safety additions are finished**. Nothing
+below is implemented. When it starts, Phase 0 (architecture and the first deliverable
+at the end) comes before any large code change.
+
+Notes added when the brief was filed (2026-10-05, branch head `9ea9fcd`):
+- The brief's resource figures are out of date. Measured at 0.12: SRAM_EXEC 282 KiB
+  (288,768 B); release 261,072 B (headroom 27,696 B), development 277,028 B
+  (headroom 11,740 B); SDRAM 393,200 B free. Re-measure before starting.
+- Panel mapping must respect what 0.10–0.12 gave the controls (KNOBS.md,
+  TAPE_CONTROLS.md, MANUAL sections 4–8), including the per-slot settings in 0.12.
+- Clean-room: O'PIAN is AGPL-3.0, so use it only as a behavioural reference and copy
+  no code. Name any source used beyond general music theory in the report.
+
+---
+
+DC's brief, as given:
+
+You are implementing the next major musical-capability upgrade for CHOMPI Forge.
+
+Repository:
+
+* DCDominguez/CHOMPI
+* Active branch: forge/foundation
+* Do not touch main
+* Verify the current remote branch head before making changes.
+* Never force-push.
+* Preserve the existing architecture and test discipline.
+
+## Goal
+
+Build a small, deterministic Harmony / Intent Engine inspired by the musical workflow
+of Nopia-style harmonic instruments.
+
+This is NOT a Nopia firmware port. This must be an original Forge implementation based
+on general musical concepts and publicly observable behavior. Do not copy source code
+from O'PIAN. O'PIAN is AGPL-3.0 and should be treated only as a behavioral/architectural
+research reference.
+
+The objective is: represent musical relationships first, then deterministically
+generate notes/events. This should give Forge dramatically more musical capability with
+very little SDRAM and modest executable-code cost.
+
+## Core architecture
+
+Introduce a symbolic musical layer above the existing synth/sampler/MIDI engines:
+
+```
+Physical controls / MIDI / Host / AI
+                ↓
+          Musical Intent
+                ↓
+        Harmony Resolver
+                ↓
+         Voice / Part Logic
+                ↓
+   ┌────────────┼─────────────┐
+   ↓            ↓             ↓
+Synth        Sampler        MIDI
+```
+
+The Harmony Engine must NOT become a DSP subsystem. Its outputs should be ordinary
+note/events that existing Forge destinations consume.
+
+## Primary state
+
+Design a compact state representation approximately equivalent to:
+
+```
+HarmonyState
+tonic
+scale/mode
+degree
+extension
+variation/color
+inversion
+spread/register
+voicing style
+layout mode
+seed
+```
+
+Avoid dynamic allocation. Prefer small enums, integer pitch classes, fixed-size arrays
+and deterministic transforms. The exact representation is yours to design after
+reviewing existing Forge structures.
+
+## Required first-generation features
+
+1. **Tonic.** Support all 12 chromatic tonal centers, internally pitch class 0–11 where
+   practical.
+2. **Scale / mode.** Initial target: Major, Natural minor, Harmonic minor, Melodic
+   minor, Dorian, Phrygian, Lydian, Mixolydian. Locrian and additional modes may be
+   added if cost is negligible. Prefer tiny constexpr interval tables (Major: 0 2 4 5
+   7 9 11; Natural minor: 0 2 3 5 7 8 10). Do not store giant chord databases if chords
+   can be calculated cheaply.
+3. **Scale-degree chord resolution.** degree → scale degree root → stacked thirds →
+   chord intervals → notes. Example: C major, degree IV, 7th → F A C E. Implement this
+   generically from scale structure wherever practical.
+4. **Extensions.** power/fifth, triad, 7th, 9th, 11th, 13th. Do not assume every
+   extension must retain every chord tone if voice-count limits require musical
+   reduction. Define predictable note-dropping rules where necessary.
+
+## Static vs Real layout
+
+One of the highest-value interaction concepts.
+
+- **Static mode:** physical locations represent harmonic functions. Changing the tonic
+  does NOT change the physical gesture used for a progression (the same gesture plays I
+  → vi → IV → V in C major and in E major). The player develops functional muscle
+  memory.
+- **Real mode:** physical key geography behaves relative to conventional note/piano
+  layout.
+
+Implement both as mapping layers before chord resolution. Do not entangle layout logic
+with synthesis.
+
+## Chromatic keys
+
+Do not make non-diatonic inputs useless. Where musically sensible, resolve chromatic
+positions into useful functions such as secondary dominants, modal interchange
+candidates, altered dominant behavior and substitutions. Start conservatively; a minimal
+first implementation could recognize V/ii, V/iii, V/V, V/vi. Do not build an enormous
+harmonic expert system yet. The goal is musically useful behavior per byte.
+
+## Shift / alternate-function behavior
+
+Provide one alternate transformation layer analogous to a SHIFT state. Examples: sus4,
+dominant conversion, lowered seventh, secondary dominant, tritone substitution. The
+transform should depend on harmonic context rather than simply selecting a second
+arbitrary chord table. Keep it deterministic.
+
+## Voicing engine
+
+Chord identity and chord voicing are separate stages (chord identity → voicing engine
+→ MIDI pitches). Support inversion, register, spread and note-range constraints. Use
+fixed-size note arrays. Avoid unnecessary heap use.
+
+## Voice-leading
+
+Important. Add a lightweight voice-leading algorithm that attempts to minimize movement
+from the previous chord. It does not need to solve globally optimal classical voice
+leading; a deterministic greedy/local solver is acceptable. Possible objective: minimize
+Σ |new_voice − previous_voice| subject to pitch range, inversion choices, octave
+placement and maximum supported voices. Prefer maintaining common tones where
+reasonable. Chord changes should feel intentionally voiced rather than like independent
+block chords.
+
+## Musical parts
+
+One Harmony resolve should eventually produce several coordinated roles: Chord/Keys,
+Bass, Arp, Pad/additional role. The first implementation need not enable all roles,
+but the state/output architecture should not assume only one destination.
+
+## Bass generator
+
+A tiny deterministic bass-role generator. Initial options: ROOT, FIFTH, ALTERNATE,
+OCTAVE. Future rhythmic bass patterns should be possible without redesign. Bass
+register independent of chord voicing register.
+
+## Arpeggiator
+
+Implement or prepare for a note-set transformer supporting at least UP, DOWN, UPDOWN,
+ORDER, RANDOM (future: OUTSIDE_IN, INSIDE_OUT, ROTATE). Parameters should eventually
+include rate, octave count, gate, rotation, probability. Do not duplicate timing
+infrastructure if existing Forge clock/event infrastructure can support it.
+
+## Deterministic randomness
+
+Any random behavior MUST be reproducible, from an explicit seed (e.g. 0x12345678). The
+same patch + event sequence + seed must produce the same result. No uncontrolled
+platform RNG for musical decisions (reproducibility, preset recall, debugging, QA,
+future AI-generated arrangements).
+
+## Shared MusicalState
+
+Evaluate a compact shared musical state for future generators (tempo, clock phase,
+bar, section, tonic, scale, degree/chord, density, tension, energy, seed). Do not add
+fields merely because they sound interesting; only what current work needs plus clearly
+justified near-term extension. Strategic goal: future bass, arp, melody, drums and FX
+behavior derive from one coordinated musical state.
+
+## Event-first architecture
+
+Prefer symbolic events over rendered audio (e.g. `tick 0 degree I, tick 96 degree vi,
+tick 192 degree IV, tick 288 degree V` is far cheaper than PCM). Design Harmony outputs
+so they can eventually be recorded by an event/automation looper. Do NOT implement a
+giant sequencer unless required for this milestone.
+
+## Destination abstraction
+
+Harmony generation should not know or care whether notes go to the internal synth,
+sampler, UART MIDI, USB MIDI or future external parts. Boundary: Harmony resolver →
+Note/Event Set → Destination router.
+
+## AI compatibility
+
+Do NOT put AI into the real-time firmware. Make the engine controllable through compact
+deterministic parameters, so host/AI instructions can say e.g. `tonic = A#, mode =
+natural minor, progression = i, VI, III, VII, extension = 7, voicing = close,
+voice_leading = on, tension = medium` and Forge produces deterministic output. AI
+chooses intent; firmware executes the music.
+
+## Physical CHOMPI controls
+
+Inspect the existing panel mapping before deciding final interaction; do not destroy or
+overload existing workflows casually. Propose a usable mapping for tonal center,
+degree/function selection, extension, Shift/alternate, Static/Real and
+inversion/voicing. Prefer modal interaction that remains playable without a screen.
+Tab5 visualization/control may exist later; CHOMPI must remain musically functional
+without it.
+
+## Tab5 / Forge Scope compatibility
+
+Expose enough state through Inspector/telemetry for a future Tab5 visualizer to show
+tonic, mode, degree, chord (e.g. D#m9), voicing (D#3 A#3 C#4 F4), function
+(subdominant) and layout (static). Prefer compact encoded numeric state and let the host
+render labels.
+
+## Performance constraints
+
+Extremely cheap compared with audio DSP. No filesystem access, dynamic allocation,
+blocking calls, JSON parsing, host interaction, complex graph traversal or unbounded
+searches inside the audio callback. Resolve outside the per-sample path; harmony
+calculation happens on musical events/state changes, not per sample.
+
+## Memory philosophy
+
+Optimize for musical capability per byte: effectively negligible SDRAM; constexpr scale
+tables, compact pitch classes, fixed arrays, integer math, shared algorithms rather than
+hundreds of hardcoded chord tables. Track actual binary-size impact.
+
+## Current resource guardrails
+
+Verify actual current numbers from the branch before coding (the brief's earlier
+figures — release ~223 KB, headroom ~64 KiB — are stale; see the note at the top).
+Report actual before/after measurements.
+
+## Clean-room requirement
+
+References may include publicly documented Nopia behavior, O'PIAN, Harmonia and standard
+music theory, but do not copy O'PIAN source (AGPL-3.0). Implement our own algorithms and
+structures; identify any external source used beyond general concepts and verify license
+implications.
+
+## Suggested stages
+
+- **Phase 0 — Architecture:** inspect Forge; choose the insertion point; event
+  ownership/threading; estimate executable cost; propose physical mapping; define state,
+  note-output structure and tests. No large implementation before this is coherent.
+- **Phase 1 — Core harmony:** tonic, major/minor, degree resolution, triad, 7th,
+  Static/Real, fixed-size note output; tests first or alongside.
+- **Phase 2 — Expanded harmony:** more modes, 9/11/13, Shift alternatives, chromatic
+  functional inputs, inversions, register/spread.
+- **Phase 3 — Voice leading:** deterministic previous-chord-aware voicing; test movement
+  cost and edge cases.
+- **Phase 4 — Part generation:** bass role, arp note-set output, destination-ready role
+  representation; no unnecessary DSP changes.
+- **Phase 5 — Panel + protocol + Inspector:** physical controls, host protocol where
+  appropriate, presets, Inspector, telemetry; backwards compatible unless documented.
+
+## Tests
+
+Native tests for: harmony correctness (all 12 tonics, every scale, all degrees, triads,
+extensions, inversions); Static layout (changing tonic preserves function for the same
+gesture); Real layout (note-relative mapping); chromatic behavior; voice leading
+(common tones, bounded register, determinism, no unintended duplicates, sensible
+inversions); randomness (same seed → identical, different seed → controlled variation);
+note lifecycle (no stuck notes on chord/mode change, role disable, panic, preset
+change); boundary safety (MIDI 0–127, empty/invalid inputs, maximum extensions, range
+clipping, duplicate pitch classes, voice-count limits). Run the full existing regression
+suite too.
+
+## Resource report (after each phase)
+
+commit; release size and delta; development size and delta; remaining SRAM_EXEC; SDRAM
+delta; internal SRAM/DTCM delta; CPU benchmark delta; native tests; sanitizer;
+browser/integration tests; ARM builds; hardware verification status. Judge by musical
+capability gained ÷ firmware bytes consumed.
+
+## Non-goals
+
+No neural generation, onboard LLM, giant scale/chord databases, complex jazz
+reharmonization engine, arbitrary modular routing, large new audio DSP, additional PCM
+buffers, multitrack sequencer, full arranger or Tab5 dependency.
+
+## Desired result
+
+From `key → note → synth` toward `gesture → musical function → harmonic state → voiced
+notes → musical roles → internal/external destinations`, while preserving ordinary note
+playing. A reusable primitive for generative sequencing, event looping, bass, arps,
+melody, MIDI orchestration, AI composition and Tab5 visualization/control.
+
+## First deliverable
+
+Before a large code change: (1) inspect the branch; (2) identify the clean integration
+point; (3) propose exact HarmonyState / request / result structures; (4) propose the
+physical control mapping; (5) estimate code-size impact; (6) identify real-time
+ownership concerns; (7) define Phase 1 tests; (8) recommend the smallest implementation
+that proves the concept; (9) then implement Phase 1 if there are no architectural
+blockers. Keep the design deliberately small. Success criterion: a compact musical
+intelligence layer that dramatically multiplies what the existing hardware can do.
