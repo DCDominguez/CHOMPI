@@ -358,8 +358,8 @@ pages; KEY_22 goes back to TAPE's page. The keys light what is chosen.
 | B3 (white = on) | Latch: the arp keeps playing after you let go, until the next chord (on by default) |
 | C4 · D4 · E4 · F4 · G4 · A4 (lit green) | Arp rate 1/4 · 1/8 · 1/8 triplet · 1/16 · 1/16 triplet · 1/32 |
 | B4 (green / red) | Clock running / stopped |
-| C#3 · D#3 · F#3 · G#3 · A#3 (lit orange) | Bass off · root · root + fifth · root then fifth · root then octave |
-| F#4 · G#4 · A#4 (lit yellow) | Bass octave C1 · C2 · C3 |
+| C#3 · D#3 · F#3 · G#3 · A#3 (lit orange; brighter = higher octave) | Bass off · root · root + fifth · root then fifth · root then octave |
+| F#4 · G#4 · A#4 | Event recorder: record / play, overdub, clear (section 8c) |
 | C5 (blinks on the beat) | **Tap tempo**: tap it on the beat (two taps or more) |
 
 | Knob | Turn | Press |
@@ -367,7 +367,7 @@ pages; KEY_22 goes back to TAPE's page. The keys light what is chosen.
 | SW4 | **Tempo**, 1 BPM a click (40–300) | Tap tempo |
 | SW1 | Arp octaves 1–4 (3 clicks a step; white, green, yellow, red) | — |
 | SW2 | Arp gate (each note's length) 5–100 %, 5 % a click (brighter = longer) | — |
-| SW3 | Bass rate: once per chord change (purple), 1/2 (blue), 1/4 (green), 1/8 (yellow) | — |
+| SW3 | Bass rate: once per chord change (purple), 1/2 (blue), 1/4 (green), 1/8 (yellow) | Bass octave C1 → C2 → C3 (0.15; the bass key gets brighter) |
 
 **Playing:** with the arp on, hold keys (or a chord key with harmony on): the notes cycle
 from the first one at once, then on the clock. Adding keys while holding adds notes; after
@@ -382,6 +382,46 @@ follow it, with MIDI start / stop / continue; the SW4 light blinks blue then. Ha
 without clock and CHOMPI's own tempo takes over again. While the parts play on CHOMPI's
 own tempo it sends MIDI clock (start, 24 ticks per beat, stop) so other gear can follow
 (the webapp can turn that off).
+
+---
+
+## 8c. Event recorder and projects — firmware 0.15
+
+The event recorder records what you play — keys, MIDI notes coming in and knob moves —
+as notes and control changes on CHOMPI's clock (not audio), and loops it over whole bars
+(1–8). It plays back like a second player: through harmony, the arp and the bass, and out
+of MIDI. The audio looper (PLAY / LOOP) is separate and works as before. *Software-tested
+only (TEST_SESSION 3.73–3.76).*
+
+On the parts page (section 8b):
+
+| Key | Does |
+| --- | --- |
+| F#4 | **Record**: arms (red, blinking on the beat); recording starts at the next bar line. Press again while recording: it closes at the next bar line and loops (green). While it plays: stop (dim green); again: play from the start |
+| G#4 | **Overdub** on / off while it plays (yellow): what you play is added from the next pass |
+| A#4 | **Clear**: press twice within 2 s (lights white after the first press) |
+
+Playing is done with the menu closed: arm on the parts page, let go of CHOMPI, play; to
+close the loop, open the menu again and press F#4. With the toggle down and the menu
+closed, the CHOMPI light shows the recorder: orange blinking on the beat when armed,
+orange while recording, dim green while it plays, yellow while overdubbing. A take closes
+by itself after 8 bars. Notes still held when a take or overdub ends get their end just
+before the loop point, so nothing hangs.
+
+What is recorded: notes (with velocity) from the keys and MIDI in, and every knob / CC
+move except the output volume and input gain. On sampler patches the per-slot sample
+settings (pitch, start, end, attack, release, gain, pan) are not recorded, because playing
+them back would keep rewriting the slot's saved values. Timing is on the clock's grid
+(24 steps per beat). Panic stops the recorder (the loop is kept; F#4 plays it again).
+MIDI start restarts it from its first bar. Up to 1,024 events (the Inspector counts any
+beyond).
+
+**Projects:** saving a preset on CHOMPI (section 6) also saves the recorded loop beside it
+(`FORGE/BbSss.FSQ`), with the patch, harmony, arp, bass and tempo in the preset: together
+that is a project. Recalling the slot brings the loop back and plays it. A slot without a
+loop leaves the current loop playing, so you can change the sound under a running loop.
+Copying a preset copies its loop; erasing it erases the loop. Saving with an empty
+recorder removes the slot's old loop.
 
 ---
 
@@ -462,6 +502,7 @@ Warm Pad, Acid Bass, Bell Keys, Knob Pad (synths); Recorded Keys, TAPE Kit A
 | --- | --- |
 | `FORGE.bin` | The firmware the bootloader installs |
 | `FORGE/B<bank>S<slot>.FPR` | Device presets |
+| `FORGE/B<bank>S<slot>.FSQ` | The recorded loop saved with that preset (0.15, section 8c) |
 | `jammi_…wav`, `cubbi_…wav` | Samples (TAPE's names and format; shared with TAPE) |
 | `FORGE/UPLOAD.TMP`, `FORGE/TMP.FPR`, `FORGE_TMP.WAV` | Temporary files while writing (safe to delete when CHOMPI is off) |
 | `NAME_bin.old` | Other firmware set aside by a USB install |

@@ -236,7 +236,8 @@ void EngineAndPanel() {
     assert(panel.HarmonyPage());
     const uint8_t tonic = player.state.tonic;
     press(forge::panel::kFxBefore); assert(panel.PartsPage() && ((panel.MenuPacked() >> 1) & 7u) == 6u);
-    press(key_of(53)); press(key_of(65)); press(key_of(56)); press(key_of(70)); press(key_of(59));   // F3 up-down, F4 1/16, G#3 alternate, A#4 C3, B3 latch off
+    press(key_of(53)); press(key_of(65)); press(key_of(56)); press(key_of(59));   // F3 up-down, F4 1/16, G#3 alternate, B3 latch off
+    press(forge::panel::kKnobEncoder[3]);                                            // SW3 press: bass octave C2 -> C3
     assert(parts.settings.pattern == Pattern::UpDown && parts.settings.rate == Rate::Sixteenth && parts.settings.bass == Bass::Alternate
            && parts.settings.bass_octave == 2 && !parts.settings.latch && e.ActiveVoices() == 0);
     hw.turns[forge::panel::kKnobEncoder[0]] = 5; block(); assert(parts.settings.bpm == 125 && parts.GetClock().Tempo() == 125);
@@ -255,7 +256,8 @@ void EngineAndPanel() {
         const uint8_t k = key_of(note), slot = forge::panel::KeyToSlot(k);
         return keys[slot != forge::panel::kNoSlot ? forge::panel::SlotLed(slot) : forge::panel::BlackLed(k)];
     };
-    assert(led(53).b == 1.f && led(65).g == 1.f && led(56).r == 1.f && led(70).r == 1.f && led(59).r < .1f && led(71).g == 1.f);
+    assert(led(53).b == 1.f && led(65).g == 1.f && led(56).r == 1.f && led(59).r < .1f && led(71).g == 1.f);
+    assert(led(66).r < .1f && led(68).r < .1f && led(70).r == 0.f);                  // recorder empty: F#4 / G#4 dim, A#4 dark
     assert(led(48).b == 0.f && led(60).g == 0.f);
     forge::Rgb rings[4]; forge::ComposePartsKnobLeds(v.parts, v.parts_clock, rings);
     assert(rings[1].g == 1.f && rings[1].r == 0.f && rings[3].r == 1.f && rings[3].g > .9f);   // 2 octaves green, 1/8 yellow

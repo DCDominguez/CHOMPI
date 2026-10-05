@@ -314,7 +314,7 @@ public:
             d.envelope=v.amp.value; d.age=v.age;
         }
         a.cutoff=cutoff_; a.lfo=lfo_value_; a.wheel=wheel_; a.pedals=0;
-        for(unsigned i=0;i<kSources;++i) { a.bend[i]=bend_[i]; if(pedal_[i]) a.pedals |= 1u<<i; }
+        for(unsigned i=0;i<kSources;++i) { if(i<3) a.bend[i]=bend_[i]; if(pedal_[i]) a.pedals |= 1u<<i; }   // page 4: three bends
     }
 #endif
     // Mono patches (v1-v3, oscillators) return the same value on both sides.
@@ -375,7 +375,7 @@ private:
 #ifdef FORGE_TEST_HOOKS
     bool event_active_[7]{}; uint32_t event_age_[7]{}, event_identity_[7]{};
 #endif
-    static constexpr unsigned kSources = 3; // UART, USB, keybed
+    static constexpr unsigned kSources = 4; // UART, USB, keybed, event recorder playback (0.15)
     static constexpr int32_t kMinLoop = 1024;   // frames (TAPE: 4096 at its 2x files)
     // Bend smoothing and the shared LFO. Depth scale 1, or the mod wheel when gated.
     void Modulation(float& pitch_ratio, float& amp_lfo, float& lfo_octaves) {

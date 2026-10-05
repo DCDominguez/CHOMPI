@@ -114,7 +114,11 @@ Phase 2 as built (0.14, software-tested only):
   CPU gate unchanged. Tests: `parts_test` (packing, clock/tap/MIDI, every pattern, seeded
   random, gate, latch, ownership, bass, MIDI/clock out, engine with harmony, panel page),
   v7 protocol and host round trips, Inspector page 9, webapp controls; sanitizers.
-- Not yet: event recording of the parts (item 4: event recorder), per-part sounds.
+- Event-first (0.15, DC's item 4): the event recorder (`core/sequencer.h`) records what
+  is played (keys, MIDI notes, controls) as ticks on the shared clock and replays it as a
+  player, so harmony, arp and bass derive from it; saved with presets as projects.
+- Not yet: per-part sounds, recording the arp's own output (it is regenerated from the
+  recorded keys).
 
 ---
 

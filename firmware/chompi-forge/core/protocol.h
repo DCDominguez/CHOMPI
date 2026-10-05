@@ -5,7 +5,7 @@
 
 namespace forge {
 constexpr uint8_t kProtocolVersion = 1, kPatchVersion = 1;
-constexpr uint8_t kFirmwareMinor = 14; // 0.14: clock, arp and bass (parts page, patch v7, Inspector page 9), CPU fix A; 0.13: harmony mode (menu page, patch v6, Inspector page 8), memory savings; 0.12: TAPE per-slot sample settings (presets.json); 0.11: install power check, battery lockout log, start-up fixes; 0.10: TAPE parity (knobs, effects, count-in, restart record); 0.9: key lights while playing (TAPE); 0.8: power as stock (off gesture, SW6 battery, charger hand-over); 0.7: USB file transfer (opcode 0C)
+constexpr uint8_t kFirmwareMinor = 15; // 0.15: event recorder and projects (parts page, .FSQ beside presets, Inspector page 10); 0.14: clock, arp and bass (parts page, patch v7, Inspector page 9), CPU fix A; 0.13: harmony mode (menu page, patch v6, Inspector page 8), memory savings; 0.12: TAPE per-slot sample settings (presets.json); 0.11: install power check, battery lockout log, start-up fixes; 0.10: TAPE parity (knobs, effects, count-in, restart record); 0.9: key lights while playing (TAPE); 0.8: power as stock (off gesture, SW6 battery, charger hand-over); 0.7: USB file transfer (opcode 0C)
 // 7-9 are device-preset (SD) errors: empty slot, no/failed card, storage busy.
 // Power (0.11): a firmware install refused because the battery is low on a weak or missing supply.
 enum class Error : uint8_t { None, Length, Version, Checksum, Patch, Opcode, Busy, Empty, Storage, StorageBusy, Power };
@@ -24,7 +24,8 @@ constexpr size_t kV3Request = 69, kV4Request = 84, kV5Request = 88, kV6Request =
 enum class RequestKind : uint8_t { Parameter, Patch, Status, Note, Panic, Pedal, Bend, ResetControllers, ModWheel,
                                    Store, Recall, Erase, List, SampleList, SampleJob, Panel, Probe,
                                    Looper,     // internal (MIDI CC 24/26/27): note = control, value = CC value
-                                   Clock };    // internal (MIDI real-time, 0.14): note = 0 tick, 1 start, 2 continue, 3 stop
+                                   Clock,      // internal (MIDI real-time, 0.14): note = 0 tick, 1 start, 2 continue, 3 stop
+                                   SequenceLoad };   // internal (0.15): a recalled preset's loop is in the mailbox
 enum class SampleAction : uint8_t { Save, Erase, Copy };   // opcode 09 byte 7
 struct Request {
     RequestKind kind = RequestKind::Status;
@@ -210,7 +211,7 @@ FORGE_COLD inline Error DecodeRequest(const uint8_t* bytes, size_t size, Request
         candidate.panel_value = static_cast<int8_t>(value);
     } else if(bytes[4] == 0x0b) {                    // probe: page 1 LEDs, 2-8 versioned Inspector pages
         if(size != 9 && !(size == 14 && bytes[7] == 6)) return Error::Length;
-        if(bytes[7] == 0 || bytes[7] > 9) return Error::Patch;   // 8: harmony (0.13), 9: parts (0.14)   // page 0 (old state page) retired: Inspector covers it
+        if(bytes[7] == 0 || bytes[7] > 10) return Error::Patch;   // 8: harmony (0.13), 9: parts (0.14), 10: event recorder (0.15)   // page 0 (old state page) retired: Inspector covers it
         if(size == 14) {
             if(bytes[12] > 15) return Error::Patch;
             for(unsigned i=0;i<5;++i) candidate.inspector_cursor |= uint32_t(bytes[8+i]) << (7*i);

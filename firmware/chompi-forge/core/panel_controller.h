@@ -217,6 +217,7 @@ public:
             if(turns[i]) LogEdge(InspectorEventKind::Knob, i, uint32_t(turns[i]));
         }
 #endif
+        if(clear_frames_) clear_frames_ = clear_frames_ > hardware.frames ? clear_frames_ - hardware.frames : 0;   // A#4 clear window
         // TAPE's menu page: the knobs are TAPE's shift layer (MenuControls).
         if(menu_.Active() && menu_.Page() == MenuPage::Samples) MenuControls(hardware, keys, rising, turns, engine);
         else if(HarmonyPage()) HarmonyControls(keys, turns, engine);
@@ -281,6 +282,8 @@ public:
     // 1 MIDI clock, 2 on the beat (first 1/16 of each quarter), bits 8-16 the tempo.
     uint32_t PartsLights() const { return parts_lights_.load(std::memory_order_relaxed); }
     uint32_t PartsClock() const { return parts_clock_.load(std::memory_order_relaxed); }
+    // The event recorder for the lights: bits 0-2 state (Sequencer::State), 3 overdub, 4 clear armed.
+    uint32_t SequenceLights() const { return sequence_lights_.load(std::memory_order_relaxed); }
     // harmony::Pack of the engine's harmony state (for the LEDs and the Inspector).
     uint32_t HarmonyLights() const { return harmony_lights_.load(std::memory_order_relaxed); }
     void SetInstallGate(InstallGate* gate) { install_gate_ = gate; }
@@ -349,6 +352,8 @@ private:
             parts_clock_.store((c.Running() ? 1u : 0u) | (c.External() ? 2u : 0u) | (c.Ticks() % parts::kPpqn < 6 ? 4u : 0u)
                                | static_cast<uint32_t>(c.Bpm() + .5f) << 8, std::memory_order_relaxed);
         }
+        if(const seq::Sequencer* q = engine.Sequencer())
+            sequence_lights_.store(static_cast<uint32_t>(q->GetState()) | (q->Overdub() ? 8u : 0u) | (clear_frames_ ? 16u : 0u), std::memory_order_relaxed);
         menu_lights_.store(static_cast<uint8_t>((tape_menu ? 1u : 0u) | (p.sample_loop ? 2u : 0u) | (p.sample_gate ? 4u : 0u)
                                                 | (static_cast<unsigned>(monitor_) << 3)), std::memory_order_relaxed);
     }
@@ -467,8 +472,9 @@ private:
     int harmony_detents_[3] = {};
     // Parts page (0.14), keys: C3 arp off, D3 up, E3 down, F3 up-down, G3 played order, A3 random,
     // B3 latch; C4 1/4, D4 1/8, E4 1/8 triplet, F4 1/16, G4 1/16 triplet, A4 1/32, B4 run / stop;
-    // C#3 bass off, D#3 root, F#3 root + fifth, G#3 root / fifth, A#3 root / octave; F#4 / G#4 /
-    // A#4 bass octave C1 / C2 / C3; C5 tap tempo. KEY_21 harmony page, KEY_22 TAPE's page.
+    // C#3 bass off, D#3 root, F#3 root + fifth, G#3 root / fifth, A#3 root / octave; C5 tap tempo.
+    // Event recorder (0.15): F#4 record (arm / close / stop / play), G#4 overdub, A#4 clear
+    // (twice within 2 s). KEY_21 harmony page, KEY_22 TAPE's page.
     FORGE_COLD void PartsKey(uint8_t note, Engine& engine) {
         parts::Parts& p = *engine.Parts(); parts::Settings& s = p.settings;
         switch(note) {
@@ -483,14 +489,20 @@ private:
             case 49: s.bass = parts::Bass::Off; break;              case 51: s.bass = parts::Bass::Root; break;
             case 54: s.bass = parts::Bass::Fifth; break;            case 56: s.bass = parts::Bass::Alternate; break;
             case 58: s.bass = parts::Bass::Octave; break;
-            case 66: s.bass_octave = 0; break;  case 68: s.bass_octave = 1; break;  case 70: s.bass_octave = 2; break;
+            case 66: if(engine.Sequencer()) engine.Sequencer()->RecordKey(); return;
+            case 68: if(engine.Sequencer()) engine.Sequencer()->OverdubKey(); return;
+            case 70:
+                if(!engine.Sequencer()) return;
+                if(clear_frames_) { engine.Sequencer()->Clear(); clear_frames_ = 0; } else clear_frames_ = kClearFrames;
+                return;
             case 72: p.Tap(); break;
             default: return;
         }
         engine.PartsChanged();
     }
     // Knobs: SW4 tempo (1 BPM a click; press = tap), SW1 arp octaves 1-4, SW2 gate 5-100 %
-    // (5 % a click), SW3 bass rate (chord change, 1/2, 1/4, 1/8). Three clicks per step for SW1/SW3.
+    // (5 % a click), SW3 bass rate (chord change, 1/2, 1/4, 1/8; press = bass octave C1 / C2 / C3).
+    // Three clicks per step for SW1/SW3.
     FORGE_COLD void PartsControls(uint64_t keys, const int16_t (&turns)[panel::kEncoders], Engine& engine) {
         parts::Parts* p = engine.Parts();
         if(!p) return;
@@ -499,6 +511,9 @@ private:
         const bool down = (keys >> panel::kKnobEncoder[0]) & 1u;
         if(down && !hold_[0].down) { hold_[0] = KnobHold{}; hold_[0].down = true; hold_[0].used = true; changed = p->Tap() || changed; }
         if(!down) hold_[0].down = false;
+        const bool sw3 = (keys >> panel::kKnobEncoder[3]) & 1u;
+        if(sw3 && !hold_[3].down) { hold_[3] = KnobHold{}; hold_[3].down = true; hold_[3].used = true; s.bass_octave = static_cast<uint8_t>((s.bass_octave + 1) % 3); changed = true; }
+        if(!sw3) hold_[3].down = false;
         if(const int t = turns[panel::kKnobEncoder[0]]) {
             const int bpm = static_cast<int>(s.bpm) + t;
             s.bpm = static_cast<uint16_t>(bpm < parts::kMinBpm ? parts::kMinBpm : bpm > parts::kMaxBpm ? parts::kMaxBpm : bpm); changed = true;
@@ -519,7 +534,9 @@ private:
         if(changed) engine.PartsChanged();
     }
     int parts_detents_[4] = {};
-    std::atomic<uint32_t> parts_lights_{0}, parts_clock_{0};
+    static constexpr uint32_t kClearFrames = 2 * 48000;   // A#4: the second press within 2 s clears
+    uint32_t clear_frames_ = 0;
+    std::atomic<uint32_t> parts_lights_{0}, parts_clock_{0}, sequence_lights_{0};
     uint32_t fx_key_frames_ = 0;
     bool fx_key_armed_ = false;
     std::atomic<uint32_t> harmony_lights_{0};
@@ -613,6 +630,7 @@ private:
                     sink.Flash(false);
                 }
             } else {
+                if(action.kind == Kind::Save) engine.ExportSequence(action.bank, action.slot);   // the project's loop (0.15)
                 sink.PresetAction(action, engine.Snapshot());   // full queue: dropped, LEDs show no change
             }
         }
@@ -651,6 +669,7 @@ struct LedView {
     uint16_t kit_occupancy = 0;                   // sample files of the live kit bank
     uint32_t harmony = 0;                         // harmony::Pack (PanelController::HarmonyLights)
     uint32_t parts = 0, parts_clock = 0;          // PanelController::PartsLights / PartsClock (0.14)
+    uint32_t sequence = 0;                        // PanelController::SequenceLights (0.15)
 };
 // Menu closed (TAPE NormalPage): a key lights white while held. With a sampler patch,
 // kit mode shows the bank's occupied slots dim in the bank colour (the recording key
@@ -766,11 +785,11 @@ inline void ComposeHarmonyKnobLeds(uint32_t packed, Rgb (&rings)[4]) {
 // white on the beat. Knob rings: SW4 white on the beat (blue when following MIDI clock),
 // SW1 octaves (white, green, yellow, red), SW2 gate (brightness), SW3 bass rate (purple
 // chord change, blue 1/2, green 1/4, yellow 1/8).
-FORGE_COLD inline void RenderPartsLeds(uint32_t packed, uint32_t clock, Rgb (&keys)[25]) {
+FORGE_COLD inline void RenderPartsLeds(uint32_t packed, uint32_t clock, uint32_t sequence, Rgb (&keys)[25]) {
     const parts::Settings s = parts::Unpack(packed, parts::kDefaultBpm);
     for(auto& led : keys) led = Rgb{};
     static const uint8_t pattern[parts::kPatterns] = {48, 50, 52, 53, 55, 57}, rate[parts::kRates] = {60, 62, 64, 65, 67, 69};
-    static const uint8_t bass[parts::kBassModes] = {49, 51, 54, 56, 58}, octave[3] = {66, 68, 70};
+    static const uint8_t bass[parts::kBassModes] = {49, 51, 54, 56, 58};
     auto lit = [&](uint8_t note, Rgb c) {
         for(uint8_t key = 0; key < panel::kButtons; ++key) if(panel::kKeyNotes[key] == note) {
             const uint8_t slot = panel::KeyToSlot(key);
@@ -780,8 +799,16 @@ FORGE_COLD inline void RenderPartsLeds(uint32_t packed, uint32_t clock, Rgb (&ke
     };
     lit(pattern[static_cast<unsigned>(s.pattern) % parts::kPatterns], knobs::colour::blue);
     lit(rate[static_cast<unsigned>(s.rate) % parts::kRates], knobs::colour::green);
-    lit(bass[static_cast<unsigned>(s.bass) % parts::kBassModes], knobs::colour::orange);
-    lit(octave[s.bass_octave % 3], knobs::colour::yellow);
+    static const float octave[3] = {.35f, .65f, 1.f};          // bass octave C1 / C2 / C3: brighter = higher
+    lit(bass[static_cast<unsigned>(s.bass) % parts::kBassModes], knobs::Scale(knobs::colour::orange, octave[s.bass_octave % 3]));
+    // Event recorder (0.15): F#4 dim white empty, red blinking on the beat armed, red recording,
+    // green playing (dim stopped); G#4 yellow while overdubbing; A#4 white once clear is armed.
+    const unsigned state = sequence & 7u; const bool beat = (clock & 5u) == 5u;
+    const Rgb dim{.08f, .08f, .08f};
+    lit(66, state == 1 ? (beat ? knobs::colour::red : Rgb{}) : state == 2 ? knobs::colour::red : state == 3 ? knobs::colour::green
+            : state == 4 ? knobs::Scale(knobs::colour::green, .25f) : dim);
+    lit(68, (sequence & 8u) ? knobs::colour::yellow : dim);
+    lit(70, (sequence & 16u) ? Rgb{1.f, 1.f, 1.f} : state >= 3 ? dim : Rgb{});
     lit(59, s.latch ? Rgb{1.f, 1.f, 1.f} : Rgb{.08f, .08f, .08f});
     lit(71, clock & 1u ? knobs::colour::green : knobs::colour::red);
     lit(72, (clock & 5u) == 5u ? Rgb{1.f, 1.f, 1.f} : Rgb{.08f, .08f, .08f});
@@ -800,7 +827,7 @@ FORGE_COLD inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chomp
     if((v.menu & 1u) && ((v.menu >> 1) & 7u) == 7u)
         RenderHarmonyLeds(v.harmony, keys);
     else if((v.menu & 1u) && ((v.menu >> 1) & 7u) == 6u)
-        RenderPartsLeds(v.parts, v.parts_clock, keys);
+        RenderPartsLeds(v.parts, v.parts_clock, v.sequence, keys);
     else if(!(v.menu & 1u))
         RenderPlayLeds(v.keys_down, v.live, v.kit_occupancy, v.recording_present, keys);
     else if((v.menu >> 21) & 1u)
@@ -820,7 +847,14 @@ FORGE_COLD inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chomp
     else if(v.saving) chompi = v.slow_blink ? Rgb{1.f, 0.f, .6f} : Rgb{};
     else if(v.record_position)
         chompi = knobs::Fade4(Rgb{.1f, .1f, .1f}, knobs::colour::green, knobs::colour::yellow, knobs::colour::pink, Clamp(v.input_level, 0.f, 1.f));
-    else chompi = (v.keys_down >> panel::kChompiKey) & 1u ? knobs::colour::purple : Rgb{};
+    else if((v.keys_down >> panel::kChompiKey) & 1u) chompi = knobs::colour::purple;
+    else {
+        // The event recorder (0.15), menu position: orange blinking on the beat armed, orange
+        // recording, dim green playing (yellow overdubbing).
+        const unsigned state = v.sequence & 7u;
+        chompi = state == 1 ? ((v.parts_clock & 5u) == 5u ? knobs::colour::orange : Rgb{}) : state == 2 ? knobs::colour::orange
+               : state == 3 ? ((v.sequence & 8u) ? knobs::colour::yellow : knobs::Scale(knobs::colour::green, .3f)) : Rgb{};
+    }
     // Firmware install: CHOMPI blinks white until pressed, then stays white while CHOMPI restarts.
     if(v.install == 1) chompi = v.blink ? Rgb{1.f, 1.f, 1.f} : Rgb{};
     else if(v.install == 2) chompi = Rgb{1.f, 1.f, 1.f};

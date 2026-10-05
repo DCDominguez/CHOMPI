@@ -22,12 +22,14 @@ FORGE_COLD inline bool ExecuteRequest(const Request& request, Engine& engine, Re
     if(request.kind == RequestKind::ModWheel) { engine.ModWheel(static_cast<uint8_t>(request.value)); return false; }
     if(request.kind == RequestKind::Looper) { engine.LooperControl(request.note, static_cast<uint8_t>(request.value)); return false; }
     if(request.kind == RequestKind::Clock) { engine.ClockMessage(request.note); return false; }
+    if(request.kind == RequestKind::SequenceLoad) { engine.ImportSequence(); return false; }
     if(request.kind == RequestKind::Patch && request.silent) {   // on-device recall: no reply
         engine.ApplyPatch(request.patch, request.recall ? SlotPolicy::Recall : SlotPolicy::Patch); return false;
     }
     response = Response{};
     response.sequence = request.sequence; response.source = request.source;
-    if(request.kind == RequestKind::Store) {     // snapshot for the main loop to write
+    if(request.kind == RequestKind::Store) {     // snapshot for the main loop to write (and the recorded loop)
+        engine.ExportSequence(request.bank, request.slot);
         response.kind = ResponseKind::Snapshot; response.bank = request.bank; response.slot = request.slot;
     } else if(request.kind == RequestKind::Patch) {
         if(!engine.ApplyPatch(request.patch, request.recall ? SlotPolicy::Recall : SlotPolicy::Patch)) response.error = Error::Patch;

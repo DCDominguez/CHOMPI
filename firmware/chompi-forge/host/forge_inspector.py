@@ -23,7 +23,7 @@ def word(value):
 
 
 def request(page, sequence, cursor=0):
-    if type(page) is not int or not 1 <= page <= 9:
+    if type(page) is not int or not 1 <= page <= 10:
         raise ValueError("Unknown Inspector page")
     return host.message(0x0b, sequence, [page, *word(cursor)] if page == 6 else [page])
 
@@ -47,9 +47,9 @@ def decode(data, sequence, expected_page=None):
         if len(data) != 88:
             raise ValueError("Invalid LED page")
         return {"page": 1, "rgb": [data[9+3*i:12+3*i] for i in range(26)]}
-    if page not in range(2,10) or len(data) < 16 or data[9] != 1:
+    if page not in range(2,11) or len(data) < 16 or data[9] != 1:
         raise ValueError("Unsupported Inspector schema/page; use the matching host")
-    lengths = {2:(88, 91, 98), 3:(97,), 4:(88,), 5:(94,), 8:(38,), 9:(50,)}  # page 2: 91 from firmware 0.8 (power), 98 from 0.10 (restart)
+    lengths = {2:(88, 91, 98), 3:(97,), 4:(88,), 5:(94,), 8:(38,), 9:(50,), 10:(29,)}  # page 2: 91 from firmware 0.8 (power), 98 from 0.10 (restart)
     if page in lengths and len(data) not in lengths[page]:
         raise ValueError("Invalid Inspector page length")
     pos = 10
@@ -120,9 +120,9 @@ def decode(data, sequence, expected_page=None):
         voices=[]
         for i in range(7):
             note,source,stage,slot,flags=byte(),byte(),byte(),byte(),byte()
-            if source>2 or stage>4 or slot not in (*range(15),127) or flags>7:
+            if source>3 or stage>4 or slot not in (*range(15),127) or flags>7:
                 raise ValueError("Invalid Inspector voice")
-            voices.append({"voice":i,"note":note,"source":("uart","usb","panel")[source],
+            voices.append({"voice":i,"note":note,"source":("uart","usb","panel","sequence")[source],
                            "stage":("off","attack","decay","sustain","release")[stage],
                            "sample_slot":slot+1 if slot<15 else None,"sampled":bool(flags&1),
                            "sustained":bool(flags&2),"reverse":bool(flags&4),"envelope":unit()})
@@ -192,6 +192,12 @@ def decode(data, sequence, expected_page=None):
         result.update({"parts":settings,"tempo_bpm":bpm,"running":bool(flags&1),"midi_clock":bool(flags&2),
                        "latched":bool(flags&4),"active":bool(flags&8),"ticks":ticks,"set":notes[:min(count,8)],"set_count":count,
                        "arp_note":arp_note or None,"bass_note":bass_note or None,"drops":drops})
+    elif page == 10:
+        state,overdub=byte(),byte(); length,position,count=(byte()|byte()<<7 for _ in range(3)); drops=u32()
+        if state>4 or overdub>1 or length>768 or length%96 or count>1024 or (length and position>=length):
+            raise ValueError("Invalid sequence page")
+        result.update({"state":("empty","armed","recording","playing","stopped")[state],"overdub":bool(overdub),
+                       "bars":length//96,"length_ticks":length,"position_ticks":position,"events":count,"drops":drops})
     if pos!=len(data)-1: raise ValueError("Unexpected Inspector trailing data")
     return result
 
@@ -233,6 +239,7 @@ def collect(fetch, cursor=0):
     minor=int(pages[2]["firmware"].split(".")[1])
     if minor>=13: pages[8]=fetch(8,0)   # harmony page from 0.13
     if minor>=14: pages[9]=fetch(9,0)   # parts page from 0.14
+    if minor>=15: pages[10]=fetch(10,0) # event recorder page from 0.15
     if len({v["generation"] for v in pages.values()})!=1:
         raise RuntimeError("Inspector snapshot changed during read; another host may be polling")
     leds=fetch(1,0)
@@ -269,8 +276,16 @@ def collect(fetch, cursor=0):
         sw5_cutoff_hz=modules.get("filter",modules.get("synth",{})).get("cutoff_hz"),
         sw6_level=modules.get("output",patch.get("parameters",{})).get("level"))
     return {"schema":1,"generation":pages[2]["generation"],"system":pages[2],"panel":pages[3],
-            "engine":pages[4],"storage":pages[5],"harmony":pages.get(8),"parts":pages.get(9),"events":events,"event_cursor":cursor,"event_gap":lost,
+            "engine":pages[4],"storage":pages[5],"harmony":pages.get(8),"parts":pages.get(9),"sequence":pages.get(10),"events":events,"event_cursor":cursor,"event_gap":lost,
             "event_overwritten":log["overwritten"]}
+
+
+def sequence_line(page):
+    """One line for the event recorder, e.g. SEQ     playing, 2 bars, beat 3 of 8, 14 events."""
+    if page["state"]=="empty": return "SEQ     empty"
+    where=f', beat {page["position_ticks"]//24+1} of {page["length_ticks"]//24}' if page['length_ticks'] else ''
+    bars=f', {page["bars"]} bar'+('s' if page['bars']!=1 else '') if page['bars'] else ''
+    return f'SEQ     {page["state"]}'+(' + overdub' if page['overdub'] else '')+bars+where+f', {page["events"]} events'
 
 
 def parts_line(page):
@@ -316,6 +331,7 @@ def display(s, recent=()):
            f'EVENTS  gaps {s["event_gap"]}; overwritten {s["event_overwritten"]}; audio event drops {sys["event_drops"]}']
     if s.get("harmony"): lines.insert(-1,harmony_line(s["harmony"]))
     if s.get("parts"): lines.insert(-1,parts_line(s["parts"]))
+    if s.get("sequence"): lines.insert(-1,sequence_line(s["sequence"]))
     lines.extend(f'        {e["serial"]} @ {e["time_ms"]}ms {e["kind"]} id={e["id"]} value={e["value"]}' for e in recent)
     return "\n".join(lines)
 

@@ -38,7 +38,7 @@ class PatchTests(unittest.TestCase):
             response = probe(packet)[0]
             self.assertEqual(response[8:len(packet)], packet[7:-1])
             result = host.decode_response(response, 129)
-            self.assertEqual(result["firmware"], "0.14")
+            self.assertEqual(result["firmware"], "0.15")
             self.assertAlmostEqual(host.effect_patch(result["patch"])["parameters"]["time_ms"],
                                    host.effect_patch(patch)["parameters"]["time_ms"], delta=990 / 16383)
 

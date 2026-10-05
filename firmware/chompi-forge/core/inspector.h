@@ -34,6 +34,8 @@ struct InspectorAudio {
     uint32_t parts_arp = 0, parts_clock = 0, parts_ticks = 0, parts_drops = 0;
     float parts_bpm = 0;
     uint8_t parts_flags = 0, parts_set_count = 0, parts_set[8]{}, parts_arp_note = 0, parts_bass_note = 0;
+    // Event recorder (0.15, page 10): Sequencer::State, overdub, loop length / position in ticks, events, drops.
+    uint8_t seq_state = 0, seq_overdub = 0; uint16_t seq_length = 0, seq_position = 0, seq_count = 0; uint32_t seq_drops = 0;
 };
 // Main requests a refresh at <=20 Hz. Audio writes cheap scalar state into
 // this exclusive slot, then publishes; main makes the actual Inspector snapshot.
@@ -161,6 +163,11 @@ FORGE_NOINLINE inline size_t EncodeInspector(uint16_t sequence, uint8_t page, co
         byte(a.parts_flags); word(a.parts_ticks); byte(a.parts_set_count);
         for(uint8_t note : a.parts_set) byte(note);
         byte(a.parts_arp_note); byte(a.parts_bass_note); word(a.parts_drops);
+    }
+    else if(page == 10) {                                          // event recorder (0.15): 29 bytes
+        byte(a.seq_state); byte(a.seq_overdub);
+        for(uint16_t v : {a.seq_length, a.seq_position, a.seq_count}) { Write14(out+n, v); n+=2; }
+        word(a.seq_drops);
     }
     else return EncodeError(sequence, Error::Patch, out);
     out[n] = Checksum(out,n); return n+1;

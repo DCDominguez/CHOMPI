@@ -246,7 +246,7 @@ inline bool InKey(unsigned pc, const State& s) {
 // Zero-initialised (lives in .bss). Audio owner only.
 class Player {
 public:
-    static constexpr unsigned kHeld = 10, kSources = 3;
+    static constexpr unsigned kHeld = 10, kSources = 4;   // + the event recorder (0.15)
     State state;
     // Key down: fills `out` with the notes to start (those not already sounding).
     FORGE_COLD unsigned KeyDown(uint8_t key, uint8_t source, uint8_t* out) {

@@ -15,6 +15,7 @@
 #include "../core/panel_controller.h"
 #include "../core/sampler_runtime.h"
 #include "../core/file_transfer.h"
+#include "../core/sequence_store.h"
 #include "../tests/sample_card.h"
 
 // Simulated sample card: a few TAPE-named files and a one-second recording, so
@@ -119,6 +120,9 @@ int main(int argc, char** argv) {
     static forge::harmony::Player harmony_player;
     engine.SetHarmony(&harmony_player);
     static forge::parts::Parts parts; parts.Init(48000.f); engine.SetParts(&parts);   // clock, arp, bass (0.14)
+    static forge::seq::Sequencer sequencer; static forge::seq::Mailbox mailbox;          // event recorder (0.15)
+    static uint8_t sequence_file[forge::seq::kFileMax];
+    engine.SetSequencer(&sequencer, &mailbox);
     loader.Init(&table, &handoff, pool.data(), static_cast<uint32_t>(pool.size()), scratch.data(), static_cast<uint32_t>(scratch.size()));
     recorder.Init(recording.data(), 48000 * 4, &table.slots[forge::kRamSlot], 48000.f);
     std::vector<int16_t> loop_memory(2 * 48000 * 20);            // 20 s looper (firmware: ~83 s)
@@ -128,22 +132,33 @@ int main(int argc, char** argv) {
     // (no hardware input). Its menu actions run here directly.
     struct ProbeSink : forge::PanelSink {
         forge::PresetStore* store; forge::Engine* engine; forge::SampleLoader* loader;
+        forge::Storage* card; forge::seq::Mailbox* box; uint8_t* file;
         uint8_t last_bank = 0, last_slot = forge::panel::kNoSlot;
         bool PresetAction(const forge::MenuAction& a, const forge::Parameters& snapshot) override {
             forge::Error e = forge::Error::None;
             if(a.kind == forge::MenuAction::Kind::Recall) {
                 forge::Parameters patch; e = store->Load(a.bank, a.slot, patch);
-                if(e == forge::Error::None) { engine->ApplyPatch(patch, forge::SlotPolicy::Recall); last_bank = a.bank; last_slot = a.slot; return true; }
-            } else if(a.kind == forge::MenuAction::Kind::Save) e = store->Save(a.bank, a.slot, snapshot);
-            else if(a.kind == forge::MenuAction::Kind::Erase) e = store->Erase(a.bank, a.slot);
-            else if(a.kind == forge::MenuAction::Kind::Copy) e = store->Copy(a.bank, a.slot, a.to_bank, a.to_slot);
+                if(e == forge::Error::None) {
+                    engine->ApplyPatch(patch, forge::SlotPolicy::Recall); last_bank = a.bank; last_slot = a.slot;
+                    if(forge::seq::LoadFile(*card, *box, a.bank, a.slot, file)) engine->ImportSequence();   // the project's loop
+                    return true;
+                }
+            } else if(a.kind == forge::MenuAction::Kind::Save) {
+                e = store->Save(a.bank, a.slot, snapshot);
+                const forge::Error s = forge::seq::SaveFile(*card, *box, a.bank, a.slot, file, e == forge::Error::None);
+                if(e == forge::Error::None && s == forge::Error::Storage) e = s;
+            } else if(a.kind == forge::MenuAction::Kind::Erase) { e = store->Erase(a.bank, a.slot); if(e == forge::Error::None) forge::seq::EraseFile(*card, a.bank, a.slot); }
+            else if(a.kind == forge::MenuAction::Kind::Copy) {
+                e = store->Copy(a.bank, a.slot, a.to_bank, a.to_slot);
+                if(e == forge::Error::None && !forge::seq::CopyFile(*card, a.bank, a.slot, a.to_bank, a.to_slot, file)) e = forge::Error::Storage;
+            }
             Flash(e == forge::Error::None);
             return true;
         }
         bool SampleJob(const forge::SampleJob& job) override { forge::SampleJob j = job; j.source = 0xff; return loader->Queue(j); }
         void Flash(bool) override {}
     } sink;
-    sink.store = &store; sink.engine = &engine; sink.loader = &loader;
+    sink.store = &store; sink.engine = &engine; sink.loader = &loader; sink.card = &card; sink.box = &mailbox; sink.file = sequence_file;
     forge::PanelController panel;
     CardUploads uploads(samples); forge::FileTransfer transfer; forge::InstallGate install;
     panel.SetInstallGate(&install);
@@ -218,7 +233,10 @@ int main(int argc, char** argv) {
         if(error == forge::Error::None && request.kind == forge::RequestKind::Recall) {
             forge::Request apply;
             error = forge::RecallRequest(store, request, apply);
-            if(error == forge::Error::None) request = apply;
+            if(error == forge::Error::None) {
+                if(forge::seq::LoadFile(card, mailbox, request.bank, request.slot, sequence_file)) engine.ImportSequence();
+                request = apply;
+            }
         }
         if(error == forge::Error::None && request.kind == forge::RequestKind::Panel) {
             forge::PanelEvent event;
@@ -278,13 +296,20 @@ int main(int argc, char** argv) {
             if(error == forge::Error::None && !(loader.Queue(job) && settle(event))) error = forge::Error::StorageBusy;
             if(request.action == forge::SampleAction::Save) recorder.Unlock();
             if(error == forge::Error::None) { response = forge::SampleDoneReply(event); error = response.error; }
-        } else if(error == forge::Error::None && request.kind == forge::RequestKind::Erase) response = forge::EraseReply(store, request);
+        } else if(error == forge::Error::None && request.kind == forge::RequestKind::Erase) {
+            response = forge::EraseReply(store, request);
+            if(response.error == forge::Error::None) forge::seq::EraseFile(card, request.bank, request.slot);
+        }
         else if(error == forge::Error::None && request.kind == forge::RequestKind::List) response = forge::ListReply(store, request);
         else if(error == forge::Error::None) {
             forge::ExecuteRequest(request, engine, response);
             settle(ignored);                       // a sampler patch loads its sample(s), as the device does
             if(response.kind == forge::ResponseKind::Snapshot)
+            {
                 response = forge::StoreReply(store, response.sequence, 0, response.bank, response.slot, response.patch);
+                const forge::Error s = forge::seq::SaveFile(card, mailbox, response.bank, response.slot, sequence_file, response.error == forge::Error::None);
+                if(response.error == forge::Error::None && s == forge::Error::Storage) response.error = s;
+            }
         }
         if(error != forge::Error::None) size = forge::EncodeError(forge::Read14(frame.data + 5), error, reply);
         else if(request.kind != forge::RequestKind::Panel && request.kind != forge::RequestKind::Probe)

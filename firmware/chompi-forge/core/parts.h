@@ -202,6 +202,7 @@ public:
     FORGE_COLD void Advance(unsigned frames) {
         now_ += frames;
         const unsigned ticks = clock_.Advance(frames);
+        last_ticks_ = ticks;
         // MIDI clock out: start, 24 ticks per beat, stop, while the parts play on the internal tempo.
         const bool sending = Active() && settings.clock_out && !clock_.External() && clock_.Running();
         if(sending != sending_) { Midi(sending ? 0xfa : 0xfc); sending_ = sending; }
@@ -231,6 +232,10 @@ public:
     }
     static constexpr unsigned kEvents = 16;
     bool PopMidi(MidiOut& m) { return midi_.Pop(m); }
+    // Ticks the last Advance crossed (the event recorder steps with them).
+    unsigned LastTicks() const { return last_ticks_; }
+    // A note for MIDI out on the keys' channel (event recorder playback).
+    void SendNote(uint8_t note, uint8_t velocity) { Midi(velocity ? 0x90 : 0x80, note, velocity); }
     // Inspector: the set as played and what sounds.
     unsigned SetCount() const { return set_count_; }
     const uint8_t* Set() const { return set_; }
@@ -325,7 +330,7 @@ private:
     Clock clock_;
     SpscQueue<MidiOut, 64> midi_;
     uint8_t set_[kMaxSet] = {}, order_[kMaxSet * 4] = {}, refs_[128] = {}, owner_[128] = {}, bass_[2] = {};
-    unsigned set_count_ = 0, order_count_ = 0, step_ = 0, held_ = 0, bass_step_ = 0, bass_count_ = 0;
+    unsigned set_count_ = 0, order_count_ = 0, step_ = 0, held_ = 0, bass_step_ = 0, bass_count_ = 0, last_ticks_ = 0;
     uint32_t random_ = 0x12345678u, drops_ = 0, now_ = 0;
     float arp_left_ = 0.f, bass_left_ = 0.f;
     uint8_t arp_note_ = 0, root_ = 0, fifth_ = 7, velocity_ = 100, source_ = 2;

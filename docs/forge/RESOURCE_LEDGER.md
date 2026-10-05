@@ -210,3 +210,15 @@ docs, recheck `forge/foundation`; never overwrite a concurrent implementation.
 | QA | 15 native (new `parts_test`) + 123 Python PASS; 14 ASan/UBSan PASS; browser 11 + 7 PASS |
 | Value | Arpeggiator, bass part, tempo / tap / MIDI clock in and out, all from the panel and patches |
 | Decision | Hardware evidence needed: TEST_SESSION 3.68–3.72 (timing feel, MIDI clock with a DAW) |
+
+## Snapshot 2026-10-05: firmware 0.15 event recorder and projects (not installed)
+
+| Field | Record |
+| --- | --- |
+| Identity | Commit after `0b09d45` (parent, previous measured); firmware 0.15, Inspector page 10 |
+| Build | xPack GCC 10.3.1, unchanged flags. Release 234,448 B, development 248,256 B; layout OK both |
+| Memory | +5,280 / +5,360 B (headroom 54,320 / 40,512 B). SRAM `.bss` 144,588 B (+12,888: `Sequencer` 6,548, `sequence_file` 6,176); `.data` 1,732 B; 89,200 B of the 230 KiB SRAM left. SDRAM `.sdram_bss` 66,721,816 B (+6,152 mailbox), 387,048 B free |
+| CPU | Emulator gate PASS: pitch .75 2,676.2 (+7.0, the fourth note source's bend smoothing), 1x worst 2,610.5 vs WAVE 2,694.9. Recorder playback runs in `Engine::Block`, once per block |
+| QA | 16 native (new `sequencer_test`) + 124 Python PASS; 15 ASan/UBSan PASS; browser 11 + 7 PASS |
+| Value | Loops of played notes and controls, overdub, projects on the card |
+| Decision | Hardware evidence needed: TEST_SESSION 3.73–3.76 (feel of the bar start/close, FatFS writes of the loop files on DC's card) |

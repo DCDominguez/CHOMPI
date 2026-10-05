@@ -2,7 +2,7 @@ CXX ?= c++
 HOST_FLAGS = -std=c++14 -Wall -Wextra -Werror -pedantic -pthread
 HEADERS = $(wildcard core/*.h)
 .PHONY: test sanitize firmware firmware-dev libdaisy browser-test bench
-test: build/core_test build/protocol_test build/synth_test build/v3_test build/preset_test build/sampler_test build/panel_test build/inspector_test build/looper_test build/file_transfer_test build/power_test build/slot_settings_test build/harmony_test build/parts_test build/knob_audio_test build/starter_patches.txt build/forge_probe
+test: build/core_test build/protocol_test build/synth_test build/v3_test build/preset_test build/sampler_test build/panel_test build/inspector_test build/looper_test build/file_transfer_test build/power_test build/slot_settings_test build/harmony_test build/parts_test build/sequencer_test build/knob_audio_test build/starter_patches.txt build/forge_probe
 	./build/core_test
 	./build/protocol_test
 	./build/synth_test
@@ -17,6 +17,7 @@ test: build/core_test build/protocol_test build/synth_test build/v3_test build/p
 	./build/slot_settings_test
 	./build/harmony_test
 	./build/parts_test
+	./build/sequencer_test
 	./build/knob_audio_test
 	python3 -m unittest discover -s tests -p 'test_*.py' -v
 build/slot_settings_test: tests/slot_settings_test.cpp $(HEADERS)
@@ -28,6 +29,9 @@ build/harmony_test: tests/harmony_test.cpp $(HEADERS)
 build/parts_test: tests/parts_test.cpp $(HEADERS)
 	mkdir -p build
 	$(CXX) $(HOST_FLAGS) -O2 tests/parts_test.cpp -o $@
+build/sequencer_test: tests/sequencer_test.cpp $(HEADERS)
+	mkdir -p build
+	$(CXX) $(HOST_FLAGS) -O2 tests/sequencer_test.cpp -o $@
 build/knob_audio_test: tests/knob_audio_test.cpp $(HEADERS)
 	mkdir -p build
 	$(CXX) $(HOST_FLAGS) -DFORGE_TEST_HOOKS -O2 tests/knob_audio_test.cpp -o $@
@@ -100,6 +104,8 @@ sanitize:
 	./build/harmony_test_sanitize
 	$(CXX) $(HOST_FLAGS) -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer tests/parts_test.cpp -o build/parts_test_sanitize
 	./build/parts_test_sanitize
+	$(CXX) $(HOST_FLAGS) -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer tests/sequencer_test.cpp -o build/sequencer_test_sanitize
+	./build/sequencer_test_sanitize
 libdaisy:
 	mkdir -p build
 	$(MAKE) -C ../chompi-wave/code/libs/libDaisy BUILD_DIR=$(abspath build/libdaisy)

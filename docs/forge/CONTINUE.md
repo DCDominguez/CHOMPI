@@ -1,7 +1,7 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-05 (UTC), checkpoint: firmware 0.14 arp, bass and tempo (see "Current
-checkpoint" below). Read this first; DC's next session is
+Updated 2026-10-05 (UTC), checkpoint: firmware 0.15 event recorder and projects (see
+"Current checkpoint" below). Read this first; DC's next session is
 [HOME_CHECKLIST.md](HOME_CHECKLIST.md).
 
 ## Resource/QA review, 2026-10-04 (UTC)
@@ -23,7 +23,7 @@ SD streaming remains gated on physical SD measurements. Older checkpoint and
 PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
 use the latest implementation checkpoint and ledger for present capabilities/budgets.
 
-## Current checkpoint: firmware 0.14 arp, bass and tempo (2026-10-05; 0.13 harmony below)
+## Current checkpoint: firmware 0.15 event recorder (2026-10-05; 0.14 parts and 0.13 harmony below)
 
 DC: "Yeah 1 to 4 let's go" = (1) finish harmony 0.13, (2) CPU fix A (table-based
 cubic read), (3) clock + arp + bass, (4) event recorder + projects on SD. Item 1 is
@@ -60,7 +60,15 @@ installed. One consolidated hardware session covers them all (TEST_SESSION).
   Checks: make test 15 native + 123 Python, sanitize 14, browser 11 + 7 PASS; bench
   unchanged PASS; release 229,168 / development 242,896 B layout OK.
   Not verified: everything on hardware (3.65–3.72), arp timing feel, MIDI clock with a DAW.
-- Next: item 4, event recorder + projects on SD.
+- Item 4, event recorder + projects = firmware 0.15 (after `0b09d45`). DC's answers
+  (2026-10-05): notes + knobs looped with overdub; parts-page keys; project = preset +
+  parts + loop; MIDI-in notes recorded. Implemented and software-tested: `core/sequencer.h`,
+  `core/sequence_store.h`, engine / panel / firmware / probe wiring, Inspector page 10.
+  Checks: make test 16 native + 124 Python, sanitize 15, browser 11 + 7 PASS; bench PASS
+  (pitch .75 2,676.2); release 234,448 / development 248,256 B layout OK.
+  Not verified: everything on hardware (3.65–3.76), FatFS writes of `.FSQ` on DC's card.
+- DC's items 1-4 are all done in software. Next: DC's hardware session (install 0.15 once
+  the battery is full, then TEST_SESSION), or DC's next request.
 
 ## Checkpoint: firmware 0.12 per-slot sample settings (2026-10-05)
 

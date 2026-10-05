@@ -23,7 +23,7 @@ set that real-time playback needs; internal SRAM/DTCM holds hard-real-time state
 
 Branch head `753078b` (the brief named `b7d098b`; 23 commits later: knob pages,
 0.7 USB loader, bridge). Release build `src/build/FORGE.elf` (xPack GCC 10.3.1),
-`.sdram_bss` = **66,715,664 B** of 67,108,864 B:
+`.sdram_bss` = **66,721,816 B** of 67,108,864 B (0.15; 66,715,664 B before):
 
 | SDRAM region | Source | Bytes |
 | --- | --- | --- |
@@ -31,10 +31,13 @@ Branch head `753078b` (the brief named `b7d098b`; 23 commits later: knob pages,
 | Recorder | `kRecordFrames` = 16 MiB / 4, stereo int16 | 16,777,216 (16 MiB, 87.4 s) |
 | Looper | `kLoopFrames` = 4,000,000 stereo int16 | 16,000,000 (15.26 MiB, 83.3 s) |
 | Delay lines | `kDelayCapacity` 48,002 floats × 2 (not in the brief) | 384,016 |
-| **Free** | | **393,200 (0.37 MiB)** |
+| Event recorder mailbox | `sequence_mailbox_memory` (0.15: a 1,024-event loop for save / load) | 6,152 |
+| **Free** | | **387,048 (0.37 MiB)** |
 
-Executable space (SRAM_EXEC 282 KiB = 288,768 B): release **229,168 B, headroom
-59,600 B**; development 242,896 B, headroom 45,872 B (0.14: clock, arp, bass, parts page,
+Executable space (SRAM_EXEC 282 KiB = 288,768 B): release **234,448 B, headroom
+54,320 B**; development 248,256 B, headroom 40,512 B (0.15: event recorder and projects
++5.3 / +5.4 KB, its loop files (`FORGE/BbSss.FSQ`, up to 6.2 KB, main-loop FatFS writes beside the
+presets; no change to the sampler read path); 0.14: clock, arp, bass, parts page,
 patch v7, Inspector page 9 +7.5 / +8.5 KB; 0.13: CPU fix A cubic table +4.6 KB; harmony menu page, Inspector page 8 and patch v6 +1.9 / +2.6 KB after the savings; harmony
 core +6.6 KB, queues moved to `.bss` −26.9 KB, cold code `-Os` and start-up
 construction −25.8 KB; 0.12 was 261,224 / 277,268 B. 0.12: per-slot

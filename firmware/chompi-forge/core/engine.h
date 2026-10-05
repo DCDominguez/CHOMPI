@@ -7,6 +7,7 @@
 #include "synth.h"
 #include "harmony.h"
 #include "parts.h"
+#include "sequencer.h"
 #include "tape_fx.h"
 
 namespace forge {
@@ -60,8 +61,16 @@ public:
         ready_ = true;
         return true;
     }
+    // A control change; recorded by the event recorder while it captures (0.15).
     bool Apply(Command command) {
         command.parameter = parameters_.Resolve(command.parameter);       // knobs -> their control
+        if(!ApplyResolved(command)) return false;
+        // Not the sampler's per-slot settings: replaying them would keep rewriting the slot's saved values.
+        if(seq_ && !replaying_ && seq_->Capturing() && !(SlotOwned(command.parameter) && SlotMode()))
+            seq_->RecordParam(command.parameter, command.value);
+        return true;
+    }
+    bool ApplyResolved(Command command) {
         if(SlotOwned(command.parameter) && SlotMode()) return ApplySlot(command);
         if(IsPerformance(command.parameter)) return ApplyPerformance(command);
         if(!parameters_.Apply(command)) return false;
@@ -126,6 +135,7 @@ public:
     // first `*released` of them stopped by a retrigger; else the key's own note.
     unsigned Note(uint8_t note, uint8_t velocity, uint8_t source, uint8_t* played = nullptr, unsigned* released = nullptr) {
         if(velocity && looper_) looper_->NoteStarted();      // an armed looper starts recording
+        if(seq_ && source != seq::kSource && seq_->Capturing()) seq_->RecordNote(note, velocity);   // event recorder (0.15)
         if(velocity && SlotMode() && Kit()) { const int pad = Synth::KitSlot(note); if(pad >= 0) focus_ = static_cast<uint8_t>(pad); }
         if(harmony_ && (velocity ? HarmonyOn() && harmony_->Maps(note) : harmony_->Holds(note, source)))
             return HarmonyNote(note, velocity, source, played, released);
@@ -175,9 +185,24 @@ public:
     bool PartsOn() const { return parts_ && parts_->Active() && parameters_.synth && !(parameters_.Sampler() && Kit()); }
     bool ArpOn() const { return PartsOn() && parts_->ArpOn(); }
     // Once per audio block, before the samples: the clock, steps and gate ends.
-    void Block(unsigned frames) { if(parts_) { parts_->Advance(frames); SoundParts(); } }
+    void Block(unsigned frames) {
+        if(!parts_) return;
+        parts_->Advance(frames); SoundParts();
+        if(seq_) PlaySequence();
+    }
+    // Event recorder (core/sequencer.h, 0.15): the caller's recorder and its save/load mailbox.
+    void SetSequencer(seq::Sequencer* s, seq::Mailbox* m = nullptr) { seq_ = s; mailbox_ = m; }
+    seq::Sequencer* Sequencer() const { return seq_; }
+    // A preset save: hand the recorded loop to the main loop with it (false: busy, saved without).
+    bool ExportSequence(uint8_t bank, uint8_t slot) { return seq_ && mailbox_ && mailbox_->Export(*seq_, bank, slot); }
+    // A preset recall brought a loop: take it.
+    bool ImportSequence() { return seq_ && mailbox_ && mailbox_->Import(*seq_); }
     // MIDI clock in (main loop -> request queue): 0 tick, 1 start, 2 continue, 3 stop.
-    void ClockMessage(uint8_t m) { if(parts_ && m <= 3) { parts_->ClockMessage(static_cast<parts::Clock::Message>(m)); SoundParts(); } }
+    void ClockMessage(uint8_t m) {
+        if(!parts_ || m > 3) return;
+        parts_->ClockMessage(static_cast<parts::Clock::Message>(m)); SoundParts();
+        if(seq_ && m == parts::Clock::Start) seq_->Restart();
+    }
     // Panel / host changes to the parts settings.
     void PartsChanged() { if(parts_) { parts_->Changed(); SoundParts(); } }
     // Controller state is kept on either route; Panic and route changes reset it.
@@ -276,6 +301,11 @@ public:
             a.parts_set_count = static_cast<uint8_t>(parts_->SetCount());
             for(unsigned i = 0; i < 8; ++i) a.parts_set[i] = i < parts_->SetCount() ? parts_->Set()[i] : 0;
             a.parts_arp_note = parts_->ArpNote(); a.parts_bass_note = parts_->BassNote();
+        }
+        if(seq_) {                                              // page 10 (0.15)
+            a.seq_state = static_cast<uint8_t>(seq_->GetState()); a.seq_overdub = seq_->Overdub() ? 1 : 0;
+            a.seq_length = seq_->Length(); a.seq_position = seq_->Position(); a.seq_count = static_cast<uint16_t>(seq_->Count());
+            a.seq_drops = seq_->Drops();
         }
         a.mix=mix_; a.feedback=feedback_; a.level=level_; a.delay_samples=time_; a.reverb_mix=reverb_mix_;
         if(looper_) {
@@ -438,6 +468,7 @@ private:
         synth_.Silence();
         if(harmony_) harmony_->Clear();
         if(parts_) { parts_->Clear(); parts::Event e[parts::Parts::kEvents]; parts_->Take(e, parts::Parts::kEvents); }   // MIDI offs queued
+        if(seq_) seq_->Panic();                                  // its note-offs go out with the next block (MIDI)
         // O(1) tail suppression: old delay cells are not read until overwritten.
         flushed_ = capacity_;
         reverb_.Clear();
@@ -458,8 +489,30 @@ private:
         const unsigned n = parts_->Take(e, parts::Parts::kEvents);
         for(unsigned i = 0; i < n; ++i) if(parameters_.synth) synth_.Note(e[i].note, e[i].velocity, e[i].source);
     }
+    // Plays what the recorder holds at this block's ticks: notes as the player's source
+    // (through harmony / arp like keys; their MIDI out here), controls via Apply.
+    FORGE_COLD void PlaySequence() {
+        const parts::Clock& c = parts_->GetClock();
+        seq::Action a[16];
+        const unsigned n = seq_->Advance(parts_->LastTicks(), c.Ticks(), c.Running(), a, 16);
+        for(unsigned i = 0; i < n; ++i) {
+            if(a[i].kind == seq::Note) {
+                uint8_t played[2 * harmony::kMaxNotes]; unsigned released = 0;
+                const uint8_t velocity = static_cast<uint8_t>(a[i].b);
+                const unsigned k = Note(a[i].a, velocity, seq::kSource, played, &released);
+                for(unsigned j = 0; j < k; ++j) parts_->SendNote(played[j], j < released || !velocity ? 0 : velocity);
+            } else {
+                replaying_ = true;
+                Apply(Command{static_cast<Parameter>(a[i].a), a[i].b / 16383.f});
+                replaying_ = false;
+            }
+        }
+    }
     harmony::Player* harmony_ = nullptr;
     parts::Parts* parts_ = nullptr;
+    seq::Sequencer* seq_ = nullptr;
+    seq::Mailbox* mailbox_ = nullptr;
+    bool replaying_ = false;
     SlotSettings* slots_ = nullptr;
     uint32_t slots_seen_ = 0;
     uint8_t focus_ = 0;                          // kit: the pad the knobs edit (the last one played)

@@ -1,5 +1,31 @@
 # Forge changelog
 
+## 0.15 Event recorder and projects — 2026-10-05 (software-tested; not installed yet)
+
+DC's item 4. DC's choices: record notes and knob moves as a loop with overdub; controls
+on the parts page; a project = preset + parts + loop; MIDI-in notes recorded too. Nothing
+here is hardware-verified.
+- **Event recorder** (`core/sequencer.h`): keys, MIDI notes (with velocity) and knob / CC
+  moves on the parts clock's grid, 1–8 bars, starting and closing on bar lines (8 bars at
+  most), overdub, stop / play, clear; notes held when a take or overdub ends get their
+  ends (no hanging notes); plays back as its own player (source 3) through harmony, the arp
+  and the bass, with MIDI out; volume and input gain are never recorded, nor the sampler's
+  per-slot settings. Up to 1,024 events. MANUAL section 8c.
+- **Parts page:** F#4 record / play, G#4 overdub, A#4 clear (twice within 2 s); the bass
+  octave moved to an SW3 press (the bass key's brightness shows it). The CHOMPI light shows
+  the recorder in the menu position.
+- **Projects:** a preset saved on CHOMPI (panel or host) writes its loop as
+  `FORGE/BbSss.FSQ`; recall loads it (a slot without one keeps the running loop), copy and
+  erase follow (`core/sequence_store.h`; an audio / main-loop mailbox in SDRAM).
+- **Inspector page 10** (state, length, position, events, drops) and a SEQ line; page 4
+  names voice source 3 "sequence".
+- Release **234,448 B**, development 248,256 B (+5,280 / +5,360; headroom 54,320 /
+  40,512 B); RAM `.bss` +12.9 KB (recorder 6.5 KB, file buffer 6.2 KB), SDRAM +6.2 KB
+  (mailbox). CPU gate PASS (pitch .75 2,676.2 vs WAVE 2,694.9: +7 for the fourth note
+  source's bend smoothing).
+- New TEST_SESSION 3.73–3.76 (bridge checklist 111 steps); 3.68 / 3.71 updated for the
+  bass octave's move.
+
 ## 0.14 Arp, bass and tempo — 2026-10-05 (software-tested; not installed yet)
 
 Harmony Phase 2 (DC's item 3). DC's choices: CHOMPI's own tempo plus following MIDI

@@ -475,7 +475,7 @@
   },
   {
     "id": "3.68",
-    "do": "**Arp (0.14):** Warm Pad. Menu: hold KEY_21 1 s (harmony page), tap KEY_21 (parts page: C3, C#3, D4, G#4, B3 and B4 lit). Press D3 (up) and F4 (1/16). Close the menu; hold C3, E3 and G3, then let go; then play A3 alone; then hold SW4 + SW3 1 s",
+    "do": "**Arp (0.14):** Warm Pad. Menu: hold KEY_21 1 s (harmony page), tap KEY_21 (parts page: C3, C#3, D4, B3 and B4 lit; F#4 and G#4 dim). Press D3 (up) and F4 (1/16). Close the menu; hold C3, E3 and G3, then let go; then play A3 alone; then hold SW4 + SW3 1 s",
     "expect": "The three notes cycle upwards one at a time, 4 per beat at 120 BPM; after letting go they keep going (latch); A3 alone replaces them; the panic stops it. On a MIDI monitor (3.61) each arp note on channel 1, no chord",
     "group": "3H. Arp, bass and tempo (firmware 0.14)"
   },
@@ -493,7 +493,7 @@
   },
   {
     "id": "3.71",
-    "do": "**Bass (0.14):** parts page: arp off (C3), bass root (D#3), G#4 (octave C2), SW3 to green (1/4); play and hold C3 (harmony on); then try F#3 (root + fifth), G#3 (root / fifth), A#3 (root / octave), SW3 to purple (once per chord)",
+    "do": "**Bass (0.14):** parts page: arp off (C3), bass root (D#3), SW3 to green (1/4; the octave stays C2, an SW3 press steps it); play and hold C3 (harmony on); then try F#3 (root + fifth), G#3 (root / fifth), A#3 (root / octave), SW3 to purple (once per chord)",
     "expect": "The chord sounds as usual with a low A under it on every beat; the variations as named; purple: one bass note per chord change. MIDI monitor: bass on channel 2, chord on channel 1",
     "group": "3H. Arp, bass and tempo (firmware 0.14)"
   },
@@ -502,6 +502,30 @@
     "do": "**MIDI clock (0.14, optional):** a DAW sends MIDI clock to CHOMPI over USB at 100 BPM with the arp latched; stop the DAW, start it again; then turn its clock output off. Separately, with the DAW set to follow external clock, run the arp on CHOMPI's tempo",
     "expect": "The arp follows the DAW's tempo (SW4 light blinks blue), stops with it and restarts on its downbeat; half a second after the clock stops CHOMPI uses its own tempo again. The DAW follows CHOMPI's tempo (start, clock, stop)",
     "group": "3H. Arp, bass and tempo (firmware 0.14)"
+  },
+  {
+    "id": "3.73",
+    "do": "**Record a loop (0.15):** Warm Pad, parts page, arp and bass off. Press F#4, let go of CHOMPI (menu closed, toggle down). Watch the CHOMPI light; when it turns solid orange play a short line on the keys and turn SW5 (cutoff) once; open the menu (parts page), press F#4",
+    "expect": "F#4 blinks red on the beat, then CHOMPI orange from the next bar; after F#4 the take closes at the bar line and loops (F#4 green, CHOMPI dim green): the line and the cutoff move come back each bar exactly where they were played; the volume knob stays yours",
+    "group": "3I. Event recorder and projects (firmware 0.15)"
+  },
+  {
+    "id": "3.74",
+    "do": "**Overdub, stop, clear (0.15):** while it loops: G#4 (yellow), play a second line for a pass, G#4 again; then F#4 (stop) and F#4 (play); then A#4 once, wait 3 s, A#4 twice quickly",
+    "expect": "The second line joins from the next pass; no hanging notes when overdub ends with a key held; F#4 stops (all notes off) and restarts from bar 1; one A#4 press does nothing after 2 s; two quick presses clear (F#4 dim)",
+    "group": "3I. Event recorder and projects (firmware 0.15)"
+  },
+  {
+    "id": "3.75",
+    "do": "**With harmony, arp and MIDI (0.15):** harmony on (3.65), arp up (3.68); record a loop of two chord keys; also play a note from a MIDI keyboard or DAW into CHOMPI while recording; MIDI monitor on CHOMPI's output",
+    "expect": "The loop plays the chords through the arp (one note at a time), the MIDI note is in the loop too; on the monitor the loop's notes appear on channel 1 as it plays",
+    "group": "3I. Event recorder and projects (firmware 0.15)"
+  },
+  {
+    "id": "3.76",
+    "do": "**Projects (0.15):** with a loop playing, save the preset to a slot (section 6). Switch off and on, recall the slot; then recall a slot without a loop; then copy the slot and erase the copy. On the computer, look in `FORGE/`",
+    "expect": "After the restart the recalled slot plays the same sound with its loop; a slot without a loop changes the sound under the running loop; the copy plays the loop too; `FORGE/` holds `BbSss.FSQ` beside the saved `.FPR`, and none for the erased copy",
+    "group": "3I. Event recorder and projects (firmware 0.15)"
   },
   {
     "id": "4.1",

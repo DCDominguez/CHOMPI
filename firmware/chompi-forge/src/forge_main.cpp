@@ -8,6 +8,7 @@
 #include "preset_menu.h"
 #include "restart.h"
 #include "runtime.h"
+#include "sequence_store.h"
 #include "sampler_runtime.h"
 #include "usb_packets.h"
 #include "usbd_cdc.h"
@@ -372,6 +373,14 @@ void Send(uint8_t source, uint8_t* envelope, size_t payload_size) {
 forge::SlotSettings slot_settings;
 forge::harmony::Player harmony_player;   // harmony mode (core/harmony.h): zero-initialised, audio owner
 forge::parts::Parts& parts = Construct<forge::parts::Parts>();   // clock, arp, bass (core/parts.h, 0.14): audio owner
+forge::seq::Sequencer& sequencer = Construct<forge::seq::Sequencer>();   // event recorder (0.15): audio owner
+// Its save / load handoff lives in SDRAM (built in main() once SDRAM runs); the file buffer is
+// main-loop only, in whole cache lines for the SD driver's DMA.
+alignas(8) unsigned char DSY_SDRAM_BSS sequence_mailbox_memory[sizeof(forge::seq::Mailbox)];
+forge::seq::Mailbox* sequence_mailbox = nullptr;
+alignas(32) uint8_t sequence_file[(forge::seq::kFileMax + 31) / 32 * 32];
+// A recalled preset's loop (if it has one) follows its patch to the audio owner.
+FORGE_COLD void LoadSequence(uint8_t bank, uint8_t slot);
 alignas(32) char presets_text[forge::SlotSettings::kFileMax];   // whole cache lines: SD DMA reads
 uint32_t slot_settings_failures = 0;
 FORGE_COLD void LoadSlotSettings() {
@@ -562,7 +571,13 @@ FORGE_COLD forge::Error RecallPreset(forge::Request& request) {
     if(error != forge::Error::None) { if(request.silent) Flash(false); return error; }
     if(!Queue(apply)) { ++dropped_commands; return forge::Error::Busy; }
     last_bank = request.bank; last_slot = request.slot;
+    LoadSequence(request.bank, request.slot);
     return forge::Error::None;
+}
+FORGE_COLD void LoadSequence(uint8_t bank, uint8_t slot) {
+    if(!sequence_mailbox || !forge::seq::LoadFile(card, *sequence_mailbox, bank, slot, sequence_file)) return;
+    forge::Request load; load.kind = forge::RequestKind::SequenceLoad;
+    if(!Queue(load)) { ++dropped_commands; sequence_mailbox->Done(); }
 }
 // Host device-preset requests. Store goes on to the audio owner for a
 // snapshot; recall is replaced by the loaded patch; erase/list reply here.
@@ -571,11 +586,12 @@ forge::Error HandleStorage(forge::Request& request) {
     if(request.kind == RequestKind::Recall) {
         forge::Request apply;
         const forge::Error error = forge::RecallRequest(store, request, apply);
-        if(error == forge::Error::None) { last_bank = request.bank; last_slot = request.slot; request = apply; }
+        if(error == forge::Error::None) { last_bank = request.bank; last_slot = request.slot; request = apply; LoadSequence(last_bank, last_slot); }
         return error;
     }
     if(request.kind == RequestKind::Erase) {
         const forge::Response reply = forge::EraseReply(store, request);
+        if(reply.error == forge::Error::None) forge::seq::EraseFile(card, request.bank, request.slot);
         if(reply.error == forge::Error::None) SendResponse(reply);
         return reply.error;
     }
@@ -599,9 +615,21 @@ FORGE_COLD void RunPanelActions() {
                 RecallPreset(request);
                 continue;   // RecallPreset flashes on failure; success shows as the white key
             }
-            case forge::MenuAction::Kind::Save: error = store.Save(a.bank, a.slot, item.patch); break;
-            case forge::MenuAction::Kind::Erase: error = store.Erase(a.bank, a.slot); break;
-            case forge::MenuAction::Kind::Copy: error = store.Copy(a.bank, a.slot, a.to_bank, a.to_slot); break;
+            case forge::MenuAction::Kind::Save:   // a project: the preset and its recorded loop
+                error = store.Save(a.bank, a.slot, item.patch);
+                if(sequence_mailbox) {
+                    const forge::Error e = forge::seq::SaveFile(card, *sequence_mailbox, a.bank, a.slot, sequence_file, error == forge::Error::None);
+                    if(error == forge::Error::None && e == forge::Error::Storage) error = e;
+                }
+                break;
+            case forge::MenuAction::Kind::Erase:
+                error = store.Erase(a.bank, a.slot);
+                if(error == forge::Error::None) forge::seq::EraseFile(card, a.bank, a.slot);
+                break;
+            case forge::MenuAction::Kind::Copy:
+                error = store.Copy(a.bank, a.slot, a.to_bank, a.to_slot);
+                if(error == forge::Error::None && !forge::seq::CopyFile(card, a.bank, a.slot, a.to_bank, a.to_slot, sequence_file)) error = forge::Error::Storage;
+                break;
             default: continue;   // sample actions never reach this queue (handled in the audio callback)
         }
 #ifdef FORGE_TEST_HOOKS
@@ -663,6 +691,7 @@ FORGE_COLD void DrawLeds() {
     view.kit_occupancy = sample_loader.Occupancy(1, (view.live >> 2) & 7u);
     view.harmony = panel_controller.HarmonyLights();
     view.parts = panel_controller.PartsLights(); view.parts_clock = panel_controller.PartsClock();
+    view.sequence = panel_controller.SequenceLights();
     view.blink = (now / 250) % 2 == 0; view.slow_blink = (now / 300) % 2 != 0;
     view.flash = now < flash_until ? (flash_ok ? 1 : 0) : -1;
     view.saving = sample_loader.Busy() && !sample_loader.Loading();
@@ -871,6 +900,11 @@ FORGE_COLD void SendResponses() {
         if(response.kind == forge::ResponseKind::Snapshot) {   // host store: write, then acknowledge
             response = forge::StoreReply(store, response.sequence, response.source, response.bank, response.slot,
                                          response.patch);
+            if(sequence_mailbox) {                                   // the project's loop (0.15)
+                const forge::Error e = forge::seq::SaveFile(card, *sequence_mailbox, response.bank, response.slot, sequence_file,
+                                                            response.error == forge::Error::None);
+                if(response.error == forge::Error::None && e == forge::Error::Storage) response.error = e;
+            }
             if(response.error != forge::Error::None) ++rejected_messages;
 #ifdef FORGE_TEST_HOOKS
             InspectorStorageError(response.error);
@@ -958,6 +992,8 @@ FORGE_COLD int main() {
     engine.SetSlotSettings(&slot_settings);
     engine.SetHarmony(&harmony_player);
     parts.Init(hw.seed.AudioSampleRate()); engine.SetParts(&parts);
+    sequence_mailbox = new(sequence_mailbox_memory) forge::seq::Mailbox();   // SDRAM is running now
+    engine.SetSequencer(&sequencer, sequence_mailbox);
     panel_controller.SetInstallGate(&install_gate);
     cpu.Init(hw.seed.AudioSampleRate(), hw.seed.AudioBlockSize());
     hw.StartAudio(AudioCallback);

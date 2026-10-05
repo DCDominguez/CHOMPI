@@ -1,4 +1,4 @@
-# Forge control protocol — firmware 0.14
+# Forge control protocol — firmware 0.15
 
 Transport version remains **1**; patch formats **1–7** are supported.
 Firmware 0.4 added patch v3 (second oscillator, noise, resonant filter with
@@ -7,7 +7,8 @@ up to 7 voices) and sample requests (opcodes 08/09); 0.6 adds patch v5 (what
 knobs 1–4 control; [KNOBS.md](KNOBS.md)) and the panel's knob pages; 0.7 adds USB
 file transfer and firmware install (opcode 0C, below); 0.13 adds patch v6
 (harmony mode, [HARMONY_BRIEF.md](HARMONY_BRIEF.md)) and Inspector page 8; 0.14 adds patch v7
-(clock, arpeggiator, bass), MIDI clock in/out and Inspector page 9. v1–v3 patches render
+(clock, arpeggiator, bass), MIDI clock in/out and Inspector page 9; 0.15 adds the event
+recorder (Inspector page 10, voice source 3) and its loop files beside device presets. v1–v3 patches render
 bit-exactly as on 0.4 (checked against the previous core in simulation).
 All lengths/indexes below exclude MIDI F0/F7 unless stated. USB and bidirectional
 TRS MIDI use the non-commercial manufacturer ID 7D followed by ASCII FG.
@@ -202,6 +203,17 @@ ingress queue counts separately and never triggers the stuck-note recovery.
 MIDI out (with the panel's notes): arp notes on the "Midi Out Channel", bass notes on
 the next channel (16 wraps to 1), and, while the arp or bass plays on CHOMPI's own tempo
 with "send clock" on, FA start, F8 at 24 per beat and FC stop.
+
+## Event recorder loops on the SD card (firmware 0.15)
+
+Saving a device preset (panel or opcode 04) also writes the recorded loop beside it as
+`FORGE/BbSss.FSQ` (or removes that file when the recorder is empty); recall loads it when
+present (a slot without one leaves the current loop playing); copy and erase follow the
+preset. File: "FSQ", format 1, loop length in ticks (2 bytes, little-endian, a multiple
+of 96, at most 768), event count (2, at most 1,024), then 6 bytes per event (tick 2,
+kind 0 note / 1 control, note or Parameter id, velocity 0–127 or value 0–16383 in 2),
+sorted by tick, then CRC-16/CCITT (big-endian) over everything before it. Volume and input
+gain are never stored. Anything malformed is ignored (the slot loads without a loop).
 
 ## Notes, controls and recovery
 
@@ -430,7 +442,7 @@ request now returns error 4 like any unknown page.
 - Page 1, 88 bytes: byte 8 page, 9–86 LED RGB triples, 87 checksum. Indices
   0–24 are key LEDs in renderer order, 25 is CHOMPI. Each component 0–127.
 
-New `46` pages 2–9 (page 8 from 0.13, page 9 from 0.14): byte 7 zero, 8 page, 9 schema (1), 10–14 snapshot
+New `46` pages 2–10 (page 8 from 0.13, page 9 from 0.14, page 10 from 0.15): byte 7 zero, 8 page, 9 schema (1), 10–14 snapshot
 generation (unsigned 32-bit); body starts at 15, checksum is the last byte.
 The notation **U32** below means five 7-bit chunks, unsaturated, wrapping at
 32 bits. **N14** means 0–1 normalized in two 7-bit chunks. All fields are in
@@ -440,12 +452,13 @@ listed order, with no struct padding on the wire.
 | --- | --- | --- |
 | 2 SYSTEM | 98 (91 in 0.8–0.9, 88 before) | firmware minor, protocol, simulated flag (3 bytes); uptime ms, audio state timestamp ms, audio block count (3 U32); CPU average and peak ×1000 (2 14-bit words); UART then USB: RX complete accepted frames, TX accepted submissions, TX errors, ingress drops (4 U32 each); aggregate drops and rejections (2 U32); from 0.8: battery level (0 full, 1 high, 2 medium, 3 low, 4 unknown), power flags (1 USB power, 2 charger fault, 4 USB lines handed to the charger IC; from 0.12: 8 weak supply = legacy source or at its current limit in the last 8 readings, 16 a battery reading below the 3.0 V mark, 32 a firmware install would be refused now; hosts before 0.12 reject values above 7), charge state (charger CHG_STAT 0–7; 5 = done); from 0.10: reset flags (1 power-on, 2 brown-out, 4 reset pin, 8 software, 16 watchdog, 32 window watchdog, 64 low-power), crashed (0/1), crash PC (U32; details in FORGE/RESTARTS.TXT) |
 | 3 PANEL | 97 | physical and merged key masks (6 7-bit chunks each, 40 bits); physical then merged flags (2 bytes); packed menu U32; six physical encoder accumulators then six merged accumulators (12 U32, signed two's complement); knob pages (two 7-bit chunks: knob n's page 0–4 in bits 3n..3n+2; firmware 0.9 and older: 0–3 in bits 2n, 2n+1) |
-| 4 ENGINE | 88 | seven voices (7 bytes each: note, source 0 UART/1 USB/2 panel, stage 0 off/1 attack/2 decay/3 sustain/4 release, sample slot 0–14 or 127 none, flags sampled 1/sustained 2/reverse 4, envelope N14); smoothed cutoff normalized, (LFO+1)/2, mod wheel (3 N14); pedal-source bit mask byte; three smoothed bend ratios ×4096 (3 14-bit words); resolved mix, feedback/0.85, level, delay samples/48000, reverb mix (5 N14) |
+| 4 ENGINE | 88 | seven voices (7 bytes each: note, source 0 UART/1 USB/2 panel/3 event recorder (0.15), stage 0 off/1 attack/2 decay/3 sustain/4 release, sample slot 0–14 or 127 none, flags sampled 1/sustained 2/reverse 4, envelope N14); smoothed cutoff normalized, (LFO+1)/2, mod wheel (3 N14); pedal-source bit mask byte; three smoothed bend ratios ×4096 (3 14-bit words); resolved mix, feedback/0.85, level, delay samples/48000, reverb mix (5 N14) |
 | 5 STORAGE | 94 | flags, recording source 0 mic/1 line/2 resample, queued sample-job count, active job 0 save/1 copy/2 erase/127 none, last generic error code, partial-file-slot count (6 bytes); actual loaded file selection, file readable frames, file allocated frames, pool reserved bytes, pool capacity bytes, recording frames, recording capacity frames, storage error count, audio event drops, emergency count, panel queue drops, sample queue drops (12 U32); looper: flags (state 0 empty/1 armed/2 first take/3 playing/4 paused, 8 overdub, 16 effects before the loop, 32 locked for saving), length frames (U32), position, speed ((s+2)/4) and feedback (N14) |
 | 6 EVENTS | 27 + 17 × count, count 0–3 | latest event serial U32, total retention overwrites U32, count byte; records: serial U32, timestamp ms U32, kind byte, id byte, value U32 |
 | 7 PATCH | 26/38/77/92/96/99/105 for v1–v7 | existing patch DATA, exactly as `EncodePatchData` and status use |
 | 8 HARMONY | 38 | harmony word U32 (the v6 bits above, plus 17 Shift held); last chord: root 0–11, degree 0–6, kind (0 none, 1 diatonic, 2 secondary dominant, 3 borrowed, 4 Shift key, 5 modal interchange), quality (0 scale, 1 major, 2 minor, 3 dominant, 4 sus4), Shift (0/1), note count 0–5 (6 bytes); five MIDI notes, unused 0 (5 bytes); notes sounding from the harmony player (byte); chords played since start U32 |
 | 9 PARTS | 50 | arp word, clock word (U32 each, the v7 words; live settings); tempo in use ×10 (14-bit: MIDI's measured tempo while following); flags (1 clock running, 2 following MIDI clock, 4 latched, 8 parts active for this patch); clock ticks U32 (24 per beat); notes in the set (byte, 0–16) and the first eight (8 bytes, unused 0); arp note sounding, bass note sounding (0 none); dropped part events U32 |
+| 10 SEQUENCE | 29 | event recorder: state (0 empty, 1 armed, 2 recording, 3 playing, 4 stopped), overdub (0/1) (2 bytes); loop length, position (ticks, 24 per beat; length a multiple of 96), events (three 14-bit words); dropped events U32 |
 
 Page 3 physical flags: toggle up 1, line jack 2, SW5 press edge 4. Merged flags
 add overridden 8. Masks include menu/control keys; the map in

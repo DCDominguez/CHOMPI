@@ -119,6 +119,17 @@ class InspectorTests(unittest.TestCase):
         bad=replies[4].copy(); bad[15]=6; fixed(bad)                  # pattern 6 does not exist
         with self.assertRaisesRegex(ValueError,'Invalid parts'): inspector.decode(bad,5,9)
 
+    def test_sequence_page(self):
+        replies=probe(inspector.request(2,1),inspector.request(10,2))
+        page=inspector.decode(replies[1],2,10)
+        self.assertEqual((page['state'],page['overdub'],page['bars'],page['events'],page['drops']),('empty',False,0,0,0))
+        self.assertEqual(inspector.sequence_line(page),'SEQ     empty')
+        playing={**page,'state':'playing','bars':2,'length_ticks':192,'position_ticks':50,'events':14,'overdub':True}
+        self.assertEqual(inspector.sequence_line(playing),'SEQ     playing + overdub, 2 bars, beat 3 of 8, 14 events')
+        for at,value in ((15,5),(17,100)):                               # state 5; a length that is not whole bars
+            bad=replies[1].copy(); bad[at]=value; fixed(bad)
+            with self.assertRaisesRegex(ValueError,'Invalid sequence'): inspector.decode(bad,2,10)
+
     def test_malformed_word_and_event_lengths(self):
         data=probe(inspector.request(2,1))[0]; data[14]=16; fixed(data)
         with self.assertRaisesRegex(ValueError,'32-bit'): inspector.decode(data,1,2)
