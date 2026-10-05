@@ -198,3 +198,15 @@ docs, recheck `forge/foundation`; never overwrite a concurrent implementation.
 | QA | 14 native (new: cubic table vs Hermite, glide end) + 121 Python PASS; 13 ASan/UBSan PASS; browser 11 + 7 PASS |
 | Value | Every pitched-down voice within the WAVE budget; glide pitch now exact |
 | Decision | Hardware 6.2f (and 6.2 peaks) still decide; unaligned 32-bit reads rely on SDRAM being normal memory (libDaisy MPU region 1) and the default no-trap setting |
+
+## Snapshot 2026-10-05: firmware 0.14 clock, arp and bass (not installed)
+
+| Field | Record |
+| --- | --- |
+| Identity | Commit after `dd06649` (parent, previous measured); firmware 0.14, patch v7, Inspector page 9 |
+| Build | xPack GCC 10.3.1, unchanged flags. Release 229,168 B (SHA-256 prefix `d2c48206bb3be6ff`), development 242,896 B (`04d3a67e383016b9`); layout OK both |
+| Memory | +7,456 / +8,520 B. SRAM_EXEC headroom 59,600 / 45,872 B. `parts` state 700 B (start-up construction, `.bss`); `.data` unchanged 1,732 B; requests/responses grow with kMaxRequest 97 / kMaxReply 109. No SDRAM change. Control-rate parts code `FORGE_COLD` (first build without it: +23.5 KB, `Parts::Advance` alone 5.6 KB) |
+| CPU | Emulator gate unchanged (pitch .75 2,669.2, 1x worst 2,603.5 vs WAVE 2,694.9): the parts run in `Engine::Block`, once per audio block, outside the per-sample path |
+| QA | 15 native (new `parts_test`) + 123 Python PASS; 14 ASan/UBSan PASS; browser 11 + 7 PASS |
+| Value | Arpeggiator, bass part, tempo / tap / MIDI clock in and out, all from the panel and patches |
+| Decision | Hardware evidence needed: TEST_SESSION 3.68–3.72 (timing feel, MIDI clock with a DAW) |

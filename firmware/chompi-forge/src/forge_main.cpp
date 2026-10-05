@@ -25,7 +25,7 @@ template<typename Transport> struct MidiPort {
     Transport transport;
     forge::MidiFramer framer;
     forge::SpscQueue<forge::MidiFrame, 16> frames;
-    std::atomic<uint32_t> dropped{0};
+    std::atomic<uint32_t> dropped{0}, clock_dropped{0};
 #ifdef FORGE_TEST_HOOKS
     std::atomic<uint32_t> received{0};
 #endif
@@ -37,7 +37,10 @@ template<typename Transport> struct MidiPort {
 #ifdef FORGE_TEST_HOOKS
                 self.received.fetch_add(1, std::memory_order_relaxed);
 #endif
-                if(!self.frames.Push(frame)) self.dropped.fetch_add(1, std::memory_order_relaxed);
+                if(!self.frames.Push(frame)) {
+                    if(frame.kind == forge::MidiFrame::Kind::Clock) self.clock_dropped.fetch_add(1, std::memory_order_relaxed);   // a late tick, not a stuck note
+                    else self.dropped.fetch_add(1, std::memory_order_relaxed);
+                }
             }
     }
     void Listen() {
@@ -285,6 +288,7 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     panel_controller.SetInspectorEvents(&inspector_edges,&inspector_event_drops,inspector_now);
 #endif
     panel_controller.Block(input, engine, recorder, sink);
+    engine.Block(static_cast<unsigned>(size));   // clock, arp and bass steps (0.14)
     const forge::RecordSource source = panel_controller.Source();
     sample_wanted.store(forge::PackSelection(engine.GetParameters()), std::memory_order_relaxed);
     recording_now.store(recorder.Recording(), std::memory_order_relaxed);
@@ -367,6 +371,7 @@ void Send(uint8_t source, uint8_t* envelope, size_t payload_size) {
 // holds the card's original file.
 forge::SlotSettings slot_settings;
 forge::harmony::Player harmony_player;   // harmony mode (core/harmony.h): zero-initialised, audio owner
+forge::parts::Parts& parts = Construct<forge::parts::Parts>();   // clock, arp, bass (core/parts.h, 0.14): audio owner
 alignas(32) char presets_text[forge::SlotSettings::kFileMax];   // whole cache lines: SD DMA reads
 uint32_t slot_settings_failures = 0;
 FORGE_COLD void LoadSlotSettings() {
@@ -455,9 +460,13 @@ void SendPanelMidi() {
             usb_waiting = false;
         }
         forge::MidiOut m;
-        if(!panel_controller.PopMidi(m)) return;
+        if(!panel_controller.PopMidi(m)) {
+            if(!parts.PopMidi(m)) return;             // the parts (0.14): arp channel + 0, bass + 1
+            if(m.status < 0xf0) m.status = static_cast<uint8_t>((m.status & 0xf0) | ((panel_controller.GetOptions().midi_out + (m.status & 15u)) & 15u));
+        }
         const uint8_t bytes[3] = {m.status, m.data1, m.data2};
-        uart_midi.transport.GetUartHandle().BlockingTransmit(const_cast<uint8_t*>(bytes), 3, 3);
+        const uint16_t length = m.status >= 0xf8 ? 1 : 3;   // real-time: status only
+        uart_midi.transport.GetUartHandle().BlockingTransmit(const_cast<uint8_t*>(bytes), length, 3);
         usb_pending = m; usb_waiting = true; usb_since = System::GetNow();
     }
 }
@@ -653,6 +662,7 @@ FORGE_COLD void DrawLeds() {
     view.keys_down = panel_controller.KeysDown();
     view.kit_occupancy = sample_loader.Occupancy(1, (view.live >> 2) & 7u);
     view.harmony = panel_controller.HarmonyLights();
+    view.parts = panel_controller.PartsLights(); view.parts_clock = panel_controller.PartsClock();
     view.blink = (now / 250) % 2 == 0; view.slow_blink = (now / 300) % 2 != 0;
     view.flash = now < flash_until ? (flash_ok ? 1 : 0) : -1;
     view.saving = sample_loader.Busy() && !sample_loader.Loading();
@@ -674,6 +684,7 @@ FORGE_COLD void DrawLeds() {
     forge::Rgb volume = forge::knobs::VolumeColour((knob_state >> 20) & 1u, (knob_state >> 24) / 255.f);
     forge::ComposeMenuKnobLeds(panel_controller.MenuLights(), knobs, volume);   // TAPE's menu page
     if((view.menu & 1u) && ((view.menu >> 1) & 7u) == 7u) forge::ComposeHarmonyKnobLeds(view.harmony, knobs);   // harmony page
+    if((view.menu & 1u) && ((view.menu >> 1) & 7u) == 6u) forge::ComposePartsKnobLeds(view.parts, view.parts_clock, knobs);   // parts page
     for(unsigned k = 0; k < 4; ++k) Pth(forge::panel::kKnobLed[k], knobs[k]);
     forge::ComposeTransportLeds((view.looper & 7u) == static_cast<uint32_t>(forge::Looper::State::Playing),
                                 loop_speed.load(std::memory_order_relaxed), view.record_position, reverse, forward);
@@ -946,6 +957,7 @@ FORGE_COLD int main() {
     LoadSlotSettings();
     engine.SetSlotSettings(&slot_settings);
     engine.SetHarmony(&harmony_player);
+    parts.Init(hw.seed.AudioSampleRate()); engine.SetParts(&parts);
     panel_controller.SetInstallGate(&install_gate);
     cpu.Init(hw.seed.AudioSampleRate(), hw.seed.AudioBlockSize());
     hw.StartAudio(AudioCallback);

@@ -30,6 +30,10 @@ struct InspectorAudio {
     uint32_t harmony = 0, harmony_changes = 0;
     uint8_t chord_root = 0, chord_degree = 0, chord_kind = 0, chord_quality = 0, chord_shifted = 0, chord_count = 0;
     uint8_t chord_notes[5]{}, harmony_sounding = 0;
+    // Parts (0.14, page 9): settings words, tempo in use, clock and what plays.
+    uint32_t parts_arp = 0, parts_clock = 0, parts_ticks = 0, parts_drops = 0;
+    float parts_bpm = 0;
+    uint8_t parts_flags = 0, parts_set_count = 0, parts_set[8]{}, parts_arp_note = 0, parts_bass_note = 0;
 };
 // Main requests a refresh at <=20 Hz. Audio writes cheap scalar state into
 // this exclusive slot, then publishes; main makes the actual Inspector snapshot.
@@ -150,6 +154,13 @@ FORGE_NOINLINE inline size_t EncodeInspector(uint16_t sequence, uint8_t page, co
         byte(a.chord_root); byte(a.chord_degree); byte(a.chord_kind); byte(a.chord_quality); byte(a.chord_shifted); byte(a.chord_count);
         for(uint8_t note : a.chord_notes) byte(note);
         byte(a.harmony_sounding); word(a.harmony_changes);
+    }
+    else if(page == 9) {                                           // parts (0.14): 50 bytes
+        word(a.parts_arp); word(a.parts_clock);
+        Write14(out+n, std::isfinite(a.parts_bpm) ? unsigned(Clamp(a.parts_bpm*10,0.f,16383.f)) : 0); n+=2;
+        byte(a.parts_flags); word(a.parts_ticks); byte(a.parts_set_count);
+        for(uint8_t note : a.parts_set) byte(note);
+        byte(a.parts_arp_note); byte(a.parts_bass_note); word(a.parts_drops);
     }
     else return EncodeError(sequence, Error::Patch, out);
     out[n] = Checksum(out,n); return n+1;

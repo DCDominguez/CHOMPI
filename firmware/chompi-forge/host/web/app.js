@@ -18,51 +18,52 @@ const KNOB_SWITCHES = ["SW4", "SW1", "SW2", "SW3"];
 // v = patch versions that have the field. log = slider runs 0–1000 on the firmware's log curve.
 const GROUPS = [
   ["source", "Source · oscillators"], ["sampler", "Sampler · TAPE sample slots"], ["amp", "Amplitude · voices"], ["filter", "Filter"], ["lfo", "LFO · mod wheel"],
-  ["delay", "Stereo delay"], ["reverb", "Reverb"], ["output", "Output"], ["knobs", "Panel knobs · page 1 (CC 20–23)"], ["harmony", "Harmony · one key plays a chord (v6)"]];
+  ["delay", "Stereo delay"], ["reverb", "Reverb"], ["output", "Output"], ["knobs", "Panel knobs · page 1 (CC 20–23)"], ["harmony", "Harmony · one key plays a chord (v6)"],
+  ["parts", "Arp · bass · tempo (v7)"]];
 const CONTROLS = [
-  {g: "source", m: "synth", k: "waveform", label: "Oscillator", type: "select", options: WAVES, v: [2, 3, 4, 5, 6]},
-  {g: "source", m: "synth", k: "osc2_waveform", label: "Oscillator 2", type: "select", options: WAVES, v: [3, 4, 5, 6]},
-  {g: "source", m: "synth", k: "osc2_level", label: "Oscillator 2 level", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4, 5, 6]},
-  {g: "source", m: "synth", k: "osc2_semitones", label: "Oscillator 2 interval", unit: "semitones", min: -24, max: 24, step: 1, v: [3, 4, 5, 6]},
-  {g: "source", m: "synth", k: "osc2_detune_cents", label: "Oscillator 2 detune", unit: "cents", min: -50, max: 50, step: 1, v: [3, 4, 5, 6]},
-  {g: "source", m: "synth", k: "noise", label: "Noise", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4, 5, 6]},
-  {g: "sampler", m: "sampler", k: "mode", label: "Mode (chromatic: one sample on all keys · kit: one per white key)", type: "select", options: SAMPLE_MODES, v: [4, 5, 6]},
-  {g: "sampler", m: "sampler", k: "bank", label: "Bank", type: "select", options: SAMPLE_BANKS, v: [4, 5, 6]},
-  {g: "sampler", m: "sampler", k: "slot", label: "Slot (chromatic)", unit: "1–14 · 15 = recording", min: 1, max: 15, step: 1, v: [4, 5, 6]},
-  {g: "sampler", m: "sampler", k: "pitch_semitones", label: "Pitch", unit: "semitones", min: -24, max: 24, step: .1, v: [4, 5, 6]},
-  {g: "sampler", m: "sampler", k: "start", label: "Start", unit: "0–1 of length", min: 0, max: 1, step: .001, v: [4, 5, 6]},
-  {g: "sampler", m: "sampler", k: "end", label: "End", unit: "0–1 of length", min: 0, max: 1, step: .001, v: [4, 5, 6]},
-  {g: "sampler", m: "sampler", k: "crossfade_ms", label: "Loop crossfade", unit: "ms", min: 0, max: 250, step: 1, v: [4, 5, 6]},
-  {g: "sampler", m: "sampler", k: "loop", label: "Loop start → end", type: "check", v: [4, 5, 6]},
-  {g: "sampler", m: "sampler", k: "hold", label: "Sound while held (off: one-shot trigger)", type: "check", v: [4, 5, 6]},
-  {g: "sampler", m: "sampler", k: "reverse", label: "Reverse", type: "check", v: [4, 5, 6]},
-  {g: "amp", m: "synth", k: "attack_ms", label: "Attack", unit: "ms", min: 1, max: 2000, step: 1, v: [2, 3, 4, 5, 6]},
-  {g: "amp", m: "synth", k: "decay_ms", label: "Decay", unit: "ms", min: 1, max: 2000, step: 1, v: [2, 3, 4, 5, 6]},
-  {g: "amp", m: "synth", k: "sustain", label: "Sustain", unit: "0–1", min: 0, max: 1, step: .01, v: [2, 3, 4, 5, 6]},
-  {g: "amp", m: "synth", k: "release_ms", label: "Release", unit: "ms", min: 5, max: 5000, step: 1, v: [2, 3, 4, 5, 6]},
-  {g: "amp", m: "synth", k: "voices", label: "Voices", unit: "1 = mono · v3 max 4, v4 max 7", min: 1, max: 7, step: 1, v: [3, 4, 5, 6]},
-  {g: "amp", m: "synth", k: "glide_ms", label: "Glide", unit: "ms", min: 0, max: 2000, step: 1, v: [3, 4, 5, 6]},
-  {g: "filter", m: "filter", k: "cutoff_hz", label: "Cutoff", unit: "Hz · log", min: 40, max: 16000, step: 1, log: true, v: [2, 3, 4, 5, 6]},
-  {g: "filter", m: "filter", k: "resonance", label: "Resonance", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4, 5, 6]},
-  {g: "filter", m: "filter", k: "env_octaves", label: "Envelope amount", unit: "octaves ±6", min: -6, max: 6, step: .1, v: [3, 4, 5, 6]},
-  {g: "filter", m: "filter", k: "attack_ms", label: "Filter attack", unit: "ms", min: 1, max: 2000, step: 1, v: [3, 4, 5, 6]},
-  {g: "filter", m: "filter", k: "decay_ms", label: "Filter decay", unit: "ms", min: 1, max: 2000, step: 1, v: [3, 4, 5, 6]},
-  {g: "filter", m: "filter", k: "sustain", label: "Filter sustain", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4, 5, 6]},
-  {g: "filter", m: "filter", k: "release_ms", label: "Filter release", unit: "ms", min: 5, max: 5000, step: 1, v: [3, 4, 5, 6]},
-  {g: "lfo", m: "lfo", k: "waveform", label: "LFO shape", type: "select", options: LFO_WAVES, v: [3, 4, 5, 6]},
-  {g: "lfo", m: "lfo", k: "rate_hz", label: "LFO rate", unit: "Hz · log", min: .05, max: 20, step: .01, log: true, v: [3, 4, 5, 6]},
-  {g: "lfo", m: "lfo", k: "pitch_cents", label: "Vibrato depth", unit: "cents", min: 0, max: 200, step: 1, v: [3, 4, 5, 6]},
-  {g: "lfo", m: "lfo", k: "filter_octaves", label: "Filter sweep", unit: "octaves", min: 0, max: 4, step: .1, v: [3, 4, 5, 6]},
-  {g: "lfo", m: "lfo", k: "amp_depth", label: "Tremolo depth", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4, 5, 6]},
-  {g: "lfo", m: "lfo", k: "mod_wheel", label: "Mod wheel (CC1) controls LFO depth", type: "check", v: [3, 4, 5, 6]},
-  {g: "delay", m: "delay", k: "mix", label: "Wet / dry", unit: "0–1", min: 0, max: 1, step: .01, v: [1, 2, 3, 4, 5, 6]},
-  {g: "delay", m: "delay", k: "time_ms", label: "Delay time", unit: "ms", min: 10, max: 1000, step: 1, v: [1, 2, 3, 4, 5, 6]},
-  {g: "delay", m: "delay", k: "feedback", label: "Feedback", unit: "0–0.85", min: 0, max: .85, step: .01, v: [1, 2, 3, 4, 5, 6]},
-  {g: "delay", m: "delay", k: "bypass", label: "Bypass wet signal", type: "check", v: [1, 2, 3, 4, 5, 6]},
-  {g: "reverb", m: "reverb", k: "mix", label: "Reverb mix", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4, 5, 6]},
-  {g: "reverb", m: "reverb", k: "size", label: "Size / decay", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4, 5, 6]},
-  {g: "reverb", m: "reverb", k: "damping", label: "Damping", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4, 5, 6]},
-  {g: "output", m: "output", k: "level", label: "Output level", unit: "0–1", min: 0, max: 1, step: .01, v: [1, 2, 3, 4, 5, 6]},
+  {g: "source", m: "synth", k: "waveform", label: "Oscillator", type: "select", options: WAVES, v: [2, 3, 4, 5, 6, 7]},
+  {g: "source", m: "synth", k: "osc2_waveform", label: "Oscillator 2", type: "select", options: WAVES, v: [3, 4, 5, 6, 7]},
+  {g: "source", m: "synth", k: "osc2_level", label: "Oscillator 2 level", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4, 5, 6, 7]},
+  {g: "source", m: "synth", k: "osc2_semitones", label: "Oscillator 2 interval", unit: "semitones", min: -24, max: 24, step: 1, v: [3, 4, 5, 6, 7]},
+  {g: "source", m: "synth", k: "osc2_detune_cents", label: "Oscillator 2 detune", unit: "cents", min: -50, max: 50, step: 1, v: [3, 4, 5, 6, 7]},
+  {g: "source", m: "synth", k: "noise", label: "Noise", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4, 5, 6, 7]},
+  {g: "sampler", m: "sampler", k: "mode", label: "Mode (chromatic: one sample on all keys · kit: one per white key)", type: "select", options: SAMPLE_MODES, v: [4, 5, 6, 7]},
+  {g: "sampler", m: "sampler", k: "bank", label: "Bank", type: "select", options: SAMPLE_BANKS, v: [4, 5, 6, 7]},
+  {g: "sampler", m: "sampler", k: "slot", label: "Slot (chromatic)", unit: "1–14 · 15 = recording", min: 1, max: 15, step: 1, v: [4, 5, 6, 7]},
+  {g: "sampler", m: "sampler", k: "pitch_semitones", label: "Pitch", unit: "semitones", min: -24, max: 24, step: .1, v: [4, 5, 6, 7]},
+  {g: "sampler", m: "sampler", k: "start", label: "Start", unit: "0–1 of length", min: 0, max: 1, step: .001, v: [4, 5, 6, 7]},
+  {g: "sampler", m: "sampler", k: "end", label: "End", unit: "0–1 of length", min: 0, max: 1, step: .001, v: [4, 5, 6, 7]},
+  {g: "sampler", m: "sampler", k: "crossfade_ms", label: "Loop crossfade", unit: "ms", min: 0, max: 250, step: 1, v: [4, 5, 6, 7]},
+  {g: "sampler", m: "sampler", k: "loop", label: "Loop start → end", type: "check", v: [4, 5, 6, 7]},
+  {g: "sampler", m: "sampler", k: "hold", label: "Sound while held (off: one-shot trigger)", type: "check", v: [4, 5, 6, 7]},
+  {g: "sampler", m: "sampler", k: "reverse", label: "Reverse", type: "check", v: [4, 5, 6, 7]},
+  {g: "amp", m: "synth", k: "attack_ms", label: "Attack", unit: "ms", min: 1, max: 2000, step: 1, v: [2, 3, 4, 5, 6, 7]},
+  {g: "amp", m: "synth", k: "decay_ms", label: "Decay", unit: "ms", min: 1, max: 2000, step: 1, v: [2, 3, 4, 5, 6, 7]},
+  {g: "amp", m: "synth", k: "sustain", label: "Sustain", unit: "0–1", min: 0, max: 1, step: .01, v: [2, 3, 4, 5, 6, 7]},
+  {g: "amp", m: "synth", k: "release_ms", label: "Release", unit: "ms", min: 5, max: 5000, step: 1, v: [2, 3, 4, 5, 6, 7]},
+  {g: "amp", m: "synth", k: "voices", label: "Voices", unit: "1 = mono · v3 max 4, v4 max 7", min: 1, max: 7, step: 1, v: [3, 4, 5, 6, 7]},
+  {g: "amp", m: "synth", k: "glide_ms", label: "Glide", unit: "ms", min: 0, max: 2000, step: 1, v: [3, 4, 5, 6, 7]},
+  {g: "filter", m: "filter", k: "cutoff_hz", label: "Cutoff", unit: "Hz · log", min: 40, max: 16000, step: 1, log: true, v: [2, 3, 4, 5, 6, 7]},
+  {g: "filter", m: "filter", k: "resonance", label: "Resonance", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4, 5, 6, 7]},
+  {g: "filter", m: "filter", k: "env_octaves", label: "Envelope amount", unit: "octaves ±6", min: -6, max: 6, step: .1, v: [3, 4, 5, 6, 7]},
+  {g: "filter", m: "filter", k: "attack_ms", label: "Filter attack", unit: "ms", min: 1, max: 2000, step: 1, v: [3, 4, 5, 6, 7]},
+  {g: "filter", m: "filter", k: "decay_ms", label: "Filter decay", unit: "ms", min: 1, max: 2000, step: 1, v: [3, 4, 5, 6, 7]},
+  {g: "filter", m: "filter", k: "sustain", label: "Filter sustain", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4, 5, 6, 7]},
+  {g: "filter", m: "filter", k: "release_ms", label: "Filter release", unit: "ms", min: 5, max: 5000, step: 1, v: [3, 4, 5, 6, 7]},
+  {g: "lfo", m: "lfo", k: "waveform", label: "LFO shape", type: "select", options: LFO_WAVES, v: [3, 4, 5, 6, 7]},
+  {g: "lfo", m: "lfo", k: "rate_hz", label: "LFO rate", unit: "Hz · log", min: .05, max: 20, step: .01, log: true, v: [3, 4, 5, 6, 7]},
+  {g: "lfo", m: "lfo", k: "pitch_cents", label: "Vibrato depth", unit: "cents", min: 0, max: 200, step: 1, v: [3, 4, 5, 6, 7]},
+  {g: "lfo", m: "lfo", k: "filter_octaves", label: "Filter sweep", unit: "octaves", min: 0, max: 4, step: .1, v: [3, 4, 5, 6, 7]},
+  {g: "lfo", m: "lfo", k: "amp_depth", label: "Tremolo depth", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4, 5, 6, 7]},
+  {g: "lfo", m: "lfo", k: "mod_wheel", label: "Mod wheel (CC1) controls LFO depth", type: "check", v: [3, 4, 5, 6, 7]},
+  {g: "delay", m: "delay", k: "mix", label: "Wet / dry", unit: "0–1", min: 0, max: 1, step: .01, v: [1, 2, 3, 4, 5, 6, 7]},
+  {g: "delay", m: "delay", k: "time_ms", label: "Delay time", unit: "ms", min: 10, max: 1000, step: 1, v: [1, 2, 3, 4, 5, 6, 7]},
+  {g: "delay", m: "delay", k: "feedback", label: "Feedback", unit: "0–0.85", min: 0, max: .85, step: .01, v: [1, 2, 3, 4, 5, 6, 7]},
+  {g: "delay", m: "delay", k: "bypass", label: "Bypass wet signal", type: "check", v: [1, 2, 3, 4, 5, 6, 7]},
+  {g: "reverb", m: "reverb", k: "mix", label: "Reverb mix", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4, 5, 6, 7]},
+  {g: "reverb", m: "reverb", k: "size", label: "Size / decay", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4, 5, 6, 7]},
+  {g: "reverb", m: "reverb", k: "damping", label: "Damping", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4, 5, 6, 7]},
+  {g: "output", m: "output", k: "level", label: "Output level", unit: "0–1", min: 0, max: 1, step: .01, v: [1, 2, 3, 4, 5, 6, 7]},
 ];
 const KNOB_LABELS = {default: "Default (mix · time · feedback · level; sampler: pitch · start · end · mix)"};
 for (const t of KNOB_TARGETS) {
@@ -71,24 +72,38 @@ for (const t of KNOB_TARGETS) {
 }
 for (let n = 0; n < 4; n++)
   CONTROLS.push({g: "knobs", m: "knobs", k: n, label: `Knob ${n + 1} (${KNOB_SWITCHES[n]})`, type: "select",
-                 options: ["default", ...KNOB_TARGETS], labels: KNOB_LABELS, v: [5, 6]});
+                 options: ["default", ...KNOB_TARGETS], labels: KNOB_LABELS, v: [5, 6, 7]});
 // v6 (firmware 0.13): harmony mode (core/harmony.h; MANUAL section 8a).
 CONTROLS.push(
-  {g: "harmony", m: "harmony", k: "enabled", label: "Harmony on (keys play chords)", type: "check", v: [6]},
-  {g: "harmony", m: "harmony", k: "tonic", label: "Key (tonic)", type: "select", options: ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"], v: [6]},
-  {g: "harmony", m: "harmony", k: "mode", label: "Mode", type: "select", options: ["major", "natural_minor", "harmonic_minor", "melodic_minor", "dorian", "phrygian", "lydian", "mixolydian", "locrian"], v: [6]},
-  {g: "harmony", m: "harmony", k: "extension", label: "Chord size", type: "select", options: ["fifth", "triad", "7th", "9th", "11th", "13th"], v: [6]},
-  {g: "harmony", m: "harmony", k: "layout", label: "Layout (static: white keys are degrees · real: the key is the root)", type: "select", options: ["static", "real"], v: [6]},
-  {g: "harmony", m: "harmony", k: "inversion", label: "Inversion (without voice leading)", unit: "0–3", min: 0, max: 3, step: 1, v: [6]},
-  {g: "harmony", m: "harmony", k: "voice_leading", label: "Voice leading (each chord moves least from the last)", type: "check", v: [6]},
-  {g: "harmony", m: "harmony", k: "open", label: "Open spread", type: "check", v: [6]});
-for (const c of CONTROLS) c.id = `${c.m}-${c.k}`;
+  {g: "harmony", m: "harmony", k: "enabled", label: "Harmony on (keys play chords)", type: "check", v: [6, 7]},
+  {g: "harmony", m: "harmony", k: "tonic", label: "Key (tonic)", type: "select", options: ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"], v: [6, 7]},
+  {g: "harmony", m: "harmony", k: "mode", label: "Mode", type: "select", options: ["major", "natural_minor", "harmonic_minor", "melodic_minor", "dorian", "phrygian", "lydian", "mixolydian", "locrian"], v: [6, 7]},
+  {g: "harmony", m: "harmony", k: "extension", label: "Chord size", type: "select", options: ["fifth", "triad", "7th", "9th", "11th", "13th"], v: [6, 7]},
+  {g: "harmony", m: "harmony", k: "layout", label: "Layout (static: white keys are degrees · real: the key is the root)", type: "select", options: ["static", "real"], v: [6, 7]},
+  {g: "harmony", m: "harmony", k: "inversion", label: "Inversion (without voice leading)", unit: "0–3", min: 0, max: 3, step: 1, v: [6, 7]},
+  {g: "harmony", m: "harmony", k: "voice_leading", label: "Voice leading (each chord moves least from the last)", type: "check", v: [6, 7]},
+  {g: "harmony", m: "harmony", k: "open", label: "Open spread", type: "check", v: [6, 7]});
+// v7 (firmware 0.14): the clock, arpeggiator and bass (core/parts.h; MANUAL section 8b).
+CONTROLS.push(
+  {g: "parts", m: "parts", s: "arp", k: "pattern", label: "Arp (off: keys play as usual)", type: "select", options: ["off", "up", "down", "updown", "order", "random"], v: [7]},
+  {g: "parts", m: "parts", s: "arp", k: "rate", label: "Arp rate (t = triplet)", type: "select", options: ["1/4", "1/8", "1/8t", "1/16", "1/16t", "1/32"], v: [7]},
+  {g: "parts", m: "parts", s: "arp", k: "octaves", label: "Arp octaves", unit: "1–4", min: 1, max: 4, step: 1, v: [7]},
+  {g: "parts", m: "parts", s: "arp", k: "gate", label: "Arp gate (each note's length)", unit: "%", min: 5, max: 100, step: 5, v: [7]},
+  {g: "parts", m: "parts", s: "arp", k: "latch", label: "Latch (keeps playing after the keys are released)", type: "check", v: [7]},
+  {g: "parts", m: "parts", s: "bass", k: "mode", label: "Bass (MIDI channel + 1)", type: "select", options: ["off", "root", "fifth", "alternate", "octave"], v: [7]},
+  {g: "parts", m: "parts", s: "bass", k: "rate", label: "Bass rate (chord: once per chord change)", type: "select", options: ["chord", "1/2", "1/4", "1/8"], v: [7]},
+  {g: "parts", m: "parts", s: "bass", k: "octave", label: "Bass octave (C1–C3)", unit: "1–3", min: 1, max: 3, step: 1, v: [7]},
+  {g: "parts", m: "parts", s: "clock", k: "bpm", label: "Tempo (MIDI clock takes over while it arrives)", unit: "BPM", min: 40, max: 300, step: 1, v: [7]},
+  {g: "parts", m: "parts", s: "clock", k: "seed", label: "Random pattern number", unit: "0–2047", min: 0, max: 2047, step: 1, v: [7]},
+  {g: "parts", m: "parts", s: "clock", k: "send_clock", label: "Send MIDI clock", type: "check", v: [7]});
+for (const c of CONTROLS) c.id = c.s ? `${c.m}-${c.s}-${c.k}` : `${c.m}-${c.k}`;
 // Where a control lives in a patch of the given version (null: not in that format).
 function path(c, version) {
   if (!c.v.includes(version)) return null;
   if (version === 1) return ["parameters", c.k];
   if (c.m === "knobs") return ["knobs", c.k];
   if (c.m === "harmony") return ["harmony", c.k];
+  if (c.m === "parts") return ["parts", c.s, c.k];
   if (version === 2 && c.m === "filter") return ["modules", "synth", c.k];
   return ["modules", c.m, c.k];
 }
@@ -114,7 +129,7 @@ async function api(path, body) {
 function updateButtons() {
   document.querySelectorAll("button").forEach(button => { button.disabled = busy; });
   for (const id of ["download", "send"]) $(id).disabled = busy || !patch;
-  $("upgrade").disabled = busy || !patch || patch.version === 6;
+  $("upgrade").disabled = busy || !patch || patch.version === 7;
   $("editor").disabled = busy || !patch;
   $("routing").disabled = !patch || patch.version === 1;
   for (const c of CONTROLS) {
@@ -143,12 +158,13 @@ function loadPatch(value) {
     else if (c.type === "select") $(c.id).value = value ?? c.options[0];
     else { $(c.id).value = value ?? ""; $(`${c.id}-range`).value = toSlider(c, value); }
   }
-  $("version-note").textContent = {1: "v1 delay preset: external audio through the delay. Convert to v6 to add synth, sampler, filter, LFO, reverb, knob choices and harmony.",
-    2: "v2 instrument preset (firmware 0.3 format). Convert to v6 for the second oscillator, sampler, resonant filter, LFO, reverb, knob choices and harmony.",
-    3: "v3 instrument (firmware 0.4 format). Convert to v6 to add the sampler, up to 7 voices, knob choices and harmony.",
-    4: "v4 instrument (firmware 0.5 format). Convert to v6 to choose what the panel knobs control and add harmony.",
-    5: "v5 instrument: all installed modules, the sampler and what the four panel knobs control (firmware 0.6). Convert to v6 for harmony mode.",
-    6: "v6 instrument: everything in v5 plus harmony mode, where one key plays a chord (firmware 0.13)."}[patch.version];
+  $("version-note").textContent = {1: "v1 delay preset: external audio through the delay. Convert to v7 to add synth, sampler, filter, LFO, reverb, knob choices, harmony, arp and bass.",
+    2: "v2 instrument preset (firmware 0.3 format). Convert to v7 for the second oscillator, sampler, resonant filter, LFO, reverb, knob choices, harmony, arp and bass.",
+    3: "v3 instrument (firmware 0.4 format). Convert to v7 to add the sampler, up to 7 voices, knob choices, harmony, arp and bass.",
+    4: "v4 instrument (firmware 0.5 format). Convert to v7 to choose what the panel knobs control and add harmony, arp and bass.",
+    5: "v5 instrument: all installed modules, the sampler and what the four panel knobs control (firmware 0.6). Convert to v7 for harmony, arp and bass.",
+    6: "v6 instrument: everything in v5 plus harmony mode, where one key plays a chord (firmware 0.13). Convert to v7 for the arp, bass and tempo.",
+    7: "v7 instrument: everything in v6 plus the arpeggiator, a bass part and the tempo (firmware 0.14)."}[patch.version];
   showJSON(); updateButtons();
 }
 function build() {
@@ -192,9 +208,9 @@ function build() {
 build();
 $("patch-name").addEventListener("input", () => { if (patch) { patch.name = $("patch-name").value; showJSON(); } });
 $("routing").addEventListener("change", () => { if (patch && patch.version !== 1) { patch.routing = $("routing").value; showJSON(); } });
-$("upgrade").addEventListener("click", () => run("Converting to a v6 instrument…", async () => {
-  const result = await api("upgrade", {patch, to: 6}); loadPatch(result.patch); $("preset").value = "";
-  notice("Converted to v6 (harmony starts off). New modules start neutral (the sampler is used only if you choose its signal path) and the knobs keep their default jobs; the filter is steeper than v1/v2, so tone may differ slightly. Nothing sent to CHOMPI.");
+$("upgrade").addEventListener("click", () => run("Converting to a v7 instrument…", async () => {
+  const result = await api("upgrade", {patch, to: 7}); loadPatch(result.patch); $("preset").value = "";
+  notice("Converted to v7 (harmony, arp and bass start off). New modules start neutral (the sampler is used only if you choose its signal path) and the knobs keep their default jobs; the filter is steeper than v1/v2, so tone may differ slightly. Nothing sent to CHOMPI.");
 }));
 $("clear-key").addEventListener("click", () => { $("api-key").value = ""; notice("API key cleared from the form."); });
 $("provider").addEventListener("change", () => { $("api-key").value = ""; $("model").value = ""; notice("Provider changed. Enter its model ID and API key."); });

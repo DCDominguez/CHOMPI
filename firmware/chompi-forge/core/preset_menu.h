@@ -12,6 +12,7 @@ constexpr uint8_t kErase = 29, kCopy = 30, kSave = 31;    // black KEY_23 / 24 /
 // (CUBBI) share the bank keys' IDs; KEY_18/19/20 pick the record source.
 constexpr uint8_t kChromatic = 7, kKit = 12, kMic = 13, kLine = 14, kResample = 21;
 constexpr uint8_t kPage = 23;                              // black KEY_22: Presets <-> Samples
+constexpr uint8_t kPartsKey = 22;                          // black KEY_21: harmony <-> parts pages (0.14)
 constexpr uint8_t kNoSlot = 0xff;
 // Stock logical knob order: TAPE/TEMPO/WAVE ui.h `encoder_map = {1, 2, 3, 0, 4, 5}`
 // maps hardware encoder SW1..SW6 to logical knob 1, 2, 3, 0, 4, 5, and CC20+n
@@ -58,7 +59,7 @@ struct MenuAction {
     uint8_t bank = 0, slot = 0, to_bank = 0, to_slot = 0;
     uint8_t mode = 0, to_mode = 0;   // sample actions: 0 chromatic, 1 kit; RecordSource: slot = source
 };
-enum class MenuPage : uint8_t { Presets, Samples, Harmony };   // Harmony (0.13): hold KEY_21 1 s on TAPE's page
+enum class MenuPage : uint8_t { Presets, Samples, Harmony, Parts };   // Harmony (0.13): hold KEY_21 1 s on TAPE's page; Parts (0.14): KEY_21 there
 enum class MenuMode : uint8_t { None, Save, Erase, CopySource, CopyDest };
 
 class PresetMenu {
@@ -86,7 +87,10 @@ public:
             if(page_ != MenuPage::Samples) ShowPage(MenuPage::Samples);   // presets / harmony page: back to TAPE's
             return true;
         }
-        if(page_ == MenuPage::Harmony) return true;   // keys set the tonic (PanelController); nothing plays
+        if(page_ == MenuPage::Harmony || page_ == MenuPage::Parts) {   // the keys set harmony / parts (PanelController)
+            if(button == panel::kPartsKey) ShowPage(page_ == MenuPage::Harmony ? MenuPage::Parts : MenuPage::Harmony);   // KEY_21: the other page
+            return true;
+        }
         const uint8_t slot = panel::KeyToSlot(button);
         if(page_ == MenuPage::Samples) return SampleKey(button, slot);
         if(slot != panel::kNoSlot) { Slot(slot); return true; }
@@ -101,7 +105,7 @@ public:
     }
     // Logical knob turn; knob 0 (CC20's knob, hardware SW4) selects the bank while the menu is open.
     bool Encoder(uint8_t index, int increment) {
-        if(!active_ || index != 0 || !increment || page_ == MenuPage::Harmony) return false;
+        if(!active_ || index != 0 || !increment || page_ == MenuPage::Harmony || page_ == MenuPage::Parts) return false;
         if(page_ == MenuPage::Samples) {                   // knob 1 turns the current mode's bank
             const int bank = sample_bank_[sample_mode_] + increment;
             sample_bank_[sample_mode_] = static_cast<uint8_t>(bank < 0 ? 0 : bank >= kSampleBanks ? kSampleBanks - 1 : bank);
@@ -144,8 +148,8 @@ public:
     bool LoopSource() const { return loop_source_; }
     uint32_t Packed() const {
         const bool samples = page_ == MenuPage::Samples;
-        // Harmony page: mode field 7 (no menu mode is used there), samples bit clear.
-        const uint32_t mode = page_ == MenuPage::Harmony ? 7u : static_cast<uint32_t>(mode_);
+        // Harmony page: mode field 7, parts page 6 (no menu mode is used there), samples bit clear.
+        const uint32_t mode = page_ == MenuPage::Harmony ? 7u : page_ == MenuPage::Parts ? 6u : static_cast<uint32_t>(mode_);
         return (active_ ? 1u : 0u) | (mode << 1)
             | (static_cast<uint32_t>(samples ? sample_bank_[sample_mode_] : bank_) << 4)
             | (static_cast<uint32_t>(selected_ & 0xf) << 7) | (static_cast<uint32_t>(selected_bank_) << 11)

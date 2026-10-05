@@ -147,7 +147,7 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(p.input_value("#filter-cutoff_hz-range"), "1000")
         p.screenshot(path=str(SHOTS / "desktop-instrument.png"), full_page=True)
 
-    def test_v2_controls_map_to_v2_fields_and_convert_to_v6(self):
+    def test_v2_controls_map_to_v2_fields_and_convert_to_v7(self):
         p = self.page
         self.choose_preset("Soft Pad")
         self.assertEqual(self.json()["version"], 2)
@@ -159,11 +159,11 @@ class BrowserTests(unittest.TestCase):
         self.assertNotIn("filter", self.json()["modules"])
         before = self.json()
         p.click("#upgrade"); self.wait_idle()
-        self.assertIn("Converted to v6", self.notice())
+        self.assertIn("Converted to v7", self.notice())
         upgraded = self.json()
-        self.assertEqual(upgraded, forge_host.upgrade_patch(before, 6))
-        self.assertEqual((upgraded["version"], upgraded["routing"], upgraded["knobs"], upgraded["harmony"]),
-                         (6, "synth>delay>reverb>output", ["default"] * 4, forge_host.HARMONY_DEFAULTS))
+        self.assertEqual(upgraded, forge_host.upgrade_patch(before, 7))
+        self.assertEqual((upgraded["version"], upgraded["routing"], upgraded["knobs"], upgraded["harmony"], upgraded["parts"]),
+                         (7, "synth>delay>reverb>output", ["default"] * 4, forge_host.HARMONY_DEFAULTS, forge_host.PARTS_DEFAULTS))
         self.assertEqual(upgraded["modules"]["filter"]["cutoff_hz"], 1500)
         self.assertFalse(p.is_disabled("#reverb-mix")); self.assertTrue(p.is_disabled("#upgrade"))
         # Knob choices (page 1 of the panel knobs) edit the v5 "knobs" list.
@@ -178,6 +178,13 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(forge_host.validate_patch(self.json())["harmony"],
                          {**forge_host.HARMONY_DEFAULTS, "enabled": True, "tonic": "A", "mode": "dorian", "layout": "real",
                           "voice_leading": False})
+        # Arp, bass and tempo controls (v7) edit the "parts" object.
+        p.select_option("#parts-arp-pattern", "updown"); p.select_option("#parts-arp-rate", "1/16t"); p.fill("#parts-arp-gate", "75")
+        p.select_option("#parts-bass-mode", "octave"); p.select_option("#parts-bass-rate", "chord"); p.fill("#parts-clock-bpm", "96")
+        p.uncheck("#parts-arp-latch")
+        parts = forge_host.validate_patch(self.json())["parts"]
+        self.assertEqual((parts["arp"], parts["bass"]["mode"], parts["bass"]["rate"], parts["clock"]["bpm"]),
+                         ({"pattern": "updown", "rate": "1/16t", "octaves": 1, "gate": 75, "latch": False}, "octave", "chord", 96))
 
     def test_save_validates_and_reports_field_errors(self):
         p = self.page
@@ -217,7 +224,7 @@ class BrowserTests(unittest.TestCase):
 
     def test_generate_with_mock_provider_keeps_key_ephemeral(self):
         p, provider = self.page, self.provider
-        provider.status, provider.patch = 200, forge_host.upgrade_patch(forge_host.load_patch(ROOT / "presets" / "08-acid-bass.json"), 5)
+        provider.status, provider.patch = 200, forge_host.upgrade_patch(forge_host.load_patch(ROOT / "presets" / "08-acid-bass.json"), 7)
         provider.requests.clear()
         for name in ("openai", "gemini"):
             p.select_option("#provider", name)
@@ -231,7 +238,7 @@ class BrowserTests(unittest.TestCase):
             self.assertIn(FAKE_KEY, json.dumps(dict(request.header_items())))
             self.assertEqual(json.loads(request.data)["text"]["format"]["schema"]["properties"]["version"]["enum"]
                              if name == "openai" else
-                             json.loads(request.data)["generationConfig"]["responseFormat"]["text"]["schema"]["properties"]["version"]["enum"], [5])
+                             json.loads(request.data)["generationConfig"]["responseFormat"]["text"]["schema"]["properties"]["version"]["enum"], [7])
         # storage_state() reads cookies/localStorage without page eval (blocked by the CSP).
         self.assertNotIn(FAKE_KEY, json.dumps(self.context.storage_state()))
         self.assertNotIn(FAKE_KEY, p.inner_text("#json"))
@@ -257,7 +264,7 @@ class BrowserTests(unittest.TestCase):
         sent = self.json()
         p.click("#send"); self.wait_idle()
         self.assertIn("acknowledged", self.notice())
-        self.assertIn("Firmware 0.13", p.inner_text("#device-state"))
+        self.assertIn("Firmware 0.14", p.inner_text("#device-state"))
         # Legacy v1 delay patch switches device to aux path.
         self.choose_preset("Short slap"); p.click("#send"); self.wait_idle()
         p.click("#capture"); self.wait_idle()

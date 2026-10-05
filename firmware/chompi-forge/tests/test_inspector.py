@@ -102,6 +102,23 @@ class InspectorTests(unittest.TestCase):
         bad=replies[5].copy(); bad[15]=12; fixed(bad)
         with self.assertRaisesRegex(ValueError,'Invalid harmony'): inspector.decode(bad,6,8)
 
+    def test_parts_page(self):
+        patch=host.upgrade_patch(host.load_patch(ROOT/'presets'/'07-warm-pad.json'),7)
+        patch['parts']={**host.PARTS_DEFAULTS,'arp':{**host.PARTS_DEFAULTS['arp'],'pattern':'up','rate':'1/16'},
+                        'bass':{'mode':'root','rate':'1/4','octave':2},'clock':{'bpm':128,'seed':5,'send_clock':True}}
+        replies=probe(host.encode_patch(patch,1),host.message(0x0a,2,[0,18,65]),host.message(0x0a,3,[0,19,65]),
+                      inspector.request(2,4),inspector.request(9,5),host.message(0x0a,6,[0,18,64]),host.message(0x0a,7,[0,19,64]),
+                      inspector.request(2,8),inspector.request(9,9))
+        held=inspector.decode(replies[4],5,9); latched=inspector.decode(replies[8],9,9)
+        self.assertEqual(held['parts'],patch['parts']); self.assertEqual(held['tempo_bpm'],128.0)
+        self.assertTrue(held['running'] and held['active']); self.assertFalse(held['midi_clock'])
+        self.assertEqual((held['set'],held['arp_note'],held['bass_note']),([60,62],60,36))
+        self.assertFalse(held['latched']); self.assertTrue(latched['latched']); self.assertEqual(latched['set'],[60,62])
+        self.assertIn('PARTS   128.0 BPM internal, running; arp up 1/16 x1 50% latch; bass root 1/4 C2; set C4 D4 (latched)',
+                      inspector.parts_line(latched))
+        bad=replies[4].copy(); bad[15]=6; fixed(bad)                  # pattern 6 does not exist
+        with self.assertRaisesRegex(ValueError,'Invalid parts'): inspector.decode(bad,5,9)
+
     def test_malformed_word_and_event_lengths(self):
         data=probe(inspector.request(2,1))[0]; data[14]=16; fixed(data)
         with self.assertRaisesRegex(ValueError,'32-bit'): inspector.decode(data,1,2)

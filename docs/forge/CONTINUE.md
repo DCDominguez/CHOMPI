@@ -1,6 +1,6 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-05 (UTC), checkpoint: firmware 0.13 harmony (see "Current
+Updated 2026-10-05 (UTC), checkpoint: firmware 0.14 arp, bass and tempo (see "Current
 checkpoint" below). Read this first; DC's next session is
 [HOME_CHECKLIST.md](HOME_CHECKLIST.md).
 
@@ -23,7 +23,7 @@ SD streaming remains gated on physical SD measurements. Older checkpoint and
 PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
 use the latest implementation checkpoint and ledger for present capabilities/budgets.
 
-## Current checkpoint: firmware 0.13 harmony (2026-10-05)
+## Current checkpoint: firmware 0.14 arp, bass and tempo (2026-10-05; 0.13 harmony below)
 
 DC: "Yeah 1 to 4 let's go" = (1) finish harmony 0.13, (2) CPU fix A (table-based
 cubic read), (3) clock + arp + bass, (4) event recorder + projects on SD. Item 1 is
@@ -50,7 +50,17 @@ installed. One consolidated hardware session covers them all (TEST_SESSION).
   kit below 1× 2,564.2, 1× worst 2,603.5 vs WAVE 2,694.9 (pitched-down rows now
   gated). Checks: make test 14 native + 121 Python, sanitize 13, browser 11 + 7 PASS;
   release 221,712 / development 234,376 B layout OK. Not verified on hardware (6.2f).
-- Next: item 3, clock + arp + bass (harmony Phase 2), then item 4.
+- Item 3, clock + arp + bass = firmware 0.14 (after `dd06649`). DC's answers (2026-10-05):
+  internal tempo + follow MIDI clock + send it, tempo settable on CHOMPI (SW4, tap C5); parts
+  page with latch; bass internal + MIDI ch 2; ROOT/FIFTH/ALTERNATE/OCTAVE on the clock.
+  Implemented and software-tested: `core/parts.h`, engine wiring, parts page (KEY_21 from
+  the harmony page), MIDI real-time in / clock out, patch v7 (firmware, host, webapp, AI),
+  Inspector page 9. Fixed on the way: the AI instrument mode asked for v5 while requiring
+  harmony (0.13); TEST_SESSION 4.1 / PROTOCOL named SW5 as the panic.
+  Checks: make test 15 native + 123 Python, sanitize 14, browser 11 + 7 PASS; bench
+  unchanged PASS; release 229,168 / development 242,896 B layout OK.
+  Not verified: everything on hardware (3.65–3.72), arp timing feel, MIDI clock with a DAW.
+- Next: item 4, event recorder + projects on SD.
 
 ## Checkpoint: firmware 0.12 per-slot sample settings (2026-10-05)
 

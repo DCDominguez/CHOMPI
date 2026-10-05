@@ -1,5 +1,36 @@
 # Forge changelog
 
+## 0.14 Arp, bass and tempo — 2026-10-05 (software-tested; not installed yet)
+
+Harmony Phase 2 (DC's item 3). DC's choices: CHOMPI's own tempo plus following MIDI
+clock (and sending it), set on CHOMPI too ("can we also set the tempo on the chompi":
+yes, SW4 and tap tempo); a parts page next to the harmony page with an arp latch; the bass
+on the internal sound and MIDI channel 2; the brief's four bass modes on the clock.
+Nothing here is hardware-verified.
+- **Clock, arp, bass** (`core/parts.h`): tempo 40–300 BPM (knob, tap, patch) or MIDI clock
+  in with start / continue / stop (back to the own tempo after 0.5 s without clock); arp up,
+  down, up-down, as played, random (seeded: the same keys play the same line), 1/4 to 1/32
+  with triplets, 1–4 octaves, gate 5–100 %, latch; bass root, root + fifth (the chord's own
+  fifth), root / fifth, root / octave in C1–C3, per chord change or 1/2, 1/4, 1/8. With
+  harmony on the arp plays the chord; generated notes have one owner per pitch (the arp and
+  bass never cut each other); panic stops everything, also on MIDI. MANUAL section 8b.
+- **Parts page:** from the harmony page tap KEY_21; keys choose pattern, rate, latch, run /
+  stop, bass mode and octave, C5 taps the tempo; SW4 tempo (press = tap), SW1 octaves, SW2
+  gate, SW3 bass rate; lights show the choices and the beat.
+- **MIDI:** real-time bytes no longer ignored (clock, start, continue, stop on any channel;
+  a lost tick never triggers the stuck-note recovery); arp on the out channel, bass on the
+  next, clock out (24 PPQN) while the parts play on CHOMPI's tempo.
+- **Patch v7** = v6 + the parts (two words, PROTOCOL.md); presets saved on CHOMPI and status
+  carry them while they play; host, webapp *Arp · bass · tempo* group, AI schema.
+- **Inspector page 9:** the settings, tempo in use, MIDI clock, the set, arp and bass notes;
+  a PARTS line in the text Inspector.
+- **Fixed:** AI instrument mode required harmony (v6 schema) but asked for version 5, so any
+  reply that followed the schema was refused (0.13); it now asks for and checks v7.
+  TEST_SESSION 4.1 and PROTOCOL.md still named SW5 as the panic (SW4 + SW3 since 0.10).
+- Release **229,168 B**, development 242,896 B (+7,456 / +8,520 over 0.13; headroom 59,600 /
+  45,872 B). CPU gate unchanged (the parts run once per block, outside the sample loop).
+- New TEST_SESSION 3.68–3.72 (bridge checklist 107 steps).
+
 ## 0.13 Harmony — 2026-10-05 (software-tested; not installed yet)
 
 Harmony Phase 1 from DC's brief (HARMONY_BRIEF.md; clean-room, no code from other

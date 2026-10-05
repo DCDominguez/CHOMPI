@@ -38,7 +38,7 @@ class PatchTests(unittest.TestCase):
             response = probe(packet)[0]
             self.assertEqual(response[8:len(packet)], packet[7:-1])
             result = host.decode_response(response, 129)
-            self.assertEqual(result["firmware"], "0.13")
+            self.assertEqual(result["firmware"], "0.14")
             self.assertAlmostEqual(host.effect_patch(result["patch"])["parameters"]["time_ms"],
                                    host.effect_patch(patch)["parameters"]["time_ms"], delta=990 / 16383)
 
@@ -65,6 +65,44 @@ class PatchTests(unittest.TestCase):
         # The device rejects an out-of-range harmony word (tonic 12) even with a valid checksum.
         broken = host.encode_patch(patch, 92); broken[87] = 12; broken[-1] = host.checksum(broken[:-1])
         with self.assertRaisesRegex(RuntimeError, "invalid patch"): host.decode_response(probe(broken)[0], 92)
+
+    def test_v7_parts_round_trip_cpp(self):
+        patch = host.upgrade_patch(host.load_patch(ROOT / "presets" / "07-warm-pad.json"), 7)
+        self.assertEqual(patch["parts"], host.PARTS_DEFAULTS)
+        cases = (host.PARTS_DEFAULTS,
+                 {"arp": {"pattern": "random", "rate": "1/16t", "octaves": 4, "gate": 100, "latch": False},
+                  "bass": {"mode": "alternate", "rate": "chord", "octave": 1},
+                  "clock": {"bpm": 300, "seed": 2047, "send_clock": False}},
+                 {"arp": {"pattern": "updown", "rate": "1/32", "octaves": 2, "gate": 5, "latch": True},
+                  "bass": {"mode": "fifth", "rate": "1/8", "octave": 3},
+                  "clock": {"bpm": 40, "seed": 0, "send_clock": True}})
+        for parts in cases:
+            patch["parts"] = parts
+            patch["harmony"] = {**host.HARMONY_DEFAULTS, "enabled": True, "tonic": "D"}
+            packet = host.encode_patch(patch, 93)
+            self.assertEqual(len(packet), 97)
+            response = probe(packet)[0]
+            self.assertEqual(len(response), 109)
+            self.assertEqual(response[8:len(packet)], packet[7:-1])
+            decoded = host.decode_response(response, 93)["patch"]
+            self.assertEqual((decoded["parts"], decoded["harmony"]), (parts, patch["harmony"]))
+        bad_parts = (
+            {**host.PARTS_DEFAULTS, "arp": {**host.PARTS_DEFAULTS["arp"], "gate": 37}},
+            {**host.PARTS_DEFAULTS, "arp": {**host.PARTS_DEFAULTS["arp"], "pattern": "sideways"}},
+            {**host.PARTS_DEFAULTS, "bass": {**host.PARTS_DEFAULTS["bass"], "octave": 4}},
+            {**host.PARTS_DEFAULTS, "clock": {**host.PARTS_DEFAULTS["clock"], "bpm": 301}},
+            {**host.PARTS_DEFAULTS, "clock": {**host.PARTS_DEFAULTS["clock"], "seed": True}},
+            {k: v for k, v in host.PARTS_DEFAULTS.items() if k != "bass"})
+        for bad in bad_parts:
+            with self.assertRaises(ValueError): host.validate_patch({**patch, "parts": bad})
+        with self.assertRaises(ValueError): host.validate_patch({k: v for k, v in patch.items() if k != "harmony"})
+        with self.assertRaises(ValueError): host.validate_patch({**patch, "version": 6})
+        # The device refuses a tempo below 40 even with a valid checksum (request 93-95 = clock word).
+        broken = host.encode_patch(patch, 94); broken[93] = 39; broken[94] = 0; broken[-1] = host.checksum(broken[:-1])
+        with self.assertRaisesRegex(RuntimeError, "invalid patch"): host.decode_response(probe(broken)[0], 94)
+        # A v6 patch stays v6 in status while the parts are off; turning the arp on reports v7.
+        v6 = host.upgrade_patch(host.load_patch(ROOT / "presets" / "07-warm-pad.json"), 6)
+        self.assertEqual(host.decode_response(probe(host.encode_patch(v6, 95), host.message(2, 96, []))[1], 96)["patch"]["version"], 6)
 
     def test_v5_knob_assignments_round_trip_cpp(self):
         patch = host.upgrade_patch(host.load_patch(ROOT / "presets" / "07-warm-pad.json"), 5)

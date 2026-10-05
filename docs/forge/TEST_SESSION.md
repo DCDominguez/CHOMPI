@@ -216,13 +216,26 @@ the first time it is heard. Use the Warm Pad preset (synth).
 | --- | --- | --- |
 | 3.65 | **Harmony page (0.13):** Warm Pad. Toggle down, hold CHOMPI, hold KEY_21 1 s. Press SW4 (on), press the A key, turn SW4 one step (natural minor); close the menu and play C3, F3, G3 | On the page the A keys light white and A minor's scale blue; SW4's light green. Played: C3 = A minor chord, F3 = D minor, G3 = E minor (chords of 3 notes), also on a MIDI monitor (3.61) as 3 notes each. Inspector shows *Am · I · tonic* after C3 |
 | 3.66 | **Chord size, Shift, voice leading (0.13):** harmony page: turn SW1 two steps (7th); play C3, F3, G3, C3 again; hold C5 and play G3; press SW2 (voice leading off), turn SW2 and play C3 again | 4-note chords that move smoothly (few notes change between chords); C5 + G3 = E7 (Shift turns the minor v into the major dominant); with voice leading off each SW2 step changes the inversion; no hung notes when releasing in any order |
-| 3.67 | **Real layout and saving (0.13):** harmony page: press SW1 (light orange); play C#3 and D3; save the preset on CHOMPI (section 6), switch off and on, recall it; press SW5 while holding a chord | Real: each key is the chord's root (D3 in A minor = D minor); after the restart the recalled preset still plays chords in A minor; SW5 panic stops the chord at once |
+| 3.67 | **Real layout and saving (0.13):** harmony page: press SW1 (light orange); play C#3 and D3; save the preset on CHOMPI (section 6), switch off and on, recall it; hold SW4 + SW3 for 1 s while holding a chord | Real: each key is the chord's root (D3 in A minor = D minor); after the restart the recalled preset still plays chords in A minor; the panic stops the chord at once |
+
+## 3H. Arp, bass and tempo (firmware 0.14)
+
+The parts page (MANUAL section 8b). Software-tested only; these steps are the first
+time it is heard. Warm Pad (synth) unless a step says otherwise.
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.68 | **Arp (0.14):** Warm Pad. Menu: hold KEY_21 1 s (harmony page), tap KEY_21 (parts page: C3, C#3, D4, G#4, B3 and B4 lit). Press D3 (up) and F4 (1/16). Close the menu; hold C3, E3 and G3, then let go; then play A3 alone; then hold SW4 + SW3 1 s | The three notes cycle upwards one at a time, 4 per beat at 120 BPM; after letting go they keep going (latch); A3 alone replaces them; the panic stops it. On a MIDI monitor (3.61) each arp note on channel 1, no chord |
+| 3.69 | **Tempo on CHOMPI (0.14):** parts page with the arp running (latched): turn SW4 right 20 clicks, then left 40; tap C5 four times at a slow, steady beat; press B4 twice | The arp speeds up (140 BPM), slows (100), then follows the taps; C5 and the SW4 light blink white on each beat; B4 red = stopped (arp silent), green = running again |
+| 3.70 | **Arp with harmony (0.14):** harmony page as 3.65 (on, A natural minor); KEY_21 to the parts page; arp up-down (F3), 1/8 (D4); play C3, then F3 | C3 plays the A minor chord one note at a time (A C E, up and down), F3 then D minor; only one voice sounds at a time |
+| 3.71 | **Bass (0.14):** parts page: arp off (C3), bass root (D#3), G#4 (octave C2), SW3 to green (1/4); play and hold C3 (harmony on); then try F#3 (root + fifth), G#3 (root / fifth), A#3 (root / octave), SW3 to purple (once per chord) | The chord sounds as usual with a low A under it on every beat; the variations as named; purple: one bass note per chord change. MIDI monitor: bass on channel 2, chord on channel 1 |
+| 3.72 | **MIDI clock (0.14, optional):** a DAW sends MIDI clock to CHOMPI over USB at 100 BPM with the arp latched; stop the DAW, start it again; then turn its clock output off. Separately, with the DAW set to follow external clock, run the arp on CHOMPI's tempo | The arp follows the DAW's tempo (SW4 light blinks blue), stops with it and restarts on its downbeat; half a second after the clock stops CHOMPI uses its own tempo again. The DAW follows CHOMPI's tempo (start, clock, stop) |
 
 ## 4. Panic and recovery
 
 | # | Do | Pass when |
 | --- | --- | --- |
-| 4.1 | Hold a long-release chord with echo (use Warm Pad for reverb too); press SW5 | Voices, old echo and reverb tails stop at once |
+| 4.1 | Hold a long-release chord with echo (use Warm Pad for reverb too); hold SW4 + SW3 for 1 s (panic; SW5 was the panic before 0.10) | Voices, old echo and reverb tails stop at once |
 | 4.2 | Repeat with `H cc 123 0`, `H cc 120 0`, `H panic ...`, webapp Panic | Same each time; notes retrigger normally afterwards |
 | 4.3 | Switch route aux↔synth (webapp Signal path, Send) while notes ring | Sound stops cleanly; next keypress plays; aux stays stereo |
 

@@ -146,7 +146,7 @@ class Handler(BaseHTTPRequestHandler):
                 result = {"patch": host.validate_patch(body.get("patch"))}
             elif self.path == "/api/upgrade":
                 to = body.get("to", 3)
-                if to not in (3, 4, 5, 6): raise ValueError("Upgrade target must be 3, 4, 5 or 6")
+                if to not in (3, 4, 5, 6, 7): raise ValueError("Upgrade target must be 3, 4, 5, 6 or 7")
                 result = {"patch": host.upgrade_patch(body.get("patch"), to)}
             elif self.path == "/api/generate":
                 if not self.server.ai_lock.acquire(blocking=False):

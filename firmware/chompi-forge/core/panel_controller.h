@@ -20,6 +20,7 @@ constexpr unsigned kButtons = 40, kEncoders = 6, kVolumeEncoder = 5, kToneEncode
 // Looper keys (as TAPE): KEY_27 PLAY, KEY_28 LOOP; their LEDs are through-hole 7 / 8.
 // Menu (presets page): KEY_21 effects before the loop, KEY_20 after.
 constexpr uint8_t kPlayKey = 33, kLoopKey = 34, kPlayLed = 7, kLoopLed = 8, kFxBefore = 22, kFxAfter = 21;
+static_assert(kFxBefore == kPartsKey, "KEY_21 opens the harmony page and switches to the parts page");
 // SW6 (volume) press is ENC_6_SW; its ring LED is through-hole 9 (TAPE). Held 2 s: battery.
 constexpr uint8_t kVolumePress = 32, kVolumeLed = 9;
 // Knob pages (docs/forge/KNOBS.md, core/knob_layout.h). Releasing logical knob n's
@@ -53,7 +54,6 @@ struct PanelEvent {
 };
 
 // MIDI the panel sends out (TAPE: keys, knob CCs, PLAY/LOOP/CHOMPI CCs), audio -> main loop.
-struct MidiOut { uint8_t status = 0, data1 = 0, data2 = 0; };
 
 // Work the panel hands to the rest of the firmware (main-loop side).
 class PanelSink {
@@ -158,10 +158,12 @@ public:
         battery_view_.store(volume_held_ >= kBatteryHoldFrames, std::memory_order_relaxed);
         keys_down_.store(static_cast<uint32_t>(keys), std::memory_order_relaxed);   // all 25 note keys are switches 0-31
         for(unsigned key = 0; key < panel::kButtons; ++key) if(panel::kKeyNotes[key]) {
+            const bool harmony_page = HarmonyPage(), parts_page = PartsPage();   // before the key may change the page
             if(((rising >> key) & 1u) && !menu_.Key(static_cast<uint8_t>(key), true))
                 PlayKey(engine, panel::kKeyNotes[key], 127);   // TAPE: full velocity
-            else if(((rising >> key) & 1u) && HarmonyPage() && engine.Harmony())
+            else if(((rising >> key) & 1u) && harmony_page && HarmonyPage() && engine.Harmony())
                 engine.Harmony()->state.tonic = static_cast<uint8_t>(panel::kKeyNotes[key] % 12);   // harmony page: the key's note is the tonic
+            else if(((rising >> key) & 1u) && parts_page && PartsPage() && engine.Parts()) PartsKey(panel::kKeyNotes[key], engine);
             if((falling >> key) & 1u) {
                 menu_.Key(static_cast<uint8_t>(key), false); PlayKey(engine, panel::kKeyNotes[key], 0);
             }
@@ -218,6 +220,7 @@ public:
         // TAPE's menu page: the knobs are TAPE's shift layer (MenuControls).
         if(menu_.Active() && menu_.Page() == MenuPage::Samples) MenuControls(hardware, keys, rising, turns, engine);
         else if(HarmonyPage()) HarmonyControls(keys, turns, engine);
+        else if(PartsPage()) PartsControls(keys, turns, engine);
         else {
             // SW5 (virtual: 2 = one click, 1 = held).
             const bool tone_down = hardware.tone_down || virtual_tone_ != 0;
@@ -273,6 +276,11 @@ public:
     }
     uint32_t MenuPacked() const { return menu_.Packed(); }
     bool HarmonyPage() const { return menu_.Active() && menu_.Page() == MenuPage::Harmony; }
+    bool PartsPage() const { return menu_.Active() && menu_.Page() == MenuPage::Parts; }
+    // parts::PackArp of the parts settings, and the clock for the lights: bit 0 running,
+    // 1 MIDI clock, 2 on the beat (first 1/16 of each quarter), bits 8-16 the tempo.
+    uint32_t PartsLights() const { return parts_lights_.load(std::memory_order_relaxed); }
+    uint32_t PartsClock() const { return parts_clock_.load(std::memory_order_relaxed); }
     // harmony::Pack of the engine's harmony state (for the LEDs and the Inspector).
     uint32_t HarmonyLights() const { return harmony_lights_.load(std::memory_order_relaxed); }
     void SetInstallGate(InstallGate* gate) { install_gate_ = gate; }
@@ -335,6 +343,12 @@ private:
         knob_values_.store(values, std::memory_order_relaxed); knob_state_.store(state, std::memory_order_relaxed);
         const bool tape_menu = menu_.Active() && menu_.Page() == MenuPage::Samples;
         harmony_lights_.store(engine.Harmony() ? harmony::Pack(engine.Harmony()->state, engine.Harmony()->Shift()) : 0u, std::memory_order_relaxed);
+        if(const parts::Parts* pp = engine.Parts()) {
+            const parts::Clock& c = pp->GetClock();
+            parts_lights_.store(parts::PackArp(pp->settings), std::memory_order_relaxed);
+            parts_clock_.store((c.Running() ? 1u : 0u) | (c.External() ? 2u : 0u) | (c.Ticks() % parts::kPpqn < 6 ? 4u : 0u)
+                               | static_cast<uint32_t>(c.Bpm() + .5f) << 8, std::memory_order_relaxed);
+        }
         menu_lights_.store(static_cast<uint8_t>((tape_menu ? 1u : 0u) | (p.sample_loop ? 2u : 0u) | (p.sample_gate ? 4u : 0u)
                                                 | (static_cast<unsigned>(monitor_) << 3)), std::memory_order_relaxed);
     }
@@ -451,6 +465,61 @@ private:
         }
     }
     int harmony_detents_[3] = {};
+    // Parts page (0.14), keys: C3 arp off, D3 up, E3 down, F3 up-down, G3 played order, A3 random,
+    // B3 latch; C4 1/4, D4 1/8, E4 1/8 triplet, F4 1/16, G4 1/16 triplet, A4 1/32, B4 run / stop;
+    // C#3 bass off, D#3 root, F#3 root + fifth, G#3 root / fifth, A#3 root / octave; F#4 / G#4 /
+    // A#4 bass octave C1 / C2 / C3; C5 tap tempo. KEY_21 harmony page, KEY_22 TAPE's page.
+    FORGE_COLD void PartsKey(uint8_t note, Engine& engine) {
+        parts::Parts& p = *engine.Parts(); parts::Settings& s = p.settings;
+        switch(note) {
+            case 48: s.pattern = parts::Pattern::Off; break;       case 50: s.pattern = parts::Pattern::Up; break;
+            case 52: s.pattern = parts::Pattern::Down; break;      case 53: s.pattern = parts::Pattern::UpDown; break;
+            case 55: s.pattern = parts::Pattern::Order; break;     case 57: s.pattern = parts::Pattern::Random; break;
+            case 59: s.latch = !s.latch; break;
+            case 60: s.rate = parts::Rate::Quarter; break;         case 62: s.rate = parts::Rate::Eighth; break;
+            case 64: s.rate = parts::Rate::EighthTriplet; break;   case 65: s.rate = parts::Rate::Sixteenth; break;
+            case 67: s.rate = parts::Rate::SixteenthTriplet; break; case 69: s.rate = parts::Rate::ThirtySecond; break;
+            case 71: p.GetClock().Run(!p.GetClock().Running()); break;
+            case 49: s.bass = parts::Bass::Off; break;              case 51: s.bass = parts::Bass::Root; break;
+            case 54: s.bass = parts::Bass::Fifth; break;            case 56: s.bass = parts::Bass::Alternate; break;
+            case 58: s.bass = parts::Bass::Octave; break;
+            case 66: s.bass_octave = 0; break;  case 68: s.bass_octave = 1; break;  case 70: s.bass_octave = 2; break;
+            case 72: p.Tap(); break;
+            default: return;
+        }
+        engine.PartsChanged();
+    }
+    // Knobs: SW4 tempo (1 BPM a click; press = tap), SW1 arp octaves 1-4, SW2 gate 5-100 %
+    // (5 % a click), SW3 bass rate (chord change, 1/2, 1/4, 1/8). Three clicks per step for SW1/SW3.
+    FORGE_COLD void PartsControls(uint64_t keys, const int16_t (&turns)[panel::kEncoders], Engine& engine) {
+        parts::Parts* p = engine.Parts();
+        if(!p) return;
+        parts::Settings& s = p->settings;
+        bool changed = false;
+        const bool down = (keys >> panel::kKnobEncoder[0]) & 1u;
+        if(down && !hold_[0].down) { hold_[0] = KnobHold{}; hold_[0].down = true; hold_[0].used = true; changed = p->Tap() || changed; }
+        if(!down) hold_[0].down = false;
+        if(const int t = turns[panel::kKnobEncoder[0]]) {
+            const int bpm = static_cast<int>(s.bpm) + t;
+            s.bpm = static_cast<uint16_t>(bpm < parts::kMinBpm ? parts::kMinBpm : bpm > parts::kMaxBpm ? parts::kMaxBpm : bpm); changed = true;
+        }
+        if(const int t = turns[panel::kKnobEncoder[2]]) {
+            const int gate = static_cast<int>(s.gate) + t;
+            s.gate = static_cast<uint8_t>(gate < 1 ? 1 : gate > 20 ? 20 : gate); changed = true;
+        }
+        for(unsigned knob : {1u, 3u}) {
+            parts_detents_[knob] += turns[panel::kKnobEncoder[knob]];
+            while(parts_detents_[knob] >= 3 || parts_detents_[knob] <= -3) {
+                const int dir = parts_detents_[knob] > 0 ? 1 : -1; parts_detents_[knob] -= 3 * dir;
+                if(knob == 1) { const int o = s.octaves + dir; s.octaves = static_cast<uint8_t>(o < 1 ? 1 : o > 4 ? 4 : o); }
+                else { const int r = static_cast<int>(s.bass_rate) + dir; s.bass_rate = static_cast<parts::BassRate>(r < 0 ? 0 : r > 3 ? 3 : r); }
+                changed = true;
+            }
+        }
+        if(changed) engine.PartsChanged();
+    }
+    int parts_detents_[4] = {};
+    std::atomic<uint32_t> parts_lights_{0}, parts_clock_{0};
     uint32_t fx_key_frames_ = 0;
     bool fx_key_armed_ = false;
     std::atomic<uint32_t> harmony_lights_{0};
@@ -581,6 +650,7 @@ struct LedView {
     float input_level = 0.f;                      // input meter 0..1 (record position)
     uint16_t kit_occupancy = 0;                   // sample files of the live kit bank
     uint32_t harmony = 0;                         // harmony::Pack (PanelController::HarmonyLights)
+    uint32_t parts = 0, parts_clock = 0;          // PanelController::PartsLights / PartsClock (0.14)
 };
 // Menu closed (TAPE NormalPage): a key lights white while held. With a sampler patch,
 // kit mode shows the bank's occupied slots dim in the bank colour (the recording key
@@ -691,9 +761,46 @@ inline void ComposeHarmonyKnobLeds(uint32_t packed, Rgb (&rings)[4]) {
     rings[2] = s.block ? knobs::colour::purple : white;
     rings[3] = s.open ? white : dim;
 }
+// Parts page (0.14): the chosen pattern (blue), rate (green), bass mode (orange) and bass
+// octave (yellow) keys lit; B3 white with latch; B4 green running / red stopped; C5 blinks
+// white on the beat. Knob rings: SW4 white on the beat (blue when following MIDI clock),
+// SW1 octaves (white, green, yellow, red), SW2 gate (brightness), SW3 bass rate (purple
+// chord change, blue 1/2, green 1/4, yellow 1/8).
+FORGE_COLD inline void RenderPartsLeds(uint32_t packed, uint32_t clock, Rgb (&keys)[25]) {
+    const parts::Settings s = parts::Unpack(packed, parts::kDefaultBpm);
+    for(auto& led : keys) led = Rgb{};
+    static const uint8_t pattern[parts::kPatterns] = {48, 50, 52, 53, 55, 57}, rate[parts::kRates] = {60, 62, 64, 65, 67, 69};
+    static const uint8_t bass[parts::kBassModes] = {49, 51, 54, 56, 58}, octave[3] = {66, 68, 70};
+    auto lit = [&](uint8_t note, Rgb c) {
+        for(uint8_t key = 0; key < panel::kButtons; ++key) if(panel::kKeyNotes[key] == note) {
+            const uint8_t slot = panel::KeyToSlot(key);
+            const uint8_t led = slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key);
+            if(led < 25) keys[led] = c;
+        }
+    };
+    lit(pattern[static_cast<unsigned>(s.pattern) % parts::kPatterns], knobs::colour::blue);
+    lit(rate[static_cast<unsigned>(s.rate) % parts::kRates], knobs::colour::green);
+    lit(bass[static_cast<unsigned>(s.bass) % parts::kBassModes], knobs::colour::orange);
+    lit(octave[s.bass_octave % 3], knobs::colour::yellow);
+    lit(59, s.latch ? Rgb{1.f, 1.f, 1.f} : Rgb{.08f, .08f, .08f});
+    lit(71, clock & 1u ? knobs::colour::green : knobs::colour::red);
+    lit(72, (clock & 5u) == 5u ? Rgb{1.f, 1.f, 1.f} : Rgb{.08f, .08f, .08f});
+}
+inline void ComposePartsKnobLeds(uint32_t packed, uint32_t clock, Rgb (&rings)[4]) {
+    const parts::Settings s = parts::Unpack(packed, parts::kDefaultBpm);
+    const Rgb white{1.f, 1.f, 1.f}, dim{.08f, .08f, .08f};
+    rings[0] = (clock & 5u) == 5u ? ((clock & 2u) ? knobs::colour::blue : white) : dim;
+    static const Rgb octaves[4] = {white, knobs::colour::green, knobs::colour::yellow, knobs::colour::red};
+    rings[1] = octaves[(s.octaves - 1u) & 3u];
+    const float g = s.gate / 20.f; rings[2] = Rgb{g, g, g};
+    static const Rgb rates[4] = {knobs::colour::purple, knobs::colour::blue, knobs::colour::green, knobs::colour::yellow};
+    rings[3] = rates[static_cast<unsigned>(s.bass_rate) & 3u];
+}
 FORGE_COLD inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chompi) {
     if((v.menu & 1u) && ((v.menu >> 1) & 7u) == 7u)
         RenderHarmonyLeds(v.harmony, keys);
+    else if((v.menu & 1u) && ((v.menu >> 1) & 7u) == 6u)
+        RenderPartsLeds(v.parts, v.parts_clock, keys);
     else if(!(v.menu & 1u))
         RenderPlayLeds(v.keys_down, v.live, v.kit_occupancy, v.recording_present, keys);
     else if((v.menu >> 21) & 1u)
@@ -718,7 +825,7 @@ FORGE_COLD inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chomp
     if(v.install == 1) chompi = v.blink ? Rgb{1.f, 1.f, 1.f} : Rgb{};
     else if(v.install == 2) chompi = Rgb{1.f, 1.f, 1.f};
     // Menu, presets page: KEY_21 / KEY_20 show where the effects sit (before / after the loop).
-    if((v.menu & 1u) && !((v.menu >> 21) & 1u) && ((v.menu >> 1) & 7u) != 7u) {   // not on the harmony page
+    if((v.menu & 1u) && !((v.menu >> 21) & 1u) && ((v.menu >> 1) & 7u) < 6u) {   // not on the harmony / parts pages
         const bool before = (v.looper >> 4) & 1u;
         keys[panel::BlackLed(panel::kFxBefore)] = before ? Rgb{.8f, .8f, .8f} : Rgb{.1f, .1f, .1f};
         keys[panel::BlackLed(panel::kFxAfter)] = before ? Rgb{.1f, .1f, .1f} : Rgb{.8f, .8f, .8f};

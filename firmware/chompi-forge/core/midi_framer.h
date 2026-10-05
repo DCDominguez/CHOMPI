@@ -7,20 +7,26 @@ namespace forge {
 // request (file_transfer.h); v5 apply requests are 88. runtime.h checks both fit.
 constexpr unsigned kMaxSysEx = 288;
 struct MidiFrame {
-    enum class Kind : uint8_t { CC, SysEx, NoteOn, NoteOff, PitchBend, ProgramChange };
+    enum class Kind : uint8_t { CC, SysEx, NoteOn, NoteOff, PitchBend, ProgramChange, Clock };   // Clock: data[0] 0 tick, 1 start, 2 continue, 3 stop
     Kind kind = Kind::CC;
     uint8_t data[kMaxSysEx]{};
     uint16_t size = 0;
 };
 
 // Only the messages Forge needs. Real-time bytes may legally interrupt any
-// MIDI message, including SysEx and running-status CC. Oversize SysEx is
+// MIDI message, including SysEx and running-status CC: clock, start, continue and
+// stop come out as one-byte Clock frames (0.14) and leave the message in progress alone. Oversize SysEx is
 // discarded in full; a new status resynchronizes without applying a prefix.
 class MidiFramer {
 public:
     void Reset() { sysex_ = overflow_ = false; used_ = status_ = cc_used_ = 0; }
     bool Feed(uint8_t byte, MidiFrame& out) {
-        if(byte >= 0xf8) return false;
+        if(byte >= 0xf8) {
+            const int m = byte == 0xf8 ? 0 : byte == 0xfa ? 1 : byte == 0xfb ? 2 : byte == 0xfc ? 3 : -1;
+            if(m < 0) return false;                     // active sensing, reset, undefined
+            out.kind = MidiFrame::Kind::Clock; out.size = 1; out.data[0] = static_cast<uint8_t>(m);
+            return true;
+        }
         if(byte == 0xf0) {
             Reset(); sysex_ = true; return false;
         }

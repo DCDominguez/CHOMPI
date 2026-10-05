@@ -166,7 +166,9 @@ class SampleWebAndAiTests(unittest.TestCase):
             self.assertEqual((status, result["patch"]["version"], result["patch"]["knobs"]), (200, 5, ["default"] * 4))
             status, result = self.post("/api/upgrade", {"patch": WARM, "to": 6})
             self.assertEqual((status, result["patch"]["version"], result["patch"]["harmony"]), (200, 6, host.HARMONY_DEFAULTS))
-            self.assertEqual(self.post("/api/upgrade", {"patch": WARM, "to": 7})[0], 400)
+            status, result = self.post("/api/upgrade", {"patch": WARM, "to": 7})
+            self.assertEqual((status, result["patch"]["version"], result["patch"]["parts"]), (200, 7, host.PARTS_DEFAULTS))
+            self.assertEqual(self.post("/api/upgrade", {"patch": WARM, "to": 8})[0], 400)
         finally:
             device.close()
 
@@ -177,7 +179,7 @@ class SampleWebAndAiTests(unittest.TestCase):
         summary = forge_ai.sample_summary(listing)
         self.assertIn("kit bank c: slots 1, 2, 5", summary); self.assertIn("recording (slot 15, chromatic): 2.5 s", summary)
         self.assertIn("No sample list", forge_ai.sample_summary(None))
-        v4 = host.upgrade_patch(WARM, 5); v4["routing"] = "sampler>delay>reverb>output"
+        v4 = host.upgrade_patch(WARM, 7); v4["routing"] = "sampler>delay>reverb>output"
         def reply(p):
             text = json.dumps(p)
             return lambda request, timeout: io.BytesIO(json.dumps({"status": "completed", "output": [

@@ -196,7 +196,8 @@ void DevelopmentOpcodes() {
     m = make(0x0b, {1}); assert(DecodeRequest(m.data(), m.size(), r) == Error::None && r.kind == RequestKind::Probe && r.page == 1);
     m = make(0x0b, {2}); assert(DecodeRequest(m.data(), m.size(), r) == Error::None && r.page == 2);
     m = make(0x0b, {8}); assert(DecodeRequest(m.data(), m.size(), r) == Error::None && r.page == 8);   // harmony (0.13)
-    m = make(0x0b, {9}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Patch);
+    m = make(0x0b, {9}); assert(DecodeRequest(m.data(), m.size(), r) == Error::None && r.page == 9);   // parts (0.14)
+    m = make(0x0b, {10}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Patch);
     m = make(0x0b, {0}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Patch);   // retired state page
     uint8_t out[kMaxReply];
     assert(EncodePanelAck(42, out) == 9 && out[4] == 0x47 && Checksum(out, 9) == 0);

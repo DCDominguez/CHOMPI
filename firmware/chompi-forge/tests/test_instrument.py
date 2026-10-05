@@ -54,7 +54,7 @@ class InstrumentTests(unittest.TestCase):
 
     def test_cloud_instrument_schema_and_response(self):
         v3 = host.load_patch(ROOT / "presets/07-warm-pad.json")
-        v4 = host.upgrade_patch(v3, 5)
+        v4 = host.upgrade_patch(v3, 7)
         v4["knobs"] = ["filter.cutoff_hz", "synth.release_ms", "default", "reverb.mix"]
         for provider in ("openai","gemini"):
             content=json.dumps(v4)
@@ -63,7 +63,9 @@ class InstrumentTests(unittest.TestCase):
             def opener(request,timeout):
                 body=json.loads(request.data)
                 schema=body["text"]["format"]["schema"] if provider == "openai" else body["generationConfig"]["responseFormat"]["text"]["schema"]
-                self.assertEqual(schema["properties"]["version"]["enum"],[5])
+                self.assertEqual(schema["properties"]["version"]["enum"],[7])
+                self.assertEqual(set(schema["properties"]["parts"]["properties"]), {"arp", "bass", "clock"})
+                self.assertIn("harmony", schema["required"]); self.assertIn("parts", schema["required"])
                 knobs = schema["properties"]["knobs"]
                 self.assertEqual((knobs["minItems"], knobs["maxItems"], knobs["items"]["enum"][0]), (4, 4, "default"))
                 self.assertIn("filter.cutoff_hz", knobs["items"]["enum"]); self.assertNotIn("delay.bypass", knobs["items"]["enum"])
@@ -75,8 +77,8 @@ class InstrumentTests(unittest.TestCase):
                 self.assertIn("between 1 and 7", voices["description"])   # ranges mirrored for strict modes
                 return io.BytesIO(json.dumps(envelope).encode())
             self.assertEqual(forge_ai.generate_patch(provider,"fake-key","model","Soft keys",opener,kind="instrument"), v4)
-            # v2, v3 and v4 replies are the wrong format for instrument mode now and are refused.
-            for old in (self.patch, v3, host.upgrade_patch(v3, 4)):
+            # v2-v6 replies are the wrong format for instrument mode now and are refused.
+            for old in (self.patch, v3, host.upgrade_patch(v3, 4), host.upgrade_patch(v3, 5), host.upgrade_patch(v3, 6)):
               content = json.dumps(old)
               envelope=({"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":content}]}]}
                   if provider == "openai" else {"candidates":[{"finishReason":"STOP","content":{"parts":[{"text":content}]}}]})
@@ -104,7 +106,7 @@ class InstrumentTests(unittest.TestCase):
             self.assertEqual(len(reply), 81)
             self.assertEqual(reply[8:69], packet[7:68])                  # device echoes exactly what was sent
             captured = host.decode_response(reply, host.read14(packet, 5))
-            self.assertEqual(captured["firmware"], "0.13")
+            self.assertEqual(captured["firmware"], "0.14")
             self.assertEqual(host.encode_patch(captured["patch"], host.read14(packet, 5)), packet)
 
     def test_v3_rejection_is_atomic(self):

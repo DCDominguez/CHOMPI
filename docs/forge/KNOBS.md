@@ -29,6 +29,8 @@ Pages follow TAPE first, then Forge's extra controls, then the patch's own knob
 - **Harmony page** (0.13, menu: hold KEY_21 1 s): the four knobs leave their pages
   and set harmony instead (SW4 mode / on-off, SW1 chord size / layout, SW2 inversion /
   voice leading, SW3 open spread); MANUAL section 8a.
+- **Parts page** (0.14, KEY_21 from the harmony page): SW4 tempo (press = tap tempo),
+  SW1 arp octaves, SW2 arp gate, SW3 bass rate; MANUAL section 8b.
 - **Pitch** (SW4 page 1) is TAPE's: 0.83 = 1×, the centre (0.5) stops, below the
   centre plays backwards (samples); thirds of each side are .01–.5×, .5–1×, 1–2×.
   On oscillators it transposes by the same ratio.

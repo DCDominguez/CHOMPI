@@ -1,6 +1,7 @@
 #pragma once
 #include <cmath>
 #include <cstdint>
+#include <initializer_list>
 
 // Keeps rarely-called or large helpers out of the inlined audio callback
 // (code space is the firmware's tightest budget; see COMPATIBILITY.md §2).
@@ -43,6 +44,13 @@ inline float Clamp(float value, float low, float high) {
 // Version 5 adds what knobs 1-4 control (knobs[n]: 0 = the source's default,
 // else Parameter id + 1; see docs/forge/KNOBS.md); otherwise it is version 4.
 constexpr uint8_t kSampleBanks = 5, kSampleSlots = 15, kRamSlot = 14; // slot 15 (index 14) = recording
+// Patch v7 parts words (layout in core/parts.h PackArp / PackClock): pattern < 6, rate < 6,
+// gate step < 20, bass mode < 5, bass octave < 3, tempo 40-300 BPM.
+inline bool PartsWordsValid(uint32_t arp, uint32_t clock) {
+    const uint32_t bpm = clock & 511u;
+    return !(arp >> 21) && !(clock >> 21) && (arp & 7u) < 6 && (arp >> 3 & 7u) < 6 && (arp >> 8 & 31u) < 20
+        && (arp >> 14 & 7u) < 5 && (arp >> 19 & 3u) < 3 && bpm >= 40 && bpm <= 300;
+}
 struct Parameters {
     uint8_t version = 1, waveform = 0;
     bool synth = false;
@@ -72,12 +80,16 @@ struct Parameters {
     uint8_t knobs[4] = {0, 0, 0, 0};
     // Version 6 (0.13) adds harmony mode: harmony::Pack (core/harmony.h), 17 bits; request bytes 87-89.
     uint32_t harmony = 0;
+    // Version 7 (0.14) adds the parts (clock, arp, bass): parts::PackArp / PackClock
+    // (core/parts.h), two 21-bit words; request bytes 90-92 and 93-95.
+    uint32_t parts_arp = 0, parts_clock = 0;
 
     bool Sampler() const { return version >= 4 && source == 1; }
     uint8_t MaxVoices() const { return version >= 4 ? 7 : 4; }
 
     FORGE_COLD bool Valid() const {
-        return version >= 1 && version <= 6 && waveform < 4 && !(version == 1 && synth)
+        return version >= 1 && version <= 7 && waveform < 4 && !(version == 1 && synth)
+            && (version < 7 || PartsWordsValid(parts_arp, parts_clock))
             && harmony < (1u << 17) && (harmony & 15u) < 12 && ((harmony >> 4) & 15u) < 9 && ((harmony >> 8) & 7u) < 6
             && Unit(attack) && Unit(decay) && Unit(sustain) && Unit(release) && Unit(cutoff)
             && Unit(mix) && Unit(time) && Unit(feedback) && Unit(level)

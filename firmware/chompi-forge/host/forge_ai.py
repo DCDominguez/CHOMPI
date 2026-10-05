@@ -5,7 +5,7 @@ import re
 import urllib.error
 import urllib.request
 
-from forge_host import SAMPLE_BANKS, SAMPLE_MODES, SCHEMA, SCHEMA6, parse_json, validate_patch
+from forge_host import SAMPLE_BANKS, SAMPLE_MODES, SCHEMA, SCHEMA7, parse_json, validate_patch
 
 SYSTEM = (
     "Author a Forge v1 stereo_delay JSON preset matching the schema. Only mix, "
@@ -24,7 +24,9 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         raise ProviderError("Provider redirect refused. Check the API documentation.")
 
 
-UNITS = {"time_ms": "milliseconds", "attack_ms": "milliseconds", "decay_ms": "milliseconds",
+UNITS = {"gate": "percent of each arp step, a multiple of 5", "octaves": "octaves the arp spans",
+         "bpm": "tempo in beats per minute", "seed": "random pattern number", "octave": "bass octave (1 = C1, 2 = C2, 3 = C3)",
+         "time_ms": "milliseconds", "attack_ms": "milliseconds", "decay_ms": "milliseconds",
          "release_ms": "milliseconds", "cutoff_hz": "hertz, resonant low-pass cutoff", "mix": "wet fraction",
          "feedback": "echo feedback fraction", "level": "output gain fraction", "sustain": "envelope level fraction",
          "osc2_level": "second oscillator level relative to the first", "osc2_semitones": "second oscillator interval in semitones",
@@ -85,10 +87,10 @@ def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay", 
     if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 4000:
         raise ValueError("Describe your sound in 1–4000 characters")
     if kind not in ("delay", "instrument"): raise ValueError("Unknown authoring mode")
-    schema = copy.deepcopy(SCHEMA6 if kind == "instrument" else SCHEMA)
+    schema = copy.deepcopy(SCHEMA7 if kind == "instrument" else SCHEMA)
     schema.pop("$schema", None)
     system = SYSTEM if kind == "delay" else (
-        "Author a Forge v6 instrument patch. Installed modules only: synth (main oscillator "
+        "Author a Forge v7 instrument patch. Installed modules only: synth (main oscillator "
         "sine/triangle/saw/square; second oscillator with its own waveform, level, semitone interval and "
         "detune; white noise; amplitude ADSR; voices 1-7, use at most 4 with the oscillators; glide), "
         "sampler (plays sample files already on the device's SD card, TAPE layout: mode chromatic plays one "
@@ -110,12 +112,22 @@ def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay", 
         "size (fifth, triad, 7th, 9th, 11th, 13th; use at most 7th for 4-voice patches); layout static makes the white "
         "keys C3-B4 the degrees I-vii (black keys: secondary dominants and borrowed chords; C5 is shift), real makes the "
         "pressed key the chord's root; voice_leading true moves each chord least from the last (recommended); "
-        "inversion 0-3 applies without it; open spreads the voicing. Harmony needs voices >= the chord size. You cannot create or record audio and must only use samples listed below. No FM, "
+        "inversion 0-3 applies without it; open spreads the voicing. Harmony needs voices >= the chord size. "
+        "parts: an arpeggiator and a bass part on CHOMPI's clock. arp.pattern off plays keys (or chords) as usual; up, "
+        "down, updown, order (as played) or random cycle the held notes one at a time at arp.rate (1/4 to 1/32, t = "
+        "triplet) over arp.octaves 1-4, each note sounding arp.gate percent (5-100 in steps of 5) of its step; latch true "
+        "keeps cycling after the keys are released. bass.mode off, root, fifth (root and fifth together), alternate "
+        "(root then fifth) or octave (root then the octave) plays the chord's root in octave C1-C3 (bass.octave 1-3) every "
+        "bass.rate (chord = once per chord change). clock.bpm 40-300 is the tempo (MIDI clock overrides it while it "
+        "arrives), clock.seed 0-2047 picks the random pattern, send_clock true sends MIDI clock. Use the arp or bass only "
+        "when the request asks for arpeggios, sequences, bass lines or a tempo; otherwise pattern off and mode off. "
+        "An arp plays one note at a time, so it suits leads, plucks and keys; the bass adds one or two voices. "
+        "You cannot create or record audio and must only use samples listed below. No FM, "
         "arbitrary routing or custom code exists. Approximate the request only with these modules. Default "
         "output level 0.25. Return JSON only. " + sample_summary(samples))
     describe(schema)
     # Explicit types and enums work across both providers' JSON Schema subsets.
-    schema["properties"]["version"] = {"type": "integer", "enum": [5 if kind == "instrument" else 1]}
+    schema["properties"]["version"] = {"type": "integer", "enum": [7 if kind == "instrument" else 1]}
     schema["properties"]["engine"] = {"type": "string", "enum": ["instrument" if kind == "instrument" else "stereo_delay"]}
     headers = {"Content-Type": "application/json"}
     if provider == "openai":
@@ -163,7 +175,7 @@ def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay", 
             content = "".join(part["text"] for part in candidate["content"]["parts"]
                               if "text" in part and not part.get("thought"))
         patch = validate_patch(parse_json(content))
-        if patch["version"] != (5 if kind == "instrument" else 1):
+        if patch["version"] != (7 if kind == "instrument" else 1):
             raise ValueError("Wrong patch format for authoring mode")
         check_samples(patch, samples)
         return patch

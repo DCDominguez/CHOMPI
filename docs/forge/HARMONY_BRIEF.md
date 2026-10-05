@@ -1,7 +1,7 @@
 # Harmony / Intent Engine — brief
 
-Status (2026-10-05): **Phase 1 implemented and software-tested as firmware 0.13**
-(not yet on hardware: TEST_SESSION 3.65–3.67). Phase 2 (clock, arp, bass) is next.
+Status (2026-10-05): **Phase 1 (0.13) and Phase 2 (0.14: clock, arp, bass) implemented and
+software-tested** (not yet on hardware: TEST_SESSION 3.65–3.72). See "Phase 2 as built".
 The paragraph below is the original filing note.
 
 Original status: **queued, not started.** DC brought this brief over from a ChatGPT
@@ -92,6 +92,29 @@ Phase 1 as built (0.13, software-tested only):
   `harmony_test` (identity over 12 × 9 × 7 × 6, layouts, Shift, voicing, 200k
   random ownership events, engine/panel/MIDI, the harmony page), v6 protocol and
   host round trips, Inspector page 8, webapp controls; sanitizers.
+
+Phase 2 decisions (DC, 2026-10-05): tempo internal + follow MIDI clock + send it, and set
+on CHOMPI ("can we also set the tempo on the chompi"); a parts page next to the harmony page
+with an arp latch; bass on the internal sound and MIDI channel 2; ROOT, FIFTH, ALTERNATE,
+OCTAVE on the clock.
+
+Phase 2 as built (0.14, software-tested only):
+- `core/parts.h`: `Clock` (24 PPQN; internal BPM, tap, MIDI clock follow with start /
+  continue / stop and a 0.5 s timeout), `Parts` (note set from keys or the harmony chord,
+  arp patterns up / down / up-down / order / random with a seeded xorshift, rates 1/4–1/32
+  with triplets, octaves 1–4, gate, latch; bass root / root+fifth (the chord's own fifth) /
+  alternate / octave per chord change or 1/2, 1/4, 1/8 in C1–C3). One owner per pitch;
+  MIDI out per part (arp = out channel, bass = +1) and clock out. Audio owner, fixed
+  arrays, no allocation; Advance once per block (outside the sample loop).
+- The "FIFTH" mode of the brief is played as root + fifth together (a power-chord bass);
+  ALTERNATE is root then fifth. Rhythmic bass patterns can be added as more modes.
+- Engine: the arp takes the keys (or the voiced chord); with only the bass on, the chord
+  sounds as before. Parts page (KEY_21 from the harmony page), patch v7, Inspector page 9.
+- Resources: release 229,168 B (+7,456), development 242,896 B (+8,520); 700 B of state;
+  CPU gate unchanged. Tests: `parts_test` (packing, clock/tap/MIDI, every pattern, seeded
+  random, gate, latch, ownership, bass, MIDI/clock out, engine with harmony, panel page),
+  v7 protocol and host round trips, Inspector page 9, webapp controls; sanitizers.
+- Not yet: event recording of the parts (item 4: event recorder), per-part sounds.
 
 ---
 

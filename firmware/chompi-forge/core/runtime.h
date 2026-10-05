@@ -21,6 +21,7 @@ FORGE_COLD inline bool ExecuteRequest(const Request& request, Engine& engine, Re
     if(request.kind == RequestKind::ResetControllers) { engine.ResetControllers(request.source); return false; }
     if(request.kind == RequestKind::ModWheel) { engine.ModWheel(static_cast<uint8_t>(request.value)); return false; }
     if(request.kind == RequestKind::Looper) { engine.LooperControl(request.note, static_cast<uint8_t>(request.value)); return false; }
+    if(request.kind == RequestKind::Clock) { engine.ClockMessage(request.note); return false; }
     if(request.kind == RequestKind::Patch && request.silent) {   // on-device recall: no reply
         engine.ApplyPatch(request.patch, request.recall ? SlotPolicy::Recall : SlotPolicy::Patch); return false;
     }
@@ -51,6 +52,9 @@ enum class Ingress : uint8_t {
 // `channel`: the MIDI input channel, 0-15 (options.json "Midi In Channel"; default 1).
 inline Ingress TranslateChannel(const MidiFrame& frame, uint8_t source, Request& request, uint8_t channel = 0) {
     request = Request{}; request.source = source;
+    if(frame.kind == MidiFrame::Kind::Clock) {          // real-time: no channel (0.14 parts clock)
+        request.kind = RequestKind::Clock; request.note = frame.data[0]; return Ingress::Control;
+    }
     if(frame.kind == MidiFrame::Kind::SysEx || frame.data[0] != channel) return Ingress::Ignore;
     const uint8_t a = frame.data[1], b = frame.data[2];
     switch(frame.kind) {

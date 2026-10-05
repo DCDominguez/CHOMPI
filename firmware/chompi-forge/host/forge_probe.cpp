@@ -118,6 +118,7 @@ int main(int argc, char** argv) {
     engine.SetSlotSettings(&slot_settings);
     static forge::harmony::Player harmony_player;
     engine.SetHarmony(&harmony_player);
+    static forge::parts::Parts parts; parts.Init(48000.f); engine.SetParts(&parts);   // clock, arp, bass (0.14)
     loader.Init(&table, &handoff, pool.data(), static_cast<uint32_t>(pool.size()), scratch.data(), static_cast<uint32_t>(scratch.size()));
     recorder.Init(recording.data(), 48000 * 4, &table.slots[forge::kRamSlot], 48000.f);
     std::vector<int16_t> loop_memory(2 * 48000 * 20);            // 20 s looper (firmware: ~83 s)
@@ -167,6 +168,8 @@ int main(int argc, char** argv) {
         panel.SetInspectorEvents(&edges,&event_drops,blocks/2);
         forge::PanelInput input; input.frames = 24;               // this harness runs 24-frame blocks
         panel.Block(input, engine, recorder, sink);
+        engine.Block(input.frames);
+        { forge::MidiOut m; while(parts.PopMidi(m)) {} }   // no MIDI out here
         float l, r;
         for(int k = 0; k < 24; ++k) {
             engine.Process(0, 0, l, r);
@@ -250,7 +253,7 @@ int main(int argc, char** argv) {
                 v.live = forge::PackSelection(engine.GetParameters()); v.blink = true;
                 v.keys_down = panel.KeysDown(); v.kit_occupancy = loader.Occupancy(1, (v.live >> 2) & 7u);
                 v.record_position = panel.RecordPosition(); v.count_in = panel.CountIn();
-                v.harmony = panel.HarmonyLights();
+                v.harmony = panel.HarmonyLights(); v.parts = panel.PartsLights(); v.parts_clock = panel.PartsClock();
                 forge::Rgb keys[25], chompi; forge::ComposeLeds(v, keys, chompi);
                 uint8_t leds[26][3];
                 for(unsigned i = 0; i < 26; ++i) {

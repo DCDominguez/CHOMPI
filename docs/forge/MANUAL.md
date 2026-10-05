@@ -228,7 +228,7 @@ Forge share it: what you set in one is there in the other.
 | KEY_25 | Save the recording into a slot (white key, CHOMPI) |
 | KEY_24 | Copy a sample (source, destination, CHOMPI); press LOOP as the source to save the loop |
 | KEY_23 | Erase a sample (white key, CHOMPI) |
-| KEY_21 / KEY_22 (tap) | Effects before / after the looper (TAPE). Hold KEY_22 1 s: Forge's presets page. Hold KEY_21 1 s: the harmony page (section 8a) |
+| KEY_21 / KEY_22 (tap) | Effects before / after the looper (TAPE). Hold KEY_22 1 s: Forge's presets page. Hold KEY_21 1 s: the harmony page (section 8a); from there KEY_21 = the parts page (section 8b) |
 
 While the menu is open the knobs are TAPE's second layer:
 
@@ -340,6 +340,51 @@ chords. The Inspector shows the last chord by name and number
 
 ---
 
+## 8b. Arp, bass and tempo — firmware 0.14
+
+An arpeggiator plays the held keys (or, with harmony on, the chord) one note at a time
+on CHOMPI's clock; a bass part plays the chord's root under it. Both use the instrument's
+own sound and also go to MIDI out: the arp (and the keys) on the MIDI out channel, the
+bass on the next channel up (channel 2 by default). Synth patches and the chromatic
+sampler; kit patches play as before. *Software-tested only (TEST_SESSION 3.68–3.72).*
+
+**Open the parts page:** open the harmony page (section 8a: toggle down, hold CHOMPI,
+hold KEY_21 1 s), then **tap KEY_21**. KEY_21 switches between the harmony and parts
+pages; KEY_22 goes back to TAPE's page. The keys light what is chosen.
+
+| Keys | Choose |
+| --- | --- |
+| C3 · D3 · E3 · F3 · G3 · A3 (lit blue) | Arp off · up · down · up-down · as played · random |
+| B3 (white = on) | Latch: the arp keeps playing after you let go, until the next chord (on by default) |
+| C4 · D4 · E4 · F4 · G4 · A4 (lit green) | Arp rate 1/4 · 1/8 · 1/8 triplet · 1/16 · 1/16 triplet · 1/32 |
+| B4 (green / red) | Clock running / stopped |
+| C#3 · D#3 · F#3 · G#3 · A#3 (lit orange) | Bass off · root · root + fifth · root then fifth · root then octave |
+| F#4 · G#4 · A#4 (lit yellow) | Bass octave C1 · C2 · C3 |
+| C5 (blinks on the beat) | **Tap tempo**: tap it on the beat (two taps or more) |
+
+| Knob | Turn | Press |
+| --- | --- | --- |
+| SW4 | **Tempo**, 1 BPM a click (40–300) | Tap tempo |
+| SW1 | Arp octaves 1–4 (3 clicks a step; white, green, yellow, red) | — |
+| SW2 | Arp gate (each note's length) 5–100 %, 5 % a click (brighter = longer) | — |
+| SW3 | Bass rate: once per chord change (purple), 1/2 (blue), 1/4 (green), 1/8 (yellow) | — |
+
+**Playing:** with the arp on, hold keys (or a chord key with harmony on): the notes cycle
+from the first one at once, then on the clock. Adding keys while holding adds notes; after
+letting go of all keys, the next key starts a new set. Random uses a fixed seed, so the
+same keys play the same "random" line every time (the webapp can choose the seed). With
+the arp off, the keys play as usual and the bass (if on) plays under them. Panic (SW4 + SW3
+held 1 s with the menu closed) stops the arp, the bass and any latched notes.
+
+**Tempo:** the tempo is set here (SW4, tap) or by a v7 patch, and is saved with presets
+stored on CHOMPI. When MIDI clock arrives (USB or the MIDI jack, any channel), the parts
+follow it, with MIDI start / stop / continue; the SW4 light blinks blue then. Half a second
+without clock and CHOMPI's own tempo takes over again. While the parts play on CHOMPI's
+own tempo it sends MIDI clock (start, 24 ticks per beat, stop) so other gear can follow
+(the webapp can turn that off).
+
+---
+
 ## 9. MIDI
 
 Channel **1** in and out, over USB or the MIDI jack, unless TAPE's `options.json`
@@ -362,12 +407,14 @@ on the card sets other channels (section 11).
 | CC 120, 123 | Panic |
 | CC 121 | Reset controllers |
 | Program change 0–119 | Recall a device preset (section 6) |
+| Clock, start, continue, stop (any channel) | The arp and bass follow the clock (section 8b) |
 
 **MIDI out (as TAPE):** the keys send notes (velocity 127); turning a knob on TAPE's
 pages sends TAPE's CC (SW4/SW1/SW2/SW3 page 1: CC 20–23, page 2: CC 28–31, SW3
 page 3: CC 33), SW5 CC 24, SW6 CC 25 (volume) or 32 (input gain); PLAY CC 26 and LOOP
 CC 27 (127 pressed, 0 released); CHOMPI CC 21 in the record position. Forge's extra
-pages and the menu send nothing.
+pages and the menu send nothing. With the arp or bass on (section 8b): the arp notes on
+the out channel, the bass on the next channel, and MIDI clock while CHOMPI keeps the tempo.
 
 ---
 

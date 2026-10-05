@@ -6,6 +6,7 @@
 #include "reverb.h"
 #include "synth.h"
 #include "harmony.h"
+#include "parts.h"
 #include "tape_fx.h"
 
 namespace forge {
@@ -128,6 +129,11 @@ public:
         if(velocity && SlotMode() && Kit()) { const int pad = Synth::KitSlot(note); if(pad >= 0) focus_ = static_cast<uint8_t>(pad); }
         if(harmony_ && (velocity ? HarmonyOn() && harmony_->Maps(note) : harmony_->Holds(note, source)))
             return HarmonyNote(note, velocity, source, played, released);
+        if(parts_ && (PartsOn() || !velocity) && PartsKey(&note, 1, -1, 7, velocity, source)) {
+            if(!velocity && parameters_.synth && !parts_->Owns(note)) synth_.Note(note, 0, source);   // sounded before the arp
+            if(released) *released = 0;
+            return 0;                                         // the arp plays it (0.14)
+        }
         if(parameters_.synth) synth_.Note(note, velocity, source);
         if(played) played[0] = note;
         if(released) *released = velocity ? 0 : 1;
@@ -139,6 +145,17 @@ public:
             unsigned n;
             if(velocity) { harmony_->state.max_notes = ChordVoices(); n = harmony_->KeyDown(note, source, out); off = harmony_->Released(); }
             else { n = harmony_->KeyUp(note, source, out); off = n; }
+            if(parts_ && (PartsOn() || !velocity) && n > (velocity ? off : 0)) {   // the chord feeds the arp / bass (0.14)
+                const harmony::Chord& c = harmony_->LastChord(); const harmony::Voiced& v = harmony_->LastVoiced();
+                const bool taken = velocity ? PartsKey(v.note, v.count, c.root, c.tone[2], velocity, source)
+                                            : PartsKey(out, n, -1, 7, 0, source);
+                if(taken) {                                   // the arp plays it: nothing sounds directly
+                    const unsigned stop = velocity ? off : n;  // ends what sounded before the arp, never its notes
+                    for(unsigned i = 0; i < stop; ++i) if(parameters_.synth && !parts_->Owns(out[i])) synth_.Note(out[i], 0, source);
+                    if(released) *released = 0;
+                    return 0;
+                }
+            }
             for(unsigned i = 0; i < n; ++i) {
                 if(parameters_.synth) synth_.Note(out[i], i < off ? 0 : velocity, source);
                 if(played) played[i] = out[i];
@@ -152,6 +169,17 @@ public:
     void SetHarmony(harmony::Player* player) { harmony_ = player; }
     harmony::Player* Harmony() const { return harmony_; }
     bool HarmonyOn() const { return harmony_ && harmony_->state.enabled && parameters_.synth && !(parameters_.Sampler() && Kit()); }
+    // Parts (core/parts.h, 0.14): the caller's clock, arp and bass; same patches as harmony.
+    void SetParts(parts::Parts* p) { parts_ = p; }
+    parts::Parts* Parts() const { return parts_; }
+    bool PartsOn() const { return parts_ && parts_->Active() && parameters_.synth && !(parameters_.Sampler() && Kit()); }
+    bool ArpOn() const { return PartsOn() && parts_->ArpOn(); }
+    // Once per audio block, before the samples: the clock, steps and gate ends.
+    void Block(unsigned frames) { if(parts_) { parts_->Advance(frames); SoundParts(); } }
+    // MIDI clock in (main loop -> request queue): 0 tick, 1 start, 2 continue, 3 stop.
+    void ClockMessage(uint8_t m) { if(parts_ && m <= 3) { parts_->ClockMessage(static_cast<parts::Clock::Message>(m)); SoundParts(); } }
+    // Panel / host changes to the parts settings.
+    void PartsChanged() { if(parts_) { parts_->Changed(); SoundParts(); } }
     // Controller state is kept on either route; Panic and route changes reset it.
     void Pedal(uint8_t source, bool down) { synth_.Pedal(source, down); }
     void Bend(uint8_t source, uint16_t value) { synth_.Bend(source, value); }
@@ -197,6 +225,9 @@ public:
             const uint8_t limit = harmony_->state.max_notes;
             harmony_->state = harmony::Unpack(patch.harmony); harmony_->state.max_notes = limit;
         }
+        if(parts_ && patch.version >= 7) {                      // v7 presets carry the parts
+            parts_->settings = parts::Unpack(patch.parts_arp, patch.parts_clock); PartsChanged();
+        }
         if(SlotMode()) {
             if(Kit()) LoadPads();
             else if(policy != SlotPolicy::Patch) {
@@ -212,9 +243,13 @@ public:
     // What a saved preset or a status reply should hold: the patch plus the live harmony
     // mode (v6) when harmony is in use. v1/v2 patches stay as they are (moving them up a
     // version would change their sound). Apply replies echo the request (GetParameters).
+    // The parts (0.14) likewise make it v7.
     FORGE_COLD Parameters Snapshot() const {
         Parameters p = parameters_;
-        if(harmony_ && p.version >= 3 && (p.version >= 6 || harmony_->state.enabled)) { p.version = 6; p.harmony = harmony::Pack(harmony_->state); }
+        if(p.version >= 3 && harmony_ && p.version < 6 && harmony_->state.enabled) p.version = 6;
+        if(p.version >= 3 && parts_ && (p.version >= 7 || parts_->Active())) p.version = 7;
+        if(p.version >= 6 && harmony_) p.harmony = harmony::Pack(harmony_->state);
+        if(p.version >= 7 && parts_) { p.parts_arp = parts::PackArp(parts_->settings); p.parts_clock = parts::PackClock(parts_->settings); }
         return p;
     }
 #ifdef FORGE_TEST_HOOKS
@@ -232,6 +267,15 @@ public:
             for(unsigned i = 0; i < 5; ++i) a.chord_notes[i] = i < v.count ? v.note[i] : 0;
             unsigned sounding = 0; for(uint8_t s = 0; s < harmony::Player::kSources; ++s) sounding += harmony_->Sounding(s);
             a.harmony_sounding = static_cast<uint8_t>(sounding > 127 ? 127 : sounding);
+        }
+        if(parts_) {                                            // page 9 (0.14)
+            const parts::Clock& c = parts_->GetClock();
+            a.parts_arp = parts::PackArp(parts_->settings); a.parts_clock = parts::PackClock(parts_->settings);
+            a.parts_bpm = c.Bpm(); a.parts_ticks = c.Ticks(); a.parts_drops = parts_->Drops();
+            a.parts_flags = static_cast<uint8_t>((c.Running() ? 1 : 0) | (c.External() ? 2 : 0) | (parts_->Latched() ? 4 : 0) | (PartsOn() ? 8 : 0));
+            a.parts_set_count = static_cast<uint8_t>(parts_->SetCount());
+            for(unsigned i = 0; i < 8; ++i) a.parts_set[i] = i < parts_->SetCount() ? parts_->Set()[i] : 0;
+            a.parts_arp_note = parts_->ArpNote(); a.parts_bass_note = parts_->BassNote();
         }
         a.mix=mix_; a.feedback=feedback_; a.level=level_; a.delay_samples=time_; a.reverb_mix=reverb_mix_;
         if(looper_) {
@@ -393,6 +437,7 @@ private:
     void Silence() {
         synth_.Silence();
         if(harmony_) harmony_->Clear();
+        if(parts_) { parts_->Clear(); parts::Event e[parts::Parts::kEvents]; parts_->Take(e, parts::Parts::kEvents); }   // MIDI offs queued
         // O(1) tail suppression: old delay cells are not read until overwritten.
         flushed_ = capacity_;
         reverb_.Clear();
@@ -402,7 +447,19 @@ private:
         const unsigned v = parameters_.version < 3 ? 4u : parameters_.voices < 1 ? 1u : parameters_.voices;
         return static_cast<uint8_t>(v < harmony::kMaxNotes ? v : harmony::kMaxNotes);
     }
+    // Keys to the parts: true when the arp took them (they must not sound directly).
+    FORGE_COLD bool PartsKey(const uint8_t* notes, unsigned count, int root, uint8_t fifth, uint8_t velocity, uint8_t source) {
+        if(velocity) parts_->KeyDown(notes, count, root, fifth, velocity, source); else parts_->KeyUp(notes, count);
+        SoundParts();
+        return ArpOn();
+    }
+    FORGE_COLD void SoundParts() {
+        parts::Event e[parts::Parts::kEvents];
+        const unsigned n = parts_->Take(e, parts::Parts::kEvents);
+        for(unsigned i = 0; i < n; ++i) if(parameters_.synth) synth_.Note(e[i].note, e[i].velocity, e[i].source);
+    }
     harmony::Player* harmony_ = nullptr;
+    parts::Parts* parts_ = nullptr;
     SlotSettings* slots_ = nullptr;
     uint32_t slots_seen_ = 0;
     uint8_t focus_ = 0;                          // kit: the pad the knobs edit (the last one played)
