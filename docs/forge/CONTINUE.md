@@ -23,7 +23,7 @@ SD streaming remains gated on physical SD measurements. Older checkpoint and
 PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
 use the latest implementation checkpoint and ledger for present capabilities/budgets.
 
-## Design checkpoint: storage streaming / SDRAM reclamation, 2026-10-04
+## Design checkpoint: storage streaming / SDRAM reclamation, 2026-10-04 (parked for v2)
 
 DC asked for a feasibility study and design only, stopping for architecture
 review before any memory allocation changes: [STORAGE_STREAMING.md](STORAGE_STREAMING.md).
@@ -31,9 +31,10 @@ Verified baseline (head `753078b`): SDRAM 66,715,664 B used, 393,200 B free
 (32 MiB pool, 16 MiB recorder, 16,000,000 B looper, 384,016 B delay). Key
 finding: stock TAPE already streams all 7 voices from SD with ~85 ms FIFOs and
 `_double.wav` for pitch-up. Estimates: ~36 MiB reclaimable (conservative) to
-~42 MiB (balanced) for ~7–12 KiB of code. Next: architecture review by DC; then
-Phase 0 (development-only storage benchmark) for the next hardware session.
-No code changed.
+~42 MiB (balanced) for ~7–12 KiB of code. DC (2026-10-05): **move to Forge v2**;
+keep it as the reference for limits and possibilities. When v1 touches SDRAM,
+the sampler read path, loader/recorder/looper, USB file replacement, FatFS or
+code headroom, update the study (its "Revalidate" list). No code changed.
 
 ## Current checkpoint: loader stress review, per-step CPU, home checklist, 2026-10-04
 
@@ -736,8 +737,8 @@ webapp + bench optimisation, then docs.
 2. Agent, after that session: fix only what it finds; record it in
    TEST_RESULTS.md. Then decide the looper voice cap (7 if 6.2d agrees) from
    the per-step CPU figures.
-3. Storage streaming (STORAGE_STREAMING.md): DC reviews the design; Phase 0
-   benchmark only after that.
+3. Storage streaming: parked for Forge v2 (STORAGE_STREAMING.md); keep its
+   "Revalidate" list in sync with v1 changes.
 4. Open, needs DC's choice: next instrument features (arpeggiator/sequencer,
    more effects, configurable MIDI input channel, Tab5 controller).
 5. Unverified on hardware: everything in 0.7 (USB throughput, FatFS writes and

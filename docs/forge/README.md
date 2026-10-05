@@ -33,7 +33,7 @@ one consolidated hardware session.
 | [Looping](LOOPING.md) | Looper (roadmap item 5): TAPE behaviour, keys, memory, CPU budget, saving a loop |
 | [Knobs](KNOBS.md) | Knob pages (press a knob; its light shows the page) and v5 patch/AI knob choices |
 | [Sampling](SAMPLING.md) | Sampler design (roadmap item 4): TAPE behaviour kept, what Forge changes, memory, v4 patch, panel |
-| [Storage streaming](STORAGE_STREAMING.md) | Design for review: SD streaming of samples and recordings to reclaim SDRAM; estimates, benchmark plan, phases (nothing implemented) |
+| [Storage streaming](STORAGE_STREAMING.md) | Forge v2 candidate (parked): SD streaming of samples and recordings to reclaim SDRAM; estimates, benchmark plan, phases (nothing implemented) |
 | [Test session](TEST_SESSION.md) | One physical acceptance checklist and results template |
 | [Handoff](HANDOFF.md) | Latest implementation, evidence, limitations and next action |
 | [Changelog](CHANGELOG.md) | Changes by candidate version |

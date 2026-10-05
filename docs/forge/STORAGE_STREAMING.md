@@ -1,8 +1,20 @@
 # Storage virtualization / SDRAM reclamation — feasibility and design
 
-Status: **design for architecture review (2026-10-04). Nothing implemented;
-no production memory allocation changed.** Every SDRAM, buffer and latency
-figure below is an estimate until the Phase 0 hardware measurements exist.
+Status: **parked for Forge v2 (DC, 2026-10-05).** Design only; nothing
+implemented; no production memory allocation changed. Every SDRAM, buffer and
+latency figure below is an estimate until the Phase 0 hardware measurements exist.
+
+**Revalidate before v2 work starts.** This study describes v1 as of `753078b`.
+Re-check (and update sections 1, 4, 6, 7) if v1 changes any of:
+- SDRAM allocations in `src/forge_main.cpp` (`kPoolSamples`, `kRecordFrames`,
+  `kLoopFrames`, `kDelayCapacity`) or anything new placed in SDRAM;
+- the sampler read path (`Synth::SampleFrame`/`Read`/`ReadEdge`: interpolation,
+  crossfade, reverse, start/end window) or the voice count;
+- `SampleLoader` / `SampleSlot` / `SampleHandoff`, the recorder, or the looper's
+  memory use;
+- USB file transfer (anything that replaces files on the card);
+- FatFS or SDMMC configuration (vendored libDaisy `ffconf.h`, bus speed);
+- executable headroom (release/development image size).
 
 Principle: storage capacity belongs on the SD card; SDRAM holds only the working
 set that real-time playback needs; internal SRAM/DTCM holds hard-real-time state.

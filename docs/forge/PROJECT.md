@@ -79,6 +79,11 @@ unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
 5. **Looping** — capture, overdub, manipulation on the sampling buffers.
 6. **Dedicated/networked controllers** (Tab5) — optional, last.
 
+**Forge v2 candidates** (not v1 work): storage streaming / SDRAM reclamation —
+stream samples and recordings from the SD card to free ~36–42 MiB of SDRAM
+(estimate). Design and limits: [STORAGE_STREAMING.md](STORAGE_STREAMING.md);
+revalidate it against v1 changes before starting.
+
 Do not silently expand hardware dependencies or claim these features exist
 before they are implemented and tested. AI still only configures installed
 modules; each new engine is firmware work.

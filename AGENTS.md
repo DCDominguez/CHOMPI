@@ -16,3 +16,7 @@ build for firmware changes. Keep host/device wire format and tests consistent.
 Backward-compatible v1 delay presets must remain usable. Bound audio work and
 keep mutable DSP state in the audio callback; no dynamic allocation or blocking
 I/O there. Update documentation and preserve a runnable, documented checkpoint.
+
+Forge v2 (parked): storage streaming, `docs/forge/STORAGE_STREAMING.md`. When v1
+changes SDRAM use, the sampler read path, loader/recorder/looper, USB file
+replacement, FatFS/SD config or code headroom, update that study's figures.
