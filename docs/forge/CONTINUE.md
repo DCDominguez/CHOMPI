@@ -40,7 +40,15 @@ TEST_RESULTS 2026-10-05); toggle labels backwards everywhere (menu = toggle
 DOWN, record = UP; firmware matches TAPE, naming only); requested record
 count-in (~1.5 s, CHOMPI + white keys blink red 3×, release cancels). DC asked
 to wait for the rest of the hardware findings before any firmware change, then
-one install. Later feedback: knob "white" looks light blue (LED balance; TAPE is the same);
+one install. **Parity checklist (2026-10-05):** DC asked to keep TAPE's workflow. TAPE's controls
+are catalogued in [TAPE_CONTROLS.md](TAPE_CONTROLS.md); every difference is a row in
+the checklist artifact (claude.ai/artifact/ErLnHhu2KkYKJ2qBm4K8SG) with a recommended
+answer. Waiting for DC's answers; then one firmware update. Biggest finding: TAPE
+knobs move .03 per click (Forge 1/127), which explains "SW4 does nothing". DC's
+answers so far: SW5 push-and-turn for loop speed with panic moved elsewhere; count-in
+1.5 s; convert old presets.
+
+Later feedback: knob "white" looks light blue (LED balance; TAPE is the same);
 SW4 on Glass Keys inaudible (1/127 per click; pages 2–4 dead on v1/v2 patches);
 wants long-press knob reset (later). Starter presets: bridge job `presets`
 (no firmware change), done. Idea for the shut-off: record the STM32 reset cause (RCC_RSR) and a

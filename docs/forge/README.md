@@ -30,6 +30,7 @@ one consolidated hardware session.
 | [Resource ledger](RESOURCE_LEDGER.md) | Current measured sizes, memory reservations, QA/CPU evidence and per-change update procedure |
 | [Protocol](PROTOCOL.md) | Exact SysEx framing, requests, replies, errors and overload semantics |
 | [Compatibility](COMPATIBILITY.md) | Comparison with stock TAPE/TEMPO/WAVE: bootloader, memory, MIDI, keybed, CPU benchmark |
+| [TAPE controls](TAPE_CONTROLS.md) | What every stock TAPE control does, with source lines (parity reference) |
 | [Looping](LOOPING.md) | Looper (roadmap item 5): TAPE behaviour, keys, memory, CPU budget, saving a loop |
 | [Knobs](KNOBS.md) | Knob pages (press a knob; its light shows the page) and v5 patch/AI knob choices |
 | [User manual](MANUAL.md) | **Start here as a player:** install/update, power, panel, knob pages, presets, samples, recording, looper, MIDI, bridge and webapp, troubleshooting |
