@@ -242,6 +242,19 @@ From 0.7 on, files and firmware go to the card over the USB cable (bridge:
 | 7.3 | Install this kit's firmware; do **not** press CHOMPI for 15 s | CHOMPI's light blinks white, then stops; nothing installed; Forge keeps running |
 | 7.4 | Install again and press the CHOMPI key | CHOMPI restarts; rainbow lights while the bootloader flashes; Forge starts; Connect CHOMPI shows the expected firmware version. Any other firmware file on the card was renamed so the bootloader ignores it (`CHOMPI_TAPEv2_0.bin` → `CHOMPI_TAPEv2_0_bin.old`; rename it back to use TAPE again) |
 
+## 8. Power and battery (firmware 0.8)
+
+As stock TAPE: the start-up power-off gesture, the SW6 battery light, and the
+USB/charger hand-over when power is plugged in while CHOMPI runs. Do not run the
+battery flat on purpose.
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 8.1 | Unplug the USB cable and play for a few minutes on the battery (keys, a preset, the looper) | Forge keeps running normally on the battery: sound, keys, lights |
+| 8.2 | Hold the SW6 (volume) knob pressed for 2 s, then let go; also give it a short press | While held after 2 s its light shows the battery: white = charged (on the charger), green = good, yellow = low (below ~3.3 V). Dark again on release. A short press does nothing |
+| 8.3 | Plug the USB cable back in (wall charger first, then the PC), wait 5 s; in the bridge press Connect CHOMPI and Check setup | CHOMPI keeps playing; the bridge connects (USB may drop for a moment while the charger identifies the source); Check setup's Power line says on USB power and a charge state; SW6 held shows yellow/green while charging, white when charged |
+| 8.4 | Unplug USB. Hold CHOMPI + PLAY + LOOP while CHOMPI starts up (the stock power-off gesture, same as TAPE), keep holding about 1 s | All lights go out and stay out: CHOMPI is off. Plugging USB in (or however you normally switch it on) brings it back. Note how you started CHOMPI for this step |
+
 ## Results — copy into docs/forge/TEST_RESULTS.md
 
 ```text

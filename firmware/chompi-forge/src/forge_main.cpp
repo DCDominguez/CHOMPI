@@ -263,6 +263,15 @@ void Send(uint8_t source, uint8_t* envelope, size_t payload_size) {
 }
 
 void DrawLeds(); void SendResponses(); void TransmitPending(); void RunSampler();
+// TAPE's USB/charger hand-over after a power event (plug/unplug, charge state).
+forge::power::ChargerUsb charger_usb;
+bool usb_lines_to_daisy = true;
+void ServiceChargerUsb(uint32_t now) {
+    const auto a = charger_usb.Poll(now, hw.mpc_int.Read(), hw.read_ready, hw.mp_buff_[0]);
+    if(a.read) hw.MpReadAll();
+    if(a.usb_to_daisy >= 0) { usb_lines_to_daisy = a.usb_to_daisy != 0; hw.usb_sw.Write(usb_lines_to_daisy); }
+    if(a.force_detection) hw.MpWrite(0x0a, 0B00110100);   // FORCEDPDM (as TAPE)
+}
 // Firmware install confirmed on the panel: finish sending the replies, then
 // restart; the bootloader finds the new FORGE.bin on the card and flashes it.
 [[noreturn]] void Restart() {
@@ -449,6 +458,11 @@ void DrawLeds() {
     for(unsigned k = 0; k < 4; ++k) SetPthLedFloat(forge::panel::kKnobLed[k], knobs[k].r, knobs[k].g, knobs[k].b);
     for(unsigned i = 0; i < 25; ++i) SetSmtLedFloat(i, keys[i].r, keys[i].g, keys[i].b);
     SetPthLedFloat(0, chompi.r, chompi.g, chompi.b);
+    // TAPE: SW6 held 2 s shows the battery on its light (dark otherwise in Forge).
+    const auto battery = panel_controller.BatteryView()
+        ? forge::power::BatteryColour(static_cast<forge::power::Battery>(hw.GetBatteryLevel()))
+        : forge::power::Colour{0.f, 0.f, 0.f};
+    SetPthLedFloat(forge::panel::kVolumeLed, battery.r, battery.g, battery.b);
     fill_led_data();
     auto seven = [](float x) { return static_cast<uint8_t>(forge::Clamp(x, 0.f, 1.f) * 127.f + 0.5f); };
     for(unsigned i = 0; i < 26; ++i) {
@@ -505,6 +519,11 @@ void CaptureInspector() {
     sys.dropped=dropped_commands+sys.ingress_drops[0]+sys.ingress_drops[1]; sys.rejected=rejected_messages;
     sys.panel_drops=inspector_panel_drops.load(); sys.sample_drops=inspector_sample_drops.load();
     sys.event_drops=inspector_event_drops.load(); sys.emergencies=emergency_epoch.load();
+    const auto power=forge::power::DecodeStatus(hw.mp_buff_, static_cast<forge::power::Battery>(hw.GetBatteryLevel()),
+                                                charger_usb.Handover() || !usb_lines_to_daisy);
+    sys.battery=static_cast<uint8_t>(power.level);
+    sys.power_flags=static_cast<uint8_t>((power.usb_power?1:0)|(power.fault?2:0)|(power.usb_to_charger?4:0));
+    sys.charge_state=power.charge_state;
     auto& st=s.storage; sample_loader.Inspect(st);
     st.present=disk_status(0)==RES_OK; st.mounted=card.Mounted(); st.record_capacity_frames=kRecordFrames;
     st.errors+=inspector_storage_errors;
@@ -631,6 +650,20 @@ int main() {
         hw.LowBatteryLockoutCheck();
         System::Delay(10);
     }
+    // Stock start-up scan (0.5 s, also clears shift-register junk): CHOMPI + PLAY +
+    // LOOP held while CHOMPI starts switches it off (charger IC shipping mode).
+    forge::power::BootGesture off_gesture;
+    for(unsigned i = 0; i < forge::power::kBootScans; ++i) {
+        hw.ProcessAllControls();
+        off_gesture.Scan(hw.button_sr.State(int(Hardware::SwId::KEY_26)), hw.button_sr.State(int(Hardware::SwId::KEY_27)),
+                         hw.button_sr.State(int(Hardware::SwId::KEY_28)));
+        System::DelayUs(forge::power::kBootScanUs);
+    }
+    if(off_gesture.PowerOff()) {
+        hw.LedsOff();
+        hw.MpWrite(0x08, 0B10111111);   // SHIPPING MODE (as stock)
+        while(true) System::Delay(10);
+    }
     // Match the upstream charge-detection/USB switch sequence.
     hw.usb_sw.Write(false);
     System::Delay(1);
@@ -702,6 +735,7 @@ int main() {
             hw.LowBatteryLockoutCheck();
             battery_check = now;
         }
+        ServiceChargerUsb(now);
         if(install_gate.Poll(now)) Restart();
         System::DelayUs(100);
     }

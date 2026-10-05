@@ -2,6 +2,7 @@
 #include <cstdint>
 #include "engine.h"
 #include "file_transfer.h"
+#include "power.h"
 #include "preset_menu.h"
 #include "recorder.h"
 #include "sample_loader.h"
@@ -16,6 +17,8 @@ constexpr unsigned kButtons = 40, kEncoders = 6, kVolumeEncoder = 5, kToneEncode
 // Looper keys (as TAPE): KEY_27 PLAY, KEY_28 LOOP; their LEDs are through-hole 7 / 8.
 // Menu (presets page): KEY_21 effects before the loop, KEY_20 after.
 constexpr uint8_t kPlayKey = 33, kLoopKey = 34, kPlayLed = 7, kLoopLed = 8, kFxBefore = 22, kFxAfter = 21;
+// SW6 (volume) press is ENC_6_SW; its ring LED is through-hole 9 (TAPE). Held 2 s: battery.
+constexpr uint8_t kVolumePress = 32, kVolumeLed = 9;
 // Knob pages (docs/forge/KNOBS.md). Pressing logical knob n (its encoder switch,
 // button kKnobEncoder[n]) steps its page; page 0 = the patch's knob, 1-3 fixed.
 // Knob n's ring LED is through-hole LED n + 1 (ENC_4, ENC_1, ENC_2, ENC_3 as TAPE).
@@ -133,6 +136,11 @@ public:
         }
         const uint64_t rising = keys & ~prev_keys_, falling = prev_keys_ & ~keys;
         prev_keys_ = keys;
+        // TAPE: SW6 held 2 s shows the battery on its light while it stays down.
+        if((keys >> panel::kVolumePress) & 1u) {
+            if(volume_held_ < kBatteryHoldFrames) volume_held_ += hardware.frames;
+        } else volume_held_ = 0;
+        battery_view_.store(volume_held_ >= kBatteryHoldFrames, std::memory_order_relaxed);
         for(unsigned key = 0; key < panel::kButtons; ++key) if(panel::kKeyNotes[key]) {
             if(((rising >> key) & 1u) && !menu_.Key(static_cast<uint8_t>(key), true)) engine.Note(panel::kKeyNotes[key], 100, 2);
             if((falling >> key) & 1u) { menu_.Key(static_cast<uint8_t>(key), false); engine.Note(panel::kKeyNotes[key], 0, 2); }
@@ -200,6 +208,8 @@ public:
         return static_cast<uint8_t>(knob_page_[0] | knob_page_[1] << 2 | knob_page_[2] << 4 | knob_page_[3] << 6);
     }
     RecordSource Source() const { return source_; }
+    // Main loop (LED drawing): SW6 has been held long enough to show the battery.
+    bool BatteryView() const { return battery_view_.load(std::memory_order_relaxed); }
     const PresetMenu& Menu() const { return menu_; }
 #ifdef FORGE_TEST_HOOKS
     void Inspect(InspectorAudio& a) const {
@@ -210,6 +220,9 @@ public:
     }
 #endif
 private:
+    static constexpr uint32_t kBatteryHoldFrames = 48 * power::kBatteryHoldMs;   // 48 kHz
+    uint32_t volume_held_ = 0;
+    std::atomic<bool> battery_view_{false};
 #ifdef FORGE_TEST_HOOKS
     uint64_t physical_keys_=0, logical_keys_=0;
     uint32_t raw_turns_[6]{}, turns_[6]{};

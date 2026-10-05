@@ -82,7 +82,9 @@ DSP clips input/output to [-1, 1] and silences non-finite input; this is a final
 numeric bound, not a transparent mastering limiter. Feedback is limited to
 0.85. Controls are smoothed with a 20 ms time constant. A dim cyan panel LED
 indicates initialization completed; red indicates failed engine initialization.
-Battery warning/shutdown handling is inherited from WAVE and needs bench testing.
+Power follows the stock firmwares (0.8): low-battery warning and shutdown, the
+start-up power-off gesture (CHOMPI + PLAY + LOOP), TAPE's SW6 battery light and
+USB/charger hand-over (docs/forge/COMPATIBILITY.md §7); not yet bench-tested.
 
 ## Synth and module patches
 

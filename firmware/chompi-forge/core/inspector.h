@@ -79,6 +79,9 @@ struct InspectorSystem {
     uint32_t uptime_ms = 0, rx[2]{}, tx[2]{}, tx_errors[2]{}, ingress_drops[2]{};
     uint32_t dropped = 0, rejected = 0, panel_drops = 0, sample_drops = 0, event_drops = 0, emergencies = 0;
     bool simulated = false;
+    // Charger/battery (main loop, power::Status): level 0 full .. 3 low, 4 unknown;
+    // flags bit 0 USB power, 1 charger fault, 2 USB lines handed to the charger IC.
+    uint8_t battery = 4, power_flags = 0, charge_state = 0;
 };
 struct InspectorStorage {
     bool present = false, mounted = false, busy = false, loading = false;
@@ -110,6 +113,7 @@ FORGE_NOINLINE inline size_t EncodeInspector(uint16_t sequence, uint8_t page, co
         Write14(out+n, std::isfinite(a.cpu_peak) ? unsigned(Clamp(a.cpu_peak*1000,0.f,16383.f)) : 0); n+=2;
         for(unsigned i=0;i<2;++i) { word(sys.rx[i]); word(sys.tx[i]); word(sys.tx_errors[i]); word(sys.ingress_drops[i]); }
         word(sys.dropped); word(sys.rejected);
+        byte(sys.battery); byte(sys.power_flags); byte(sys.charge_state);   // firmware 0.8: page 2 is 91 bytes
     } else if(page == 3) {
         for(uint64_t keys : {a.physical_keys, a.logical_keys}) for(unsigned i=0;i<6;++i) byte((keys>>(7*i))&127);
         byte(a.physical_flags); byte(a.logical_flags); word(a.menu);

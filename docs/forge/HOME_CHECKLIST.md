@@ -44,7 +44,7 @@ If anything looks wrong: put your backup back and flash 0.6 the same way.
 1. CHOMPI to the PC with a USB **data** cable. Close other MIDI programs.
 2. Double-click `Forge Bridge.exe`; the browser opens it. Keep the black
    window open.
-3. **Connect CHOMPI**. It must say firmware **0.7**.
+3. **Connect CHOMPI**. It must say firmware **0.7** or newer.
 4. **Check setup**. Fix whatever it lists (each item says how) and run it
    again until it is all green.
 5. **Start panel walk**. It asks you to press each key, turn each knob and look at

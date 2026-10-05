@@ -1,5 +1,22 @@
 # Forge changelog
 
+## 0.8 Power as stock — 2026-10-05
+
+Software-tested only. After DC's battery ran flat on 0.7, a review against
+TAPE/WAVE/TEMPO (COMPATIBILITY §7) found Forge could not be switched off.
+- Start-up power-off gesture as all stock firmwares: hold CHOMPI + PLAY + LOOP
+  while CHOMPI starts → charger shipping mode (off). The 0.5 s start-up key scan
+  also clears shift-register junk, as stock.
+- TAPE's battery light: hold SW6 (volume) 2 s, its light shows white (charged),
+  green, or yellow (below ~3.3 V) while held.
+- TAPE's USB/charger hand-over when power is plugged in or changes while running
+  (charger interrupt; I2C wait bounded at 50 ms).
+- Battery, USB power, charge state and charger faults on Inspector page 2
+  (91 bytes; the bridge still reads 0.7's 88) and in Check setup's Power line.
+- Bridge: Check setup's line-in hint allows the headphone out (monitor knob on
+  playback); TEST_SESSION section 8 (power); bridge checks 86.
+- Firmware minor 8. Release 237,068 B (+1,088), development 252,760 B.
+
 ## 0.7 USB card and firmware loader — 2026-10-04
 
 Software-tested only; needs one last card flash to get it onto CHOMPI.

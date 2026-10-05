@@ -23,6 +23,21 @@ SD streaming remains gated on physical SD measurements. Older checkpoint and
 PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
 use the latest implementation checkpoint and ledger for present capabilities/budgets.
 
+## Current checkpoint: firmware 0.8, power as stock, 2026-10-05
+
+DC's battery ran flat on 0.7 and DC asked for power/charging "and any other thing
+we missed". Review: COMPATIBILITY §7 (stock TAPE/WAVE/TEMPO main loops and
+TAPE's NormalPage). Found and fixed (software-tested, not on hardware):
+**Forge had no way to switch CHOMPI off** (stock: hold CHOMPI + PLAY + LOOP at
+start-up → shipping mode); no battery display (TAPE: SW6 held 2 s); no runtime
+USB/charger hand-over (TAPE only). Added battery/charger state to Inspector page 2
+and Check setup. Also fixed the bridge's line-in hint that contradicted the
+headphone-out advice. Not ported: the factory test page (SW6 at start-up) — use
+stock firmware for it. Checks: 11 native suites (new `power_test`, SW6 hold in
+`panel_test`) + sanitizers, Python and browser suites, ARM release 237,068 B /
+development 252,760 B, layout OK. Open: how CHOMPI is switched back on after
+shipping mode (DC to confirm), TEST_SESSION 8.1–8.4.
+
 ## Design checkpoint: storage streaming / SDRAM reclamation, 2026-10-04 (parked for v2)
 
 DC asked for a feasibility study and design only, stopping for architecture
@@ -730,6 +745,8 @@ webapp + bench optimisation, then docs.
 
 ## Next actions (priority order)
 
+0. DC: update to 0.8 over USB (Card & firmware → Install), then TEST_SESSION
+   section 8 (power) along with the open items (3.29 kit sample, line in).
 1. DC, at home: [HOME_CHECKLIST.md](HOME_CHECKLIST.md): one last card flash of
    0.7 (only FORGE.bin may contain ".bin" in the card root), rig fixes, Check
    setup, panel walk, automatic checks, one USB install and one sample upload;

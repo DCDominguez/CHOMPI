@@ -301,8 +301,23 @@ void KnobPages() {
     assert(rig.engine.ApplyPatch(assigned)); press(3); turn(3, 40); assert(near(p.reverb_size, 0.5f + 40 / 127.f));
     for(int i = 0; i < 200; ++i) rig.Block();
 }
+// TAPE: SW6 (volume) held 2 s shows the battery on its light while held; a short press does not.
+void BatteryHold() {
+    Rig rig; rig.Block();
+    const unsigned two_seconds = 2 * 48000 / 24;
+    rig.hw.keys = uint64_t(1) << panel::kVolumePress;
+    for(unsigned i = 0; i + 1 < two_seconds; ++i) { rig.Block(); assert(!rig.panel.BatteryView()); }
+    rig.Block(); assert(rig.panel.BatteryView());
+    for(int i = 0; i < 100; ++i) rig.Block();
+    assert(rig.panel.BatteryView());
+    rig.hw.keys = 0; rig.Block(); assert(!rig.panel.BatteryView());
+    rig.hw.keys = uint64_t(1) << panel::kVolumePress; for(int i = 0; i < 1000; ++i) rig.Block();
+    assert(!rig.panel.BatteryView());                                       // 0.5 s: no
+    rig.hw.keys = 0; rig.Block(); assert(rig.engine.ActiveVoices() == 0);   // and it never plays a note
+}
+
 int main() {
-    KnobPages();
+    KnobPages(); BatteryHold();
     KeysKnobsAndOverrides(); MenuAndRecordingThroughTheController(); LedComposition(); DevelopmentOpcodes(); LooperThroughThePanel(); LooperVoiceCap(); LooperSaveGesture();
-    std::cout << "PASS: panel controller keys/knobs/overrides, menu + recording via injection, LED composition, dev opcodes, looper via panel/MIDI, knob pages/LEDs/v5 assignment\n";
+    std::cout << "PASS: panel controller keys/knobs/overrides, menu + recording via injection, LED composition, dev opcodes, looper via panel/MIDI, knob pages/LEDs/v5 assignment, SW6 battery hold\n";
 }

@@ -188,6 +188,19 @@ class SetupCheckTests(unittest.TestCase):
         self.assertEqual(status["Input gain"]["status"], "fail"); self.assertIn("10 dB", status["Input gain"]["fix"])
         self.assertEqual(status["Line input"]["status"], "fail"); self.assertIn("line input", status["Line input"]["fix"])
 
+    def test_power_state_is_reported(self):
+        device = self.Device(True)
+        power = {"battery": "medium", "usb_power": True, "charge_done": False, "charge_state": 3, "charger_fault": False}
+        device.snapshot = lambda: {"panel": {"physical": {"line_jack": True}}, "system": {"power": power}}
+        result = audio.setup_check(device, self.rig(False, False, False), True, log=lambda line: None)
+        found = {f["what"]: f for f in result["findings"]}
+        self.assertEqual(found["Power"]["status"], "ok"); self.assertIn("Battery medium; on USB power, charge state 3", found["Power"]["detail"])
+        power.update(charger_fault=True, charge_done=True)
+        result = audio.setup_check(device, self.rig(False, False, False), True, log=lambda line: None)
+        found = {f["what"]: f for f in result["findings"]}
+        self.assertEqual(found["Power"]["status"], "warn"); self.assertIn("charged", found["Power"]["detail"])
+        self.assertTrue(result["ok"])                                    # a warning does not fail the rig
+
     def test_good_rig_passes(self):
         result = audio.setup_check(self.Device(True), self.rig(False, False, False), True, log=lambda line: None)
         self.assertTrue(result["ok"], result)

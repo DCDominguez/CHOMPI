@@ -32,7 +32,8 @@ sampler patches TAPE's page 0: pitch, start, end, delay mix.
   never fails or crashes.
 - Knob 1 still selects the bank while the menu is open; presses still step
   pages. SW5 (cutoff/panic, looper transport) and SW6 (level) are unchanged.
-  SW6's press does nothing (DC: "nothing for now").
+  SW6's press does nothing (DC: "nothing for now"), except as TAPE: held for
+  2 s, its light shows the battery (firmware 0.8; COMPATIBILITY §7).
 - Each turn step is 1/127 of the control's range, as before.
 
 ## Patch knobs (patch version 5)

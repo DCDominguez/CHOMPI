@@ -238,3 +238,27 @@ window and SVF terms, the "loaded" atomic skipped once a slot is complete.
 
 Files: `firmware/chompi-forge/bench/` (`run_bench.py`, `*_bench.cpp`,
 `bench.ld`). Needs `arm-none-eabi-gcc` and `pip install unicorn pyelftools`.
+
+## 7. Power and system behaviour (firmware 0.8 review, 2026-10-05)
+
+Reviewed against `chompi_main.cpp` of TAPE, WAVE and TEMPO and TAPE's
+`NormalPage.h` after DC's battery ran flat on 0.7. The charger IC (MP2722) charges
+by itself; firmware only configures it, warns and switches off.
+
+| Behaviour | TAPE | WAVE | TEMPO | Forge 0.7 | Forge 0.8 |
+| --- | --- | --- | --- | --- | --- |
+| Boot: BATT_LOW threshold 3 V, 10 low-battery checks | yes | yes | yes | yes | yes |
+| Low battery on battery power: 15 s amber flashing, then shipping mode (off); plugging in cancels | yes (shared hardware class) | yes | yes | yes | yes |
+| Low battery on a weak USB source: LEDs off, STOP mode while it charges (looks dead) | yes | yes | yes | yes | yes |
+| Boot: 0.5 s key scan; **CHOMPI + PLAY + LOOP held → shipping mode (power off)** | yes | yes | yes | **no** (CHOMPI could not be switched off) | yes |
+| Boot: SW6 held → factory test page (keys, LEDs, charger/NTC check) | yes | yes | yes | no | no (use stock firmware for the factory test) |
+| Boot: USB data lines to the charger, auto D+/D− detection, lines back | yes | yes | yes | yes | yes |
+| Running: charger interrupt → if the USB source is unidentified, lines to the charger, force detection, lines back once identified | yes | no | no | no | yes (TAPE's; I2C wait bounded at 50 ms, TAPE waits forever) |
+| SW6 held 2 s → battery colour on its light (white charged, green, yellow < 3.3 V) | yes | no | no | no | yes |
+| Battery/charger state readable by a computer | no | no | no | no | Inspector page 2 (development) and the bridge's Check setup |
+| Deletes `.batt_log.txt` at boot | yes | yes | yes | no | no (Forge never writes it) |
+| Zeroes all SDRAM at boot | yes | yes | — | no | no (Forge never reads SDRAM it has not written) |
+
+Not changed and still unverified on hardware: how CHOMPI is switched back on after
+shipping mode (plugging USB in is the usual exit for this charger family; DC to
+confirm), charge time, and the stock warning/shutdown in Forge.

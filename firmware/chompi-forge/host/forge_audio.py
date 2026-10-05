@@ -392,15 +392,30 @@ def setup_check(device, audio, output_found, log=print):
             "Cable the interface's outputs 1/2 into CHOMPI's line input, then press Find audio interface again.")
     elif not output_found:
         add("Line input", "fail", "CHOMPI's line input is plugged in, but no interface output reached it.",
-            "Check that the cable runs from the interface's outputs 1/2 (not the headphone out), then press Find audio interface again.")
+            "Check that the cable runs from the interface's outputs 1/2 (or its headphone out, with the monitor/mix knob fully on "
+            "playback), then press Find audio interface again.")
     else:
         device.send_patch(host.load_patch(ROOT / "presets/01-dry.json")); time.sleep(0.3)
         audio.start(0.8, tone(1000, 0.5, TONE_DB, rate)); through = analyze(audio.wait(), rate)
         if through["pitch_hz"] and abs(through["pitch_hz"] - 1000) < 15:
             add("Line input", "ok", f"A {TONE_DB} dBFS tone comes back at {through['peak_db']:g} dB.")
         else: add("Line input", "fail", "The test tone did not come back through CHOMPI.", "Check the line-in cable and that direct monitoring is off.")
+    power = power_state(device)
+    if power:
+        detail = f"Battery {power['battery']}; " + ("on USB power, " + ("charged" if power["charge_done"] else
+                  f"charge state {power['charge_state']}") if power["usb_power"] else "no USB power reported") + "."
+        if power["charger_fault"]:
+            add("Power", "warn", detail + " The charger reports a battery or temperature-sensor fault.",
+                "Note it in the results; if it persists, check the battery connection (stock TAPE's test mode reports the same).")
+        else: add("Power", "ok", detail)
     device.send_patch(host.load_patch(ROOT / "presets/01-dry.json"))
     return {"ok": all(f["status"] != "fail" for f in findings), "findings": findings}
+
+
+def power_state(device):
+    """Battery/charger state from the Inspector system page (firmware 0.8+), or None."""
+    try: return ((device.snapshot() or {}).get("system") or {}).get("power")
+    except Exception: return None
 
 
 # ---- plans ----------------------------------------------------------------------------------
