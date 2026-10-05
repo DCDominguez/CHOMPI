@@ -1,5 +1,14 @@
 # Forge test results
 
+## 2026-10-05 — line in wired, 0.7 on CHOMPI, 0.8 bridge (DC, verbal)
+
+DC rewired: CHOMPI main out → interface inputs, interface output → CHOMPI line in.
+Automatic checks: **all pass except 1.3** (the 0.8 bridge expects firmware 0.8;
+CHOMPI still ran 0.7). So the line-in steps (2.1, 2.2, 2.4, 3.34, 3.42) and the
+kit sample (3.29) passed on hardware for the first time. Reports not received
+(verbal result). Next: install 0.8 over USB (first real USB install), re-run 1.3,
+TEST_SESSION section 8 (power).
+
 ## 2026-10-04 evening — first 0.7 session (DC), development firmware (`b36ba99`)
 
 Source: DC's reports `20261004-195501` (still 0.6: 1.3 failed, "CPU peak since
