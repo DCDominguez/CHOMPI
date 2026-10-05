@@ -389,7 +389,9 @@ void Recording() {
     float l, r;
     for(int i = 0; i < 48000; ++i) rec.Input(RecordSource::Mic, 0.1f, 0, 0, 0, 0, l, r);
     assert(std::fabs(l) < 1e-3f && l == r);
-    rec.Input(RecordSource::Line, 0, 0.1f, -0.2f, 0, 0, l, r); assert(std::fabs(l - 0.3f) < 1e-6f && std::fabs(r + 0.6f) < 1e-6f);
+    rec.Input(RecordSource::Line, 0, 0.1f, -0.2f, 0, 0, l, r); assert(std::fabs(l - 0.225f) < 1e-6f && std::fabs(r + 0.45f) < 1e-6f);  // x .75 input gain (TAPE)
+    rec.SetInputGain(1.f); for(int i = 0; i < 20000; ++i) rec.Input(RecordSource::Line, 0, 0.1f, 0, 0, 0, l, r);
+    assert(std::fabs(l - 0.3f) < 1e-4f);                                     // gain glides to the new value
     rec.Input(RecordSource::Resample, 1, 1, 1, 0.4f, 0.5f, l, r); assert(l == 0.4f && r == 0.5f);
 }
 

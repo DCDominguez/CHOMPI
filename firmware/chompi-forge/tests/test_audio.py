@@ -299,10 +299,10 @@ class BridgeAutomaticTests(unittest.TestCase):
     def test_autorun_sets_its_own_starting_state(self):
         # As on DC's unit (2026-10-04): knob pages, the menu page and a loop left from hand testing.
         self.make(); self.connect(); self.call("arm", enabled=True)
-        for button in (3, 3, 3, 0, 1):                        # SW4 to page 4, SW1 and SW2 to page 2
+        for button in (3, 2, 2):                              # Dry (effects only): SW4 to page 2, SW3 to page 3
             for value in (1, 0): self.call("action", action="panel", kind=0, id=button, value=value)
         for value in (1, 0): self.call("action", action="panel", kind=0, id=34, value=value)   # a first take
-        self.assertEqual(self.call("poll")["panel"]["knob_pages"], [4, 2, 2, 1])
+        self.assertEqual(self.call("poll")["panel"]["knob_pages"], [2, 1, 1, 3])
         self.call("action", action="release")
         for folder in ("dirty", "again"):                     # and a second run starts where the first ended
             self.call("autorun", confirm=True, folder=folder)

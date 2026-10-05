@@ -2,6 +2,7 @@
 #include <cstdint>
 #include "engine.h"
 #include "file_transfer.h"
+#include "knob_layout.h"
 #include "power.h"
 #include "preset_menu.h"
 #include "recorder.h"
@@ -19,28 +20,19 @@ constexpr unsigned kButtons = 40, kEncoders = 6, kVolumeEncoder = 5, kToneEncode
 constexpr uint8_t kPlayKey = 33, kLoopKey = 34, kPlayLed = 7, kLoopLed = 8, kFxBefore = 22, kFxAfter = 21;
 // SW6 (volume) press is ENC_6_SW; its ring LED is through-hole 9 (TAPE). Held 2 s: battery.
 constexpr uint8_t kVolumePress = 32, kVolumeLed = 9;
-// Knob pages (docs/forge/KNOBS.md). Pressing logical knob n (its encoder switch,
-// button kKnobEncoder[n]) steps its page; page 0 = the patch's knob, 1-3 fixed.
-// Knob n's ring LED is through-hole LED n + 1 (ENC_4, ENC_1, ENC_2, ENC_3 as TAPE).
-constexpr unsigned kKnobPages = 4;
+// Knob pages (docs/forge/KNOBS.md, core/knob_layout.h). Releasing logical knob n's
+// switch (button kKnobEncoder[n]) steps its page, as TAPE; holding it 1.5 s without
+// turning resets its control; SW4 + SW3 held together 1 s = panic.
+// Knob n's ring LED is through-hole LED n + 1 (ENC_4, ENC_1, ENC_2, ENC_3 as TAPE); SW5's are 5 and 6.
 constexpr uint8_t kKnobLed[4] = {1, 2, 3, 4};
-inline Parameter KnobPageParameter(unsigned knob, unsigned page, bool sampler) {
-    static const Parameter pages[4][3] = {
-        {Parameter::Cutoff, Parameter::Resonance, Parameter::FilterAmount},     // knob 1: filter
-        {Parameter::Attack, Parameter::Decay, Parameter::Release},              // knob 2: envelope
-        {Parameter::LfoRate, Parameter::LfoFilter, Parameter::Osc2Detune},      // knob 3: movement
-        {Parameter::Mix, Parameter::Feedback, Parameter::ReverbMix}};           // knob 4: space
-    if(page == 0 || page >= kKnobPages) return static_cast<Parameter>(static_cast<unsigned>(Parameter::Knob1) + (knob & 3));
-    if(sampler && knob == 2 && page == 3) return Parameter::SampleXfade;      // no second oscillator
-    return pages[knob & 3][page - 1];
-}
+constexpr uint32_t kResetHoldFrames = 48 * 1500, kPanicHoldFrames = 48 * 1000;   // 48 kHz
 } // namespace panel
 
 // One block of debounced hardware input (audio owner).
 struct PanelInput {
     uint64_t keys = 0;                   // bit k: button k held (upstream SwId order)
     bool toggle_up = false, jack = false;
-    bool tone_press = false;             // SW5 switch rising edge this block
+    bool tone_down = false;              // SW5 switch held
     int16_t turns[panel::kEncoders]{};   // increments by hardware encoder index
     uint16_t frames = 48;                // audio frames in this block (looper key timing)
 };
@@ -75,11 +67,11 @@ public:
                 if(e.id < panel::kButtons) { const uint64_t bit = uint64_t(1) << e.id; virtual_keys_ = e.value ? virtual_keys_ | bit : virtual_keys_ & ~bit; }
                 break;
             case PanelEvent::Kind::Turn: if(e.id < panel::kEncoders) virtual_turns_[e.id] = static_cast<int16_t>(virtual_turns_[e.id] + e.value); break;
-            case PanelEvent::Kind::Press: virtual_press_ = true; break;
+            case PanelEvent::Kind::Press: virtual_tone_ = e.value == 1 ? 1 : e.value == 2 ? 0 : 2; break;  // 0 click, 1 down, 2 up
             case PanelEvent::Kind::Toggle: toggle_override_ = e.value; break;
             case PanelEvent::Kind::Jack: jack_override_ = e.value; break;
             case PanelEvent::Kind::Release:
-                virtual_keys_ = 0; toggle_override_ = jack_override_ = -1; virtual_press_ = false;
+                virtual_keys_ = 0; toggle_override_ = jack_override_ = -1; virtual_tone_ = 0;
                 for(auto& t : virtual_turns_) t = 0;
                 break;
         }
@@ -109,8 +101,8 @@ public:
         }
         event_keys_=keys; event_virtual_keys_=virtual_keys_;
         physical_keys_=hardware.keys; logical_keys_=keys;
-        physical_flags_=(hardware.toggle_up?1:0)|(hardware.jack?2:0)|(hardware.tone_press?4:0);
-        logical_flags_=(toggle_up?1:0)|(jack?2:0)|((hardware.tone_press||virtual_press_)?4:0)|(Overridden()?8:0);
+        physical_flags_=(hardware.toggle_up?1:0)|(hardware.jack?2:0)|(hardware.tone_down?4:0);
+        logical_flags_=(toggle_up?1:0)|(jack?2:0)|((hardware.tone_down||virtual_tone_)?4:0)|(Overridden()?8:0);
 #endif
         const bool chompi = (keys >> panel::kChompiKey) & 1u;
         menu_.Update(toggle_up, chompi);
@@ -122,28 +114,39 @@ public:
         }
         // TAPE: toggle down + hold CHOMPI records; on release the take becomes
         // the chromatic recording slot and plays at once.
-        switch(gesture_.Update(toggle_up, chompi)) {
+        // Forge: a 1.5 s count-in (CHOMPI and the white keys blink red) before recording.
+        switch(gesture_.Update(toggle_up, chompi, hardware.frames)) {
             case RecordGesture::Event::Start:
                 if(!recorder.Start()) { gesture_.Cancel(); sink.Flash(false); }
                 break;
             case RecordGesture::Event::Stop: {
                 recorder.Stop();
+                // TAPE: the take plays at once, chromatic, with pitch, gain, start and end back to default.
                 const Parameters& p = engine.GetParameters();
-                engine.ApplyPatch(SelectSample(p, 0, p.sample_bank, kRamSlot));
+                Parameters take = SelectSample(p, 0, p.sample_bank, kRamSlot);
+                take.sample_start = 0.f; take.sample_end = 1.f;
+                engine.ApplyPatch(take);
+                engine.ResetControl(Parameter::Speed); engine.ResetControl(Parameter::VoiceGain);
                 break;
             }
             default: break;
         }
+        recording_position_.store(!toggle_up, std::memory_order_relaxed);
+        count_in_.store(gesture_.CountInPhase(), std::memory_order_relaxed);
         const uint64_t rising = keys & ~prev_keys_, falling = prev_keys_ & ~keys;
         prev_keys_ = keys;
-        // TAPE: SW6 held 2 s shows the battery on its light while it stays down.
+        // TAPE: SW6 held 2 s shows the battery on its light while it stays down; a
+        // shorter press switches SW6 between volume and input gain.
         if((keys >> panel::kVolumePress) & 1u) {
             if(volume_held_ < kBatteryHoldFrames) volume_held_ += hardware.frames;
-        } else volume_held_ = 0;
+        } else {
+            if((falling >> panel::kVolumePress) & 1u && volume_held_ < kBatteryHoldFrames) volume_page_ = !volume_page_;
+            volume_held_ = 0;
+        }
         battery_view_.store(volume_held_ >= kBatteryHoldFrames, std::memory_order_relaxed);
         keys_down_.store(static_cast<uint32_t>(keys), std::memory_order_relaxed);   // all 25 note keys are switches 0-31
         for(unsigned key = 0; key < panel::kButtons; ++key) if(panel::kKeyNotes[key]) {
-            if(((rising >> key) & 1u) && !menu_.Key(static_cast<uint8_t>(key), true)) engine.Note(panel::kKeyNotes[key], 100, 2);
+            if(((rising >> key) & 1u) && !menu_.Key(static_cast<uint8_t>(key), true)) engine.Note(panel::kKeyNotes[key], 127, 2);   // TAPE: full velocity
             if((falling >> key) & 1u) { menu_.Key(static_cast<uint8_t>(key), false); engine.Note(panel::kKeyNotes[key], 0, 2); }
         }
         Looper* looper = engine.GetLooper();
@@ -166,8 +169,8 @@ public:
         RunActions(engine, recorder, sink);
         const Parameters& live = engine.GetParameters();
         if(live.Sampler()) menu_.FollowSampler(live.sample_mode, live.sample_bank, live.sample_slot);
-        // Encoders: SW5 turn = cutoff, press = panic (while a loop exists: the
-        // looper transport, as TAPE); knobs 1-4 in stock order; SW6 = level.
+        // Encoders: SW5 turn = cutoff, push and turn = looper speed (scrub when paused),
+        // click = speed back to 1x; knobs 1-4 in TAPE's layout; SW6 = level / input gain.
         // Virtual turns are consumed with the hardware ones.
         int16_t turns[panel::kEncoders];
         for(unsigned i = 0; i < panel::kEncoders; ++i) { turns[i] = static_cast<int16_t>(hardware.turns[i] + virtual_turns_[i]); virtual_turns_[i] = 0; }
@@ -177,37 +180,66 @@ public:
             if(turns[i]) LogEdge(InspectorEventKind::Knob, i, uint32_t(turns[i]));
         }
 #endif
-        const bool press = hardware.tone_press || virtual_press_; virtual_press_ = false;
-        if(looper && looper->HasLoop()) {
-            if(press) looper->ResetSpeed();
-            if(turns[panel::kToneEncoder]) {
-                if(looper->GetState() == Looper::State::Playing) looper->NudgeSpeed(turns[panel::kToneEncoder]);
-                else looper->Scrub(turns[panel::kToneEncoder]);
-            }
-        } else {
-            if(press) engine.Panic();
-            if(turns[panel::kToneEncoder])
-                engine.Apply({Parameter::Cutoff, engine.GetParameters().cutoff + turns[panel::kToneEncoder] / 127.f});
+        // SW5 (virtual: 2 = one click, 1 = held).
+        const bool tone_down = hardware.tone_down || virtual_tone_ != 0;
+        if(virtual_tone_ == 2) virtual_tone_ = 3; else if(virtual_tone_ == 3) virtual_tone_ = 0;   // click: down one block
+        if(tone_down && !tone_was_down_) tone_turned_ = false;
+        if(const int t = turns[panel::kToneEncoder]) {
+            if(tone_down) {
+                tone_turned_ = true;
+                if(looper && looper->HasLoop()) {
+                    if(looper->GetState() == Looper::State::Playing) looper->NudgeSpeed(t * knobs::kLoopSpeedPerClick);
+                    else looper->Scrub(t);
+                }
+            } else engine.Apply({Parameter::Cutoff, engine.Value(Parameter::Cutoff) + t * knobs::Step(4, Parameter::Cutoff)});
         }
+        if(!tone_down && tone_was_down_ && !tone_turned_ && looper) looper->ResetSpeed();
+        tone_was_down_ = tone_down;
+        // Knobs 1-4. Presses act on release (TAPE); a 1.5 s hold resets; SW4 + SW3 = panic.
+        const Parameters& patch = engine.GetParameters();
+        const bool combo = hold_[0].down && hold_[3].down;
+        if(combo) {
+            combo_frames_ += hardware.frames;
+            if(combo_frames_ >= panel::kPanicHoldFrames && !hold_[0].used) { engine.Panic(); hold_[0].used = hold_[3].used = true; }
+        } else combo_frames_ = 0;
         for(unsigned knob = 0; knob < 4; ++knob) {
-            // Encoder switches 0-3 (no note): a press steps the knob's page.
-            if((rising >> panel::kKnobEncoder[knob]) & 1u) knob_page_[knob] = static_cast<uint8_t>((knob_page_[knob] + 1) % panel::kKnobPages);
+            KnobHold& h = hold_[knob];
+            if(knob_page_[knob] >= knobs::Pages(knob, patch)) knob_page_[knob] = 0;   // a new patch has fewer pages
+            const Parameter target = knobs::Target(knob, knob_page_[knob], patch);
+            const bool down = (keys >> panel::kKnobEncoder[knob]) & 1u;
             const int increment = turns[panel::kKnobEncoder[knob]];
-            if(increment && !menu_.Encoder(static_cast<uint8_t>(knob), increment)) {   // knob 1 picks the bank while the menu is open
-                const Parameters& p = engine.GetParameters();
-                const Parameter target = panel::KnobPageParameter(knob, knob_page_[knob], p.Sampler());
-                engine.Apply({target, p.Value(target) + increment / 127.f});
+            if(down) {
+                if(!h.down) h = KnobHold{}, h.down = true; else h.frames += hardware.frames;
+                if(increment) h.turned = true;
+                if(!h.used && !h.turned && !combo && h.frames >= panel::kResetHoldFrames && !menu_.Active()) {
+                    engine.ResetControl(target); h.used = true; reset_flash_[knob] = 48 * 300;
+                }
+            } else if(h.down) {
+                if(!h.used) knob_page_[knob] = static_cast<uint8_t>((knob_page_[knob] + 1) % knobs::Pages(knob, patch));
+                h = KnobHold{};
             }
+            if(reset_flash_[knob]) reset_flash_[knob] = reset_flash_[knob] > hardware.frames ? reset_flash_[knob] - hardware.frames : 0;
+            if(increment && !menu_.Encoder(static_cast<uint8_t>(knob), increment))   // knob 1 picks the bank while the menu is open
+                engine.Apply({target, engine.Value(target) + increment * knobs::Step(knob, target)});
         }
+        const Parameter volume = volume_page_ ? Parameter::InputGain : Parameter::Level;
         if(turns[panel::kVolumeEncoder])
-            engine.Apply({Parameter::Level, engine.GetParameters().level + turns[panel::kVolumeEncoder] / 127.f});
+            engine.Apply({volume, engine.Value(volume) + turns[panel::kVolumeEncoder] * knobs::Step(5, volume)});
+        recorder.SetInputGain(engine.GetPerformance().input_gain);
+        PublishKnobs(engine);
     }
     uint32_t MenuPacked() const { return menu_.Packed(); }
     void SetInstallGate(InstallGate* gate) { install_gate_ = gate; }
-    // Knob n's page in bits 2n..2n+1.
-    uint8_t KnobPages() const {
-        return static_cast<uint8_t>(knob_page_[0] | knob_page_[1] << 2 | knob_page_[2] << 4 | knob_page_[3] << 6);
+    // Knob n's page in bits 3n..3n+2.
+    uint16_t KnobPages() const {
+        return static_cast<uint16_t>(knob_page_[0] | knob_page_[1] << 3 | knob_page_[2] << 6 | knob_page_[3] << 9);
     }
+    // Main loop (knob lights): pages, values and flags published once per block.
+    uint32_t KnobValues() const { return knob_values_.load(std::memory_order_relaxed); }
+    uint32_t KnobState() const { return knob_state_.load(std::memory_order_relaxed); }
+    bool RecordPosition() const { return recording_position_.load(std::memory_order_relaxed); }
+    uint8_t CountIn() const { return count_in_.load(std::memory_order_relaxed); }
+    bool VolumePage() const { return volume_page_; }
     RecordSource Source() const { return source_; }
     // Main loop (LED drawing): SW6 has been held long enough to show the battery.
     bool BatteryView() const { return battery_view_.load(std::memory_order_relaxed); }
@@ -225,6 +257,31 @@ public:
 #endif
 private:
     static constexpr uint32_t kBatteryHoldFrames = 48 * power::kBatteryHoldMs;   // 48 kHz
+    struct KnobHold { bool down = false, turned = false, used = false; uint32_t frames = 0; };
+    // Knob values 0..255 (8 bits each, knob 0 lowest); state: pages (12 bits), patch-page
+    // flags (bits 12-15), reset flashes (16-19), SW6 page (20), effects-only patch (21),
+    // SW6 value 0..255 (24-31).
+    void PublishKnobs(const Engine& engine) {
+        const Parameters& p = engine.GetParameters();
+        uint32_t values = 0, state = KnobPages();
+        for(unsigned k = 0; k < 4; ++k) {
+            const float v = Clamp(engine.Value(knobs::Target(k, knob_page_[k], p)), 0.f, 1.f);
+            values |= static_cast<uint32_t>(v * 255.f + .5f) << (8 * k);
+            if(knobs::IsPatchPage(k, knob_page_[k], p)) state |= 1u << (12 + k);
+            if(reset_flash_[k]) state |= 1u << (16 + k);
+        }
+        if(volume_page_) state |= 1u << 20;
+        if(knobs::KindOf(p) == knobs::Kind::Effects) state |= 1u << 21;
+        const float vol = Clamp(engine.Value(volume_page_ ? Parameter::InputGain : Parameter::Level), 0.f, 1.f);
+        state |= static_cast<uint32_t>(vol * 255.f + .5f) << 24;
+        knob_values_.store(values, std::memory_order_relaxed); knob_state_.store(state, std::memory_order_relaxed);
+    }
+    KnobHold hold_[4];
+    uint32_t combo_frames_ = 0, reset_flash_[4]{};
+    bool tone_was_down_ = false, tone_turned_ = false, volume_page_ = false;
+    std::atomic<uint32_t> knob_values_{0}, knob_state_{0};
+    std::atomic<bool> recording_position_{false};
+    std::atomic<uint8_t> count_in_{0};
     uint32_t volume_held_ = 0;
     std::atomic<bool> battery_view_{false};
     std::atomic<uint32_t> keys_down_{0};
@@ -278,7 +335,8 @@ private:
     RecordSource source_ = RecordSource::Line;
     uint64_t prev_keys_ = 0, virtual_keys_ = 0;
     int8_t toggle_override_ = -1, jack_override_ = -1;
-    bool first_ = true, jack_ = false, virtual_press_ = false;
+    bool first_ = true, jack_ = false;
+    uint8_t virtual_tone_ = 0;
     int16_t virtual_turns_[panel::kEncoders]{};
     uint8_t knob_page_[4]{};
     InstallGate* install_gate_ = nullptr;
@@ -300,6 +358,9 @@ struct LedView {
     uint32_t looper = 0;                          // PackLooper()
     uint8_t install = 0;                          // 1 waiting for the CHOMPI press, 2 restarting
     uint64_t keys_down = 0;                       // panel keys held (PanelController::KeysDown)
+    bool record_position = false;                 // toggle in the record position (TAPE: switch_state false)
+    uint8_t count_in = 0;                         // RecordGesture::CountInPhase (0 none, 1..6)
+    float input_level = 0.f;                      // input meter 0..1 (record position)
     uint16_t kit_occupancy = 0;                   // sample files of the live kit bank
 };
 // Menu closed (TAPE NormalPage): a key lights white while held. With a sampler patch,
@@ -351,10 +412,29 @@ inline void ComposeLooperLeds(uint32_t looper, bool blink, Rgb& play, Rgb& loop)
         default: break;
     }
 }
-// Knob ring LEDs: each knob's page as a colour (page 1 dim white, 2 red, 3 green, 4 blue).
-inline void ComposeKnobLeds(uint8_t pages, Rgb (&knobs)[4]) {
-    static const Rgb colours[panel::kKnobPages] = {{.12f, .12f, .12f}, {.6f, 0.f, 0.f}, {0.f, .5f, 0.f}, {0.f, 0.f, .7f}};
-    for(unsigned k = 0; k < 4; ++k) knobs[k] = colours[(pages >> (2 * k)) & 3u];
+// SW5's two lights (TAPE): with a loop playing, the speed (LED 6 forward, LED 5
+// reverse, blue -> green -> yellow -> red with speed, red spilling over near the ends);
+// dimmed in the record position.
+inline void ComposeTransportLeds(bool playing, float speed, bool record_position, Rgb& reverse, Rgb& forward) {
+    reverse = forward = Rgb{};
+    if(!playing) return;
+    const float v = Clamp((speed + 2.f) * .25f, 0.f, 1.f);
+    const float idx = v < .5f ? v * 2.f : (1.f - v) * 2.f;
+    using namespace knobs::colour;
+    Rgb on = knobs::Fade4(med_blue, green, yellow, red, idx), off{};
+    if(idx > .8f) off = knobs::Scale(red, (idx - .8f) * 5.f);
+    if(record_position) { on = knobs::Scale(on, .7f); off = knobs::Scale(off, .7f); }
+    if(v > .5f) { forward = on; reverse = off; } else { reverse = on; forward = off; }
+}
+// Knob ring LEDs (TAPE): each knob's colour from its page and value (knob_layout.h);
+// a reset flashes white; in the record position knob lights 1-4 are off (TAPE).
+inline void ComposeKnobLeds(uint32_t values, uint32_t state, bool record_position, Rgb (&rings)[4]) {
+    for(unsigned k = 0; k < 4; ++k) {
+        const unsigned page = (state >> (3 * k)) & 7u;
+        rings[k] = knobs::KnobColour(k, page, ((values >> (8 * k)) & 255u) / 255.f, (state >> (12 + k)) & 1u, (state >> 21) & 1u);
+        if((state >> (16 + k)) & 1u) rings[k] = Rgb{1.f, 1.f, 1.f};
+        else if(record_position) rings[k] = Rgb{};
+    }
 }
 inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chompi) {
     if(!(v.menu & 1u))
@@ -363,11 +443,20 @@ inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chompi) {
         RenderSampleLeds(v.menu, v.sample_occupancy, v.sample_card, v.recording_present, v.live, v.blink, keys);
     else
         RenderMenuLeds(v.menu, v.preset_occupancy, v.preset_card, v.last_bank, v.last_slot, v.blink, keys);
-    // CHOMPI key LED (as TAPE): red recording, flash after an action, pink blink while saving.
+    // CHOMPI key LED (as TAPE): red recording, flash after an action, pink blink while
+    // saving; otherwise the input meter in the record position, purple while held in
+    // the menu position. Forge's count-in: CHOMPI and the white keys blink red 3 times.
+    const bool count_lit = v.count_in & 1u;
     if(v.recording_now) chompi = Rgb{1.f, 0.f, 0.f};
+    else if(v.count_in) {
+        chompi = count_lit ? Rgb{1.f, 0.f, 0.f} : Rgb{};
+        if(!(v.menu & 1u)) for(uint8_t s = 0; s < 15; ++s) keys[panel::SlotLed(s)] = count_lit ? Rgb{1.f, 0.f, 0.f} : Rgb{};
+    }
     else if(v.flash >= 0) chompi = v.flash ? Rgb{0.f, .3f, 0.f} : Rgb{.3f, 0.f, 0.f};
     else if(v.saving) chompi = v.slow_blink ? Rgb{1.f, 0.f, .6f} : Rgb{};
-    else chompi = Rgb{0.f, .05f, .1f};
+    else if(v.record_position)
+        chompi = knobs::Fade4(Rgb{.1f, .1f, .1f}, knobs::colour::green, knobs::colour::yellow, knobs::colour::pink, Clamp(v.input_level, 0.f, 1.f));
+    else chompi = (v.keys_down >> panel::kChompiKey) & 1u ? knobs::colour::purple : Rgb{};
     // Firmware install: CHOMPI blinks white until pressed, then stays white while CHOMPI restarts.
     if(v.install == 1) chompi = v.blink ? Rgb{1.f, 1.f, 1.f} : Rgb{};
     else if(v.install == 2) chompi = Rgb{1.f, 1.f, 1.f};

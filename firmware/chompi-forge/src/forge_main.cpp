@@ -74,6 +74,8 @@ constexpr size_t kReverbCapacity = 8704; // >= Reverb::Required(48000) = 8606
 // The FDN lines exceed the 16 KB D-cache, so SDRAM would mean cache misses.
 // Not zeroed at boot; Reverb's unread counter hides stale cells until rewritten.
 float __attribute__((section(".dtcmram_bss"))) reverb_memory[kReverbCapacity];
+// TAPE's warble line (8 KB): ordinary .bss, zeroed at start-up, so no image space.
+float warble_memory[2 * forge::tape::Warble::kLength];
 uint32_t dropped_commands = 0, rejected_messages = 0; // main-loop owned
 
 // Device presets on the SD card (main loop only) and the TAPE-style panel menu
@@ -100,7 +102,6 @@ constexpr uint32_t kLoopFrames = 4000000u;
 int16_t DSY_SDRAM_BSS loop_memory[2 * kLoopFrames];
 forge::Looper looper;                                         // audio owner
 std::atomic<uint32_t> looper_state{0};                        // audio -> main: PackLooper, for the LEDs
-std::atomic<uint8_t> knob_pages{0};                           // audio -> main: knob page per knob, for the LEDs
 uint8_t __attribute__((aligned(32))) sample_scratch[16384];   // D1 SRAM: reachable by SD DMA
 forge::SampleTable sample_table;
 forge::SampleHandoff sample_handoff;
@@ -113,6 +114,8 @@ forge::FileTransfer file_transfer;
 forge::InstallGate install_gate;
 std::atomic<uint32_t> sample_wanted{0};                      // audio -> main: PackSelection of the live patch
 std::atomic<bool> recording_now{false};                       // audio -> main, for the CHOMPI LED
+std::atomic<float> input_peak{0.f};                           // audio -> main: input meter (record position)
+std::atomic<float> loop_speed{1.f};                           // audio -> main: SW5's lights
 forge::SpscQueue<forge::SampleJob, 4> sample_jobs;            // audio -> main: panel save/erase/copy
 uint8_t led_shadow[26][3];                                    // main loop: what the LEDs show now (probe page 1)
 
@@ -197,7 +200,7 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
         if(hw.button_sr.State(key)) input.keys |= uint64_t(1) << key;
     input.toggle_up = hw.GetToggleState();
     input.jack = hw.jack_detect.Read();
-    input.tone_press = hw.enc[forge::panel::kToneEncoder].RisingEdge();
+    input.tone_down = hw.enc[forge::panel::kToneEncoder].Pressed();
     for(unsigned i = 0; i < forge::panel::kEncoders; ++i) input.turns[i] = static_cast<int16_t>(hw.enc[i].Increment());
 #ifdef FORGE_TEST_HOOKS
     const uint32_t inspector_now=System::GetNow();
@@ -209,25 +212,31 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     recording_now.store(recorder.Recording(), std::memory_order_relaxed);
     menu_state.store(panel_controller.MenuPacked(), std::memory_order_relaxed);
     looper_state.store(forge::PackLooper(looper, engine.FxBeforeLoop()), std::memory_order_relaxed);
-    knob_pages.store(panel_controller.KnobPages(), std::memory_order_relaxed);
+    loop_speed.store(looper.Speed(), std::memory_order_relaxed);
 
     const bool recording = recorder.Recording();
+    // TAPE: in the record position the input is monitored (headphones) and metered.
+    const bool monitor = panel_controller.RecordPosition() || recording;
+    float peak = 0.f;
     for(size_t i = 0; i < size; ++i) {
         float left, right;
         // Upstream channel map: mic 0, aux L/R = 2/3 (aux feeds the delay route).
         engine.Process(in[2][i], in[3][i], left, right);
-        if(recording) {
+        float hp_l = left, hp_r = right;
+        if(monitor) {
             float rec_l, rec_r;
             recorder.Input(source, in[0][i], in[2][i], in[3][i], left, right, rec_l, rec_r);
-            recorder.Write(rec_l, rec_r);
-            if(source != forge::RecordSource::Resample) {      // monitor what is recorded (as TAPE)
-                left = forge::Clamp(left + 0.5f * rec_l, -1.f, 1.f);
-                right = forge::Clamp(right + 0.5f * rec_r, -1.f, 1.f);
+            if(recording) recorder.Write(rec_l, rec_r);
+            if(source != forge::RecordSource::Resample) {      // TAPE's default monitor position: headphones
+                hp_l = forge::Clamp(left + 0.5f * rec_l, -1.f, 1.f);
+                hp_r = forge::Clamp(right + 0.5f * rec_r, -1.f, 1.f);
+                peak = std::fmax(peak, std::fmax(std::fabs(rec_l), std::fabs(rec_r)));
             }
         }
-        out[0][i] = out[2][i] = left;
-        out[1][i] = out[3][i] = right;
+        out[0][i] = hp_l; out[1][i] = hp_r;              // headphones
+        out[2][i] = left; out[3][i] = right;             // main (line) out
     }
+    input_peak.store(peak, std::memory_order_relaxed);
 #ifdef FORGE_TEST_HOOKS
     static uint32_t block=0, revision=0, selection=0; static bool was_recording=false;
     ++block;
@@ -429,6 +438,12 @@ void RunSampler() {
 // Key LEDs (~30 Hz), the knob page LEDs (1-4), PLAY/LOOP (7/8) and panel LED 0 (the CHOMPI key, as in TAPE): red while
 // recording, a flash after an action, pink blink while saving/copying. The
 // composed colours are kept for the development probe.
+// White balance: CHOMPI's LEDs show full white as light blue (DC, 2026-10-05; TAPE drives
+// them the same way), so green and blue are trimmed. Applied only at the LED driver;
+// the composed colours (tests, development probe) stay TAPE's.
+constexpr float kBalanceG = .85f, kBalanceB = .6f;
+forge::Rgb Balance(forge::Rgb c) { return forge::Rgb{c.r, c.g * kBalanceG, c.b * kBalanceB}; }
+void Pth(unsigned led, forge::Rgb c) { c = Balance(c); SetPthLedFloat(led, c.r, c.g, c.b); }
 void DrawLeds() {
     static uint32_t last_draw = 0;
     const uint32_t now = System::GetNow();
@@ -450,21 +465,32 @@ void DrawLeds() {
     view.saving = sample_loader.Busy() && !sample_loader.Loading();
     view.looper = looper_state.load(std::memory_order_relaxed);
     view.install = install_gate.Confirmed() ? 2 : install_gate.Armed() ? 1 : 0;
+    view.record_position = panel_controller.RecordPosition();
+    view.count_in = panel_controller.CountIn();
+    static float meter = 0.f;                                    // TAPE-like VU: fast up, slow down
+    meter = std::fmax(input_peak.load(std::memory_order_relaxed), meter * 0.85f);
+    view.input_level = meter;
     forge::Rgb keys[25], chompi, play, loop;
     forge::ComposeLeds(view, keys, chompi);
     forge::ComposeLooperLeds(view.looper, view.blink, play, loop);
-    SetPthLedFloat(forge::panel::kPlayLed, play.r, play.g, play.b);
-    SetPthLedFloat(forge::panel::kLoopLed, loop.r, loop.g, loop.b);
-    forge::Rgb knobs[4];
-    forge::ComposeKnobLeds(knob_pages.load(std::memory_order_relaxed), knobs);
-    for(unsigned k = 0; k < 4; ++k) SetPthLedFloat(forge::panel::kKnobLed[k], knobs[k].r, knobs[k].g, knobs[k].b);
-    for(unsigned i = 0; i < 25; ++i) SetSmtLedFloat(i, keys[i].r, keys[i].g, keys[i].b);
-    SetPthLedFloat(0, chompi.r, chompi.g, chompi.b);
-    // TAPE: SW6 held 2 s shows the battery on its light (dark otherwise in Forge).
-    const auto battery = panel_controller.BatteryView()
-        ? forge::power::BatteryColour(static_cast<forge::power::Battery>(hw.GetBatteryLevel()))
-        : forge::power::Colour{0.f, 0.f, 0.f};
-    SetPthLedFloat(forge::panel::kVolumeLed, battery.r, battery.g, battery.b);
+    if(view.record_position) { play = forge::knobs::Scale(play, .7f); loop = forge::knobs::Scale(loop, .7f); }  // TAPE kRecDim
+    Pth(forge::panel::kPlayLed, play); Pth(forge::panel::kLoopLed, loop);
+    forge::Rgb knobs[4], reverse, forward;
+    forge::ComposeKnobLeds(panel_controller.KnobValues(), panel_controller.KnobState(), view.record_position, knobs);
+    for(unsigned k = 0; k < 4; ++k) Pth(forge::panel::kKnobLed[k], knobs[k]);
+    forge::ComposeTransportLeds((view.looper & 7u) == static_cast<uint32_t>(forge::Looper::State::Playing),
+                                loop_speed.load(std::memory_order_relaxed), view.record_position, reverse, forward);
+    Pth(5, reverse); Pth(6, forward);
+    for(unsigned i = 0; i < 25; ++i) { const forge::Rgb c = Balance(keys[i]); SetSmtLedFloat(i, c.r, c.g, c.b); }
+    Pth(0, chompi);
+    // SW6 (TAPE): held 2 s = battery; otherwise its page (volume / input gain) and value.
+    const uint32_t knob_state = panel_controller.KnobState();
+    forge::Rgb volume = forge::knobs::VolumeColour((knob_state >> 20) & 1u, (knob_state >> 24) / 255.f);
+    if(panel_controller.BatteryView()) {
+        const auto b = forge::power::BatteryColour(static_cast<forge::power::Battery>(hw.GetBatteryLevel()));
+        volume = forge::Rgb{b.r, b.g, b.b};
+    }
+    Pth(forge::panel::kVolumeLed, volume);
     fill_led_data();
     auto seven = [](float x) { return static_cast<uint8_t>(forge::Clamp(x, 0.f, 1.f) * 127.f + 0.5f); };
     for(unsigned i = 0; i < 26; ++i) {
@@ -685,6 +711,7 @@ int main() {
     recorder.Init(record_memory, kRecordFrames, &sample_table.slots[forge::kRamSlot], hw.seed.AudioSampleRate());
     looper.Init(loop_memory, kLoopFrames, hw.seed.AudioSampleRate());
     engine.SetLooper(&looper);
+    engine.SetWarbleMemory(warble_memory);
     sample_loader.Init(&sample_table, &sample_handoff, sample_pool, kPoolSamples, sample_scratch, sizeof(sample_scratch));
     if(!engine.Init(hw.seed.AudioSampleRate(), delay_left, delay_right, kDelayCapacity,
                     reverb_memory, kReverbCapacity)) {

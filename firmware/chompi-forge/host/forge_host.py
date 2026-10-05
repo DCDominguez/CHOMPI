@@ -160,30 +160,58 @@ KNOB_BYTES = {0: "default", **{value + 1: name for name, value in KNOB_TARGETS.i
 SCHEMA5 = object_schema({**SCHEMA4["properties"], "version": {"type": "integer", "enum": [5]},
                          "knobs": {"type": "array", "minItems": 4, "maxItems": 4,
                                    "items": {"type": "string", "enum": list(KNOB_CHOICES)}}})
-# Knob pages (core/panel_controller.h KnobPageParameter): page 1 is the patch's
-# knob, pages 2-4 fixed per knob. Knobs 1-4 are SW4, SW1, SW2, SW3 on the panel.
+# Knob pages (core/knob_layout.h): TAPE's pages first, Forge's extra controls after,
+# then the patch's own knob (v5 assignment) as one last page. Knobs 1-4 are SW4, SW1,
+# SW2, SW3 on the panel. "tape.*" controls are device performance state (not in patches).
 KNOB_SWITCHES = ("SW4", "SW1", "SW2", "SW3")
 DEFAULT_KNOBS = {"synth": ("delay.mix", "delay.time_ms", "delay.feedback", "output.level"),
                  "sampler": ("sampler.pitch_semitones", "sampler.start", "sampler.end", "delay.mix")}
-KNOB_PAGES = (("filter.cutoff_hz", "filter.resonance", "filter.env_octaves"),
-              ("synth.attack_ms", "synth.decay_ms", "synth.release_ms"),
-              ("lfo.rate_hz", "lfo.filter_octaves", "synth.osc2_detune_cents"),
-              ("delay.mix", "delay.feedback", "reverb.mix"))
+KNOB_LAYOUT = {
+    "synth": (("tape.speed", "tape.voice_gain", "filter.resonance", "filter.env_octaves"),
+              ("synth.attack_ms", "synth.decay_ms", "lfo.rate_hz"),
+              ("synth.release_ms", "synth.sustain", "lfo.filter_octaves", "synth.osc2_detune_cents"),
+              ("tape.space", "tape.saturation", "tape.dj_filter")),
+    "sampler": (("tape.speed", "tape.voice_gain", "filter.resonance", "filter.env_octaves"),
+                ("sampler.start", "synth.attack_ms", "lfo.rate_hz"),
+                ("sampler.end", "synth.release_ms", "lfo.filter_octaves", "sampler.crossfade_ms"),
+                ("tape.space", "tape.saturation", "tape.dj_filter")),
+    "effects": (("delay.mix", "output.level"), ("delay.time_ms",), ("delay.feedback",),
+                ("tape.space", "tape.saturation", "tape.dj_filter"))}
 
 
-def knob_control(patch, knob, page=1):
-    """The control ("module.key") knob 1-4 turns on page 1-4 for this patch."""
-    sampler = patch.get("version", 1) >= 4 and patch.get("routing", "").startswith("sampler")
-    if page == 1:
-        assigned = patch.get("knobs", ["default"] * 4)[knob - 1]
+def _is_sampler(patch):
+    return patch.get("version", 1) >= 4 and patch.get("routing", "").startswith("sampler")
+
+
+def _layout(patch):
+    """Which knob layout applies: effects-only (line in, no voices), sampler or synth."""
+    if patch.get("version", 1) == 1 or patch.get("routing", "").startswith("aux"): return KNOB_LAYOUT["effects"]
+    return KNOB_LAYOUT["sampler" if _is_sampler(patch) else "synth"]
+
+
+def knob_pages(patch, knob):
+    """How many pages knob 1-4 has for this patch (the patch page only when assigned)."""
+    assigned = patch.get("knobs", ["default"] * 4)[knob - 1]
+    return len(_layout(patch)[knob - 1]) + (assigned != "default")
+
+
+def knob_control(patch, knob, page=None):
+    """The control ("module.key") knob 1-4 turns on `page` (1-based); without a page,
+    the patch's assignment for the knob (CC 20-23), else its source's default."""
+    sampler = _is_sampler(patch)
+    assigned = patch.get("knobs", ["default"] * 4)[knob - 1]
+    if page is None:
         return DEFAULT_KNOBS["sampler" if sampler else "synth"][knob - 1] if assigned == "default" else assigned
-    if sampler and knob == 3 and page == 4: return "sampler.crossfade_ms"
-    return KNOB_PAGES[knob - 1][page - 2]
+    layout = _layout(patch)[knob - 1]
+    if page <= len(layout): return layout[page - 1]
+    return assigned if assigned != "default" else layout[0]
 
 
 def control_value(patch, control):
-    """Current value of a "module.key" control, or None if this patch version lacks it."""
+    """Current value of a "module.key" control, or None if this patch version lacks it
+    (or it is device performance state, "tape.*")."""
     module, key = control.split(".")
+    if module == "tape": return None
     if patch["version"] == 1:
         return patch["parameters"].get(key) if module in ("delay", "output") else None
     modules = patch["modules"]

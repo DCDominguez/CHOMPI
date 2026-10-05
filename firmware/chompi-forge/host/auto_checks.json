@@ -230,7 +230,7 @@
     {
      "panel": [
       "release all",
-      "toggle down"
+      "toggle record"
      ]
     },
     {
@@ -339,12 +339,12 @@
   },
   {
    "id": "3.17",
-   "title": "Menu opens: toggle up + hold CHOMPI, bank keys lit",
+   "title": "Menu opens: toggle in the menu position (down) + hold CHOMPI, bank keys lit",
    "do": [
     {
      "panel": [
       "release all",
-      "toggle up",
+      "toggle menu",
       "hold CHOMPI"
      ]
     },
@@ -482,7 +482,7 @@
   },
   {
    "id": "3.34",
-   "title": "Record a 440 Hz line-in tone (toggle down + hold CHOMPI), play it back at MIDI 60",
+   "title": "Record a 440 Hz line-in tone (record position, hold CHOMPI through the 1.5 s count-in), play it back at MIDI 60",
    "do": [
     {
      "send": "presets/01-dry.json"
@@ -490,14 +490,14 @@
     {
      "panel": [
       "release all",
-      "toggle down",
+      "toggle record",
       "jack in"
      ]
     },
     {
      "tone": {
       "hz": 440,
-      "seconds": 3.0,
+      "seconds": 4.5,
       "tail": 0.3,
       "capture": "recording",
       "after": 0.3,
@@ -506,7 +506,7 @@
         "panel": "hold CHOMPI"
        },
        {
-        "wait": 2.0
+        "wait": 3.5
        },
        {
         "probe": true
@@ -575,7 +575,7 @@
     {
      "panel": [
       "release all",
-      "toggle down"
+      "toggle record"
      ]
     },
     {
@@ -757,7 +757,7 @@
   },
   {
    "id": "3.52",
-   "title": "Knob pages: pressing knob 1 (SW4) steps it to page 2 (cutoff), its LED turns red",
+   "title": "Knob pages: releasing knob 1 (SW4) steps it from TAPE's pitch to page 2 (voice gain)",
    "do": [
     {
      "send": "presets/07-warm-pad.json"
@@ -784,8 +784,8 @@
        1,
        1
       ],
-      "panel.knobs.0.control": "filter.cutoff_hz",
-      "panel.knobs.1.control": "delay.time_ms"
+      "panel.knobs.0.control": "tape.voice_gain",
+      "panel.knobs.1.control": "synth.attack_ms"
      }
     }
    ]
@@ -808,7 +808,6 @@
     {
      "panel": [
       "tap ENC_1_SW",
-      "tap ENC_1_SW",
       "tap ENC_1_SW"
      ]
     },
@@ -825,14 +824,14 @@
        1,
        1
       ],
-      "panel.knobs.1.control": "delay.time_ms"
+      "panel.knobs.1.control": "synth.attack_ms"
      }
     }
    ]
   },
   {
    "id": "3.55",
-   "title": "v5 patch knobs: Knob Pad puts the cutoff on knob 1, page 1; turning it opens the filter",
+   "title": "v5 patch knobs: Knob Pad's cutoff is the last page of knob 1 (page 5); turning it opens the filter",
    "do": [
     {
      "send": "presets/14-knob-pad.json"
@@ -843,6 +842,10 @@
     {
      "panel": [
       "release all",
+      "tap ENC_4_SW",
+      "tap ENC_4_SW",
+      "tap ENC_4_SW",
+      "tap ENC_4_SW",
       "turn KNOB_1 +20"
      ]
     },
@@ -864,6 +867,12 @@
       "engine.patch.modules.filter.cutoff_hz": [
        1500,
        16000
+      ],
+      "panel.knob_pages": [
+       5,
+       1,
+       1,
+       1
       ]
      }
     }

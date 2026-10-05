@@ -23,7 +23,31 @@ SD streaming remains gated on physical SD measurements. Older checkpoint and
 PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
 use the latest implementation checkpoint and ledger for present capabilities/budgets.
 
-## Current checkpoint: firmware 0.9, key lights while playing, 2026-10-05
+## In progress: firmware 0.10 TAPE parity, stage 1 (not released; version still 0.9)
+
+DC chose the recommended answers for every parity row. Stage 1 done so far
+(software-tested, not on hardware): TAPE knob layout (core/knob_layout.h: TAPE pages
+first, Forge's extra synth pages after, the patch's knob as a last page; effects-only
+patches put the delay on knobs 1-3), TAPE step sizes, page change on release, 1.5 s
+hold = reset to the patch value, SW4 + SW3 held 1 s = panic, SW5 turn = cutoff /
+push-and-turn = loop speed (.012 per click) / click = 1x, SW6 short press = input gain
+(.75, recorder x mic 5 / line 3 as TAPE), 1.5 s record count-in (CHOMPI and white keys
+blink red; release cancels), velocity 127, after a take TAPE's speed/gain/start/end
+reset; TAPE performance controls (core/parameters.h Performance: speed with reverse,
+voice gain, pan, saturation, warble, DJ filter + resonance, compressor, input gain;
+device state, not in patches); TAPE effects ported (core/tape_fx.h; warble line is
+caller memory so no image cost); lights: TAPE value colours on knob rings (off in
+the record position), CHOMPI input meter / purple / count-in, PLAY/LOOP/SW5 dim in the
+record position, SW5 transport LEDs, SW6 page colour, white balance (G .85, B .6) at
+the driver; monitoring in the record position to the headphones (TAPE default);
+bridge: toggle menu/record wording, new knob model, walk/auto checks updated.
+Checks at this point: make test (11 native + 114 Python), make sanitize, browser
+tests (11 + 7) PASS; ARM release 249,188 B layout OK. Next: restart reason (L2),
+convert old starter presets (L3), audio knob test (L4), docs/manual (L5, E1),
+version 0.10, then stage 2 (menu shift layer, monitor modes, options.json/presets.json,
+quantised loop speed, tape slew, MIDI out, menu reorder).
+
+## Previous checkpoint: firmware 0.9, key lights while playing, 2026-10-05
 
 DC reported no lights on key presses. Added TAPE's NormalPage key lights with
 the menu closed (`RenderPlayLeds` in core/panel_controller.h): held keys white,

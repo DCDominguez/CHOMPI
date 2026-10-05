@@ -2,6 +2,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstdint>
+#include "parameters.h"
 #include "sample_table.h"
 
 namespace forge {
@@ -24,17 +25,20 @@ public:
     // Conditions the chosen input (TAPE: mic x5 with DC blocking, line x3,
     // resample = the instrument's own output) into a stereo pair.
     void Input(RecordSource source, float mic, float line_l, float line_r, float out_l, float out_r, float& l, float& r) {
+        input_gain_ += .001f * (input_gain_target_ - input_gain_);
         switch(source) {
             case RecordSource::Mic: {
-                const float x = 5.f * mic;
+                const float x = 5.f * input_gain_ * mic;
                 dc_l_ = x - prev_l_ + dc_coefficient_ * dc_l_; prev_l_ = x;
                 l = r = dc_l_;
                 break;
             }
-            case RecordSource::Line: l = 3.f * line_l; r = 3.f * line_r; break;
+            case RecordSource::Line: l = 3.f * input_gain_ * line_l; r = 3.f * input_gain_ * line_r; break;
             default: l = out_l; r = out_r; break;
         }
     }
+    // TAPE's input gain (SW6 page 2, 0..1, .75 at power-on), smoothed per sample.
+    void SetInputGain(float gain) { input_gain_target_ = Clamp(gain, 0.f, 1.f); }
     // Starts a new take (the old one is discarded). The caller first stops any
     // voice reading the slot; frames = 0 makes the slot unplayable meanwhile.
     bool Start() {
@@ -84,6 +88,7 @@ public:
     bool Locked() const { return locked_.load(std::memory_order_acquire); }
     const int16_t* Data() const { return memory_; }
 private:
+    float input_gain_ = .75f, input_gain_target_ = .75f;
     static int16_t ToInt16(float x) {
         const float v = x * 32767.f;
         return static_cast<int16_t>(v > 32767.f ? 32767.f : v < -32768.f ? -32768.f : (std::isfinite(v) ? v : 0.f));

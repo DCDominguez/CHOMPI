@@ -243,22 +243,36 @@ private:
     uint8_t sample_mode_ = 0, sample_bank_[2]{}, chromatic_slot_ = 0, selected_mode_ = 0, source_mode_ = 0, record_source_ = 1;
 };
 
-// TAPE's record gesture: with the toggle down, holding the CHOMPI key records;
-// releasing it (or flipping the toggle up) stops. Audio owner, once per block.
+// TAPE's record gesture: in the record position, holding the CHOMPI key records;
+// releasing it (or moving the toggle to the menu position) stops. Forge adds a
+// count-in: recording starts after kCountInFrames (1.5 s) of holding; letting go
+// first cancels. `toggle_up` is the menu position (GetToggleState() true).
+// Audio owner, once per block.
 class RecordGesture {
 public:
     enum class Event : uint8_t { None, Start, Stop };
-    Event Update(bool toggle_up, bool chompi_down) {
+    static constexpr uint32_t kCountInFrames = 48 * 1500;   // 48 kHz
+    Event Update(bool toggle_up, bool chompi_down, uint32_t frames = 0) {
         Event event = Event::None;
         if(recording_ && (toggle_up || !chompi_down)) { recording_ = false; event = Event::Stop; }
-        else if(!recording_ && !toggle_up && chompi_down && !chompi_) { recording_ = true; event = Event::Start; }
+        else if(counting_) {
+            if(toggle_up || !chompi_down) counting_ = false;                  // let go early: nothing recorded
+            else if((count_ += frames) >= kCountInFrames) { counting_ = false; recording_ = true; event = Event::Start; }
+        } else if(!recording_ && !toggle_up && chompi_down && !chompi_) {
+            counting_ = true; count_ = 0;
+            if(frames == 0) { counting_ = false; recording_ = true; event = Event::Start; }   // no clock: immediate
+        }
         chompi_ = chompi_down;
         return event;
     }
     void Cancel() { recording_ = false; }          // the recorder refused to start
     bool Recording() const { return recording_; }
+    bool CountingIn() const { return counting_; }
+    // 0 = no count-in, else 1..6: six half-blinks over the count-in (odd = lit).
+    uint8_t CountInPhase() const { return counting_ ? static_cast<uint8_t>(1 + count_ * 6 / kCountInFrames) : 0; }
 private:
-    bool recording_ = false, chompi_ = false;
+    bool recording_ = false, counting_ = false, chompi_ = false;
+    uint32_t count_ = 0;
 };
 
 // LED colours for the 25 key LEDs while the menu is open (main loop, pure).

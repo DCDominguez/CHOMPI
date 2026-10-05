@@ -36,7 +36,7 @@ struct Rig {
             float L, R; engine.Process(line, line, L, R);
             if(recorder.Recording()) { float a, b; recorder.Input(panel.Source(), 0, line, line, L, R, a, b); recorder.Write(a, b); }
         }
-        hw.turns[0] = hw.turns[1] = hw.turns[2] = hw.turns[3] = hw.turns[4] = hw.turns[5] = 0; hw.tone_press = false;
+        hw.turns[0] = hw.turns[1] = hw.turns[2] = hw.turns[3] = hw.turns[4] = hw.turns[5] = 0;
     }
     void Inject(PanelEvent::Kind kind, uint8_t id, int8_t value) { PanelEvent e; e.kind = kind; e.id = id; e.value = value; panel.Inject(e); Block(); }
     void Key(uint8_t id, bool down) { Inject(PanelEvent::Kind::Key, id, down ? 1 : 0); }
@@ -56,14 +56,19 @@ void KeysKnobsAndOverrides() {
     rig.hw.keys = 0; rig.Block();
     for(int i = 0; i < 2000; ++i) rig.Block();
     assert(rig.engine.ActiveVoices() == 0);
-    // Knob 1 is hardware encoder SW4 (index 3): a virtual turn moves the mix.
-    const float mix = rig.engine.GetParameters().mix;
-    rig.Inject(PanelEvent::Kind::Turn, 3, 20); assert(std::fabs(rig.engine.GetParameters().mix - (mix + 20 / 127.f)) < 1e-6f);
-    rig.hw.turns[3] = -10; rig.Block(); assert(std::fabs(rig.engine.GetParameters().mix - (mix + 10 / 127.f)) < 1e-6f);
-    rig.Inject(PanelEvent::Kind::Turn, 5, 30); assert(rig.engine.GetParameters().level > 0.4f);  // SW6 level
-    // SW5 press panics; a held note stops.
+    // Knob 1 is hardware encoder SW4 (index 3): page 1 is TAPE's pitch, .003 per click.
+    const float speed = rig.engine.GetPerformance().speed;
+    rig.Inject(PanelEvent::Kind::Turn, 3, 20); assert(std::fabs(rig.engine.GetPerformance().speed - (speed + 20 * .003f)) < 1e-5f);
+    rig.hw.turns[3] = -10; rig.Block(); assert(std::fabs(rig.engine.GetPerformance().speed - (speed + 10 * .003f)) < 1e-5f);
+    rig.Inject(PanelEvent::Kind::Turn, 5, 10); assert(std::fabs(rig.engine.GetParameters().level - .55f) < 1e-5f);  // SW6: .03 per click
+    // Panic: SW4 + SW3 held together 1 s; a held note stops; neither knob changes page.
     rig.Key(kWhite[5], true); assert(rig.engine.ActiveVoices() == 1);
-    rig.Inject(PanelEvent::Kind::Press, 4, 0); assert(rig.engine.ActiveVoices() == 0);
+    rig.Key(panel::kKnobEncoder[0], true); rig.Key(panel::kKnobEncoder[3], true);
+    for(int i = 0; i < 1990; ++i) rig.Block();
+    assert(rig.engine.ActiveVoices() == 1);
+    for(int i = 0; i < 20; ++i) rig.Block();
+    assert(rig.engine.ActiveVoices() == 0);
+    rig.Key(panel::kKnobEncoder[0], false); rig.Key(panel::kKnobEncoder[3], false); assert(rig.panel.KnobPages() == 0);
     rig.Key(kWhite[5], false);
     // Jack override: line in; back to hardware (unplugged) -> mic.
     rig.Inject(PanelEvent::Kind::Jack, 0, 1); assert(rig.panel.Source() == RecordSource::Line && rig.panel.Overridden());
@@ -89,12 +94,20 @@ void MenuAndRecordingThroughTheController() {
     // Record: toggle down, hold CHOMPI with line input, release -> chromatic slot 15.
     rig.Inject(PanelEvent::Kind::Jack, 0, 1);
     rig.Inject(PanelEvent::Kind::Toggle, 0, 0);
-    rig.Key(panel::kChompiKey, true); assert(rig.recorder.Recording());
+    // Count-in: 1.5 s of blinking first; letting go early records nothing.
+    rig.Key(panel::kChompiKey, true); assert(!rig.recorder.Recording() && rig.panel.CountIn() == 1);
+    for(int i = 0; i < 1000; ++i) rig.Block(0.1f);
+    assert(!rig.recorder.Recording() && rig.panel.CountIn() == 3);
+    rig.Key(panel::kChompiKey, false); assert(rig.panel.CountIn() == 0 && !rig.recorder.Recording() && rig.recorder.Length() == 0);
+    rig.Key(panel::kChompiKey, true);
+    for(int i = 0; i < 2999; ++i) rig.Block(0.1f);                            // 3,000 blocks of 24 = 1.5 s
+    assert(!rig.recorder.Recording());
+    rig.Block(0.1f); assert(rig.recorder.Recording() && rig.panel.CountIn() == 0);
     for(int i = 0; i < 200; ++i) rig.Block(0.1f);
     rig.Key(panel::kChompiKey, false);
     assert(!rig.recorder.Recording() && rig.recorder.Length() > 4000);
     assert(rig.engine.GetParameters().sample_mode == 0 && rig.engine.GetParameters().sample_slot == kRamSlot);
-    assert(std::fabs(rig.recorder.Peak() - 0.3f) < 0.01f);                       // line x3
+    assert(std::fabs(rig.recorder.Peak() - 0.225f) < 0.01f);                     // line x3 x input gain .75 (TAPE)
     // Save the take into chromatic a2 from the samples page (locks it).
     rig.Inject(PanelEvent::Kind::Toggle, 0, 1);
     rig.Key(panel::kChompiKey, true); rig.Tap(panel::kChromatic); rig.Tap(panel::kSave); rig.Tap(kWhite[1]);
@@ -108,16 +121,32 @@ void MenuAndRecordingThroughTheController() {
     // Recording refused while a save holds the take: red flash, gesture cancelled.
     rig.recorder.Lock(); rig.Key(panel::kChompiKey, false);
     rig.Inject(PanelEvent::Kind::Toggle, 0, 0); rig.Key(panel::kChompiKey, true);
+    for(int i = 0; i < 3000; ++i) rig.Block();
     assert(!rig.recorder.Recording() && rig.sink.failures == 2);
 }
 
 void LedComposition() {
     LedView v; Rgb keys[25], chompi;
-    ComposeLeds(v, keys, chompi); assert(chompi.b > 0.f && chompi.r == 0.f && keys[0].r == 0.f);   // idle: dim blue, menu closed
+    ComposeLeds(v, keys, chompi); assert(chompi.b == 0.f && chompi.r == 0.f && keys[0].r == 0.f);   // idle in the menu position: off (TAPE)
     v.recording_now = true; ComposeLeds(v, keys, chompi); assert(chompi.r == 1.f);
     v.recording_now = false; v.flash = 0; ComposeLeds(v, keys, chompi); assert(chompi.r > 0.f && chompi.g == 0.f);
     v.flash = -1; v.saving = true; v.slow_blink = true; ComposeLeds(v, keys, chompi); assert(chompi.r == 1.f && chompi.b > 0.f);
     v.slow_blink = false; ComposeLeds(v, keys, chompi); assert(chompi.r == 0.f && chompi.b == 0.f);
+    // TAPE: record position = input meter (dim white at silence, green with signal); menu
+    // position = off, purple while CHOMPI is held. Count-in: CHOMPI and white keys blink red.
+    v.saving = false; v.record_position = true; ComposeLeds(v, keys, chompi); assert(chompi.r == .1f && chompi.g == .1f && chompi.b == .1f);
+    v.input_level = .3f; ComposeLeds(v, keys, chompi); assert(chompi.g > chompi.r && chompi.g > .5f);
+    v.record_position = false; ComposeLeds(v, keys, chompi); assert(chompi.r == 0.f && chompi.g == 0.f && chompi.b == 0.f);
+    v.keys_down = uint64_t(1) << panel::kChompiKey; ComposeLeds(v, keys, chompi); assert(chompi.b == 1.f && chompi.r > .5f);
+    v.keys_down = 0; v.record_position = true;
+    v.count_in = 1; ComposeLeds(v, keys, chompi); assert(chompi.r == 1.f && keys[panel::SlotLed(0)].r == 1.f && keys[panel::SlotLed(14)].g == 0.f);
+    v.count_in = 2; ComposeLeds(v, keys, chompi); assert(chompi.r == 0.f && keys[panel::SlotLed(0)].r == 0.f);
+    v.count_in = 0; v.record_position = false; v.input_level = 0.f;
+    // SW5's lights: playing at 1x lights the forward LED only; reverse lights LED 5; dimmed in the record position.
+    Rgb rev, fwd; ComposeTransportLeds(true, 1.f, false, rev, fwd); assert(fwd.g > .5f && rev.r == 0.f && rev.g == 0.f);
+    ComposeTransportLeds(true, -1.f, false, rev, fwd); assert(rev.g > .5f && fwd.g == 0.f);
+    ComposeTransportLeds(true, 1.f, true, rev, fwd); assert(fwd.g < .75f);
+    ComposeTransportLeds(false, 1.f, false, rev, fwd); assert(fwd.g == 0.f && rev.g == 0.f);
     PresetMenu menu; menu.Update(true, true); v.menu = menu.Packed(); v.preset_card = true; v.preset_occupancy = 1;
     ComposeLeds(v, keys, chompi); assert(keys[panel::SlotLed(0)].r > 0.f);                       // presets page drawn
     // Menu closed (TAPE NormalPage): held keys light white; nothing else without a sampler patch.
@@ -186,12 +215,20 @@ void LooperThroughThePanel() {
     for(int i = 0; i < 1000; ++i) rig.Block();
     rig.Tap(panel::kPlayKey);                                        // PLAY ends the take: plain playback
     assert(looper.GetState() == Looper::State::Playing && !looper.Overdubbing() && looper.Length() > 20000);
-    // SW5 with a loop: transport, not cutoff / panic.
+    // SW5: a plain turn is always cutoff; push and turn is the loop speed (.012 per click, TAPE);
+    // a click without turning puts it back to 1x.
     const float cutoff = rig.engine.GetParameters().cutoff;
     rig.hw.turns[panel::kToneEncoder] = 10; rig.Block();
-    assert(looper.Speed() > 1.2f && rig.engine.GetParameters().cutoff == cutoff);
-    rig.hw.tone_press = true; rig.Block();
-    assert(looper.Speed() == 1.f && looper.GetState() == Looper::State::Playing);
+    assert(std::fabs(rig.engine.GetParameters().cutoff - (cutoff + .1f)) < 1e-5f);
+    for(int i = 0; i < 2000; ++i) rig.Block();
+    assert(std::fabs(looper.Speed() - 1.f) < 1e-4f);
+    rig.hw.tone_down = true; rig.hw.turns[panel::kToneEncoder] = 10; rig.Block();
+    rig.hw.tone_down = false; rig.Block();
+    for(int i = 0; i < 2000; ++i) rig.Block();
+    assert(std::fabs(looper.Speed() - 1.12f) < 1e-3f && std::fabs(rig.engine.GetParameters().cutoff - (cutoff + .1f)) < 1e-5f);
+    rig.Inject(PanelEvent::Kind::Press, 4, 0); rig.Block(); rig.Block();
+    for(int i = 0; i < 2000; ++i) rig.Block();
+    assert(std::fabs(looper.Speed() - 1.f) < 1e-3f && looper.GetState() == Looper::State::Playing);
     // Menu: PLAY / LOOP set the feedback, KEY_20 / KEY_21 place the effects; the loop keeps playing.
     rig.hw.toggle_up = true; rig.Key(panel::kChompiKey, true);
     rig.Tap(panel::kPlayKey); rig.Tap(panel::kPlayKey);
@@ -279,51 +316,80 @@ void LooperSaveGesture() {
     assert(empty.sink.jobs.empty() && empty.sink.failures == 1);
 }
 
-// Knob pages (docs/forge/KNOBS.md): a knob's press steps its page; page 1 is the
-// patch's knob (v5 assignment or the source's default), pages 2-4 fixed controls.
+// Knob pages (docs/forge/KNOBS.md, core/knob_layout.h): TAPE's pages first, Forge's
+// extra controls after, the patch's own knob last; a press steps the page on release,
+// a 1.5 s hold resets the control; TAPE's step sizes.
 void KnobPages() {
     Rig rig;
     Parameters synth; synth.version = 3; synth.synth = true; synth.cutoff = 0.5f; assert(rig.engine.ApplyPatch(synth));
     rig.Block();
     auto turn = [&](unsigned knob, int amount) { rig.Inject(PanelEvent::Kind::Turn, panel::kKnobEncoder[knob], static_cast<int8_t>(amount)); };
     auto press = [&](unsigned knob) { rig.Tap(panel::kKnobEncoder[knob]); };
-    const Parameters& p = rig.engine.GetParameters();
+    auto page = [&](unsigned knob) { return (rig.panel.KnobPages() >> (3 * knob)) & 7u; };
+    const Parameters& p = rig.engine.GetParameters(); const Performance& perf = rig.engine.GetPerformance();
     auto near = [](float a, float b) { return std::fabs(a - b) < 1e-4f; };
-    turn(0, 10); assert(near(p.mix, 10 / 127.f) && near(p.cutoff, 0.5f) && rig.panel.KnobPages() == 0);
-    press(0); assert(rig.panel.KnobPages() == 1);                         // knob 1 page 2: cutoff
-    turn(0, 10); assert(near(p.cutoff, 0.5f + 10 / 127.f) && near(p.mix, 10 / 127.f));
-    press(0); turn(0, 20); assert(near(p.resonance, 20 / 127.f));         // page 3: resonance
-    press(0); turn(0, -10); assert(near(p.filter_amount, 0.5f - 10 / 127.f));   // page 4: filter envelope
-    press(0); assert(rig.panel.KnobPages() == 0);                         // wraps to the patch page
-    press(1); turn(1, 10); assert(near(p.attack, 0.0045f + 10 / 127.f));  // knob 2: attack, decay, release
-    press(1); turn(1, 10); assert(near(p.decay, 0.1f + 10 / 127.f));
-    press(1); turn(1, 10); assert(near(p.release, 0.08f + 10 / 127.f));
-    press(2); turn(2, 10); assert(near(p.lfo_rate, 0.5f + 10 / 127.f));   // knob 3: LFO rate, filter depth, osc 2 detune
-    press(2); turn(2, 10); assert(near(p.lfo_filter, 10 / 127.f));
-    press(2); turn(2, -10); assert(near(p.osc2_detune, 0.5f - 10 / 127.f));
-    for(int i = 0; i < 3; ++i) press(3);                                  // knob 4 page 4: reverb mix
-    turn(3, 30); assert(near(p.reverb_mix, 30 / 127.f));
-    assert(rig.panel.KnobPages() == (0 | 3 << 2 | 3 << 4 | 3 << 6));
-    // Pages are panel state: they survive a patch change. Sampler: knob 3 page 4 = crossfade.
+    // SW4: pitch (.003), gain (.01), resonance, filter envelope; 4 pages.
+    turn(0, 10); assert(near(perf.speed, .83f + .03f) && rig.panel.KnobPages() == 0);
+    rig.Key(panel::kKnobEncoder[0], true); assert(page(0) == 0);              // press: nothing yet
+    rig.Key(panel::kKnobEncoder[0], false); assert(page(0) == 1);             // release: next page (TAPE)
+    turn(0, 10); assert(near(perf.voice_gain, .704f + .1f));
+    press(0); turn(0, 20); assert(near(p.resonance, .2f));
+    press(0); turn(0, -10); assert(near(p.filter_amount, .4f));
+    press(0); assert(page(0) == 0);                                           // wraps
+    // SW1 (synth): attack, decay, LFO rate; .03 per click.
+    turn(1, 10); assert(near(p.attack, 0.0045f + .3f));
+    press(1); turn(1, 10); assert(near(p.decay, 0.1f + .3f));
+    press(1); turn(1, 10); assert(near(p.lfo_rate, 0.5f + .3f));
+    press(1); assert(page(1) == 0);
+    // SW2 (synth): release, sustain, LFO filter, osc 2 detune.
+    turn(2, 5); assert(near(p.release, 0.08f + .15f));
+    press(2); turn(2, -5); assert(near(p.sustain, .6f - .15f));
+    press(2); turn(2, 5); assert(near(p.lfo_filter, .15f));
+    press(2); turn(2, -5); assert(near(p.osc2_detune, .5f - .15f));
+    press(2); assert(page(2) == 0);
+    // SW3: space (delay + reverb), saturation, DJ filter.
+    turn(3, 10); assert(near(p.feedback, .25f + .3f) && near(p.mix, .5f * .55f) && near(p.reverb_mix, .55f));
+    press(3); turn(3, 10); assert(near(perf.saturation, .3f));
+    press(3); turn(3, -10); assert(near(perf.dj_filter, .2f));
+    press(3); assert(page(3) == 0);
+    // Hold 1.5 s without turning: back to the patch's value (performance: TAPE's default); no page change.
+    press(3); press(3); assert(page(3) == 2);
+    rig.Key(panel::kKnobEncoder[3], true);
+    for(int i = 0; i < 2990; ++i) rig.Block();
+    assert(near(perf.dj_filter, .2f));
+    for(int i = 0; i < 20; ++i) rig.Block();
+    assert(near(perf.dj_filter, .5f) && (rig.panel.KnobState() >> 19) & 1u);
+    rig.Key(panel::kKnobEncoder[3], false); assert(page(3) == 2);
+    press(3); assert(page(3) == 0);
+    rig.Key(panel::kKnobEncoder[1], true); for(int i = 0; i < 3100; ++i) rig.Block(); rig.Key(panel::kKnobEncoder[1], false);
+    assert(near(p.attack, 0.0045f) && page(1) == 0);                          // page 1 of SW1: attack back to the patch's
+    // Sampler: SW1/SW2 page 1 are TAPE's start/end (.009 per click); SW2 page 4 = loop crossfade.
     Parameters sampler; sampler.version = 4; sampler.synth = true; sampler.source = 1; sampler.sample_xfade = 0.04f;
-    assert(rig.engine.ApplyPatch(sampler)); turn(2, 10); assert(near(p.sample_xfade, 0.04f + 10 / 127.f));
-    // A control the patch version cannot carry is ignored (v1: no envelope).
-    Parameters delay; assert(rig.engine.ApplyPatch(delay)); press(1); assert(((rig.panel.KnobPages() >> 2) & 3u) == 0);
-    press(1); turn(1, 10); assert(near(p.attack, 0.0045f));
-    // v5 assignment: page 1 of knob 1 = attack; CC 20 follows the assignment.
+    assert(rig.engine.ApplyPatch(sampler));
+    turn(1, 10); assert(near(p.sample_start, .09f));
+    turn(2, -10); assert(near(p.sample_end, 1.f - .09f));
+    for(int i = 0; i < 3; ++i) press(2);
+    turn(2, 1); assert(near(p.sample_xfade, .04f + .03f));
+    press(2); assert(page(2) == 0);
+    // v5 assignment: one extra last page with the patch's control; CC 20 follows it.
     Parameters assigned = synth; assigned.version = 5; assigned.knobs[0] = static_cast<uint8_t>(Parameter::Attack) + 1;
     assert(rig.engine.ApplyPatch(assigned));
-    for(int i = 0; i < 4; ++i) if(rig.panel.KnobPages() & 3u) press(0);
-    assert((rig.panel.KnobPages() & 3u) == 0);
-    turn(0, 10); assert(near(p.attack, 0.0045f + 10 / 127.f));
+    for(int i = 0; i < 4; ++i) press(0);
+    assert(page(0) == 4 && ((rig.panel.KnobState() >> 12) & 1u));
+    turn(0, 1); assert(near(p.attack, 0.0045f + .01f));
+    press(0); assert(page(0) == 0);
     Command cc; assert(DecodeCC(0, 20, 127, cc) && rig.engine.Apply(cc) && near(p.attack, 1.f));
-    // LEDs: dim white, red, green, blue.
-    Rgb leds[4]; ComposeKnobLeds(static_cast<uint8_t>(0 | 1 << 2 | 2 << 4 | 3 << 6), leds);
-    assert(leds[0].r > 0.f && leds[0].r == leds[0].g && leds[0].g == leds[0].b && leds[0].r < .2f);
-    assert(leds[1].r > 0.f && leds[1].g == 0.f && leds[2].g > 0.f && leds[2].r == 0.f && leds[3].b > 0.f && leds[3].g == 0.f);
-    // Reverb size through an assigned knob reconfigures the reverb (no crash, value kept).
-    assigned.knobs[3] = static_cast<uint8_t>(Parameter::ReverbSize) + 1; assigned.reverb_mix = 0.5f;
-    assert(rig.engine.ApplyPatch(assigned)); press(3); turn(3, 40); assert(near(p.reverb_size, 0.5f + 40 / 127.f));
+    // A patch with fewer pages brings a knob back to page 1.
+    for(int i = 0; i < 4; ++i) press(0);
+    assert(page(0) == 4 && rig.engine.ApplyPatch(synth)); rig.Block(); assert(page(0) == 0);
+    // LEDs: TAPE value colours; patch page dim white; reset flash white; off in the record position.
+    Rgb leds[4];
+    ComposeKnobLeds(0u | 255u << 8, 0u, false, leds);
+    assert(leds[0].b > .9f && leds[0].r == 0.f);                              // pitch at 0: med blue (reverse, slow)
+    assert(leds[1].r == 1.f && leds[1].g < .7f);                              // start at 1: orange
+    ComposeKnobLeds(0u, 4u | 1u << 12, false, leds); assert(leds[0].r > 0.f && leds[0].r == leds[0].g && leds[0].g == leds[0].b);
+    ComposeKnobLeds(0u, 1u << 17, false, leds); assert(leds[1].r == 1.f && leds[1].g == 1.f && leds[1].b == 1.f);
+    ComposeKnobLeds(0u, 0u, true, leds); for(auto& l : leds) assert(l.r == 0.f && l.g == 0.f && l.b == 0.f);
     for(int i = 0; i < 200; ++i) rig.Block();
 }
 // TAPE: SW6 (volume) held 2 s shows the battery on its light while held; a short press does not.
@@ -339,6 +405,12 @@ void BatteryHold() {
     rig.hw.keys = uint64_t(1) << panel::kVolumePress; for(int i = 0; i < 1000; ++i) rig.Block();
     assert(!rig.panel.BatteryView());                                       // 0.5 s: no
     rig.hw.keys = 0; rig.Block(); assert(rig.engine.ActiveVoices() == 0);   // and it never plays a note
+    // TAPE: a short press switches SW6 to input gain (.03 per click; .75 at power-on) and back.
+    assert(rig.panel.VolumePage());
+    rig.Inject(PanelEvent::Kind::Turn, 5, -5); assert(std::fabs(rig.engine.GetPerformance().input_gain - .6f) < 1e-5f);
+    rig.Tap(panel::kVolumePress); assert(!rig.panel.VolumePage());
+    rig.hw.keys = uint64_t(1) << panel::kVolumePress; for(int i = 0; i < 4100; ++i) rig.Block();
+    rig.hw.keys = 0; rig.Block(); assert(!rig.panel.VolumePage());          // after the battery view: no switch
 }
 
 int main() {

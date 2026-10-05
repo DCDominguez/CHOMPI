@@ -19,7 +19,13 @@ enum class Parameter : uint8_t { Mix, Time, Feedback, Level, Bypass, Cutoff, Res
                                  Knob1, Knob2, Knob3, Knob4,
                                  // Knob pages and v5 knob assignments (docs/forge/KNOBS.md).
                                  FilterAmount, Attack, Decay, Sustain, Release, LfoRate, LfoPitch, LfoFilter, LfoAmp,
-                                 Osc2Level, Osc2Detune, Noise, Glide, ReverbSize, ReverbDamping, SampleXfade, Count };
+                                 Osc2Level, Osc2Detune, Noise, Glide, ReverbSize, ReverbDamping, SampleXfade,
+                                 // Performance controls (TAPE's knobs; device state, not in patches): see Performance.
+                                 Speed, VoiceGain, Pan, Space, Saturation, Warble, DjFilter, DjResonance, Compressor,
+                                 InputGain, Count };
+// First performance control; ids from here on are never on the wire.
+constexpr Parameter kFirstPerformance = Parameter::Speed;
+inline bool IsPerformance(Parameter p) { return p >= kFirstPerformance && p < Parameter::Count; }
 struct Command { Parameter parameter; float value; };
 
 inline float Clamp(float value, float low, float high) {
@@ -81,10 +87,10 @@ struct Parameters {
     }
     // A knob may be assigned any continuous control (not bypass, not another knob).
     static bool Assignable(Parameter p) {
-        return p < Parameter::Count && p != Parameter::Bypass && (p < Parameter::Knob1 || p > Parameter::Knob4);
+        return p < kFirstPerformance && p != Parameter::Bypass && (p < Parameter::Knob1 || p > Parameter::Knob4);
     }
     bool KnobValid(unsigned knob) const {
-        return !knobs[knob] || (version >= 5 && knobs[knob] <= static_cast<unsigned>(Parameter::Count)
+        return !knobs[knob] || (version >= 5 && knobs[knob] <= static_cast<unsigned>(kFirstPerformance)
                                 && Assignable(static_cast<Parameter>(knobs[knob] - 1)));
     }
     static bool Unit(float v) { return std::isfinite(v) && v >= 0.f && v <= 1.f; }
@@ -163,6 +169,43 @@ struct Parameters {
         return true;
     }
 };
+
+// TAPE's performance controls (docs/forge/TAPE_CONTROLS.md): knob positions 0..1
+// with TAPE's defaults, kept by the device across patch changes (TAPE resets them at
+// power-on). Not part of patches; the panel and CC turn them.
+struct Performance {
+    float speed = .83f;        // SW4 page 1: .83 = 1x, .5 = stopped, below = reverse
+    float voice_gain = .704f;  // SW4 page 2: 2v^2 + .01 (.704 ~ 1x)
+    float pan = .5f;           // menu SW4 page 2
+    float saturation = 0.f, warble = 0.f;
+    float dj_filter = .5f, dj_resonance = 0.f;   // .5 = open; below low-pass, above high-pass
+    float compressor = 0.f;    // menu SW6
+    float input_gain = .75f;   // SW6 page 2: mic x5 / line x3 scaled by this (TAPE)
+    float* Field(Parameter p) {
+        switch(p) {
+            case Parameter::Speed: return &speed;
+            case Parameter::VoiceGain: return &voice_gain;
+            case Parameter::Pan: return &pan;
+            case Parameter::Saturation: return &saturation;
+            case Parameter::Warble: return &warble;
+            case Parameter::DjFilter: return &dj_filter;
+            case Parameter::DjResonance: return &dj_resonance;
+            case Parameter::Compressor: return &compressor;
+            case Parameter::InputGain: return &input_gain;
+            default: return nullptr;
+        }
+    }
+    static float Default(Parameter p) { Performance d; float* f = d.Field(p); return f ? *f : 0.f; }
+};
+// TAPE's free pitch curve (DSPEngine::SetGlobalPitchFree): 0.5 = stopped, above
+// forward, below reverse; each side .01-.5x, .5-1x, 1-2x over thirds. Signed ratio.
+inline float TapeSpeedRatio(float knob) {
+    const float val = knob < .5f ? (.5f - knob) * -2.f : (knob - .5f) * 2.f;
+    const float inv = val < 0.f ? -1.f : 1.f, a = std::fabs(val);
+    if(a < .33f) return val * 1.484848f + .01f * inv;
+    if(a < .66f) return (val - .33f * inv) * 1.515151f + .5f * inv;
+    return (val - .66f * inv) * 2.941176f + 1.f * inv;
+}
 
 // MIDI channel 1 (zero-based channel 0); full patches use protocol.h.
 // Stock CHOMPI convention: CC20+n sets encoder n's position (absolute), so

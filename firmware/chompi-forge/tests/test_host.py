@@ -66,6 +66,9 @@ class PatchTests(unittest.TestCase):
         self.assertEqual([host.knob_control(sampler, k) for k in range(1, 5)], list(host.DEFAULT_KNOBS["sampler"]))
         self.assertEqual(host.knob_control(sampler, 3, 4), "sampler.crossfade_ms")
         self.assertEqual(host.knob_control(patch, 3, 4), "synth.osc2_detune_cents")
+        self.assertEqual([host.knob_control(sampler, k, 1) for k in range(1, 5)],
+                         ["tape.speed", "sampler.start", "sampler.end", "tape.space"])          # TAPE's page 1
+        self.assertEqual(host.knob_pages(sampler, 3), 4); self.assertEqual(host.knob_pages(sampler, 4), 3)
 
     def test_random_patch_round_trips(self):
         rng = random.Random(481)

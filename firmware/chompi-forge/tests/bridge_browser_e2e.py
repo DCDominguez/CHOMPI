@@ -104,7 +104,7 @@ class BridgeBrowserTests(unittest.TestCase):
         self.page.click("#walk-start")                 # the full walk needs hands on a physical CHOMPI
         expect(self.page.locator("#notice")).to_contain_text("physical CHOMPI")
         self.page.click("#walk-lights")
-        answers = ["Red", "Green", "Blue", "Dim white", "Dim blue", "Teal", "Red", "Yes"]
+        answers = ["Red", "Purple", "Green", "Pink", "Dim white", "Teal", "Red", "Yes"]
         for n, answer in enumerate(answers):
             expect(self.page.locator("#walk-box")).to_be_visible(timeout=20000)
             expect(self.page.locator("#walk-progress")).to_contain_text(f"{n} answered", timeout=20000)

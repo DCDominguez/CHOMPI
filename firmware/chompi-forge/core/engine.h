@@ -5,6 +5,7 @@
 #include "parameters.h"
 #include "reverb.h"
 #include "synth.h"
+#include "tape_fx.h"
 
 namespace forge {
 // Sampler voices while the looper writes. 6 keeps "7 sampler voices + overdub"
@@ -34,8 +35,11 @@ public:
         capacity_ = capacity;
         std::fill(left_, left_ + capacity_, 0.f);
         std::fill(right_, right_ + capacity_, 0.f);
-        parameters_ = Parameters{};
+        parameters_ = patch_ = Parameters{};
+        performance_ = Performance{};
         synth_.Init(sample_rate); synth_.Configure(parameters_);
+        synth_.SetPerformance(TapeSpeedRatio(performance_.speed), performance_.voice_gain, performance_.pan);
+        effects_.Configure(performance_);
         mix_ = parameters_.mix;
         feedback_ = parameters_.feedback * 0.85f;
         level_ = 0.f; // fade up from silence at boot
@@ -49,6 +53,7 @@ public:
     }
     bool Apply(Command command) {
         command.parameter = parameters_.Resolve(command.parameter);       // knobs -> their control
+        if(IsPerformance(command.parameter)) return ApplyPerformance(command);
         if(!parameters_.Apply(command)) return false;
         const Parameter p = command.parameter;
         if(p == Parameter::ReverbSize || p == Parameter::ReverbDamping) {
@@ -58,6 +63,27 @@ public:
             synth_.Configure(parameters_);   // filter, envelope, LFO, oscillator, sampler controls
         return true;
     }
+    // A control's current value (patch or performance).
+    float Value(Parameter parameter) const {
+        parameter = parameters_.Resolve(parameter);
+        if(parameter == Parameter::Space) return parameters_.feedback;
+        if(IsPerformance(parameter)) { float* f = const_cast<Performance&>(performance_).Field(parameter); return f ? *f : 0.f; }
+        return parameters_.Value(parameter);
+    }
+    // Back to the patch's value (performance controls: TAPE's default). Knob long press.
+    bool ResetControl(Parameter parameter) {
+        parameter = parameters_.Resolve(parameter);
+        if(parameter == Parameter::Space) {
+            const bool a = Apply({Parameter::Mix, patch_.mix}), b = Apply({Parameter::Feedback, patch_.feedback});
+            if(parameters_.version >= 3) Apply({Parameter::ReverbMix, patch_.reverb_mix});
+            return a && b;
+        }
+        if(IsPerformance(parameter)) return Apply({parameter, Performance::Default(parameter)});
+        return Apply({parameter, patch_.Value(parameter)});
+    }
+    const Performance& GetPerformance() const { return performance_; }
+    // TAPE's warble needs 2 * tape::Warble::kLength floats of zeroed memory (off without).
+    void SetWarbleMemory(float* memory) { effects_.SetWarbleMemory(memory); }
     // Sampler memory (v4); see sample_table.h. May be set before or after Init.
     void SetSamples(const SampleTable* table) { synth_.SetSamples(table); }
     void ReleaseSampleVoices(bool include_recording) { synth_.ReleaseSampleVoices(include_recording); }
@@ -102,7 +128,7 @@ public:
         if(patch.synth != parameters_.synth || patch.waveform != parameters_.waveform
            || (patch.version >= 3) != (parameters_.version >= 3) || patch.Sampler() != parameters_.Sampler()
            || (patch.Sampler() && patch.sample_mode != parameters_.sample_mode)) Silence();
-        parameters_ = patch;
+        parameters_ = patch_ = patch;
 #ifdef FORGE_TEST_HOOKS
         ++patch_revision_;
 #endif
@@ -137,6 +163,7 @@ public:
         if(looper_) synth_.SetVoiceCap(looper_->Writing() ? kLooperVoiceCap : 7);
         if(parameters_.synth) synth_.Process(left, right);
         if(looper_ && !fx_before_loop_) looper_->Process(left, right);     // effects after the loop
+        effects_.Process(left, right);                                      // TAPE: filter, saturation, warble
         Smooth(mix_, parameters_.bypass ? 0.f : parameters_.mix);
         Smooth(feedback_, parameters_.feedback * 0.85f);
         Smooth(level_, parameters_.level);
@@ -169,10 +196,27 @@ public:
             reverb_active_ = false; reverb_mix_ = 0.f;
         }
         if(looper_ && fx_before_loop_) looper_->Process(mixed_left, mixed_right);   // the loop records what you hear
-        out_left = Sanitize(level_ * mixed_left);
-        out_right = Sanitize(level_ * mixed_right);
+        out_left = level_ * mixed_left; out_right = level_ * mixed_right;
+        effects_.Output(out_left, out_right);                               // TAPE's output compressor
+        out_left = Sanitize(out_left);
+        out_right = Sanitize(out_right);
     }
 private:
+    FORGE_NOINLINE bool ApplyPerformance(Command command) {
+        if(!std::isfinite(command.value)) return false;
+        const float v = Clamp(command.value, 0.f, 1.f);
+        if(command.parameter == Parameter::Space) {            // TAPE SW3 page 1: delay and reverb from one value
+            const bool ok = parameters_.Apply({Parameter::Feedback, v}) && parameters_.Apply({Parameter::Mix, .5f * v});
+            parameters_.Apply({Parameter::ReverbMix, v});      // v3 and newer
+            return ok;
+        }
+        float* field = performance_.Field(command.parameter);
+        if(!field) return false;
+        *field = v;
+        synth_.SetPerformance(TapeSpeedRatio(performance_.speed), performance_.voice_gain, performance_.pan);
+        effects_.Configure(performance_);
+        return true;
+    }
     void Silence() {
         synth_.Silence();
         // O(1) tail suppression: old delay cells are not read until overwritten.
@@ -190,7 +234,9 @@ private:
     }
     float DelaySamples() const { return sample_rate_ * (0.01f + 0.99f * parameters_.time); }
     void Smooth(float& current, float target) { current += smoothing_ * (target - current); }
-    Parameters parameters_{};
+    Parameters parameters_{}, patch_{};
+    Performance performance_{};
+    tape::Effects effects_;
     Synth synth_;
     float *left_ = nullptr, *right_ = nullptr;
     size_t capacity_ = 0, write_ = 0;

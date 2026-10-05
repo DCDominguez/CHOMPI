@@ -15,7 +15,7 @@ NOTES = ["C3", "D3", "E3", "F3", "G3", "A3", "B3", "C4", "D4", "E4", "F4", "G4",
 ENCODER = {"SW1": 0, "SW2": 1, "SW3": 2, "SW4": 3, "SW5": 4, "SW6": 5}
 KNOB = {v: k for k, v in ENCODER.items()}
 KNOB_SWITCH = {"SW1": "ENC_1_SW", "SW2": "ENC_2_SW", "SW3": "ENC_3_SW", "SW4": "ENC_4_SW", "SW6": "ENC_6_SW"}
-COLOURS = ["Red", "Green", "Blue", "Teal", "Dim white", "Dim blue", "Off", "Something else"]
+COLOURS = ["Red", "Green", "Blue", "Teal", "Yellow", "Pink", "Purple", "Dim white", "Dim blue", "Off", "Something else"]
 
 
 class Stop(Exception):
@@ -78,11 +78,12 @@ class Walk:
             else: self.record(f"{ident}.{i + 1}", label, "fail", f"expected switch {want} ({name}), got {got} ({NAMES.get(got, '?')})")
 
     def toggle(self):
-        for want, word in ((True, "UP"), (False, "DOWN"), (True, "UP")):
-            self.prompt("toggle", "Toggle switch", f"Flip the toggle (far left of the top row) {word}.",
-                        hint="Leave it UP at the end: CHOMPI then opens the menu instead of recording.")
+        # The firmware's "toggle_up" flag is the menu position, which is physically DOWN (DC's unit, 2026-10-05).
+        for want, word, place in ((True, "DOWN", "menu"), (False, "UP", "record"), (True, "DOWN", "menu")):
+            self.prompt("toggle", "Toggle switch", f"Flip the toggle (far left of the top row) {word} (the {place} position).",
+                        hint="Leave it DOWN at the end: CHOMPI then opens the menu instead of recording.")
             got = self.wait(lambda s: True if s["panel"]["physical"]["toggle_up"] == want else None)
-            self.record(f"toggle.{word.lower()}", f"Toggle {word.lower()}", "skipped" if got == "skip" else "pass")
+            self.record(f"toggle.{place}", f"Toggle {word.lower()} ({place})", "skipped" if got == "skip" else "pass")
 
     def turns(self):
         signs = {}
@@ -155,27 +156,34 @@ class Walk:
         except Exception: return None
 
     def knob_pages(self, pages):
-        """Set knobs 1-4 (SW4, SW1, SW2, SW3) to pages 1-4 by virtual presses."""
-        current = self.snap()["panel"]["knob_pages"]
-        for name, now, want in zip(("ENC_4_SW", "ENC_1_SW", "ENC_2_SW", "ENC_3_SW"), current, pages):
-            for _ in range((want - now) % 4): self.tap(name)
+        """Set knobs 1-4 (SW4, SW1, SW2, SW3) to the given pages by virtual presses."""
+        state = self.snap()
+        for knob, (name, now, want) in enumerate(zip(("ENC_4_SW", "ENC_1_SW", "ENC_2_SW", "ENC_3_SW"),
+                                                     state["panel"]["knob_pages"], pages), 1):
+            count = host.knob_pages(state["engine"]["patch"], knob)
+            for _ in range((want - now) % count): self.tap(name)
 
     def lights(self):
         self.device.panel({"kind": 5, "id": 0, "value": 0})
-        self.device.send_patch(host.load_patch(ROOT / "presets/01-dry.json"))
-        self.knob_pages([2, 3, 4, 1]); time.sleep(0.2)
-        for name, colour in (("SW4", "Red"), ("SW1", "Green"), ("SW2", "Blue"), ("SW3", "Dim white")):
+        self.device.send_patch(host.load_patch(ROOT / "presets/07-warm-pad.json"))
+        # Knob lights show only in the menu position (TAPE): the bridge holds the toggle there virtually.
+        for event in panel_gesture("toggle menu"): self.device.panel(event)
+        self.knob_pages([3, 2, 4, 3]); time.sleep(0.2)
+        for name, colour in (("SW4", "Red"), ("SW1", "Purple"), ("SW2", "Green"), ("SW3", "Pink")):
             self.ask(f"light.{name}", f"{name} light", f"What colour is the light at {name}?", colour,
-                     hint="The bridge put the four knobs on different pages.")
+                     hint="The bridge put the four knobs on different pages (TAPE's colours, docs/forge/KNOBS.md).")
         self.knob_pages([1, 1, 1, 1])
-        self.ask("light.CHOMPI", "CHOMPI light", "What colour is the light at the CHOMPI key?", ("Dim blue", "Blue"))
+        for event in panel_gesture("toggle record"): self.device.panel(event)
+        time.sleep(0.2)
+        self.ask("light.CHOMPI", "CHOMPI light", "With nothing coming in, what colour is the light at the CHOMPI key?",
+                 ("Dim white", "Off"), hint="In the record position it is TAPE's input meter: dim white at silence.")
         self.tap("KEY_28"); time.sleep(0.3)                             # first take: PLAY teal, LOOP red
         self.ask("light.PLAY", "PLAY light", "What colour is the PLAY key's light?", ("Teal", "Green"),
                  hint="The bridge started a loop recording. PLAY is KEY_27 and LOOP is KEY_28 on the Panel Map; "
                       "a photo helps.")
         self.ask("light.LOOP", "LOOP light", "What colour is the LOOP key's light?", "Red")
         self.clear_loop()
-        for event in panel_gesture("toggle up") + panel_gesture("hold CHOMPI"): self.device.panel(event)
+        for event in panel_gesture("toggle menu") + panel_gesture("hold CHOMPI"): self.device.panel(event)
         time.sleep(0.3)
         if self.snap()["panel"]["menu"]["page"] == "samples": self.tap("KEY_22"); time.sleep(0.2)
         self.ask("light.menu", "Menu key lights", "The menu is open on its Presets page. Are the three black keys on the right "
@@ -201,7 +209,7 @@ class Walk:
                 self.toggle()
                 self.keys("white", "White keys", WHITE, "Left to right", [f"white key {n} ({NOTES[n - 1]})" for n in range(1, 16)])
                 self.keys("black", "Black keys", BLACK, "Left to right", [f"black key {n} (KEY_{n})" for n in range(16, 26)])
-                self.keys("top", "Top-row keys", ["CHOMPI", "KEY_27", "KEY_28"], "With the toggle UP",
+                self.keys("top", "Top-row keys", ["CHOMPI", "KEY_27", "KEY_28"], "With the toggle DOWN (menu position)",
                           ["the CHOMPI key", "PLAY (KEY_27)", "LOOP (KEY_28)"])
                 self.keys("knobpress", "Knob presses", ["ENC_4_SW", "ENC_1_SW", "ENC_2_SW", "ENC_3_SW", "ENC_6_SW"],
                           "Push each knob down", ["SW4", "SW1", "SW2", "SW3", "SW6"])

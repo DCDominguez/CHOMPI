@@ -88,7 +88,7 @@ public:
     void Clear() { if(Locked()) return; if(state_ == State::FirstTake) CloseTake(false); clearing_ = state_ != State::Empty && state_ != State::Armed; if(!clearing_) Reset(); overdub_ = false; }
     // Transport (SW5 / CC 24): speed -2..+2, 1 = original, negative = reverse.
     void SetSpeed(float speed) { speed_target_ = Clamp(speed, -2.f, 2.f); }
-    void NudgeSpeed(int increment) { SetSpeed(speed_target_ + increment * (4.f / 127.f)); }
+    void NudgeSpeed(float delta) { SetSpeed(speed_target_ + delta); }          // SW5 push and turn (TAPE: .012 per click)
     void ResetSpeed() { speed_target_ = 1.f; }
     void Scrub(int turns) { scrub_turns_ += static_cast<float>(turns); }       // while paused
     void SetTapeSlew(bool on) { tape_slew_ = on; }

@@ -17,6 +17,7 @@ try:
 except ImportError:
     np = None
 import forge_bridge as bridge
+import forge_host as host
 import test_audio
 
 
@@ -28,13 +29,14 @@ class FakeChompi:
         self.toggle_up, self.jack, self.voices = False, True, 0
         self.pages, self.looper, self.menu_page, self.held = [1, 1, 1, 1], "empty", "samples", set()
         self.patches, self.notes = [], []
+        self.patch = host.load_patch(ROOT / "presets" / "01-dry.json")
 
     def snapshot(self):
         events, self.events = self.events, []
         return {"events": events, "panel": {"physical": {"toggle_up": self.toggle_up, "line_jack": self.jack},
                                             "raw_encoder_turns": list(self.raw), "knob_pages": list(self.pages),
                                             "menu": {"page": self.menu_page}, "leds": [[0, 0, 0]] * 26},
-                "engine": {"active_voices": self.voices}, "storage": {"looper": {"state": self.looper}}}
+                "engine": {"active_voices": self.voices, "patch": self.patch}, "storage": {"looper": {"state": self.looper}}}
 
     def panel(self, event):
         kind, ident, value = event["kind"], event["id"], event["value"]
@@ -43,12 +45,14 @@ class FakeChompi:
         if value: self.held.add(ident)
         else: self.held.discard(ident)
         if not value: return
-        if ident in (3, 0, 1, 2): k = (3, 0, 1, 2).index(ident); self.pages[k] = self.pages[k] % 4 + 1
+        if ident in (3, 0, 1, 2): k = (3, 0, 1, 2).index(ident); self.pages[k] = self.pages[k] % host.knob_pages(self.patch, k + 1) + 1
         if ident == 34 and self.looper == "empty": self.looper = "first_take"
         if {33, 34} <= self.held: self.looper = "empty"          # hold both: cleared (the walk waits 2.3 s)
         if ident == 23: self.menu_page = "presets" if self.menu_page == "samples" else "samples"
 
-    def send_patch(self, patch): self.patches.append(patch["name"])
+    def send_patch(self, patch):
+        self.patches.append(patch["name"]); self.patch = patch
+        self.pages = [p if p <= host.knob_pages(patch, k + 1) else 1 for k, p in enumerate(self.pages)]
     def note(self, note, velocity):
         self.notes.append((note, velocity))
         if velocity: self.voices += 1
@@ -87,8 +91,8 @@ class WalkTests(unittest.TestCase):
             elif ident == "press.SW5": device.voices = 0
             elif ident == "jack": device.jack = not device.jack
             elif ident.startswith("light."):
-                colour = {"light.SW4": "Red", "light.SW1": "Green", "light.SW2": "Blue", "light.SW3": "Dim white",
-                          "light.CHOMPI": "Dim blue", "light.PLAY": "Teal", "light.LOOP": "Off", "light.menu": "Yes"}[ident]
+                colour = {"light.SW4": "Red", "light.SW1": "Purple", "light.SW2": "Green", "light.SW3": "Pink",
+                          "light.CHOMPI": "Dim white", "light.PLAY": "Teal", "light.LOOP": "Off", "light.menu": "Yes"}[ident]
                 answers.put({"value": colour, "image": "data:image/jpeg;base64,AAAA"})
         result, device, shown = self.run_walk(hand)
         bad = {r["id"]: r for r in result["results"] if r["result"] != "pass"}
@@ -119,7 +123,7 @@ class WalkTests(unittest.TestCase):
         self.assertTrue(result["stopped"])
         self.assertIn("SW2 moved most (SW2 +3)", by["turn.SW1"][0]["detail"])
         self.assertEqual([r["result"] for r in by["turn.SW2"]], ["pass", "fail"])
-        self.assertTrue(all(r["result"] == "skipped" for r in by["toggle.up"]))
+        self.assertTrue(all(r["result"] == "skipped" for r in by["toggle.menu"]))
         self.assertNotIn("light.SW4", by)                                                    # stopped before lights
 
 
@@ -217,8 +221,8 @@ class BridgeWalkTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "no audio"): self.call("setup")
         with self.assertRaisesRegex(ValueError, "Walk parts"): self.call("walk", parts=["dance"])
         self.call("walk", parts=["lights"])
-        expected = {"light.SW4": "Red", "light.SW1": "Green", "light.SW2": "Blue", "light.SW3": "Dim white",
-                    "light.CHOMPI": "Dim blue", "light.PLAY": "Teal", "light.LOOP": "Red", "light.menu": "Yes"}
+        expected = {"light.SW4": "Red", "light.SW1": "Purple", "light.SW2": "Green", "light.SW3": "Pink",
+                    "light.CHOMPI": "Dim white", "light.PLAY": "Teal", "light.LOOP": "Red", "light.menu": "Yes"}
         seen = []
         for _ in range(2000):
             job = self.call("job")
@@ -226,7 +230,7 @@ class BridgeWalkTests(unittest.TestCase):
             p = job["prompt"]
             if p and (not seen or seen[-1] != p["seq"]):
                 seen.append(p["seq"])
-                with self.assertRaisesRegex(ValueError, "Unknown answer"): self.call("answer", seq=p["seq"], value="Purple")
+                with self.assertRaisesRegex(ValueError, "Unknown answer"): self.call("answer", seq=p["seq"], value="Magenta")
                 with self.assertRaisesRegex(ValueError, "no longer open"): self.call("answer", seq=p["seq"] - 1, value="skip")
                 self.call("answer", seq=p["seq"], value=expected[p["id"]])
             time.sleep(0.01)

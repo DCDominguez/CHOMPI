@@ -158,6 +158,18 @@ public:
     void ModWheel(uint8_t value) { if(value <= 127) wheel_ = value / 127.f; }
     void ResetControllers(uint8_t source) { Pedal(source, false); Bend(source, 8192); wheel_ = 0; }
     void Silence() { voices_ = {}; filter_ = 0; wheel_ = 0; ResetAllControllers(); }
+    // TAPE's performance knobs: speed (signed ratio, negative = reverse; oscillators
+    // use its size), voice gain (2v^2 + .01) and pan (TAPE's law). Smoothed per sample.
+    void SetPerformance(float speed, float voice_gain, float pan) {
+        speed_target_ = std::fabs(speed);
+        const bool reverse = speed < 0.f;
+        if(reverse != speed_reverse_) {                       // playing sample voices turn round, as TAPE
+            speed_reverse_ = reverse;
+            for(auto& v : voices_) if(v.sampled) v.reverse = !v.reverse;
+        }
+        gain_target_ = 2.f * voice_gain * voice_gain + .01f;
+        pan_r_target_ = std::fmin(2.f * pan, 1.f); pan_l_target_ = std::fmin(2.f - 2.f * pan, 1.f);
+    }
     // Sample memory handoff: fade out (2 ms) voices reading file slots (and the
     // recording slot if asked), and report whether any still sound.
     void ReleaseSampleVoices(bool include_recording) {
@@ -204,8 +216,12 @@ public:
 #endif
     // Mono patches (v1-v3, oscillators) return the same value on both sides.
     void Process(float& left, float& right) {
-        if(sampler_) { ProcessSampler(left, right); return; }
-        left = right = Process();
+        speed_ += 0.002f * (speed_target_ - speed_);
+        out_gain_ += 0.001f * (gain_target_ - out_gain_);
+        pan_l_ += 0.001f * (pan_l_target_ - pan_l_); pan_r_ += 0.001f * (pan_r_target_ - pan_r_);
+        if(sampler_) ProcessSampler(left, right);
+        else left = right = Process();
+        left *= out_gain_ * pan_l_; right *= out_gain_ * pan_r_;
     }
     float Process() {
         float sum = 0;
@@ -219,7 +235,7 @@ public:
             if(v.amp.stage == Stage::Off) continue;
             Step(v.amp, amp_);
             if(v.amp.stage == Stage::Off) continue;
-            const float dt = std::min(v.increment * bend_[v.source] * pitch_ratio, 0.45f);
+            const float dt = std::min(v.increment * bend_[v.source] * pitch_ratio * speed_, 0.45f);
             float sample = Oscillator(waveform_, v.phase, dt);
             v.phase += dt; if(v.phase >= 1.f) v.phase -= 1.f;
             if(!legacy_) {
@@ -319,7 +335,7 @@ private:
         const Voice prior = *selected;
         *selected = Voice{};
         if(sounding) { selected->tail_l = prior.last_l + prior.tail_l; selected->tail_r = prior.last_r + prior.tail_r; }
-        selected->sampled = true; selected->slot = static_cast<uint8_t>(slot); selected->reverse = sample_reverse_;
+        selected->sampled = true; selected->slot = static_cast<uint8_t>(slot); selected->reverse = sample_reverse_ != speed_reverse_;
         selected->note = note; selected->source = source; selected->velocity = velocity / 127.f;
         selected->gain = selected->velocity;
         const float key = kit_ ? 1.f : std::exp2((int(note) - 60) / 12.f);
@@ -455,7 +471,7 @@ private:
                 v.increment += glide_slew_ * (v.target - v.increment);
                 if(std::fabs(v.target - v.increment) < 1e-9f) v.increment = v.target;
             }
-            const float step = std::min(v.increment * pitch_ * bend_[v.source] * pitch_ratio, 8.f);
+            const float step = std::min(v.increment * pitch_ * speed_ * bend_[v.source] * pitch_ratio, 8.f);
             float l, r;
             if(!SampleFrame(v, step, l, r)) { v.amp = Envelope{}; v.last_l = v.last_r = 0.f; continue; }
             Step(v.filter, filter_shape_);
@@ -554,6 +570,10 @@ private:
     uint8_t sample_slot_ = 0;
     float sample_start_ = 0, sample_end_ = 1, xfade_frames_ = 0, pitch_ = 1, pitch_target_ = 1;
     float fade_frames_ = 96, inverse_fade_ = 1.f / 96;
+    // TAPE performance (SetPerformance); defaults are TAPE's knob defaults (1x, ~1x gain, centre).
+    bool speed_reverse_ = false;
+    float speed_ = 1.f, speed_target_ = 1.f, out_gain_ = 1.f, gain_target_ = 1.f;
+    float pan_l_ = 1.f, pan_r_ = 1.f, pan_l_target_ = 1.f, pan_r_target_ = 1.f;
     uint32_t window_epoch_ = 0;
     uint32_t noise_state_ = 0x12345678u, age_ = 0, tick_ = 0;
 };

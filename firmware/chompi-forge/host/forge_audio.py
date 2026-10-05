@@ -61,14 +61,16 @@ def key_led(name):
 
 
 def panel_gesture(text):
-    """'toggle up|down|hw', 'jack in|out|hw', 'hold X', 'let X', 'tap X', 'turn KNOB_1 +10',
-    'press SW5', 'release all' -> bridge panel events {kind, id, value}."""
+    """'toggle menu|record|hw', 'jack in|out|hw', 'hold X', 'let X', 'tap X', 'turn KNOB_1 +10',
+    'press SW5', 'release all' -> bridge panel events {kind, id, value}. The toggle's menu
+    position is physically down on CHOMPI, record up; 'toggle up/down' are the old names
+    (up = menu, down = record) and still accepted."""
     words = text.split()
     def key(name):
         if name not in PANEL_BUTTONS: raise ValueError(f"Unknown key {name}")
         return PANEL_BUTTONS[name]
     if len(words) == 2 and words[0] in ("toggle", "jack"):
-        value = {"up": 1, "in": 1, "down": 0, "out": 0, "hw": -1}.get(words[1])
+        value = {"menu": 1, "up": 1, "in": 1, "record": 0, "down": 0, "out": 0, "hw": -1}.get(words[1])
         if value is None: raise ValueError(f"Bad panel step: {text}")
         return [{"kind": 3 if words[0] == "toggle" else 4, "id": 0, "value": value}]
     if len(words) == 2 and words[0] in ("hold", "let"): return [{"kind": 0, "id": key(words[1]), "value": int(words[0] == "hold")}]
@@ -529,8 +531,10 @@ class Runner:
             for event in panel_gesture(f"tap {name}"): self.device.panel(event); time.sleep(0.03)
         if what == "knobs_page1":
             switches = ("ENC_4_SW", "ENC_1_SW", "ENC_2_SW", "ENC_3_SW")   # knobs 1-4 = SW4, SW1, SW2, SW3
-            for name, page in zip(switches, snap()["panel"]["knob_pages"]):
-                for _ in range((5 - page) % 4): tap(name)
+            state = snap()
+            for knob, (name, page) in enumerate(zip(switches, state["panel"]["knob_pages"]), 1):
+                pages = host.knob_pages(state["engine"]["patch"], knob)     # TAPE pages + extras (+ patch page)
+                for _ in range((pages + 1 - page) % pages): tap(name)
         elif what == "menu_presets":                           # with the menu open
             if snap()["panel"]["menu"]["page"] == "samples": tap("KEY_22")
         elif what == "looper_empty":

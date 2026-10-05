@@ -102,8 +102,8 @@ def decode(data, sequence, expected_page=None):
         result["raw_encoder_turns"]=[signed(u32()) for _ in range(6)]
         result["logical_encoder_turns"]=[signed(u32()) for _ in range(6)]
         pages=byte()|(byte()<<7)
-        if pages>255: raise ValueError("Invalid knob pages")
-        result["knob_pages"]=[(pages>>(2*k)&3)+1 for k in range(4)]
+        if pages>4095: raise ValueError("Invalid knob pages")
+        result["knob_pages"]=[(pages>>(3*k)&7)+1 for k in range(4)]
         result["key_mapping"]={str(i):KEY_NOTES[i] or None for i in range(40)}
         result["held_notes"]=[KEY_NOTES[i] for i in result["logical_keys"] if KEY_NOTES[i]]
     elif page == 4:
