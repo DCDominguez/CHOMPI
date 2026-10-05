@@ -17,7 +17,7 @@ an official or hardware-approved release.
 run → *Artifacts*; it includes `FORGE.bin` and
 [HOME_CHECKLIST.md](docs/forge/HOME_CHECKLIST.md).
 
-[Developer resume checkpoint](docs/forge/CONTINUE.md) · [Documentation](docs/forge/README.md)
+**[User manual](docs/forge/MANUAL.md)** · [Developer resume checkpoint](docs/forge/CONTINUE.md) · [Documentation](docs/forge/README.md)
 · [Project scope](docs/forge/PROJECT.md) · [Draft PR #1](https://github.com/DCDominguez/CHOMPI/pull/1)
 · [Development branch](https://github.com/DCDominguez/CHOMPI/tree/forge/foundation)
 

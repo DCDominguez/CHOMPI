@@ -5,7 +5,7 @@ name: Forge Bridge (Windows exe)
 on:
   push:
     branches: [forge/foundation]
-    paths: ["firmware/chompi-forge/**", "firmware/chompi-wave/code/libs/libDaisy/**", "docs/forge/HOME_CHECKLIST.md", ".github/workflows/forge-bridge-exe.yml"]
+    paths: ["firmware/chompi-forge/**", "firmware/chompi-wave/code/libs/libDaisy/**", "docs/forge/HOME_CHECKLIST.md", "docs/forge/MANUAL.md", ".github/workflows/forge-bridge-exe.yml"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -81,6 +81,7 @@ jobs:
           Copy-Item "dist/Forge Bridge.exe" out/
           Copy-Item firmware/FORGE.bin out/
           Copy-Item ../../docs/forge/HOME_CHECKLIST.md out/
+          Copy-Item ../../docs/forge/MANUAL.md out/
           Get-ChildItem out | Format-Table Name, Length
       - uses: actions/upload-artifact@v4
         with:

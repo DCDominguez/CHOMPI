@@ -32,6 +32,7 @@ one consolidated hardware session.
 | [Compatibility](COMPATIBILITY.md) | Comparison with stock TAPE/TEMPO/WAVE: bootloader, memory, MIDI, keybed, CPU benchmark |
 | [Looping](LOOPING.md) | Looper (roadmap item 5): TAPE behaviour, keys, memory, CPU budget, saving a loop |
 | [Knobs](KNOBS.md) | Knob pages (press a knob; its light shows the page) and v5 patch/AI knob choices |
+| [User manual](MANUAL.md) | **Start here as a player:** install/update, power, panel, knob pages, presets, samples, recording, looper, MIDI, bridge and webapp, troubleshooting |
 | [Sampling](SAMPLING.md) | Sampler design (roadmap item 4): TAPE behaviour kept, what Forge changes, memory, v4 patch, panel |
 | [Storage streaming](STORAGE_STREAMING.md) | Forge v2 candidate (parked): SD streaming of samples and recordings to reclaim SDRAM; estimates, benchmark plan, phases (nothing implemented) |
 | [Test session](TEST_SESSION.md) | One physical acceptance checklist and results template |
