@@ -497,6 +497,7 @@ class Bridge:
                     setup["utc"] = now(); self.setups.append(setup); job["result"] = setup
                 elif kind in ("card_upload", "install"):
                     files = Card(self, device)
+                    if kind == "install": files.check_power()   # before the upload, not after it
                     done = []
                     for path in (uploads if kind == "card_upload" else [self.firmware]):
                         data = path.read_bytes(); shown = [0]

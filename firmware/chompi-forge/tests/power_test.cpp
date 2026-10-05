@@ -95,7 +95,40 @@ void OptionsFile() {
     assert(forge::options::Parse(tape, 40).midi_in == 0);                     // truncated read
 }
 
+// The stock protection as the histories show it, and the install check (DC, 2026-10-05: a flat
+// battery on a computer port left CHOMPI dark after an install).
+void InstallPower() {
+    Readings flat_pc; flat_pc.battery_low = 0xff; flat_pc.input_limit = 0xff;               // flat, at a 0.5 A port's limit
+    Readings flat_unplugged; flat_unplugged.battery_low = 0xff; flat_unplugged.usb_good = 0;
+    Readings flat_legacy; flat_legacy.battery_low = 0xff; flat_legacy.legacy = 0xff;
+    Readings flat_strong; flat_strong.battery_low = 0xff;                                     // flat on a USB-C charger
+    Readings flicker; flicker.battery_low = 0x7f; flicker.input_limit = 0xff;                 // not 8 readings in a row
+    assert(StockLockout(flat_pc) == Lockout::WeakSupply && StockLockout(flat_legacy) == Lockout::WeakSupply);
+    assert(StockLockout(flat_unplugged) == Lockout::Unplugged);
+    assert(StockLockout(flat_strong) == Lockout::None && StockLockout(flicker) == Lockout::None && StockLockout(Readings{}) == Lockout::None);
+    assert(*LockoutText(Lockout::WeakSupply) && *LockoutText(Lockout::Unplugged) && !*LockoutText(Lockout::None));
+    // Yellow (or not yet measured) battery: only a strong supply allows the install.
+    for(Battery low : {Battery::Medium, Battery::Low, Battery::Unknown}) {
+        assert(!InstallPowerOk(low, flat_pc) && !InstallPowerOk(low, flat_unplugged) && !InstallPowerOk(low, flat_legacy));
+        assert(InstallPowerOk(low, flat_strong));
+        Readings one_limit; one_limit.input_limit = 0x01;                                    // one recent limit reading is enough to refuse
+        assert(!InstallPowerOk(low, one_limit));
+    }
+    // Green or white with no recent low reading: fine on any supply, even unplugged.
+    Readings unplugged; unplugged.usb_good = 0; Readings pc; pc.input_limit = 0xff;
+    for(Battery ok : {Battery::Full, Battery::High}) {
+        assert(InstallPowerOk(ok, unplugged) && InstallPowerOk(ok, pc));
+        Readings dipped = pc; dipped.battery_low = 0x01;                                      // a low reading contradicts the colour
+        assert(!InstallPowerOk(ok, dipped));
+    }
+    char line[160];
+    const unsigned n = forge::restart::DescribeEvent(12, LockoutText(Lockout::WeakSupply), line, sizeof line);
+    assert(n == std::strlen(line) && std::strncmp(line, "boot 12: battery low on a weak USB supply", 41) == 0 && line[n - 1] == '\n');
+    assert(forge::restart::DescribeEvent(1, "x", line, 8) == 7 && std::strlen(line) == 7);    // truncated, still terminated
+}
+
 int main() {
-    BootGestureOff(); Colours(); ChargerHandover(); StatusDecode(); RestartReason(); OptionsFile();
-    std::cout << "PASS: power off gesture, battery colours, charger/USB hand-over (edges, timeout, wrap), status decode, restart reason, options.json\n";
+    BootGestureOff(); Colours(); ChargerHandover(); StatusDecode(); RestartReason(); OptionsFile(); InstallPower();
+    std::cout << "PASS: power off gesture, battery colours, charger/USB hand-over (edges, timeout, wrap), status decode, restart reason, options.json,"
+                 " stock battery lockout, install power check\n";
 }

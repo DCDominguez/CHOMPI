@@ -22,7 +22,8 @@ constexpr size_t kFilePacked = kFileChunk / 7 * 8;               // 256 SysEx by
 constexpr size_t kFileRequest = 13 + kFilePacked + 1;            // 270: header, op, offset, data, checksum
 constexpr size_t kFileNameMax = 24;
 constexpr uint32_t kFirmwareMax = 480u * 1024u, kSampleFileMax = 64u * 1024u * 1024u;
-constexpr uint8_t kFileActive = 1, kFileInstallPending = 2, kFileFirmwareStaged = 4, kFileRestarting = 8;   // reply flags
+constexpr uint8_t kFileActive = 1, kFileInstallPending = 2, kFileFirmwareStaged = 4, kFileRestarting = 8,   // reply flags
+                  kFilePowerLow = 16;   // 0.11: an install would be refused now (power::InstallPowerOk)
 
 static_assert(kMaxSysEx >= kFileRequest, "the MIDI framer must hold a whole file-transfer request");
 // Chunks shorter than a sector always pass through FatFS's own sector buffer (in the
@@ -210,9 +211,10 @@ public:
     uint32_t Offset() const { return offset_; }
     bool SampleWritten() { const bool w = sample_written_; sample_written_ = false; return w; }
     bool FinishingSample() const { return active_ && !IsFirmwareName(name_); }
-    uint8_t Flags(UploadFiles& files, const InstallGate& gate) {
+    uint8_t Flags(UploadFiles& files, const InstallGate& gate, bool power_ok = true) {
         return (active_ ? kFileActive : 0) | (gate.Armed() ? kFileInstallPending : 0)
-             | (files.Ready() && files.Exists("FORGE.bin") ? kFileFirmwareStaged : 0) | (gate.Confirmed() ? kFileRestarting : 0);
+             | (files.Ready() && files.Exists("FORGE.bin") ? kFileFirmwareStaged : 0) | (gate.Confirmed() ? kFileRestarting : 0)
+             | (power_ok ? 0 : kFilePowerLow);
     }
     void Touch(uint32_t now) { touched_ = now; }
     Error Begin(UploadFiles& files, const FileRequest& r) {
@@ -248,13 +250,15 @@ public:
         return Error::None;
     }
     void Abort(UploadFiles& files) { if(active_) files.Abort(kTemp); active_ = done_ = false; }
-    // Firmware on the card and nothing half-written: ask for the panel press. A transfer
-    // nobody has touched for kStaleTransferMs (a host that went away) is abandoned.
-    Error Install(UploadFiles& files, InstallGate& gate, uint32_t now) {
+    // Firmware on the card, nothing half-written and safe power (power::InstallPowerOk):
+    // ask for the panel press. A transfer nobody has touched for kStaleTransferMs (a host
+    // that went away) is abandoned.
+    Error Install(UploadFiles& files, InstallGate& gate, uint32_t now, bool power_ok = true) {
         if(active_ && now - touched_ < kStaleTransferMs) return Error::StorageBusy;
         Abort(files);
         if(!files.Ready()) return Error::Storage;
         if(!files.Exists("FORGE.bin")) return Error::Empty;
+        if(!power_ok) return Error::Power;
         if(!files.SetAsideOtherFirmware()) return Error::Storage;
         gate.Arm(now);
         return Error::None;
@@ -268,7 +272,8 @@ private:
 // One 0C request -> its reply (0x48, or 0x41 with the error). Shared by the
 // firmware's main loop and the offline probe.
 FORGE_NOINLINE inline size_t ServeFileRequest(const uint8_t* bytes, size_t size, FileTransfer& transfer, UploadFiles& files,
-                                              InstallGate& gate, uint32_t now, uint8_t* reply, bool samples_busy = false) {
+                                              InstallGate& gate, uint32_t now, uint8_t* reply, bool samples_busy = false,
+                                              bool power_ok = true) {
     FileRequest r;
     Error error = DecodeFileRequest(bytes, size, r);
     // A sample may be open for loading: replacing it then would pull the file from under the
@@ -279,11 +284,11 @@ FORGE_NOINLINE inline size_t ServeFileRequest(const uint8_t* bytes, size_t size,
         case FileOp::Data: error = transfer.Data(files, r); break;
         case FileOp::End: error = transfer.End(files, r); break;
         case FileOp::Abort: transfer.Abort(files); break;
-        case FileOp::Install: error = transfer.Install(files, gate, now); break;
+        case FileOp::Install: error = transfer.Install(files, gate, now, power_ok); break;
         case FileOp::Status: break;
     }
     if(error == Error::None && (r.op == FileOp::Begin || r.op == FileOp::Data)) transfer.Touch(now);
     if(error != Error::None) return EncodeError(size >= 7 ? Read14(bytes + 5) : 0, error, reply);
-    return EncodeFileReply(r.sequence, r.op, transfer.Flags(files, gate), transfer.Offset(), reply);
+    return EncodeFileReply(r.sequence, r.op, transfer.Flags(files, gate, power_ok), transfer.Offset(), reply);
 }
 } // namespace forge

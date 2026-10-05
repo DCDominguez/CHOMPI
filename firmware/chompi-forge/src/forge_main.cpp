@@ -84,7 +84,9 @@ uint8_t reset_flags = 0;                       // this start's RCC_RSR, compacte
 forge::restart::FaultRecord last_fault{};      // the crash that caused this start, if any
 // Forge's fault handler replaces libDaisy's (a breakpoint that freezes CHOMPI without a
 // debugger) through a copy of the vector table: record where it crashed, then restart.
-alignas(1024) uint32_t vector_table[166];
+// The copy lives in DTCM: uncached, so the core's vector fetches see what was written
+// without depending on D-cache maintenance (AXI SRAM is write-back cached).
+alignas(1024) __attribute__((section(".dtcmram_bss"))) uint32_t vector_table[166];
 extern "C" __attribute__((used)) void ForgeFaultRecord(const uint32_t* frame) {
     fault_record.pc = frame[6]; fault_record.lr = frame[5];
     fault_record.cfsr = SCB->CFSR; fault_record.hfsr = SCB->HFSR;
@@ -127,6 +129,31 @@ FORGE_COLD void LogRestart() {
     FILINFO info;
     const bool big = f_stat("FORGE/RESTARTS.TXT", &info) == FR_OK && info.fsize > 16384;
     if(f_open(&file, "FORGE/RESTARTS.TXT", big ? (FA_WRITE | FA_CREATE_ALWAYS) : (FA_WRITE | FA_OPEN_APPEND)) != FR_OK) return;
+    UINT written = 0;
+    f_write(&file, line, n, &written);
+    f_close(&file);
+}
+// The charger readings behind the stock battery protection and the install check (core/power.h).
+forge::power::Readings ChargerReadings() {
+    forge::power::Readings r;
+    r.battery_low = hw.batt_low_bounce; r.usb_good = hw.vin_gd_bounce;
+    r.legacy = hw.legacy_cable_bounce; r.input_limit = hw.iindpm_stat_bounce;
+    return r;
+}
+bool InstallPowerOk() {
+    return forge::power::InstallPowerOk(static_cast<forge::power::Battery>(hw.GetBatteryLevel()), ChargerReadings());
+}
+// Just before the stock protection switches CHOMPI off or stops it, leave a line in
+// FORGE/RESTARTS.TXT (once per kind per start): those shut-offs leave no reset flag.
+FORGE_COLD void LogLockout(forge::power::Lockout lockout) {
+    static uint8_t logged = 0;
+    const uint8_t bit = static_cast<uint8_t>(1u << static_cast<unsigned>(lockout));
+    if((logged & bit) || !card.Ready()) return;
+    logged |= bit;
+    char line[160];
+    const unsigned n = forge::restart::DescribeEvent(boot_count.boots, forge::power::LockoutText(lockout), line, sizeof(line));
+    FIL file;
+    if(f_open(&file, "FORGE/RESTARTS.TXT", FA_WRITE | FA_OPEN_APPEND) != FR_OK) return;
     UINT written = 0;
     f_write(&file, line, n, &written);
     f_close(&file);
@@ -334,7 +361,7 @@ void Send(uint8_t source, uint8_t* envelope, size_t payload_size) {
 FORGE_COLD void LoadOptions() {
     forge::Options o;
     if(card.Ready()) {
-        static char text[1024];
+        alignas(32) static char text[1024];     // whole cache lines: the SD driver invalidates around DMA reads
         FIL file; UINT read = 0;
         if(f_open(&file, "options.json", FA_READ) == FR_OK) {
             f_read(&file, text, sizeof(text), &read);
@@ -672,7 +699,7 @@ FORGE_COLD void HandleFrame(const forge::MidiFrame& frame, uint8_t source) {
        && frame.data[4] == forge::kFileOpcode) {
         uint8_t envelope[kMaxEnvelope];
         const size_t size = forge::ServeFileRequest(frame.data, frame.size, file_transfer, upload_files, install_gate,
-                                                    System::GetNow(), envelope + 1, sample_loader.Busy());
+                                                    System::GetNow(), envelope + 1, sample_loader.Busy(), InstallPowerOk());
         if(file_transfer.SampleWritten()) sample_loader.Rescan();
         Send(source, envelope, size);
         return;
@@ -876,11 +903,16 @@ FORGE_COLD int main() {
 #endif
         const uint32_t now = System::GetNow();
         if(now - battery_check >= 20) {
+            const auto lockout = forge::power::StockLockout(ChargerReadings());
+            if(lockout != forge::power::Lockout::None) LogLockout(lockout);
             hw.LowBatteryLockoutCheck();
             battery_check = now;
         }
         ServiceChargerUsb(now);
-        if(install_gate.Poll(now)) Restart();
+        if(install_gate.Poll(now)) {
+            if(InstallPowerOk()) Restart();
+            else install_gate.Cancel();       // power changed since the request: the host sees the power flag
+        }
         System::DelayUs(100);
     }
 }

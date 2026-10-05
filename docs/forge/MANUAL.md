@@ -37,12 +37,21 @@ only. Keep a backup of your SD card.
    `something.bin.old`. Example: `CHOMPI_TAPEv2_0.bin` → `CHOMPI_TAPEv2_0_bin.old`.
 3. Copy `FORGE.bin` (from the Forge Bridge download, section 10) to the card's top
    folder. Also copy your TAPE samples (`jammi_…`, `cubbi_…`) there if you want them.
-4. Card into CHOMPI, power on: rainbow lights while the bootloader installs, then
-   Forge starts.
+4. Card into CHOMPI, plugged into a **USB-C charger**, power on: rainbow lights
+   while the bootloader installs, then Forge starts.
+
+**Power before any install (SD card or USB):** the battery light (hold SW6 for
+2 s) green or white, or CHOMPI on a USB-C to USB-C charger (2 A or more). With a
+low battery on a computer's USB port, CHOMPI's bootloader waits with every light
+off after the restart and stays dark until the power switch is turned off and on
+(DC, 2026-10-05). If that happens: plug in a USB-C charger, switch off, wait 5 s,
+switch on.
 
 ### Updates (over USB — no card swap; firmware 0.7 or newer)
 1. Open **Forge Bridge.exe** (it contains the matching firmware), **Connect CHOMPI**.
-2. **Card & firmware → Install this kit's firmware.**
+2. **Card & firmware → Install this kit's firmware.** From 0.11 CHOMPI refuses
+   (before anything is copied) while the battery is low on a weak or missing USB
+   supply, and the bridge says so: charge it, or use a USB-C charger.
 3. When CHOMPI's key **blinks white**, press it within 15 s.
 4. CHOMPI restarts, the bootloader installs (rainbow), Forge starts. *Connect
    CHOMPI* shows the new version.
@@ -362,7 +371,8 @@ so one card sets both firmwares:
 | Howling / feedback | The built-in mic is live when nothing is in line in; use headphones or lower the volume |
 | Stuck notes or runaway echo | Hold **SW4 + SW3** for a second (panic; a loop is paused, not lost), or the bridge's Panic |
 | A knob seems to do nothing | Check its light: you may be on another page (press and release to step); hold it 1.5 s to reset it. Some pages need another control (e.g. LFO speed needs an LFO depth) |
-| CHOMPI switched itself off or restarted | *Check setup* shows **Last start** (power-on, brown-out = the supply dipped, or a crash); the card keeps a line per start in `FORGE/RESTARTS.TXT`. Send both with your report |
+| CHOMPI switched itself off or restarted | *Check setup* shows **Last start** (power-on, brown-out = the supply dipped, or a crash); the card keeps a line per start in `FORGE/RESTARTS.TXT`. Send both with your report. A low battery switches CHOMPI off as stock TAPE does: with no USB after 15 s of amber flashes; on a weak USB supply (computer port) at once, lights off. From 0.11 these leave a "battery low" line in `RESTARTS.TXT`; charge it, or play on a USB-C charger |
+| Dark after an install or a restart; only the red charge light | The bootloader is waiting on a low battery with a weak USB supply. Plug in a USB-C to USB-C charger, switch off, wait 5 s, switch on |
 | White keys all red in the menu | SD card missing or unreadable; reinsert it |
 | A sample doesn't play | Exact name in the card's top folder (`cubbi_a1.wav`), not inside a folder |
 | Bridge: *Select both MIDI ports* / CHOMPI not found | USB data cable (not charge-only); close other MIDI programs; Connect again |

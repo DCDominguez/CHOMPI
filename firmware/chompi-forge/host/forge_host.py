@@ -14,7 +14,10 @@ PREFIX = [0x7D, 0x46, 0x47, 1]
 ERRORS = {1: "invalid length", 2: "unsupported version", 3: "checksum mismatch",
           4: "invalid patch or preset address", 5: "unknown operation", 6: "device queue busy",
           7: "that slot is empty (preset, sample or recording)", 8: "SD card missing or storage failed",
-          9: "storage busy"}
+          9: "storage busy",
+          10: "CHOMPI's battery is low and its USB supply is weak or missing, so installing now could leave it dark "
+              "until it is switched off and on. Charge it until the battery light (hold SW6 for 2 s) is green or white, "
+              "or connect a USB-C to USB-C charger (2 A or more), then install again"}
 PRESET_BANKS, PRESET_SLOTS = 8, 15
 LIMITS = {"mix": (0, 1), "time_ms": (10, 1000), "feedback": (0, 0.85), "level": (0, 1)}
 SCHEMA = {

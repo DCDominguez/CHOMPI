@@ -44,5 +44,14 @@ inline unsigned Describe(uint32_t boot, uint8_t flags, const FaultRecord* fault,
     if(size) out[n] = 0;
     return n;
 }
+// A line for an event during a start, e.g. "boot 3: battery low on a weak USB supply: ...".
+inline unsigned DescribeEvent(uint32_t boot, const char* text, char* out, unsigned size) {
+    unsigned n = 0;
+    auto put = [&](const char* s) { while(*s && n + 1 < size) out[n++] = *s++; };
+    char b[11]; int i = 10; b[i] = 0; do { b[--i] = static_cast<char>('0' + boot % 10); boot /= 10; } while(boot && i > 0);
+    put("boot "); put(b + i); put(": "); put(text); put("\n");
+    if(size) out[n] = 0;
+    return n;
+}
 } // namespace restart
 } // namespace forge

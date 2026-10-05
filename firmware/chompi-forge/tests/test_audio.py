@@ -265,7 +265,7 @@ class BridgeAutomaticTests(unittest.TestCase):
         ports = FakePorts(["Microsoft GS Wavetable Synth", "Arturia KeyStep", "CHOMPI 0"],
                           ["Microsoft GS Wavetable Synth", "Arturia KeyStep", "CHOMPI 1"])
         found = self.make(ports).request("discover", {})
-        self.assertEqual((found["input"], found["output"], found["firmware"]), ("CHOMPI 0", "CHOMPI 1", "0.10"))
+        self.assertEqual((found["input"], found["output"], found["firmware"]), ("CHOMPI 0", "CHOMPI 1", "0.11"))
         self.assertEqual(ports.opened, [("CHOMPI 0", "CHOMPI 1")])
         self.assertFalse(self.lock.locked())
 

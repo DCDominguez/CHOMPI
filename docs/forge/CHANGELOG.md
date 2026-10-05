@@ -1,6 +1,29 @@
 # Forge changelog
 
-## 0.10 TAPE parity — 2026-10-05 (ready to install; per-slot settings moved to 0.11)
+## 0.11 Install safety — 2026-10-05 (software-tested; not installed yet)
+
+After DC's 0.10 install left CHOMPI dark (flat battery on a computer's USB port:
+the stock bootloader's low-battery wait, not 0.10). Nothing here is
+hardware-verified.
+- **Install power check:** CHOMPI refuses a firmware install (new error 10,
+  before anything on the card is renamed) unless the battery reads green/white with
+  no recent low reading, or USB power is on a supply that is neither legacy nor at
+  its current limit; checked again at the CHOMPI key press. Every file-transfer
+  reply carries flag 16 when an install would be refused, so the bridge and
+  `forge_card.py install` stop before uploading and say what to do.
+- **Battery lockout log:** just before the stock protection switches CHOMPI off
+  (low battery, no USB) or stops it (low battery, weak supply), Forge appends a
+  "battery low" line to `FORGE/RESTARTS.TXT`; these leave no reset flag, so the
+  earlier "random shut-off" reports had no record.
+- **Start-up hardening:** the fault handler's vector table copy is in DTCM
+  (uncached; it was in write-back-cached AXI SRAM without cache maintenance); the
+  `options.json` read buffer is 32-byte aligned (whole cache lines for the SD DMA).
+  Dropped from the plan: stopping restarts after repeated start-up crashes (a
+  restart loop still lets the bootloader install another `.bin` from the card).
+- Release 254,756 B, development 269,808 B (layout OK). Per-slot sample settings
+  (A4) move to 0.12.
+
+## 0.10 TAPE parity — 2026-10-05 (ready to install; per-slot settings moved to 0.12)
 
 Software-tested only. DC chose the recommended answer for every row of the TAPE
 parity checklist ([TAPE_CONTROLS.md](TAPE_CONTROLS.md), [KNOBS.md](KNOBS.md)).

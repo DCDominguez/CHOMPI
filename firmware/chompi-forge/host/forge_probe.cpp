@@ -2,6 +2,7 @@
 // Optional --render writes four seconds of a synthetic stereo pluck through
 // the SAME Engine as firmware. Diagnostics here are synthetic zero readings.
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <map>
@@ -194,7 +195,9 @@ int main(int argc, char** argv) {
         forge::Request request; uint8_t reply[forge::kMaxReply]; size_t size = 0;
         if(frame.data[4] == forge::kFileOpcode) {                 // file transfer: the firmware's main-loop path
             settle(ignored);
-            size = forge::ServeFileRequest(frame.data, frame.size, transfer, uploads, install, blocks / 2, reply, loader.Busy());
+            // FORGE_PROBE_POWER_LOW=1 simulates a low battery on a weak supply (install refused).
+            static const bool power_low = std::getenv("FORGE_PROBE_POWER_LOW") && *std::getenv("FORGE_PROBE_POWER_LOW") == '1';
+            size = forge::ServeFileRequest(frame.data, frame.size, transfer, uploads, install, blocks / 2, reply, loader.Busy(), !power_low);
             if(transfer.SampleWritten()) { loader.Rescan(); settle(ignored); }
             install.Poll(blocks / 2);
             for(size_t i = 0; i < size; ++i) std::cout << std::hex << std::setw(2) << std::setfill('0') << unsigned(reply[i]) << ' ';

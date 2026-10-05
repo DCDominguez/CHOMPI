@@ -57,7 +57,7 @@ def decode_reply(data, sequence):
     flags = data[9]
     return {"op": [k for k, v in OPS.items() if v == data[8]][0], "offset": sum(data[10 + i] << (7 * i) for i in range(5)),
             "active": bool(flags & 1), "install_pending": bool(flags & 2), "firmware_staged": bool(flags & 4),
-            "restarting": bool(flags & 8)}
+            "restarting": bool(flags & 8), "power_low": bool(flags & 16)}
 
 
 class Card:
@@ -122,6 +122,10 @@ class Card:
                 if "storage busy" not in str(error) or attempt == 479: raise
                 time.sleep(0.25)
 
+    def check_power(self):
+        """Firmware 0.11+: raise before a long upload if CHOMPI would refuse the install (low battery, weak supply)."""
+        if self.status().get("power_low"): raise RuntimeError(host.ERRORS[10])
+
     def install(self, wait=30, cancel=None, prompt=None):
         """Ask for the panel confirmation; True once CHOMPI restarts (the connection then drops)."""
         state = self.request("install")
@@ -134,7 +138,9 @@ class Card:
             except Exception:
                 return True                                     # CHOMPI went away: it is restarting
             if state["restarting"]: return True
-            if not state["install_pending"]: return False       # the 15 s window closed
+            if not state["install_pending"]:                    # the 15 s window closed, or power dropped at the press
+                if state.get("power_low"): raise RuntimeError(host.ERRORS[10])
+                return False
         return False
 
 
@@ -162,6 +168,7 @@ def cli(argv=None):
         try:
             paths = [Path(p) for p in args.paths]
             if args.command == "sync": paths = files_in(paths[0])
+            if args.command == "install": card.check_power()
             for path in paths:
                 data = path.read_bytes()
                 last = [0]

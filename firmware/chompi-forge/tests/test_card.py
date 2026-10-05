@@ -131,6 +131,24 @@ class CardTests(unittest.TestCase):
         state = self.card.status()
         self.assertTrue(state["restarting"]); self.assertFalse(state["install_pending"])
 
+    def test_low_power_refuses_the_install(self):
+        """0.11: low battery on a weak supply (simulated) -> flag on every reply, Install refused (error 10)."""
+        import os
+        self.transport.close()
+        os.environ["FORGE_PROBE_POWER_LOW"] = "1"
+        try: self.transport = bridge.Transport(None, None, PROBE)
+        finally: del os.environ["FORGE_PROBE_POWER_LOW"]
+        self.card = card.Card(self.transport, self.seq)
+        self.assertTrue(self.card.status()["power_low"])
+        with self.assertRaisesRegex(RuntimeError, "battery is low"): self.card.check_power()
+        self.card.upload("FORGE.bin", FIRMWARE.read_bytes())          # uploads still work (samples, staging)
+        with self.assertRaisesRegex(RuntimeError, "battery is low"): self.card.request("install")
+        state = self.card.status()
+        self.assertTrue(state["firmware_staged"]); self.assertFalse(state["install_pending"]); self.assertFalse(state["restarting"])
+
+    def test_normal_power_reports_no_flag(self):
+        self.assertFalse(self.card.status()["power_low"]); self.card.check_power()
+
 
 class BridgeCardTests(unittest.TestCase):
     def setUp(self):
@@ -174,6 +192,21 @@ class BridgeCardTests(unittest.TestCase):
         job = self.wait()
         self.assertIsNone(job["error"]); self.assertFalse(job["result"]["restarting"])
         self.assertIn("nothing installed", job["progress"][-1])
+
+    def test_install_is_refused_before_the_upload_on_low_power(self):
+        if not FIRMWARE.exists(): return
+        import os
+        self.bridge.close()
+        os.environ["FORGE_PROBE_POWER_LOW"] = "1"
+        try:
+            self.bridge = bridge.Bridge(self.lock, PROBE, reports=self.tmp.name)
+            self.bridge.firmware = FIRMWARE
+            self.owner = self.bridge.request("connect", {"mode": "simulation"})["owner"]
+        finally: del os.environ["FORGE_PROBE_POWER_LOW"]
+        self.call("install", confirm=True)
+        job = self.wait()
+        self.assertIn("battery is low", job["error"])
+        self.assertFalse(any("writing" in line for line in job["progress"]))   # nothing uploaded
 
     def test_starter_presets_fill_free_slots_and_keep_used_ones(self):
         with self.assertRaisesRegex(ValueError, "Bank"): self.call("presets", bank=9, confirm=True)

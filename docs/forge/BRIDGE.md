@@ -27,7 +27,9 @@ warn about an unsigned program (More info → Run anyway). Command line:
 Once CHOMPI runs 0.7 (one last SD-card flash), use the bridge's **Card &
 firmware** section: *Install this kit's firmware* copies FORGE.bin over USB,
 CHOMPI's key blinks white, you press it, CHOMPI restarts and the bootloader
-installs it (rainbow lights). Samples: put TAPE-named files in the `card`
+installs it (rainbow lights). From 0.11 the install is refused before the copy
+while the battery is low on a weak or missing USB supply (the bridge says why);
+install with CHOMPI on a USB-C charger. Samples: put TAPE-named files in the `card`
 folder, *Refresh list*, *Copy selected to CHOMPI*. Details: PROTOCOL.md,
 "USB file transfer".
 

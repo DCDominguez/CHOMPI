@@ -73,6 +73,43 @@ private:
     uint32_t asked_ = 0, handoff_at_ = 0;
 };
 
+// The charger readings the upstream hardware class keeps as 8-reading histories (bit
+// set = that reading had the flag; one reading every 20 ms in Forge's main loop).
+struct Readings {
+    uint8_t battery_low = 0;   // BATT_LOW: below the charger's low mark (3.0 V as Forge sets it)
+    uint8_t usb_good = 0xff;   // VIN_GD: USB power present
+    uint8_t legacy = 0;        // legacy (USB-A / no USB-C advertisement) source
+    uint8_t input_limit = 0;   // IINDPM: the supply is at its current limit
+};
+// The stock battery protection (bootloader and upstream hardware class), as it reads
+// those histories: low battery and no USB -> 15 s amber flashes, then shipping mode
+// (the app; the bootloader switches off at once); low battery on a weak supply ->
+// every light off and the processor stopped (app) or waiting (bootloader) until the
+// power switch is cycled; the readings are not refreshed while it waits.
+enum class Lockout : uint8_t { None, Unplugged, WeakSupply };
+inline Lockout StockLockout(const Readings& r) {
+    if(r.battery_low != 0xff) return Lockout::None;
+    if(r.usb_good == 0x00) return Lockout::Unplugged;
+    if(r.legacy == 0xff || r.input_limit == 0xff) return Lockout::WeakSupply;
+    return Lockout::None;
+}
+// The line Forge appends to FORGE/RESTARTS.TXT just before the stock protection acts.
+inline const char* LockoutText(Lockout l) {
+    return l == Lockout::Unplugged ? "battery low, no USB power: 15 s amber flashes, then off (stock protection)"
+         : l == Lockout::WeakSupply ? "battery low on a weak USB supply: lights off, stopped until switched off and on (stock protection)"
+         : "";
+}
+// A firmware install restarts CHOMPI into the bootloader. Allow it only when that
+// lockout cannot follow (DC, 2026-10-05: a flat battery on a computer's USB port left
+// CHOMPI dark after an install): the battery reads green or white with no recent low
+// reading, or USB power is present on a supply that never hit its limit and is not a
+// legacy source. Stricter than the lockout itself (any recent flag counts).
+inline bool InstallPowerOk(Battery level, const Readings& r) {
+    const bool charged = (level == Battery::Full || level == Battery::High) && r.battery_low == 0;
+    const bool strong_supply = r.usb_good == 0xff && r.legacy == 0 && r.input_limit == 0;
+    return charged || strong_supply;
+}
+
 // Charger status for the Inspector (development): register bytes from the upstream
 // read (mp_buff_[0..5] = registers 0x11..0x16).
 struct Status {

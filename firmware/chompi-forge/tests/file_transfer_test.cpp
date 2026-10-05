@@ -178,6 +178,18 @@ void TransferAndInstall() {
         assert(u.Active() && !card.Exists("jammi_a4.wav"));
         assert(ServeFileRequest(end.data(), end.size(), u, card, gate, 0, reply, false) == 16 && card.Exists("jammi_a4.wav"));
     }
+    // 0.11: low battery on a weak supply -> Install refused (Error::Power) before anything is set aside;
+    // every reply carries the power flag so the host can stop before uploading.
+    {
+        FileTransfer p; InstallGate pg; uint8_t reply[32];
+        auto install = Message(FileOp::Install, {}), status = Message(FileOp::Status, {});
+        assert(ServeFileRequest(status.data(), status.size(), p, card, pg, 0, reply, false, false) == 16 && (reply[9] & kFilePowerLow));
+        assert(ServeFileRequest(status.data(), status.size(), p, card, pg, 0, reply, false, true) == 16 && !(reply[9] & kFilePowerLow));
+        assert(ServeFileRequest(install.data(), install.size(), p, card, pg, 0, reply, false, false) == 9
+               && reply[7] == uint8_t(Error::Power) && !pg.Armed());
+        assert(p.Install(card, pg, 0, true) == Error::None && pg.Armed());
+        pg.Cancel();
+    }
     // Install refuses while an upload is half done.
     assert(t.Begin(card, Decode(Begin("jammi_a3.wav", 100))) == Error::None);
     InstallGate g4; assert(t.Install(card, g4, 0) == Error::StorageBusy && !g4.Armed());
@@ -363,5 +375,5 @@ void LossyLink() {
 int main() {
     CodecAndNames(); TransferAndInstall(); BootloaderNames(); FirmwareGuards(); LossyLink(); Fuzz(200000);
     std::cout << "PASS: file transfer CRC/packing/names, staged replace, resend/gap/CRC rejection, bootloader-safe set-aside,"
-                 " firmware header and read-back checks, repeated End, stale takeover, lossy link, 200k fuzzed requests, install gate\n";
+                 " firmware header and read-back checks, repeated End, stale takeover, lossy link, 200k fuzzed requests, install gate, install power check\n";
 }

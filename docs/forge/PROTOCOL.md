@@ -157,7 +157,8 @@ harness readings are synthetic zero and say nothing about device headroom.
 Errors: 1 length, 2 protocol/patch version, 3 checksum, 4 patch fields or
 preset/sample address, 5 opcode, 6 queue busy (also: recording in progress
 when saving it), 7 empty slot (preset, copy source, or no recording to save),
-8 SD card missing or storage failed, 9 storage busy. Foreign SysEx/replies are ignored. Framing
+8 SD card missing or storage failed, 9 storage busy, 10 power (0.11: a firmware
+install refused, low battery on a weak or missing supply). Foreign SysEx/replies are ignored. Framing
 discards may be silent and are not included in rejected recognized-request counts.
 
 ## Notes, controls and recovery
@@ -293,14 +294,16 @@ operation. **W35** = unsigned 32 bits in five 7-bit chunks, low first (fifth ≤
 | 1 data | 8–12 offset W35, 13.. packed data | Up to 224 bytes as 32 groups of 8 SysEx bytes (a high-bit byte, bit i = byte i's bit 7, then up to 7 low-7-bit bytes; a final partial group has n+1 bytes). The offset must equal the bytes received so far, else error 4 (status gives the offset to resume from). Request ≤ 270 bytes |
 | 2 end | 8–12 CRC-32 W35 (IEEE, as zlib.crc32) | All bytes and the CRC match: the file replaces the target (FatFS sync, then rename). Else error 1 (short) or 3 (CRC), and the card is unchanged. `FORGE.bin` must also pass the bootloader's image test (stack pointer in DTCM/D1 SRAM, Thumb entry point inside the image; else error 4) and is read back from the card and its CRC compared before it replaces the old one (else error 8). Repeating the End of the file just written (its reply was lost) succeeds again; a sample's End is refused with error 9 while the sample loader is busy (retry) |
 | 3 abort | — | Discard the upload |
-| 4 install | — | Needs `FORGE.bin` on the card and no upload in progress (error 7 / 9; an upload untouched for 5 s is abandoned). The CHOMPI bootloader flashes the first visible root file whose name *contains* `.bin` or `.BIN`, so every other such file is renamed: each `.bin` becomes `_bin`, and a name that ended in it gains `.old` (`CHOMPI_TAPEv2_0.bin` → `CHOMPI_TAPEv2_0_bin.old`; `1_` … `9_` in front if taken; nothing is overwritten). Error 8 if any rename fails. Then it waits 15 s for a CHOMPI key press on the panel (its light blinks white; the press never reaches the menu or record gesture). On the press CHOMPI sends its replies and restarts; the bootloader flashes the new `FORGE.bin` from the card |
+| 4 install | — | Needs `FORGE.bin` on the card and no upload in progress (error 7 / 9; an upload untouched for 5 s is abandoned). The CHOMPI bootloader flashes the first visible root file whose name *contains* `.bin` or `.BIN`, so every other such file is renamed: each `.bin` becomes `_bin`, and a name that ended in it gains `.old` (`CHOMPI_TAPEv2_0.bin` → `CHOMPI_TAPEv2_0_bin.old`; `1_` … `9_` in front if taken; nothing is overwritten). Error 8 if any rename fails. Then it waits 15 s for a CHOMPI key press on the panel (its light blinks white; the press never reaches the menu or record gesture). On the press CHOMPI sends its replies and restarts; the bootloader flashes the new `FORGE.bin` from the card. From 0.11: error 10 (before anything is renamed) unless the power is safe for a restart into the bootloader (`core/power.h` `InstallPowerOk`: battery green/white with no low reading in the last 8, or USB power on a supply that is neither legacy nor at its current limit in the last 8 readings); the power is checked again at the press (if it failed, the gate closes and flag 16 says why) |
 | 5 status | — | Report only |
 
 Reply 48 (16 bytes): 7 zero, 8 operation, 9 flags (1 upload active, 2 waiting
-for the CHOMPI press, 4 `FORGE.bin` on the card, 8 restarting), 10–14 bytes
+for the CHOMPI press, 4 `FORGE.bin` on the card, 8 restarting, 16 an install
+would be refused now for power, 0.11), 10–14 bytes
 received W35, 15 checksum. Errors: 1 length, 3 CRC, 4 bad name/size/offset or
 packing, 7 nothing to finish/install, 8 no card or a write failed, 9 an upload
-is in progress. One request at a time per transport is the contract; the host
+is in progress, 10 power (install only). The host checks flag 16 with a status
+request before uploading `FORGE.bin`. One request at a time per transport is the contract; the host
 keeps at most 4 data requests in flight (CHOMPI queues 16 frames per port). The
 MIDI framer accepts SysEx up to 288 bytes. Host tools: `host/forge_card.py`,
 the bridge's *Card & firmware* section.

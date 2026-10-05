@@ -23,6 +23,26 @@ SD streaming remains gated on physical SD measurements. Older checkpoint and
 PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
 use the latest implementation checkpoint and ledger for present capabilities/budgets.
 
+## Current checkpoint: firmware 0.11 install safety (2026-10-05)
+
+DC chose "both, safety first": 0.11 install safety, then A4 (per-slot sample
+settings, now 0.12). DC is on stock TAPE 2.0 while the battery charges (yellow at
+last report); no Forge firmware is installed now.
+- Implemented and software-tested: install power check (`core/power.h`
+  `InstallPowerOk`, error 10, file-reply flag 16, re-check at the press; host
+  `Card.check_power`, bridge refuses before uploading); stock lockout detection and
+  "battery low" lines in `FORGE/RESTARTS.TXT`; vector table copy in DTCM; aligned
+  options buffer; version 0.11. Probe: `FORGE_PROBE_POWER_LOW=1` simulates it.
+- Checks: `make test` 12 native + 119 Python PASS; `make sanitize` PASS; ARM release
+  254,756 B / development 269,808 B layout OK (xPack 10.3.1); `make bench` PASS
+  (worst 2,670.9 vs WAVE 2,694.9; unchanged, no DSP change); browser 11 + 7 PASS.
+- Not verified: anything on hardware; the real charger flag behaviour (legacy,
+  IINDPM) on DC's supplies; whether the units' v6.2 bootloader waits like the
+  v6.4-beta source. Next hardware step: install 0.11 from the card (TAPE → Forge
+  needs the SD route) on a USB-C charger with the battery green/white, then Check
+  setup; TEST_SESSION 7.3p optional.
+- Next: A4 (0.12).
+
 ## RESOLVED: CHOMPI dark after the 0.10 install (DC, 2026-10-05)
 
 DC installed 0.10 through the bridge (USB install), then could not connect; later
@@ -77,7 +97,7 @@ here is hardware-verified; causes are not established.
 ## Checkpoint: firmware 0.10 TAPE parity, ready for DC's install (2026-10-05)
 
 Everything DC chose in the parity checklist is built and software-tested except A4
-(TAPE presets.json per-slot settings), which DC moved to 0.11 (install 0.10 first).
+(TAPE presets.json per-slot settings), which DC moved after 0.10 (now 0.12, after 0.11 install safety).
 See CHANGELOG 0.10 (stage 1, 2a, 2b), KNOBS.md, MANUAL sections 4–11, TAPE_CONTROLS.md.
 Checks at afc64be: make test (12 native + 116 Python), make sanitize, browser tests
 (11 + 7), make bench PASS (2,670.9 ≤ WAVE 2,694.9; all TAPE effects 3,077.9

@@ -90,7 +90,7 @@ def main():
     if args.windows_runtime:
         runtime = windows_runtime(args.windows_runtime, files)
         files["Start Forge bridge.cmd"] = b'@echo off\r\ncall "%~dp0host\\start_bridge.cmd"\r\n'
-    manifest = {"candidate": "Forge Bridge 0.10 development" if args.development else "Forge 0.10", "hardware_verified": False,
+    manifest = {"candidate": "Forge Bridge 0.11 development" if args.development else "Forge 0.11", "hardware_verified": False,
                 "development_hooks": args.development,
                 "simulation_platform": sys.platform if args.include_probe else None,
                 "windows_runtime": runtime,
