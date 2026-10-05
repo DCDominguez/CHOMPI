@@ -48,6 +48,23 @@ knobs move .03 per click (Forge 1/127), which explains "SW4 does nothing". DC's
 answers so far: SW5 push-and-turn for loop speed with panic moved elsewhere; count-in
 1.5 s; convert old presets.
 
+**DC's parity answers (2026-10-05):** A1 TAPE steps; A2 page on release; A3 hold a
+knob **1.5 s** to reset; A4 open (question sent); B0 recommended (TAPE layout,
+synth equivalents); B1 TAPE pitch/gain; B2–B4 TAPE layout **but keep Forge's synth
+controls** (LFO, filter env, detune…) on extra pages, audibility via A1 (layout
+proposal sent); B5 turn = cutoff, push-and-turn = loop speed/scrub, click = 1×;
+B6 SW6 press = input gain; B7 TAPE; C1/C2 TAPE menu shift layer; D1 vel 127; D2
+MIDI out; E1 relabel; E2 count-in 1.5 s; E3 TAPE monitoring + 3 modes; E4 TAPE
+CHOMPI light; E5 record latch; E6 TAPE after-recording; F1 TAPE menu first, Forge
+presets on a second page; G1 TAPE's saturation/warble/DJ filter/compressor **plus**
+Forge's filter; H1/H2 TAPE; I1 panic = SW4 + SW3 held 1 s; J1 read options.json;
+K1 keep Forge (no lockout); L1–L5 recommended. Also: "only one key plays" — Acid
+Bass is 1 voice by design (others 4, samplers 7). Shut-off: DC saw it only while
+playing keys rapidly (not with many keys held, knobs, looper or recording).
+Native ASan/UBSan stress (14 presets × ~37k random fast presses, chords, knob
+turns, LED composition): no fault — points away from a core memory bug; restart
+reason logging (L2) is the next step.
+
 Later feedback: knob "white" looks light blue (LED balance; TAPE is the same);
 SW4 on Glass Keys inaudible (1/127 per click; pages 2–4 dead on v1/v2 patches);
 wants long-press knob reset (later). Starter presets: bridge job `presets`
