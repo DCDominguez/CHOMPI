@@ -23,7 +23,7 @@ SD streaming remains gated on physical SD measurements. Older checkpoint and
 PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
 use the latest implementation checkpoint and ledger for present capabilities/budgets.
 
-## OPEN: CHOMPI dark after the 0.10 install (DC, 2026-10-05)
+## RESOLVED: CHOMPI dark after the 0.10 install (DC, 2026-10-05)
 
 DC installed 0.10 through the bridge (USB install), then could not connect; later
 CHOMPI "won't turn on". The red charging LED is on with USB plugged in. Nothing
@@ -62,6 +62,15 @@ here is hardware-verified; causes are not established.
   DC's power bank showed 2.5 W (0.5 A default USB) on USB-A, 9.4 W on USB-C. Told DC
   to switch off and on with USB-C attached. (Assumes units' v6.2 does the same;
   only its binary is in the repo.)
+- Outcome (DC, photos): after switching off and on with USB-C (9.4 W), the bootloader
+  ran (gradient lights across the keys) and CHOMPI started; the knob lights then
+  match 0.10's sampler-page colours (SW4 green, SW1 yellow, SW2 red, SW3 teal).
+  Cause: the bootloader's low-battery wait (flat battery + 0.5 A USB-A supply), not
+  0.10. Still unconfirmed: firmware version and Last start via the bridge (Check
+  setup). For hardware sessions: power CHOMPI from USB-C to USB-C. Pending, low
+  priority: 0.10.1 hardening (clean D-cache after the vector-table copy or place it
+  in DTCM; 32-byte-align the options.json buffer; stop restarting after repeated
+  start-up crashes).
 
 ## Checkpoint: firmware 0.10 TAPE parity, ready for DC's install (2026-10-05)
 
