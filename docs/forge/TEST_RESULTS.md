@@ -3,6 +3,7 @@
 ## 2026-10-05 — 0.9 on CHOMPI (DC, verbal): open issue, random shut-off
 
 - **Recording works** on hardware (toggle + hold CHOMPI, play back).
+- **Preset recall works** on hardware (toggle down, hold CHOMPI, white key, release).
 - **Toggle labels are backwards in the docs and bridge:** on DC's unit the menu
   position is toggle **down** and recording is **up**. Firmware behaviour equals
   TAPE (`GetToggleState()` true = menu); only Forge's naming ("up = menu") was
