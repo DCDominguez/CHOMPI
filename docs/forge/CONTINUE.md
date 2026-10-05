@@ -23,7 +23,27 @@ SD streaming remains gated on physical SD measurements. Older checkpoint and
 PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
 use the latest implementation checkpoint and ledger for present capabilities/budgets.
 
-## Current checkpoint: firmware 0.10 TAPE parity, ready for DC's install (2026-10-05)
+## OPEN: CHOMPI dark after the 0.10 install (DC, 2026-10-05)
+
+DC installed 0.10 through the bridge (USB install), then could not connect; later
+CHOMPI "won't turn on". The red charging LED is on with USB plugged in. Nothing
+here is hardware-verified; causes are not established.
+- Not a brick: the SD/USB install writes QSPI only; the bootloader lives in internal
+  flash and still installs any `.bin` on the card root at power-up.
+- Leading hypothesis, power: a flat battery. The bootloader's
+  `LowBatteryLockoutCheck` spins with no lights while the battery is low on a
+  low-current source (PC port / legacy cable), and goes to shipping mode if low and
+  unplugged; the app shows 15 s amber flashes, then shipping mode. Would also explain
+  the earlier "random shut-off while playing".
+- Alternative, 0.10 at boot: rainbow lights followed by dark or repeating rainbow
+  would point at 0.10 (new fault handler resets instead of hanging; VTOR copy;
+  boot-time SD reads for options/restart log; USB MIDI out).
+- Sent DC: charge from a wall charger with the switch on; if still dark, put only
+  one `.bin` on the card root, either Forge 0.9 (dev build of `1e0e35a`, xPack
+  10.3.1, 253,696 B, sha256 8a9b4785…ac9100) or `card-profiles/tape-2.0`. Waiting
+  for DC's light description and `FORGE/RESTARTS.TXT`.
+
+## Checkpoint: firmware 0.10 TAPE parity, ready for DC's install (2026-10-05)
 
 Everything DC chose in the parity checklist is built and software-tested except A4
 (TAPE presets.json per-slot settings), which DC moved to 0.11 (install 0.10 first).
