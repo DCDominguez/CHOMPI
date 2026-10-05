@@ -1,5 +1,16 @@
 # Forge test results
 
+## 2026-10-05 — power on 0.8 (DC, verbal): TEST_SESSION 8
+
+- 8.1 pass: unplugged, Forge runs normally on the battery.
+- 8.2 pass: SW6 held 2 s shows the battery light, **green** (battery above the
+  3.3 V check, consistent with the Power line seen earlier).
+- 8.3 pass: plugged back in, the bridge reconnects. (Charge state on the Check
+  setup Power line not reported in this run.)
+- The hardware power switch turns CHOMPI on and off normally. The flat battery on
+  2026-10-04 was simply the battery running out, not firmware.
+- 8.4 (storage gesture) not run — optional.
+
 ## 2026-10-05 — firmware 0.8 installed over USB: all automatic checks pass
 
 - **USB firmware install verified on hardware:** DC installed 0.8 with the bridge's

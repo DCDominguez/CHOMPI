@@ -746,8 +746,8 @@ webapp + bench optimisation, then docs.
 ## Next actions (priority order)
 
 0. Done 2026-10-05: 0.8 installed over USB on hardware (first card-free update);
-   every automatic check passes on 0.8. Next for DC: TEST_SESSION section 8
-   (power), 6.2d (sampler + looper CPU → looper voice cap), QA-sheet listening.
+   every automatic check passes on 0.8; power 8.1–8.3 pass (8.4 optional, not run).
+   Next for DC: 6.2d (sampler + looper CPU → looper voice cap), QA-sheet listening.
 1. DC, at home: [HOME_CHECKLIST.md](HOME_CHECKLIST.md): one last card flash of
    0.7 (only FORGE.bin may contain ".bin" in the card root), rig fixes, Check
    setup, panel walk, automatic checks, one USB install and one sample upload;
