@@ -12,7 +12,8 @@ namespace forge {
 // filter, full sustain and a short attack, so the sample sounds as recorded.
 inline Parameters SelectSample(Parameters p, uint8_t mode, uint8_t bank, uint8_t slot) {
     if(!p.Sampler()) {
-        p.version = 4; p.synth = true; p.source = 1;
+        if(p.version < 4) p.version = 4;
+        p.synth = true; p.source = 1;
         p.cutoff = 1.f; p.resonance = 0.f; p.filter_amount = 0.5f;
         p.attack = 0.f; p.decay = 0.1f; p.sustain = 1.f; p.release = 0.02f;
         p.lfo_pitch = p.lfo_filter = p.lfo_amp = 0.f; p.glide = 0.f;

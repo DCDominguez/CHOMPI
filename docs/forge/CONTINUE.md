@@ -1,8 +1,44 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-05 (UTC), checkpoint: firmware 0.15 event recorder and projects (see
-"Current checkpoint" below). Read this first; DC's next session is
-[HOME_CHECKLIST.md](HOME_CHECKLIST.md).
+Updated 2026-10-06 (UTC), checkpoint: firmware 0.15.1 review fixes (see "Current
+checkpoint" below). Read this first; DC's next session is
+[HOME_CHECKLIST.md](HOME_CHECKLIST.md), then [TEST_SESSION.md](TEST_SESSION.md).
+
+## Current checkpoint: firmware 0.15.1 review fixes (2026-10-06)
+
+DC: "Battery is already full but I want to do a full review of the project for now",
+then "read the review. go for the fixes dude". The review (four parallel reviewers, each
+finding verified against the code) found defects in 0.13–0.15 code, the host and the
+docs. All verified findings are fixed; each code fix has a regression test.
+- Implemented and software-tested (details in CHANGELOG 0.15.1):
+  - Core: recorder note-off overflow (pending, not dropped), clock stop / MIDI Start end
+    the recorder's notes (`Sequencer::Advance` / `Restart`), patch changes keep the loop
+    (`Engine::Silence` → `Sequencer::Silenced`; `Engine::Panic` still stops it), MIDI Stop
+    stays stopped (`Clock::Advance` timeout only while running), first MIDI Start seeds the
+    tick length, per-key held count in `Parts` (`KeyDown/KeyUp` take the key),
+    `Parts::Owns(note, source)`, `SelectSample` keeps v5–v7.
+  - Storage / panel: `seq::kFileBuffer` (Storage::Read refuses a file that fills its
+    buffer; mocks now do too), export after queueing (`PanelController` exports after a
+    successful `PresetAction`; host stores via `StoreQueued` after the reply is pushed),
+    `Mailbox::owner` (Panel / Host) with a claiming `SaveFile` that removes a stale `.FSQ`
+    when a save went without its loop, host recall queues `SequenceLoad` after the patch
+    (`RecallRequest` now carries bank/slot), KEY_22 / KEY_21 page-leave side effect
+    (`began_on_tape`), `SlotSettingsSchedule` retry + `presets_old.json` step-aside.
+  - Host: webapp ROUTES[7], start/end compared as 14-bit words (`unit_word`), CLI
+    `upgrade --to 3..7`, `/api/session` `preset_errors`, `forge_ai.provider_schema`,
+    `forge_host.FIRMWARE_VERSION` + `test_version_strings_agree`, stale labels.
+  - Docs: install power everywhere (one USB port: charge first, then a computer USB-C
+    port with C-to-C), HOME_CHECKLIST rewritten, TEST_SESSION corrections + new steps
+    (bridge checklist 122), MANUAL / PROTOCOL / HANDOFF / PROJECT / README refreshed.
+- Checks (this checkpoint): `make test` 16 native + 128 Python PASS;
+  `ASAN_OPTIONS=detect_leaks=0 make sanitize` 15 PASS; `make browser-test` 11 + 7 PASS;
+  `make bench` PASS (unchanged: pitch .75 2,676.2, 1× worst 2,610.5 vs WAVE 2,694.9);
+  ARM release 235,380 B / development 249,188 B, layout OK (headroom 53,388 / 39,580 B).
+- Not verified: everything on hardware (DC has not installed 0.11 or later); the
+  `presets_old.json` step-aside and `.FSQ` writes on real FatFS; a live AI request with
+  the reduced schema (`host/forge_ai_check.py` is DC's to run, with DC's own key).
+- Firmware still reports minor 15 on the wire (no patch number); docs and bundle say
+  0.15.1. Next: DC's hardware session, or DC's next request.
 
 ## Resource/QA review, 2026-10-04 (UTC)
 
@@ -23,7 +59,7 @@ SD streaming remains gated on physical SD measurements. Older checkpoint and
 PROJECT/HANDOFF/README summary paragraphs below may describe earlier milestones;
 use the latest implementation checkpoint and ledger for present capabilities/budgets.
 
-## Current checkpoint: firmware 0.15 event recorder (2026-10-05; 0.14 parts and 0.13 harmony below)
+## Checkpoint: firmware 0.15 event recorder (2026-10-05; 0.14 parts and 0.13 harmony below)
 
 DC: "Yeah 1 to 4 let's go" = (1) finish harmony 0.13, (2) CPU fix A (table-based
 cubic read), (3) clock + arp + bass, (4) event recorder + projects on SD. Item 1 is

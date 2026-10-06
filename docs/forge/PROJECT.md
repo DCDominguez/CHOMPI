@@ -18,7 +18,18 @@ validation without per-feature flash requests. A real defect may require retest.
 DC also requested continuously updated documentation for other development agents;
 read and maintain [CONTINUE.md](CONTINUE.md) at each checkpoint.
 
-## Current milestone: instrument candidate 0.4
+## Current milestone: instrument candidate 0.15.1
+
+Everything below "0.4" was the first milestone and is kept as history. Since then:
+sampler with recording (0.5), knob pages and v5 patch knobs (0.6), USB card / firmware
+loader (0.7), stock power behaviour (0.8), key lights (0.9), TAPE panel parity (0.10),
+install power check (0.11), TAPE per-slot settings (0.12), harmony mode and patch v6
+(0.13), clock / arp / bass and patch v7 (0.14), event recorder and projects (0.15), and
+the full-review fixes (0.15.1). All software-tested, none hardware-verified yet; the
+next step is DC's one consolidated hardware session ([TEST_SESSION.md](TEST_SESSION.md)).
+Details: [CHANGELOG.md](CHANGELOG.md), [CONTINUE.md](CONTINUE.md).
+
+### First milestone: instrument candidate 0.4
 
 - Synth with up to four voices (1–4 per patch, glide), two oscillators with
   interval/detune, noise, amplitude ADSR, velocity.

@@ -1,5 +1,9 @@
 # Forge Resource Ledger
 
+**Latest figures:** the newest dated snapshot below (2026-10-06, firmware 0.15.1:
+release 235,380 B / development 249,188 B, headroom 53,388 / 39,580 B). The baseline
+table that follows is the 2026-10-04 review and is kept as history.
+
 Reviewed 2026-10-04 UTC. Branch: `forge/foundation`. Reviewed head:
 `fec241622a68adc52075e242941ac0f1ed293bec`; firmware source is unchanged from
 `131776b4a7c04538dc52cb4dd7354d0d102a3d56` (0.6, knob pages / v5 patches).
@@ -210,6 +214,18 @@ docs, recheck `forge/foundation`; never overwrite a concurrent implementation.
 | QA | 15 native (new `parts_test`) + 123 Python PASS; 14 ASan/UBSan PASS; browser 11 + 7 PASS |
 | Value | Arpeggiator, bass part, tempo / tap / MIDI clock in and out, all from the panel and patches |
 | Decision | Hardware evidence needed: TEST_SESSION 3.68–3.72 (timing feel, MIDI clock with a DAW) |
+
+## Snapshot 2026-10-06: firmware 0.15.1 review fixes (not installed)
+
+| Field | Record |
+| --- | --- |
+| Identity | Commit after `1cd73ae` (parent, previous measured); firmware 0.15.1 (wire minor 15) |
+| Build | xPack GCC 10.3.1, unchanged flags. Release 235,380 B, development 249,188 B; layout OK both |
+| Memory | +932 / +932 B (headroom 53,388 / 39,580 B). SRAM `.bss` 144,708 B (+120: per-key arp count, presets.json retry schedule), `.data` 1,744 B (+12); 89,068 B of the 230 KiB SRAM left. `sequence_file` stays 6,176 B (now sized `kFileBuffer`, one byte over the largest loop file). SDRAM unchanged (387,048 B free) |
+| CPU | Emulator gate PASS, unchanged: pitch .75 2,676.2, 1x worst 2,610.5 vs WAVE 2,694.9. The fixes are control-rate (`FORGE_COLD`) or once-per-block |
+| QA | 16 native + 128 Python PASS; 15 ASan/UBSan PASS (`detect_leaks=0`); browser 11 + 7 PASS |
+| Value | Review findings fixed: stuck recorder notes, MIDI stop/start, full loop files, project hand-over, KEY_22 side effect, presets.json retry, host routes / validation / CLI, install-power docs |
+| Decision | Hardware evidence needed: TEST_SESSION 3.62b, 3.67b, 3.71b, 3.76b–g, 6.2g, 8.7 plus everything from 0.11 on |
 
 ## Snapshot 2026-10-05: firmware 0.15 event recorder and projects (not installed)
 

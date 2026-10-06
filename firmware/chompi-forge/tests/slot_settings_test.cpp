@@ -188,8 +188,22 @@ void Kit() {
 }
 } // namespace
 
+// 0.15.1: presets.json is written 2 s after the last change; a failed write is tried
+// again (4 s, 8 s ... up to 1 min) and never dropped.
+void Schedule() {
+    SlotSettings s; SlotSettingsSchedule w;
+    SlotValues v; v.start = .5f; s.Set(0, 0, 2, v);
+    assert(!w.Due(s, 100) && !w.Due(s, 2000) && w.Due(s, 2100));
+    assert(s.TakeDirty()); w.Failed(s, 2100);
+    assert(s.Dirty() && !w.Due(s, 6000) && w.Due(s, 6100));
+    s.TakeDirty(); w.Failed(s, 6100); assert(!w.Due(s, 14000) && w.Due(s, 14100));
+    for(int i = 0; i < 10; ++i) { s.TakeDirty(); w.Failed(s, 0); }
+    assert(w.wait == SlotSettingsSchedule::kMaxWait && !w.Due(s, 59999) && w.Due(s, 60000));
+    s.TakeDirty(); assert(!w.Due(s, 70000));                                       // written: nothing pending
+    v.start = .25f; s.Set(0, 0, 2, v); assert(!w.Due(s, 70000) && w.wait == SlotSettingsSchedule::kSettle && w.Due(s, 72000));
+}
 int main() {
-    FileFormat(); Chromatic(); Kit();
+    FileFormat(); Chromatic(); Kit(); Schedule();
     std::cout << "PASS: presets.json TAPE layout/round trip/v1/junk/8 KB bound, menu save/copy/erase, chromatic save-on-turn and"
-                 " restore, recall/select/patch policies, reset, kit pads (pitch, pan, window, loop) heard per pad, menu sync\n";
+                 " restore, recall/select/patch policies, reset, kit pads (pitch, pan, window, loop) heard per pad, menu sync, write retry\n";
 }

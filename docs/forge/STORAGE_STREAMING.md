@@ -34,8 +34,10 @@ Branch head `753078b` (the brief named `b7d098b`; 23 commits later: knob pages,
 | Event recorder mailbox | `sequence_mailbox_memory` (0.15: a 1,024-event loop for save / load) | 6,152 |
 | **Free** | | **387,048 (0.37 MiB)** |
 
-Executable space (SRAM_EXEC 282 KiB = 288,768 B): release **234,448 B, headroom
-54,320 B**; development 248,256 B, headroom 40,512 B (0.15: event recorder and projects
+Executable space (SRAM_EXEC 282 KiB = 288,768 B): release **235,380 B, headroom
+53,388 B**; development 249,188 B, headroom 39,580 B (0.15.1 review fixes +0.9 KB both, no
+sampler read path or SDRAM change; presets.json now steps the old file aside before the
+rename and retries failed writes; 0.15: event recorder and projects
 +5.3 / +5.4 KB, its loop files (`FORGE/BbSss.FSQ`, up to 6.2 KB, main-loop FatFS writes beside the
 presets; no change to the sampler read path); 0.14: clock, arp, bass, parts page,
 patch v7, Inspector page 9 +7.5 / +8.5 KB; 0.13: CPU fix A cubic table +4.6 KB; harmony menu page, Inspector page 8 and patch v6 +1.9 / +2.6 KB after the savings; harmony

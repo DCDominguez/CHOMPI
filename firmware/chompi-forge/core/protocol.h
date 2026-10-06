@@ -5,7 +5,7 @@
 
 namespace forge {
 constexpr uint8_t kProtocolVersion = 1, kPatchVersion = 1;
-constexpr uint8_t kFirmwareMinor = 15; // 0.15: event recorder and projects (parts page, .FSQ beside presets, Inspector page 10); 0.14: clock, arp and bass (parts page, patch v7, Inspector page 9), CPU fix A; 0.13: harmony mode (menu page, patch v6, Inspector page 8), memory savings; 0.12: TAPE per-slot sample settings (presets.json); 0.11: install power check, battery lockout log, start-up fixes; 0.10: TAPE parity (knobs, effects, count-in, restart record); 0.9: key lights while playing (TAPE); 0.8: power as stock (off gesture, SW6 battery, charger hand-over); 0.7: USB file transfer (opcode 0C)
+constexpr uint8_t kFirmwareMinor = 15; // 0.15.1: review fixes (same minor on the wire); 0.15: event recorder and projects (parts page, .FSQ beside presets, Inspector page 10); 0.14: clock, arp and bass (parts page, patch v7, Inspector page 9), CPU fix A; 0.13: harmony mode (menu page, patch v6, Inspector page 8), memory savings; 0.12: TAPE per-slot sample settings (presets.json); 0.11: install power check, battery lockout log, start-up fixes; 0.10: TAPE parity (knobs, effects, count-in, restart record); 0.9: key lights while playing (TAPE); 0.8: power as stock (off gesture, SW6 battery, charger hand-over); 0.7: USB file transfer (opcode 0C)
 // 7-9 are device-preset (SD) errors: empty slot, no/failed card, storage busy.
 // Power (0.11): a firmware install refused because the battery is low on a weak or missing supply.
 enum class Error : uint8_t { None, Length, Version, Checksum, Patch, Opcode, Busy, Empty, Storage, StorageBusy, Power };

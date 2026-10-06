@@ -11,6 +11,8 @@ import urllib.parse
 import urllib.request
 
 PREFIX = [0x7D, 0x46, 0x47, 1]
+# The firmware these tools match; its minor is core/protocol.h kFirmwareMinor (tests/test_consistency.py).
+FIRMWARE_VERSION = "0.15.1"
 ERRORS = {1: "invalid length", 2: "unsupported version", 3: "checksum mismatch",
           4: "invalid patch or preset address", 5: "unknown operation", 6: "device queue busy",
           7: "that slot is empty (preset, sample or recording)", 8: "SD card missing or storage failed",
@@ -359,7 +361,10 @@ def validate_instrument3(patch):
             raise ValueError(f"{module} module needs exactly: {', '.join(fields)}")
         for key, codec in fields.items():
             check_value(f"{module}.{key}", modules[module][key], codec)
-    if v4 and not modules["sampler"]["start"] < modules["sampler"]["end"]:
+    # Compared as the device sees them (14-bit words): two values that round to the same
+    # word would pass here and be rejected by the firmware (0.15.1).
+    if v4 and not (unit_word(modules["sampler"]["start"], spec["sampler"]["start"])
+                   < unit_word(modules["sampler"]["end"], spec["sampler"]["end"])):
         raise ValueError("sampler.start must be less than sampler.end")
     return patch
 
@@ -374,16 +379,20 @@ def from_unit(unit, codec):
     return codec[1] + (codec[2] - codec[1]) * unit
 
 
-def encode_word(value, codec):
+def unit_word(value, codec):
     # Clamp guards float rounding at range ends; 16384 would wrap to 0 in 14 bits.
-    return word14(int(min(max(to_unit(value, codec), 0.0), 1.0) * 16383 + 0.5))
+    return int(min(max(to_unit(value, codec), 0.0), 1.0) * 16383 + 0.5)
+
+
+def encode_word(value, codec):
+    return word14(unit_word(value, codec))
 
 
 def upgrade_patch(patch, to=3):
-    """Return a v3, v4 or v5 patch with the same delay/output (and v2 synth)
+    """Return a v3-v7 patch with the same delay/output (and v2 synth)
     settings; new modules start neutral (osc2/noise/LFO depths/reverb mix 0,
     filter envelope 0; v4 adds the sampler module, unused until routing selects
-    it; v5 adds knob assignments, all "default"). The filter envelope copies the amp
+    it; v5 adds knob assignments, all "default"; v6 harmony off; v7 arp/bass off). The filter envelope copies the amp
     envelope's shape at zero depth. The v3 filter is a steeper
     resonant low-pass, so tone can differ slightly."""
     patch = validate_patch(patch)
@@ -871,8 +880,8 @@ def cli(argv=None):
     schema.add_argument("--instrument", action="store_true", help="Print the v7 instrument schema (sampler, knob choices, harmony, arp/bass/clock)")
     commands.add_parser("ports", help="List MIDI ports")
     validate = commands.add_parser("validate"); validate.add_argument("patch")
-    upgrade = commands.add_parser("upgrade", help="Convert an older patch file to a new v3 (or --to 4) instrument file")
-    upgrade.add_argument("patch"); upgrade.add_argument("out"); upgrade.add_argument("--to", type=int, default=3, choices=(3, 4, 5))
+    upgrade = commands.add_parser("upgrade", help="Convert an older patch file to a newer instrument file (v3 by default, --to 3-7)")
+    upgrade.add_argument("patch"); upgrade.add_argument("out"); upgrade.add_argument("--to", type=int, default=3, choices=(3, 4, 5, 6, 7))
     encode = commands.add_parser("encode", help="Print SysEx bytes without using MIDI")
     encode.add_argument("patch"); encode.add_argument("--sequence", type=int, default=1)
     preset_help = {"store": "Save the device's current sound to an SD preset slot",

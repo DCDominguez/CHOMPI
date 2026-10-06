@@ -1,6 +1,6 @@
 # Forge for CHOMPI — user manual
 
-Firmware **0.10** (development builds; experimental community firmware, not an
+Firmware **0.15.1** (development builds; experimental community firmware, not an
 official CHOMPI release). Forge turns CHOMPI into a playable synthesizer,
 TAPE-compatible sampler and looper whose sounds you can design on a computer —
 by hand or by describing them to an AI — and send over USB.
@@ -20,8 +20,9 @@ only. Keep a backup of your SD card.
    sound is loaded.** Load one of these ways:
    - **Record:** toggle **up**, **hold CHOMPI** through the short red count-in, make a sound, release — the keys
      now play your recording (section 7).
-   - **Recall a saved preset:** toggle **down**, hold CHOMPI, press a lit white key,
-     release (section 6).
+   - **Recall a saved preset:** toggle **down**, hold CHOMPI (the menu opens on TAPE's
+     page), **hold KEY_22 for 1 s** (Forge's presets page), press a lit white key, release
+     (section 6).
    - **Send one from the computer:** connect USB, open Forge Bridge, choose a
      patch, *Send* (section 10).
 4. Play the 25 keys. Hold **SW4 and SW3** together for a second to stop all sound (panic).
@@ -40,18 +41,24 @@ only. Keep a backup of your SD card.
 4. Card into CHOMPI, plugged into a **USB-C charger**, power on: rainbow lights
    while the bootloader installs, then Forge starts.
 
-**Power before any install (SD card or USB):** the battery light (hold SW6 for
-2 s) green or white, or CHOMPI on a USB-C to USB-C charger (2 A or more). With a
-low battery on a computer's USB port, CHOMPI's bootloader waits with every light
-off after the restart and stays dark until the power switch is turned off and on
-(DC, 2026-10-05). If that happens: plug in a USB-C charger, switch off, wait 5 s,
-switch on.
+**Power before any install (SD card or USB):** charge first. The battery light (hold
+SW6 for 2 s) must be **green or white**, or CHOMPI must be on a USB-C to USB-C charger
+(2 A or more). CHOMPI has **one USB port**: a USB install needs the computer's cable in
+it, so it cannot sit on a charger at the same time — charge until the battery light is
+green or white, then connect a **computer USB-C port with a USB-C to USB-C cable** (a
+USB-A port or a C-to-A cable is a weak "legacy" supply). Forge refuses an install
+otherwise (section 3). With a low battery on a computer's USB port, CHOMPI's bootloader
+waits with every light off after the restart and stays dark until the power switch is
+turned off and on (DC, 2026-10-05). If that happens: plug in a USB-C charger, switch
+off, wait 5 s, switch on.
 
 ### Updates (over USB — no card swap; firmware 0.7 or newer)
 1. Open **Forge Bridge.exe** (it contains the matching firmware), **Connect CHOMPI**.
 2. **Card & firmware → Install this kit's firmware.** From 0.11 CHOMPI refuses
-   (before anything is copied) while the battery is low on a weak or missing USB
-   supply, and the bridge says so: charge it, or use a USB-C charger.
+   (before anything is copied) unless the battery reads green or white, or the USB
+   supply is strong (a USB-C port that never hit its current limit, not a USB-A /
+   legacy source); the bridge says so. Then disconnect, charge on a USB-C charger until
+   the battery light is green or white, and reconnect the computer (above).
 3. When CHOMPI's key **blinks white**, press it within 15 s.
 4. CHOMPI restarts, the bootloader installs (rainbow), Forge starts. *Connect
    CHOMPI* shows the new version.
@@ -99,7 +106,7 @@ Forge keeps TAPE's panel workflow (firmware 0.10). The toggle has two positions:
 
 | Control | Normal play | In the menu (toggle down + hold CHOMPI) |
 | --- | --- | --- |
-| 25 keys (C3–C5) | Play notes (full velocity, as TAPE) | White keys pick slots; black keys are menu functions |
+| 25 keys (C3–C5) | Play notes (full velocity, as TAPE) | The menu opens on **TAPE's page** (section 7: sample slots, KEY_21 / KEY_22 taps place the effects). Hold KEY_22 1 s: Forge's **presets page** (white keys pick slots, black keys are save / copy / erase / bank). Hold KEY_21 1 s: the **harmony page**, then KEY_21: the **parts page** (sections 8a, 8b). KEY_22 goes back to TAPE's page |
 | CHOMPI key | Toggle **up** + hold = record (after a 1.5 s count-in) | Toggle **down** + hold = open the menu; press = confirm |
 | SW4, SW1, SW2, SW3 | Turn: the knob's current page. Press and release: next page. Hold 1.5 s: reset that control | SW4 turns the bank |
 | SW4 + SW3 held 1 s | **Panic** (stops all sound) | — |
@@ -115,7 +122,9 @@ key pink when there is a recording), in chromatic mode C3, C4 and C5 as guides
 TAPE's colours (section 5). In the **record position** the knob lights are off,
 PLAY/LOOP are dimmed and the CHOMPI light is the **input level meter** (dim white
 at silence, green → yellow → pink with level); in the menu position the CHOMPI
-light is off, purple while you hold it. The CHOMPI light also shows recording
+light is purple while you hold it and otherwise shows the event recorder (section 8c:
+orange blinking on the beat when armed, orange recording, dim green playing, yellow
+overdubbing; off when it is empty or stopped). The CHOMPI light also shows recording
 (red), the count-in (red blinks), saving (pink blink), install (white blink) and
 results (green/red flash).
 
@@ -452,8 +461,10 @@ on the card sets other channels (section 11).
 **MIDI out (as TAPE):** the keys send notes (velocity 127); turning a knob on TAPE's
 pages sends TAPE's CC (SW4/SW1/SW2/SW3 page 1: CC 20–23, page 2: CC 28–31, SW3
 page 3: CC 33), SW5 CC 24, SW6 CC 25 (volume) or 32 (input gain); PLAY CC 26 and LOOP
-CC 27 (127 pressed, 0 released); CHOMPI CC 21 in the record position. Forge's extra
-pages and the menu send nothing. With the arp or bass on (section 8b): the arp notes on
+CC 27 (127 pressed, 0 released, also while the menu is open); CHOMPI CC 21 in the
+record position. Forge's extra knob pages send nothing, nor do the knobs on TAPE's menu
+page (they set TAPE's shift layer); on the presets, harmony and parts pages a knob sends
+its CC only if it changes that control. With the arp or bass on (section 8b): the arp notes on
 the out channel, the bass on the next channel, and MIDI clock while CHOMPI keeps the tempo.
 
 ---

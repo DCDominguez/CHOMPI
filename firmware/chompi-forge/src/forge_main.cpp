@@ -267,7 +267,7 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
         if(forge::ExecuteRequest(request, engine, response)) {
             response.cpu_average = cpu.GetAvgCpuLoad();
             response.cpu_max = cpu.GetMaxCpuLoad();
-            responses.Push(response);
+            if(responses.Push(response)) forge::StoreQueued(response, engine);
             if(request.kind == forge::RequestKind::Status && request.reset_cpu) cpu.Reset();   // audio owns the meter
         }
     }
@@ -378,7 +378,7 @@ forge::seq::Sequencer& sequencer = Construct<forge::seq::Sequencer>();   // even
 // main-loop only, in whole cache lines for the SD driver's DMA.
 alignas(8) unsigned char DSY_SDRAM_BSS sequence_mailbox_memory[sizeof(forge::seq::Mailbox)];
 forge::seq::Mailbox* sequence_mailbox = nullptr;
-alignas(32) uint8_t sequence_file[(forge::seq::kFileMax + 31) / 32 * 32];
+alignas(32) uint8_t sequence_file[forge::seq::kFileBuffer];
 // A recalled preset's loop (if it has one) follows its patch to the audio owner.
 FORGE_COLD void LoadSequence(uint8_t bank, uint8_t slot);
 alignas(32) char presets_text[forge::SlotSettings::kFileMax];   // whole cache lines: SD DMA reads
@@ -387,7 +387,7 @@ FORGE_COLD void LoadSlotSettings() {
     slot_settings.Clear();
     if(!card.Ready()) return;
     FIL file; UINT read = 0;
-    if(f_open(&file, "presets.json", FA_READ) != FR_OK) return;
+    if(f_open(&file, "presets.json", FA_READ) != FR_OK && f_open(&file, "presets_old.json", FA_READ) != FR_OK) return;   // a write cut short
     f_read(&file, presets_text, sizeof(presets_text) - 1, &read);
     f_close(&file);
     presets_text[read] = 0;
@@ -420,16 +420,21 @@ FORGE_COLD bool WritePresetsFile() {
     if(f_open(&file, "presets_temp.json", FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) return false;
     const bool ok = f_write(&file, presets_text, n, &written) == FR_OK && written == n;
     if(f_close(&file) != FR_OK || !ok) { f_unlink("presets_temp.json"); return false; }
-    f_unlink("presets.json");
-    return f_rename("presets_temp.json", "presets.json") == FR_OK;
+    // FatFS rename does not replace: the old file steps aside first, so a power cut leaves
+    // presets.json or presets_old.json (LoadSlotSettings reads either; 0.15.1).
+    f_unlink("presets_old.json");
+    if(f_stat("presets.json", &info) == FR_OK && f_rename("presets.json", "presets_old.json") != FR_OK) {
+        f_unlink("presets_temp.json"); return false;
+    }
+    if(f_rename("presets_temp.json", "presets.json") != FR_OK) { f_rename("presets_old.json", "presets.json"); return false; }
+    f_unlink("presets_old.json");
+    return true;
 }
 void SaveSlotSettings(uint32_t now) {
-    static uint32_t seen = 0, changed_at = 0;
-    const uint32_t changes = slot_settings.Changes();
-    if(changes != seen) { seen = changes; changed_at = now; return; }
-    if(!slot_settings.Dirty() || now - changed_at < 2000 || sample_loader.Busy() || !card.Ready()) return;
+    static forge::SlotSettingsSchedule schedule;
+    if(!schedule.Due(slot_settings, now) || sample_loader.Busy() || !card.Ready()) return;
     slot_settings.TakeDirty();
-    if(!WritePresetsFile()) ++slot_settings_failures;
+    if(!WritePresetsFile()) { ++slot_settings_failures; schedule.Failed(slot_settings, now); }   // tried again later
 }
 // TAPE's options.json (core/options.h), read once before audio starts; Forge never writes it.
 FORGE_COLD void LoadOptions() {
@@ -586,7 +591,8 @@ forge::Error HandleStorage(forge::Request& request) {
     if(request.kind == RequestKind::Recall) {
         forge::Request apply;
         const forge::Error error = forge::RecallRequest(store, request, apply);
-        if(error == forge::Error::None) { last_bank = request.bank; last_slot = request.slot; request = apply; LoadSequence(last_bank, last_slot); }
+        // The project's loop is queued after the patch (HandleMessage, 0.15.1).
+        if(error == forge::Error::None) { last_bank = request.bank; last_slot = request.slot; request = apply; }
         return error;
     }
     if(request.kind == RequestKind::Erase) {
@@ -869,6 +875,8 @@ FORGE_COLD void HandleFrame(const forge::MidiFrame& frame, uint8_t source) {
     }
     if(error == forge::Error::None && !handled && !Queue(request)) {
         ++dropped_commands; error = forge::Error::Busy;
+    } else if(error == forge::Error::None && !handled && request.kind == forge::RequestKind::Patch && request.recall) {
+        LoadSequence(last_bank, last_slot);   // a host recall: its loop after its patch (0.15.1)
     }
     if(error != forge::Error::None) {
 #ifdef FORGE_TEST_HOOKS
@@ -902,7 +910,7 @@ FORGE_COLD void SendResponses() {
                                          response.patch);
             if(sequence_mailbox) {                                   // the project's loop (0.15)
                 const forge::Error e = forge::seq::SaveFile(card, *sequence_mailbox, response.bank, response.slot, sequence_file,
-                                                            response.error == forge::Error::None);
+                                                            response.error == forge::Error::None, forge::seq::Mailbox::Host);
                 if(response.error == forge::Error::None && e == forge::Error::Storage) response.error = e;
             }
             if(response.error != forge::Error::None) ++rejected_messages;

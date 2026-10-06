@@ -70,8 +70,10 @@ public:
         if(state_ == State::Playing) { EndHeld(pos_); state_ = State::Stopped; }
         overdub_ = false;
     }
-    // MIDI start: back to the loop's beginning.
-    void Restart() { if(state_ == State::Playing) Rewind(); }
+    // MIDI start: back to the loop's beginning (what sounds ends first).
+    void Restart() { if(state_ == State::Playing) { Release(); Rewind(); } }
+    // A patch change silenced the instrument: its notes are gone, the loop keeps its place.
+    FORGE_COLD void Silenced() { for(auto& p : playing_) p = 0; }
 
     // Live input while capturing (the engine calls these; playback is never re-recorded).
     FORGE_COLD void RecordNote(uint8_t note, uint8_t velocity) {
@@ -95,7 +97,11 @@ public:
     // `max`, oldest first); returns how many.
     FORGE_COLD unsigned Advance(unsigned ticks, uint32_t clock, bool running, Action* out, unsigned max) {
         unsigned n = 0;
-        if(!running) return Flush(out, max);
+        if(!running) {                                 // clock stopped: what sounds ends, the loop waits
+            if(was_running_) { Release(); was_running_ = false; }
+            return Flush(out, max);
+        }
+        was_running_ = true;
         for(unsigned t = 0; t < ticks; ++t) {
             const uint32_t at = clock - ticks + t + 1;
             switch(state_) {
@@ -152,7 +158,11 @@ private:
                 else if(playing_[e.a]) --playing_[e.a];
                 else continue;                          // nothing of ours to stop
             }
-            if(n < max) out[n++] = Action{static_cast<Kind>(e.kind), e.a, e.b}; else ++drops_;
+            if(n < max) { out[n++] = Action{static_cast<Kind>(e.kind), e.a, e.b}; continue; }
+            // No room this block: a note-off waits for the next one (never lost), a note-on
+            // or control is dropped and counted (and the note-on not counted as sounding).
+            if(e.kind == Note && !e.b) { if(pending_off_[e.a] < 255) ++pending_off_[e.a]; release_ = true; }
+            else { if(e.kind == Note && playing_[e.a]) --playing_[e.a]; ++drops_; }
         }
         return n;
     }
@@ -196,21 +206,26 @@ private:
     unsigned cursor_ = 0;
     uint16_t pos_ = 0;
     State state_ = State::Empty;
-    bool overdub_ = false, close_ = false, release_ = false;
+    bool overdub_ = false, close_ = false, release_ = false, was_running_ = true;
 };
 
 // Save / load handoff between the audio owner and the main loop (SD card). One sequence
 // at a time: the audio callback exports into it on a save and imports from it on a load.
 struct Mailbox {
     enum : uint8_t { Free, Exporting, Exported, Importing, Imported, Main };
+    // Who saves (0.15.1): a panel save and a host store of the same slot each take only
+    // their own export.
+    enum Owner : uint8_t { Panel, Host };
     std::atomic<uint8_t> state{Free};
-    uint8_t bank = 0, slot = 0;
+    uint8_t bank = 0, slot = 0, owner = Panel;
     Sequence sequence;
-    // Audio: a save of bank/slot. False when the mailbox is busy (the save goes without it).
-    bool Export(const Sequencer& s, uint8_t b, uint8_t sl) {
+    // Audio: a save of bank/slot, called once its action / reply is queued (the main loop
+    // cannot run in between, and a save that never reaches it never holds the mailbox).
+    // False when the mailbox is busy (the save goes without it).
+    bool Export(const Sequencer& s, uint8_t b, uint8_t sl, uint8_t who = Panel) {
         uint8_t expected = Free;
         if(!state.compare_exchange_strong(expected, Exporting, std::memory_order_acquire)) return false;
-        s.Export(sequence); bank = b; slot = sl;
+        s.Export(sequence); bank = b; slot = sl; owner = who;
         state.store(Exported, std::memory_order_release);
         return true;
     }
@@ -230,6 +245,9 @@ struct Mailbox {
 // File: "FSQ" 1, length (2), count (2), events (6 each: tick 2, kind, a, b 2; little-endian),
 // CRC-16/CCITT over everything before it (2, big-endian). Bounded by kMaxEvents.
 constexpr size_t kFileHeader = 8, kFileMax = kFileHeader + 6 * kMaxEvents + 2;
+// The read buffer: Storage::Read refuses a file that fills its buffer, so a full loop
+// (kFileMax bytes) needs at least one byte more (0.15.1); whole cache lines for SD DMA.
+constexpr size_t kFileBuffer = (kFileMax + 1 + 31) / 32 * 32;
 inline uint16_t FileCrc(const uint8_t* data, size_t size) {
     uint16_t crc = 0xffff;
     for(size_t i = 0; i < size; ++i) {

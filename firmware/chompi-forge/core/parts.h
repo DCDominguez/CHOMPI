@@ -88,7 +88,7 @@ public:
     bool Running() const { return running_; }
     uint32_t Ticks() const { return ticks_; }
     // Internal run / stop (the parts page); MIDI start / stop when following.
-    void Run(bool on) { if(on && !running_) { ticks_ = 0; phase_ = 0.f; } running_ = on; }
+    void Run(bool on) { if(on && !running_) { ticks_ = 0; phase_ = 0.f; external_ = false; } running_ = on; }
     // Tap tempo: the average of the last taps (each 0.2-1.5 s apart) once there are two.
     FORGE_COLD bool Tap(uint32_t now_samples) {
         const uint32_t gap = now_samples - last_tap_;
@@ -102,6 +102,7 @@ public:
     }
     FORGE_COLD void Midi(Message m) {
         if(m == Tick) { if(pending_ < 64) ++pending_; return; }
+        if(!external_ || interval_ <= 0.f) interval_ = 60.f * rate_ / (kPpqn * static_cast<float>(bpm_));   // until MIDI's is measured
         if(m == Start) { ticks_ = 0; phase_ = 0.f; pending_ = 0; running_ = true; external_ = true; since_ = 0; }
         else if(m == Continue) { running_ = true; external_ = true; since_ = 0; }
         else { running_ = false; external_ = true; since_ = 0; }
@@ -121,7 +122,9 @@ public:
         }
         if(external_) {
             since_ += frames;
-            if(since_ > static_cast<uint32_t>(0.5f * rate_)) {   // MIDI clock gone: internal again
+            // MIDI clock gone while running: CHOMPI's own tempo again. After a MIDI stop it
+            // stays stopped until start / continue (or B4), whatever the host sends meanwhile.
+            if(running_ && since_ > static_cast<uint32_t>(0.5f * rate_)) {
                 external_ = false; running_ = true; phase_ = 0.f;
             }
         } else if(running_) {
@@ -164,37 +167,39 @@ public:
     bool Active() const { return ArpOn() || BassOn(); }
     // A new chord or key set: `root` its root (harmony), or -1 for the lowest note; `fifth`
     // the chord's fifth in semitones (7 without harmony).
-    FORGE_COLD void KeyDown(const uint8_t* notes, unsigned count, int root, uint8_t fifth, uint8_t velocity, uint8_t source) {
-        if(!count) return;
+    // `key`: the key (or MIDI note) pressed; held keys are counted once each, so a repeated
+    // note-on without its note-off never keeps a phrase open.
+    FORGE_COLD void KeyDown(uint8_t key, const uint8_t* notes, unsigned count, int root, uint8_t fifth, uint8_t velocity, uint8_t source) {
+        if(!count || key > 127) return;
         if(!held_) {                                  // first key after a release: a new phrase
             set_count_ = 0; step_ = 0; random_ = Seed(); restart_ = true; bass_step_ = 0;
         }
-        if(held_ < 255) ++held_;
+        if(!keys_[key]) { keys_[key] = 1; ++held_; }
         for(unsigned i = 0; i < count; ++i) Add(notes[i]);
         root_ = root >= 0 ? static_cast<uint8_t>(root % 12) : Lowest() % 12;
         fifth_ = fifth; velocity_ = velocity ? velocity : velocity_; source_ = source;
         bass_change_ = true;
         BuildOrder();
     }
-    FORGE_COLD void KeyUp(const uint8_t* notes, unsigned count) {
-        if(held_) --held_;
+    FORGE_COLD void KeyUp(uint8_t key, const uint8_t* notes, unsigned count) {
+        if(key < 128 && keys_[key]) { keys_[key] = 0; --held_; }
         if(settings.latch && ArpOn()) return;        // the set keeps cycling until the next phrase
         for(unsigned i = 0; i < count; ++i) Remove(notes[i]);
         BuildOrder();
-        if(!set_count_) { held_ = 0; bass_change_ = true; }
+        if(!set_count_) { ReleaseKeys(); bass_change_ = true; }
     }
     // Patch / panel changes: stop what no longer applies.
     FORGE_COLD void Changed() {
         clock_.SetTempo(settings.bpm);
         if(!ArpOn()) { StopArp(); if(!held_) set_count_ = 0; }
         if(!BassOn()) StopBass();
-        if(!Active()) { set_count_ = 0; held_ = 0; }
+        if(!Active()) { set_count_ = 0; ReleaseKeys(); }
         BuildOrder();
     }
     // Everything off (panic, patch silence): the notes it owns stop on MIDI too.
     FORGE_COLD void Clear() {
         StopArp(); StopBass();
-        set_count_ = 0; held_ = 0; order_count_ = 0;
+        set_count_ = 0; order_count_ = 0; ReleaseKeys();
         for(auto& r : refs_) r = 0;
     }
     // One audio block: the clock, then steps and gate ends. The synth events it (or any
@@ -240,7 +245,8 @@ public:
     unsigned SetCount() const { return set_count_; }
     const uint8_t* Set() const { return set_; }
     uint8_t ArpNote() const { return arp_note_; }
-    bool Owns(uint8_t note) const { return note < 128 && refs_[note] != 0; }
+    // The synth voice (note, source) is the parts' own: a key-up of that pair must not stop it.
+    bool Owns(uint8_t note, uint8_t source) const { return note < 128 && refs_[note] != 0 && owner_[note] == source; }
     uint8_t BassNote() const { return bass_count_ ? bass_[0] : 0; }
     bool Latched() const { return set_count_ && !held_; }
     uint32_t Drops() const { return drops_; }
@@ -330,6 +336,8 @@ private:
     Clock clock_;
     SpscQueue<MidiOut, 64> midi_;
     uint8_t set_[kMaxSet] = {}, order_[kMaxSet * 4] = {}, refs_[128] = {}, owner_[128] = {}, bass_[2] = {};
+    void ReleaseKeys() { for(auto& k : keys_) k = 0; held_ = 0; }
+    uint8_t keys_[128] = {};
     unsigned set_count_ = 0, order_count_ = 0, step_ = 0, held_ = 0, bass_step_ = 0, bass_count_ = 0, last_ticks_ = 0;
     uint32_t random_ = 0x12345678u, drops_ = 0, now_ = 0;
     float arp_left_ = 0.f, bass_left_ = 0.f;

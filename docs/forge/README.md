@@ -1,13 +1,15 @@
 # Forge documentation
 
-Latest development addition: [Forge Inspector](INSPECTOR.md), a read-only viewer
-of running firmware state for the physical test. Current validation and limits
-are in [CONTINUE.md](CONTINUE.md); Inspector is development-only.
+Latest: firmware **0.15.1** (review fixes over 0.15's event recorder and projects; see
+[CHANGELOG.md](CHANGELOG.md)). Current validation and limits are in
+[CONTINUE.md](CONTINUE.md); DC's next session is [HOME_CHECKLIST.md](HOME_CHECKLIST.md)
+then [TEST_SESSION.md](TEST_SESSION.md).
 
 Forge is a community firmware project for CHOMPI, built on its Daisy Seed audio
-hardware. Candidate **0.5** implements a playable synth (up to four voices, two oscillators, noise, resonant
-filter with envelope, LFO, glide), a TAPE-compatible sampler with recording, SD-card presets,
-stereo delay and reverb, live controls, atomic patch
+hardware. Candidate **0.15.1** implements a playable synth (up to seven voices, two oscillators, noise, resonant
+filter with envelope, LFO, glide), a TAPE-compatible sampler with recording, a TAPE-style
+looper, harmony mode, an arpeggiator / bass part on a clock, an event recorder, SD-card
+presets and projects, stereo delay and reverb, live controls, atomic patch
 recall, host-managed JSON presets, and diagnostics. The computer can optionally
 author presets through a local OpenAI/Gemini webapp with a user-supplied API
 key, or through the optional Ollama CLI.

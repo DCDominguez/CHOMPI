@@ -218,7 +218,7 @@ gain are never stored. Anything malformed is ignored (the slot loads without a l
 ## Notes, controls and recovery
 
 Channel 1 (zero-based 0): Note On/Off, including Note On velocity zero. Notes
-0–127 accepted; keybed uses 48–72 at velocity 100. UART, USB and keybed have
+0–127 accepted; keybed uses 48–72 at velocity 127 (as TAPE). UART, USB and keybed have
 separate source IDs. Matching source/note is retriggered; otherwise idle voices
 are used, then the quietest releasing voice, then the oldest held voice (four voices; up to seven on v4).
 A reused voice keeps its current level and waveform phase and glides to the new

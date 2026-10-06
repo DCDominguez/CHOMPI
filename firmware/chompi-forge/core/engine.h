@@ -139,8 +139,8 @@ public:
         if(velocity && SlotMode() && Kit()) { const int pad = Synth::KitSlot(note); if(pad >= 0) focus_ = static_cast<uint8_t>(pad); }
         if(harmony_ && (velocity ? HarmonyOn() && harmony_->Maps(note) : harmony_->Holds(note, source)))
             return HarmonyNote(note, velocity, source, played, released);
-        if(parts_ && (PartsOn() || !velocity) && PartsKey(&note, 1, -1, 7, velocity, source)) {
-            if(!velocity && parameters_.synth && !parts_->Owns(note)) synth_.Note(note, 0, source);   // sounded before the arp
+        if(parts_ && (PartsOn() || !velocity) && PartsKey(note, &note, 1, -1, 7, velocity, source)) {
+            if(!velocity && parameters_.synth && !parts_->Owns(note, source)) synth_.Note(note, 0, source);   // sounded before the arp
             if(released) *released = 0;
             return 0;                                         // the arp plays it (0.14)
         }
@@ -157,11 +157,11 @@ public:
             else { n = harmony_->KeyUp(note, source, out); off = n; }
             if(parts_ && (PartsOn() || !velocity) && n > (velocity ? off : 0)) {   // the chord feeds the arp / bass (0.14)
                 const harmony::Chord& c = harmony_->LastChord(); const harmony::Voiced& v = harmony_->LastVoiced();
-                const bool taken = velocity ? PartsKey(v.note, v.count, c.root, c.tone[2], velocity, source)
-                                            : PartsKey(out, n, -1, 7, 0, source);
+                const bool taken = velocity ? PartsKey(note, v.note, v.count, c.root, c.tone[2], velocity, source)
+                                            : PartsKey(note, out, n, -1, 7, 0, source);
                 if(taken) {                                   // the arp plays it: nothing sounds directly
                     const unsigned stop = velocity ? off : n;  // ends what sounded before the arp, never its notes
-                    for(unsigned i = 0; i < stop; ++i) if(parameters_.synth && !parts_->Owns(out[i])) synth_.Note(out[i], 0, source);
+                    for(unsigned i = 0; i < stop; ++i) if(parameters_.synth && !parts_->Owns(out[i], source)) synth_.Note(out[i], 0, source);
                     if(released) *released = 0;
                     return 0;
                 }
@@ -194,7 +194,9 @@ public:
     void SetSequencer(seq::Sequencer* s, seq::Mailbox* m = nullptr) { seq_ = s; mailbox_ = m; }
     seq::Sequencer* Sequencer() const { return seq_; }
     // A preset save: hand the recorded loop to the main loop with it (false: busy, saved without).
-    bool ExportSequence(uint8_t bank, uint8_t slot) { return seq_ && mailbox_ && mailbox_->Export(*seq_, bank, slot); }
+    bool ExportSequence(uint8_t bank, uint8_t slot, uint8_t owner = seq::Mailbox::Panel) {
+        return seq_ && mailbox_ && mailbox_->Export(*seq_, bank, slot, owner);
+    }
     // A preset recall brought a loop: take it.
     bool ImportSequence() { return seq_ && mailbox_ && mailbox_->Import(*seq_); }
     // MIDI clock in (main loop -> request queue): 0 tick, 1 start, 2 continue, 3 stop.
@@ -212,7 +214,7 @@ public:
     void ModWheel(uint8_t value) { synth_.ModWheel(value); }
     // Panic (SW5, CC 120/123, SysEx, recovery): everything silent at once; a
     // loop is paused, not lost. Patch changes use Silence() and leave the loop.
-    void Panic() { Silence(); if(looper_) looper_->Panic(); }
+    void Panic() { Silence(); if(seq_) seq_->Panic(); if(looper_) looper_->Panic(); }
     // Looper (docs/forge/LOOPING.md). Owned by the caller; audio owner only.
     void SetLooper(Looper* looper) { looper_ = looper; }
     Looper* GetLooper() const { return looper_; }
@@ -468,7 +470,7 @@ private:
         synth_.Silence();
         if(harmony_) harmony_->Clear();
         if(parts_) { parts_->Clear(); parts::Event e[parts::Parts::kEvents]; parts_->Take(e, parts::Parts::kEvents); }   // MIDI offs queued
-        if(seq_) seq_->Panic();                                  // its note-offs go out with the next block (MIDI)
+        if(seq_) seq_->Silenced();                               // its notes are gone; the loop keeps playing (MANUAL 8c)
         // O(1) tail suppression: old delay cells are not read until overwritten.
         flushed_ = capacity_;
         reverb_.Clear();
@@ -479,8 +481,8 @@ private:
         return static_cast<uint8_t>(v < harmony::kMaxNotes ? v : harmony::kMaxNotes);
     }
     // Keys to the parts: true when the arp took them (they must not sound directly).
-    FORGE_COLD bool PartsKey(const uint8_t* notes, unsigned count, int root, uint8_t fifth, uint8_t velocity, uint8_t source) {
-        if(velocity) parts_->KeyDown(notes, count, root, fifth, velocity, source); else parts_->KeyUp(notes, count);
+    FORGE_COLD bool PartsKey(uint8_t key, const uint8_t* notes, unsigned count, int root, uint8_t fifth, uint8_t velocity, uint8_t source) {
+        if(velocity) parts_->KeyDown(key, notes, count, root, fifth, velocity, source); else parts_->KeyUp(key, notes, count);
         SoundParts();
         return ArpOn();
     }

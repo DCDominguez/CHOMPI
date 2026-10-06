@@ -70,6 +70,8 @@ public:
     // Changed since the last TakeDirty (file entries only); the main loop writes the file.
     bool Dirty() const { return dirty_.load(std::memory_order_acquire); }
     bool TakeDirty() { return dirty_.exchange(false, std::memory_order_acq_rel); }
+    // A write that failed: the changes stay pending (0.15.1).
+    void Retry() { dirty_.store(true, std::memory_order_release); }
     uint32_t Changes() const { return changes_.load(std::memory_order_relaxed); }   // grows with every change
 
     // presets.json (TAPE PRE_VERSION 2: [mode][bank][slot] = [9 values x 1000, valid],
@@ -178,5 +180,22 @@ private:
     Entry recording_;
     std::atomic<bool> dirty_{false};
     std::atomic<uint32_t> changes_{0};
+};
+
+// When the main loop writes presets.json: 2 s after the last change (turns come in
+// bursts); after a failed write again later (4 s, doubling to 1 min) instead of never
+// (0.15.1). Times in ms.
+struct SlotSettingsSchedule {
+    static constexpr uint32_t kSettle = 2000, kMaxWait = 60000;
+    uint32_t seen = 0, changed_at = 0, wait = kSettle;
+    bool Due(const SlotSettings& s, uint32_t now) {
+        const uint32_t changes = s.Changes();
+        if(changes != seen) { seen = changes; changed_at = now; wait = kSettle; return false; }
+        return s.Dirty() && now - changed_at >= wait;
+    }
+    void Failed(SlotSettings& s, uint32_t now) {
+        s.Retry(); changed_at = now;
+        wait = wait >= kMaxWait / 2 ? kMaxWait : wait * 2;
+    }
 };
 } // namespace forge

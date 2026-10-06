@@ -120,8 +120,13 @@ class Handler(BaseHTTPRequestHandler):
             filename, mime = ASSETS[self.path]
             return self.reply(200, (ROOT / "web" / filename).read_bytes(), mime)
         if self.path == "/api/session":
-            return self.reply(200, {"token": self.server.token,
-                "presets": [host.load_patch(p) for p in sorted((ROOT.parent / "presets").glob("*.json"))],
+            # A damaged preset file is left out and named (0.15.1), never a failed session.
+            presets, problems = [], []
+            for path in sorted((ROOT.parent / "presets").glob("*.json")):
+                try: presets.append(host.load_patch(path))
+                except (OSError, ValueError, KeyError, TypeError) as error:
+                    problems.append(f"presets/{path.name}: {str(error)[:200]}")
+            return self.reply(200, {"token": self.server.token, "presets": presets, "preset_errors": problems,
                 "checks": forge_bridge.CHECKS, "simulation_available": bool(self.server.bridge.probe)})
         return self.reply(404, {"error": "Not found"})
 

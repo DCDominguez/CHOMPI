@@ -166,6 +166,11 @@ class BrowserTests(unittest.TestCase):
                          (7, "synth>delay>reverb>output", ["default"] * 4, forge_host.HARMONY_DEFAULTS, forge_host.PARTS_DEFAULTS))
         self.assertEqual(upgraded["modules"]["filter"]["cutoff_hz"], 1500)
         self.assertFalse(p.is_disabled("#reverb-mix")); self.assertTrue(p.is_disabled("#upgrade"))
+        # 0.15.1: a v7 patch lists its three routes (the routing menu was empty for v7).
+        self.assertEqual(len(p.locator("#routing option").all_inner_texts()), 3)
+        p.select_option("#routing", "sampler>delay>reverb>output")
+        self.assertEqual(self.json()["routing"], "sampler>delay>reverb>output")
+        p.select_option("#routing", "synth>delay>reverb>output")
         # Knob choices (page 1 of the panel knobs) edit the v5 "knobs" list.
         self.assertFalse(p.is_disabled("#knobs-0"))
         self.assertIn("Filter: Cutoff", p.locator("#knobs-0 option").all_inner_texts())

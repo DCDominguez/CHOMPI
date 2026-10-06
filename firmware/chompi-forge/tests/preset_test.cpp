@@ -18,7 +18,7 @@ struct MemoryStorage : Storage {
     bool Ready() override { return ready; }
     bool Read(const char* path, uint8_t* buffer, size_t capacity, size_t& size) override {
         auto it = files.find(path);
-        if(!ready || it == files.end() || it->second.size() > capacity) return false;
+        if(!ready || it == files.end() || it->second.size() >= capacity) return false;   // as FatFsStorage: a file filling the buffer is refused
         size = it->second.size(); std::memcpy(buffer, it->second.data(), size); return true;
     }
     bool Write(const char* path, const uint8_t* data, size_t size) override {

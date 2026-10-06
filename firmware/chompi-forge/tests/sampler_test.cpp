@@ -630,6 +630,12 @@ void SamplerRequests() {
     Parameters tuned = sel; tuned.cutoff = 0.3f;
     const Parameters kit = SelectSample(tuned, 1, 2, 5);
     assert(kit.sample_mode == 1 && kit.sample_bank == 2 && kit.sample_slot == kRamSlot && kit.cutoff == 0.3f);  // sampler settings kept
+    // 0.15.1: a v5+ synth patch with knob assignments stays its version (v4 would make it
+    // invalid and the selection would be ignored).
+    Parameters knobbed; knobbed.version = 5; knobbed.synth = true; knobbed.knobs[0] = static_cast<uint8_t>(Parameter::Cutoff) + 1;
+    assert(knobbed.Valid());
+    const Parameters picked = SelectSample(knobbed, 0, 1, 2);
+    assert(picked.Valid() && picked.Sampler() && picked.version == 5 && picked.knobs[0] == knobbed.knobs[0]);
 }
 // 0.13: the pitched-down read uses kCubic (Q14 weights, 512 steps, M7 dual multiply-
 // accumulate) instead of the float Hermite. It must match the Hermite closely on real

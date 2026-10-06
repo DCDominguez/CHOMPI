@@ -76,6 +76,17 @@ def describe(node, key=None):
     return node
 
 
+def provider_schema(node):
+    """Drop keywords the providers' strict JSON Schema subsets refuse (string lengths;
+    0.15.1). validate_patch still enforces them on the reply."""
+    if isinstance(node, dict):
+        for name in ("minLength", "maxLength"): node.pop(name, None)
+        for child in node.values(): provider_schema(child)
+    elif isinstance(node, list):
+        for child in node: provider_schema(child)
+    return node
+
+
 def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay", samples=None):
     if provider not in ("openai", "gemini"):
         raise ValueError("Choose OpenAI or Gemini")
@@ -126,6 +137,7 @@ def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay", 
         "arbitrary routing or custom code exists. Approximate the request only with these modules. Default "
         "output level 0.25. Return JSON only. " + sample_summary(samples))
     describe(schema)
+    provider_schema(schema)
     # Explicit types and enums work across both providers' JSON Schema subsets.
     schema["properties"]["version"] = {"type": "integer", "enum": [7 if kind == "instrument" else 1]}
     schema["properties"]["engine"] = {"type": "string", "enum": ["instrument" if kind == "instrument" else "stereo_delay"]}

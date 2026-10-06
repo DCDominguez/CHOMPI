@@ -28,8 +28,7 @@ FORGE_COLD inline bool ExecuteRequest(const Request& request, Engine& engine, Re
     }
     response = Response{};
     response.sequence = request.sequence; response.source = request.source;
-    if(request.kind == RequestKind::Store) {     // snapshot for the main loop to write (and the recorded loop)
-        engine.ExportSequence(request.bank, request.slot);
+    if(request.kind == RequestKind::Store) {     // snapshot for the main loop to write (the loop: StoreQueued)
         response.kind = ResponseKind::Snapshot; response.bank = request.bank; response.slot = request.slot;
     } else if(request.kind == RequestKind::Patch) {
         if(!engine.ApplyPatch(request.patch, request.recall ? SlotPolicy::Recall : SlotPolicy::Patch)) response.error = Error::Patch;
@@ -37,6 +36,12 @@ FORGE_COLD inline bool ExecuteRequest(const Request& request, Engine& engine, Re
     else if(request.kind != RequestKind::Status) response.error = Error::Opcode;
     response.patch = request.kind == RequestKind::Patch ? engine.GetParameters() : engine.Snapshot();   // apply: the echo
     return true;
+}
+// A host store's reply is queued for the main loop: its project loop goes with it
+// (0.15.1: exported only now, so a reply that never reaches the main loop holds nothing).
+inline void StoreQueued(const Response& response, Engine& engine) {
+    if(response.kind == ResponseKind::Snapshot && response.error == Error::None)
+        engine.ExportSequence(response.bank, response.slot, seq::Mailbox::Host);
 }
 inline bool IsPerformance(RequestKind kind) {
     return kind == RequestKind::Note || kind == RequestKind::Pedal || kind == RequestKind::Bend
@@ -117,6 +122,7 @@ inline Error RecallRequest(PresetStore& store, const Request& request, Request& 
     if(error != Error::None) return error;
     apply = Request{}; apply.kind = RequestKind::Patch; apply.patch = patch;
     apply.sequence = request.sequence; apply.source = request.source; apply.silent = request.silent; apply.recall = true;
+    apply.bank = request.bank; apply.slot = request.slot;   // the project's loop follows (0.15.1)
     return Error::None;
 }
 // Stuck-note recovery used by the audio callback (and host tests). The main

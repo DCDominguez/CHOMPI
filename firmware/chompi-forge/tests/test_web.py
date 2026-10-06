@@ -53,6 +53,8 @@ class ProviderTests(unittest.TestCase):
                     schema = body["generationConfig"]["responseFormat"]["text"]["schema"]
                 self.assertFalse(schema["additionalProperties"])
                 self.assertEqual(schema["properties"]["engine"]["enum"], ["stereo_delay"])
+                # 0.15.1: string lengths (refused by strict providers) are not sent.
+                self.assertNotIn("minLength", json.dumps(schema)); self.assertNotIn("maxLength", json.dumps(schema))
 
     def test_invalid_and_incomplete_outputs_never_become_patches(self):
         invalid = copy.deepcopy(PRESET)
@@ -142,6 +144,19 @@ class WebTests(unittest.TestCase):
         self.assertEqual(len(json.loads(data)["presets"]), 14)
         for path in ("/../forge_ai.py", "/forge_web.py", "/?api_key=secret"):
             self.assertEqual(self.request(path)[0], 404)
+
+    def test_a_damaged_preset_file_is_named_not_fatal(self):
+        real = forge_web.host.load_patch
+        def load(path):
+            if path.name.startswith("07"): raise ValueError("Unsupported engine or routing")
+            return real(path)
+        with patch.object(forge_web.host, "load_patch", side_effect=load):
+            status, _, data = self.request("/api/session")
+        self.assertEqual(status, 200)
+        session = json.loads(data)
+        self.assertEqual(len(session["presets"]), 13)
+        self.assertEqual(len(session["preset_errors"]), 1)
+        self.assertTrue(session["preset_errors"][0].startswith("presets/07"))
 
     def test_cross_origin_and_missing_tokens_are_rejected(self):
         for headers in ({"Host": "evil.example"}, {"Origin": "https://evil.example"},

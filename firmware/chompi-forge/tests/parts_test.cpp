@@ -37,9 +37,9 @@ struct Rig {
     std::vector<uint8_t> Ons() const { std::vector<uint8_t> v; for(auto& e : synth) if(e.velocity) v.push_back(e.note); return v; }
     unsigned Count(uint8_t status) const { unsigned n = 0; for(auto& m : midi) n += m.status == status; return n; }
     void Keys(std::initializer_list<uint8_t> notes, int root = -1, uint8_t fifth = 7) {
-        std::vector<uint8_t> v(notes); parts.KeyDown(v.data(), static_cast<unsigned>(v.size()), root, fifth, 100, 2);
+        std::vector<uint8_t> v(notes); parts.KeyDown(v[0], v.data(), static_cast<unsigned>(v.size()), root, fifth, 100, 2);
     }
-    void Release(std::initializer_list<uint8_t> notes) { std::vector<uint8_t> v(notes); parts.KeyUp(v.data(), static_cast<unsigned>(v.size())); }
+    void Release(std::initializer_list<uint8_t> notes) { std::vector<uint8_t> v(notes); parts.KeyUp(v[0], v.data(), static_cast<unsigned>(v.size())); }
 };
 Settings Arp(Pattern p, Rate r = Rate::Sixteenth) { Settings s; s.pattern = p; s.rate = r; s.clock_out = false; return s; }
 
@@ -79,6 +79,15 @@ void ClockTempoTapAndMidi() {
     m.Midi(Clock::Tick); assert(m.Advance(kBlock) == 1 && m.Ticks() == 1);
     for(int b = 0; b < 1100; ++b) m.Advance(kBlock);                                        // 0.55 s silence
     assert(!m.External() && m.Running() && m.Bpm() == 120.f);
+    // 0.15.1: a MIDI Stop stays stopped through silence (no internal restart after 0.5 s).
+    Clock st; st.Init(kRate); st.SetTempo(120);
+    st.Midi(Clock::Start); st.Midi(Clock::Tick); st.Advance(kBlock); st.Midi(Clock::Stop);
+    unsigned after = 0; for(int b = 0; b < 4000; ++b) after += st.Advance(kBlock);               // 2 s silence
+    assert(!st.Running() && after == 0);
+    st.Run(true); assert(st.Running() && !st.External());                                       // B4 takes over
+    // 0.15.1: the first MIDI Start (before any tick) seeds the tick length from the tempo.
+    Clock fs; fs.Init(kRate); fs.SetTempo(120); fs.Midi(Clock::Start);
+    assert(fs.External() && fs.SamplesPerTick() == 1000.f && fs.Bpm() == 120.f);
 }
 
 void ArpPatterns() {
@@ -124,6 +133,13 @@ void GateLatchAndOwnership() {
     for(uint8_t n : u.Ons()) assert(n == 60);
     u.Release({60}); u.Run(0.3f);
     assert(u.parts.SetCount() == 0 && u.parts.ArpNote() == 0 && !u.synth.back().velocity);
+    // 0.15.1: a repeated note-on for a held key (no note-off between) counts once, so one
+    // note-off ends an unlatched phrase.
+    Rig d(free); d.Keys({60}); d.Keys({60}); d.Run(0.2f); d.Release({60}); d.Run(0.3f);
+    assert(d.parts.SetCount() == 0 && d.parts.ArpNote() == 0 && !d.synth.back().velocity);
+    // 0.15.1: ownership is per source: the arp's note on source 2 is not source 1's.
+    Rig w(Arp(Pattern::Up, Rate::Quarter)); w.Keys({60}); w.Run(0.05f);
+    assert(w.parts.ArpNote() == 60 && w.parts.Owns(60, 2) && !w.parts.Owns(60, 1));
     // Panic: every owned note stops on the synth and MIDI.
     Settings both = Arp(Pattern::Up, Rate::Quarter); both.gate = 20; both.bass = Bass::Root; both.bass_rate = BassRate::Chord;
     Rig p(both); p.Keys({60, 64, 67}, 0); p.Run(0.1f);
@@ -263,7 +279,11 @@ void EngineAndPanel() {
     assert(rings[1].g == 1.f && rings[1].r == 0.f && rings[3].r == 1.f && rings[3].g > .9f);   // 2 octaves green, 1/8 yellow
     // KEY_21 back to the harmony page (the tonic unchanged), KEY_22 back to TAPE's page.
     press(forge::panel::kFxBefore); assert(panel.HarmonyPage() && player.state.tonic == tonic);
+    // 0.15.1: KEY_22 leaving the harmony page is not also TAPE's tap (effects after the looper).
+    e.SetFxBeforeLoop(true);
     press(forge::panel::kPage); assert(!panel.HarmonyPage() && !panel.PartsPage() && (panel.MenuPacked() >> 21) & 1u);
+    assert(e.FxBeforeLoop());
+    press(forge::panel::kPage); assert(!e.FxBeforeLoop());                             // on TAPE's page a tap still is
 }
 } // namespace
 

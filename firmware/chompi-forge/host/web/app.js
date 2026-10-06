@@ -6,7 +6,7 @@ const ROUTES = {2: [["synth>delay>output", "Synth → Delay → Output"], ["aux>
   3: [["synth>delay>reverb>output", "Synth → Delay → Reverb → Output"], ["aux>delay>reverb>output", "Aux input → Delay → Reverb → Output"]],
   4: [["synth>delay>reverb>output", "Synth → Delay → Reverb → Output"], ["sampler>delay>reverb>output", "Sampler → Delay → Reverb → Output"],
       ["aux>delay>reverb>output", "Aux input → Delay → Reverb → Output"]]};
-ROUTES[5] = ROUTES[6] = ROUTES[4];
+ROUTES[5] = ROUTES[6] = ROUTES[7] = ROUTES[4];
 // v5: what panel knobs 1-4 control on their first page (forge_host.KNOB_TARGETS).
 const KNOB_TARGETS = ["delay.mix", "delay.time_ms", "delay.feedback", "output.level", "filter.cutoff_hz", "filter.resonance",
   "reverb.mix", "sampler.pitch_semitones", "sampler.start", "sampler.end", "filter.env_octaves", "synth.attack_ms",
@@ -373,7 +373,8 @@ async function start() {
     presets.forEach((item, index) => $("preset").add(new Option(item.name, String(index))));
     if (presets.length) { const initial = Math.max(0, presets.findIndex(item => item.version === 3)); loadPatch(presets[initial]); $("preset").value = String(initial); }
     drawSlots(); drawSamples();
-    notice("Ready. Start with AI, a preset, or an imported patch.");
+    const skipped = session.preset_errors || [];
+    notice(skipped.length ? `Ready. Skipped damaged preset file(s): ${skipped.join("; ")}` : "Ready. Start with AI, a preset, or an imported patch.", skipped.length > 0);
   } catch (error) { notice(error.message, true); }
   finally { busy = false; updateButtons(); }
 }

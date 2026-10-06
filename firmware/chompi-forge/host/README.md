@@ -69,7 +69,7 @@ refuses redirects. OpenAI requests set `store: false`; provider data policies
 still apply. There is no persistent login or key vault in this first version.
 
 The local bridge checks Host, Origin, fetch metadata and a session token, serves
-only its three frontend assets, and does not enable cross-origin access. It is
+only its own frontend assets (the editor and the Inspector), and does not enable cross-origin access. It is
 intended for a trusted local computer, not public deployment or shared hosting.
 One AI request and one MIDI exchange can be active per server; no automatic
 patch resend occurs after a timeout. Read status before deciding to retry.
@@ -88,9 +88,9 @@ Forge's independent local validator before reaching the editor.
 
 ## Instrument patches and playing
 
-Firmware 0.6 plays v5 instrument patches (and still v1–v4). Load Warm Pad, Acid
+Firmware 0.15 plays v7 instrument patches (and still v1–v6). Load Warm Pad, Acid
 Bass or Bell Keys; connect MIDI, send once, then play CHOMPI keys (MIDI 48–72)
-or incoming channel 1 notes. Keybed velocity is fixed at 100; MIDI velocity
+or incoming channel 1 notes. Keybed velocity is fixed at 127 (as TAPE); MIDI velocity
 changes loudness. Synth output is mono duplicated to stereo through the delay
 and reverb. No audio input is needed on the synth route. The aux route
 processes external stereo audio.
@@ -133,7 +133,7 @@ python host/forge_host.py panic --input "EXACT INPUT NAME" --output "EXACT OUTPU
 ```
 
 Ollama CLI authoring currently emits v1 delay patches only. OpenAI/Gemini webapp
-supports both authoring modes (v5 instrument with knob choices, v1 delay); after Read samples
+supports both authoring modes (v7 instrument with knob choices, harmony and arp/bass, v1 delay); after Read samples
 in the Device samples panel, instrument authoring may use only the samples
 CHOMPI reported, and a patch pointing at a missing sample is refused. Instrument code has software and
 real-Chromium test coverage, but real model and hardware acceptance remain pending.

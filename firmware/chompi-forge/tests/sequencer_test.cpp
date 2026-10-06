@@ -90,6 +90,27 @@ void RecordAndLoop() {
     for(unsigned i = 0; i < kMaxEvents + 5; ++i) f.s.RecordNote(static_cast<uint8_t>(i % 2 ? 40 : 41), i % 4 < 2 ? 50 : 0);
     assert(f.s.Count() == kMaxEvents && f.s.Drops() >= 5);
     assert(!Recordable(Parameter::InputGain) && Recordable(Parameter::Speed) && Recordable(Parameter::Cutoff));
+    auto balance = [](const Clocked& k) {
+        int on[128] = {}; for(auto& e : k.out) if(e.second.kind == Note) on[e.second.a] += e.second.b ? 1 : -1;
+        for(int v : on) if(v != 0) return false;
+        return true;
+    };
+    // 0.15.1: 20 note-offs on one tick (16 actions a block): the rest go out next block.
+    Clocked o; o.s.RecordKey(); o.Ticks(96);
+    for(uint8_t i = 0; i < 20; ++i) { o.s.RecordNote(static_cast<uint8_t>(40 + i), 80); o.Ticks(1); }
+    o.Ticks(10); for(uint8_t i = 0; i < 20; ++i) o.s.RecordNote(static_cast<uint8_t>(40 + i), 0);
+    o.s.RecordKey(); while(o.s.GetState() == Sequencer::State::Recording) o.Ticks(1);
+    o.out.clear(); o.Ticks(96); assert(balance(o) && o.NoteOns(59).size() == 1);
+    // 0.15.1: a stopped clock (B4 / MIDI Stop) ends what the playback holds; it waits silent.
+    Clocked h; h.s.RecordKey(); h.Ticks(96); h.s.RecordNote(52, 90); h.s.RecordKey();
+    while(h.s.GetState() == Sequencer::State::Recording) h.Ticks(1);
+    h.out.clear(); h.Ticks(10); assert(h.s.Sounding(52) && h.NoteOns(52).size() == 1);
+    h.Ticks(1, false); assert(!h.s.Sounding(52) && balance(h));
+    const size_t quiet = h.out.size(); h.Ticks(20, false); assert(h.out.size() == quiet);
+    // 0.15.1: MIDI Start (Restart) ends the held note before the loop starts over.
+    h.Ticks(90); assert(h.s.Sounding(52) && h.NoteOns(52).size() == 2); h.s.Restart(); h.Ticks(1);
+    assert(h.s.Sounding(52) && h.NoteOns(52).size() == 3);                 // ended, then the first tick again
+    int net = 0; for(auto& e : h.out) if(e.second.kind == Note) net += e.second.b ? 1 : -1; assert(net == 1);
 }
 
 void FileAndMailbox() {
@@ -119,7 +140,7 @@ struct MemoryCard : Storage {
     std::map<std::string, std::vector<uint8_t>> files;
     bool Ready() override { return true; }
     bool Read(const char* path, uint8_t* buffer, size_t capacity, size_t& size) override {
-        auto f = files.find(path); if(f == files.end() || f->second.size() > capacity) return false;
+        auto f = files.find(path); if(f == files.end() || f->second.size() >= capacity) return false;   // as FatFsStorage: a file filling the buffer is refused
         std::copy(f->second.begin(), f->second.end(), buffer); size = f->second.size(); return true;
     }
     bool Write(const char* path, const uint8_t* data, size_t size) override { files[path].assign(data, data + size); return true; }
@@ -127,7 +148,7 @@ struct MemoryCard : Storage {
 };
 
 void ProjectsOnTheCard() {
-    MemoryCard card; static Mailbox box; static uint8_t buffer[kFileMax];
+    MemoryCard card; static Mailbox box; static uint8_t buffer[kFileBuffer];
     Clocked c; c.s.RecordKey(); c.Ticks(96); c.s.RecordNote(62, 90); c.Ticks(30); c.s.RecordNote(62, 0); c.s.RecordKey(); c.Ticks(70);
     assert(SaveFile(card, box, 0, 0, buffer) == Error::Busy);                 // nothing exported: saved without a loop
     assert(box.Export(c.s, 1, 4) && SaveFile(card, box, 1, 4, buffer) == Error::None && card.files.count("FORGE/B2S05.FSQ"));
@@ -142,11 +163,33 @@ void ProjectsOnTheCard() {
     assert(box.Export(c.s, 1, 4) && SaveFile(card, box, 1, 4, buffer, false) == Error::None && !card.files.count("FORGE/B2S05.FSQ"));
     assert(EraseFile(card, 1, 4));
     char path[20]; FilePath(0, 14, path); assert(std::string(path) == "FORGE/B1S15.FSQ");
+    // 0.15.1: a full loop (kMaxEvents events: a kFileMax-byte file) saves, loads and copies.
+    Clocked full; full.s.RecordKey(); full.Ticks(96);
+    for(unsigned i = 0; i < kMaxEvents; ++i) { full.s.RecordNote(static_cast<uint8_t>(30 + i % 64), i % 128 < 64 ? 70 : 0); if(i % 4 == 3) full.Ticks(1); }
+    full.s.RecordKey(); while(full.s.GetState() == Sequencer::State::Recording) full.Ticks(1);
+    assert(full.s.Count() == kMaxEvents);
+    assert(box.Export(full.s, 4, 4) && SaveFile(card, box, 4, 4, buffer) == Error::None && card.files["FORGE/B5S05.FSQ"].size() == kFileMax);
+    Sequencer big; assert(LoadFile(card, box, 4, 4, buffer) && box.Import(big) && big.Count() == kMaxEvents);
+    card.files["FORGE/B5S06.FSQ"] = {1};
+    assert(CopyFile(card, 4, 4, 4, 5, buffer) && card.files["FORGE/B5S06.FSQ"].size() == kFileMax);
+    // 0.15.1: a save that went without its loop (mailbox busy) removes the slot's older loop,
+    // so a recall never pairs the new preset with it.
+    assert(box.Claim()); assert(SaveFile(card, box, 4, 5, buffer) == Error::Busy && !card.files.count("FORGE/B5S06.FSQ")); box.Done();
+    // 0.15.1: a host store never takes (or frees) a panel save's export, even of the same slot;
+    // the panel's own save writes it afterwards.
+    assert(box.Export(c.s, 4, 4, Mailbox::Panel));
+    assert(SaveFile(card, box, 4, 4, buffer, true, Mailbox::Host) == Error::Busy && box.state == Mailbox::Exported
+           && card.files["FORGE/B5S05.FSQ"].size() == kFileMax);                       // kept: the panel save writes it
+    assert(SaveFile(card, box, 4, 4, buffer, true, Mailbox::Panel) == Error::None && box.state == Mailbox::Free
+           && card.files["FORGE/B5S05.FSQ"].size() < kFileMax);
+    assert(box.Export(c.s, 1, 1, Mailbox::Host) && SaveFile(card, box, 2, 2, buffer, true, Mailbox::Panel) == Error::Busy
+           && box.state == Mailbox::Exported);                                         // another slot's export waits for its save
+    assert(SaveFile(card, box, 1, 1, buffer, true, Mailbox::Host) == Error::None && box.state == Mailbox::Free);
 }
 
 struct Sink : PanelSink {
-    std::vector<MenuAction> actions;
-    bool PresetAction(const MenuAction& a, const Parameters&) override { actions.push_back(a); return true; }
+    std::vector<MenuAction> actions; bool full = false;
+    bool PresetAction(const MenuAction& a, const Parameters&) override { if(full) return false; actions.push_back(a); return true; }
     bool SampleJob(const forge::SampleJob&) override { return true; }
     void Flash(bool) override {}
 };
@@ -182,6 +225,12 @@ void EngineAndPanel() {
     std::vector<uint8_t> ons; for(auto& x : midi) if(x.second.status == 0x90) ons.push_back(x.second.data1);
     assert((ons == std::vector<uint8_t>{60, 67}));
     assert(std::fabs(e.GetParameters().cutoff - .2f) < 1e-3f && std::fabs(e.GetParameters().level - .7f) < 1e-3f);
+    // 0.15.1: a structural patch change silences the voices but the loop keeps playing.
+    Parameters waves = synth; waves.waveform = synth.waveform == 0 ? 1 : 0; assert(e.ApplyPatch(waves));
+    assert(seq.GetState() == Sequencer::State::Playing); midi.clear(); run(4000);
+    ons.clear(); for(auto& x : midi) if(x.second.status == 0x90) ons.push_back(x.second.data1);
+    assert((ons == std::vector<uint8_t>{60, 67}));
+    assert(e.ApplyPatch(synth) && seq.GetState() == Sequencer::State::Playing);
     // Played through harmony and the arp like the keys: with the arp on, the recorded C4 cycles.
     parts.settings.pattern = parts::Pattern::Up; e.PartsChanged(); midi.clear(); run(4000);
     assert(parts.SetCount() >= 1);
@@ -220,11 +269,32 @@ void EngineAndPanel() {
     e.Note(62, 80, 2); block(); e.Note(62, 0, 2); seq.RecordKey(); while(seq.GetState() == Sequencer::State::Recording) block();
     assert(seq.GetState() == Sequencer::State::Playing && box.state == Mailbox::Free);
     assert(e.ExportSequence(2, 3) && box.state == Mailbox::Exported && box.bank == 2 && box.slot == 3 && box.sequence.count == 2);
-    MemoryCard card; static uint8_t buffer[kFileMax];
+    MemoryCard card; static uint8_t buffer[kFileBuffer];
     assert(SaveFile(card, box, 2, 3, buffer) == Error::None);
     seq.Clear(); assert(LoadFile(card, box, 2, 3, buffer));
     Request load; load.kind = RequestKind::SequenceLoad; Response unused;
     assert(!ExecuteRequest(load, e, unused) && seq.GetState() == Sequencer::State::Playing && seq.Count() == 2);
+    // 0.15.1: a panel save whose action could not be queued holds no export (the mailbox
+    // stays free for the next save); a queued one exports after queueing.
+    auto slot_key = [](uint8_t slot) { for(uint8_t k = 0; k < panel::kButtons; ++k) if(panel::KeyToSlot(k) == slot) return k; return uint8_t(255); };
+    auto save = [&]() {
+        hw.toggle_up = true; hw.keys = uint64_t(1) << panel::kChompiKey; block();
+        hw.keys |= uint64_t(1) << panel::kPage; for(int i = 0; i < 2001; ++i) block();   // KEY_22 held 1 s: presets page
+        hw.keys &= ~(uint64_t(1) << panel::kPage); block();
+        press(panel::kSave); hw.keys = 0; block();
+        press(slot_key(9)); hw.keys = uint64_t(1) << panel::kChompiKey; block(); hw.keys = 0; block();
+    };
+    sink.actions.clear(); sink.full = true; save();
+    assert(sink.actions.empty() && box.state == Mailbox::Free);
+    sink.full = false; save();
+    assert(sink.actions.size() == 1 && sink.actions[0].kind == MenuAction::Kind::Save && sink.actions[0].slot == 9
+           && box.state == Mailbox::Exported && box.slot == 9 && box.owner == Mailbox::Panel);
+    assert(SaveFile(card, box, sink.actions[0].bank, 9, buffer) == Error::None && box.state == Mailbox::Free);
+    // 0.15.1: a host store exports only once its reply is queued (StoreQueued), as the host's.
+    Request store; store.kind = RequestKind::Store; store.bank = 6; store.slot = 1; Response reply;
+    assert(ExecuteRequest(store, e, reply) && box.state == Mailbox::Free);
+    StoreQueued(reply, e); assert(box.state == Mailbox::Exported && box.owner == Mailbox::Host && box.bank == 6);
+    assert(SaveFile(card, box, 6, 1, buffer, true, Mailbox::Host) == Error::None && card.files.count("FORGE/B7S02.FSQ"));
 }
 } // namespace
 

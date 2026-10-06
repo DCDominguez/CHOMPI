@@ -1,5 +1,63 @@
 # Forge changelog
 
+## 0.15.1 Review fixes — 2026-10-06 (software-tested; not installed yet)
+
+DC asked for a full project review and then "go for the fixes". Every verified finding is
+fixed with a regression test; nothing here is hardware-verified. The firmware still reports
+minor version 15 (the wire has no patch number); the bundle and docs say 0.15.1.
+
+**Firmware, instrument core**
+- Recorder playback: more than 16 note-offs on one tick are no longer dropped (they go out
+  next block), so no note sticks; dropped note-ons are not counted as sounding.
+- Stopping the clock (B4, MIDI Stop) ends the recorder's sounding notes; MIDI Start ends them
+  before the loop restarts at bar 1.
+- A structural patch change (waveform, route, sampler on/off) silences the voices but keeps
+  the event loop playing; panic still stops it.
+- MIDI Stop stays stopped: the half-second timeout that switched back to the internal tempo
+  now applies only while running (it restarted the arp after a DAW stop). The first MIDI
+  Start before any tick uses the internal tempo's tick length instead of 0.
+- Arp / bass: a repeated note-on for a held key counts once (one note-off ends an
+  unlatched phrase); note ownership is per source (a panel note never ends an arp note on
+  MIDI of the same pitch, or the other way round).
+- Selecting a sample keeps a v5–v7 patch's version (forcing v4 made patches with knob
+  choices invalid and the selection was ignored).
+
+**Firmware, storage and panel**
+- Full event loops (1,024 events, a 6,154-byte `.FSQ`) load and copy: the read buffer is one
+  byte larger than the largest file, as the SD driver refuses a file that fills its buffer
+  (copying such a slot used to delete the destination's loop). The test cards now follow the
+  driver's rule.
+- Projects: a save's loop is handed over only once its action / reply is queued (a dropped
+  save no longer holds the hand-over forever); a host store and a panel save each take only
+  their own loop; a save that had to go without its loop removes the slot's older `.FSQ` so a
+  recall never pairs the new preset with an old loop.
+- A host recall queues its loop after its patch (as the panel recall does).
+- KEY_22 (or KEY_21) leaving the presets / harmony / parts page for TAPE's page no longer
+  also moves the effects after (before) the looper.
+- `presets.json`: a failed write is retried (4 s, doubling to 1 min) instead of dropped
+  until the next change; the old file steps aside as `presets_old.json` until the new one is
+  in place, and start-up reads it if a power cut left only that.
+
+**Host**
+- Webapp: v7 patches list their routes again (the routing menu was empty).
+- Sampler start / end are compared as the device's 14-bit words (two values that round to
+  the same word passed here and were refused by CHOMPI).
+- `forge_host.py upgrade --to` accepts 3–7. `/api/session` names a damaged preset file and
+  leaves it out instead of failing. The AI request no longer sends string-length keywords
+  that strict providers refuse. Stale version labels fixed (0.5 / 0.7 / 0.9 / v5); the host
+  has one `FIRMWARE_VERSION`, checked against the firmware and the docs by a test.
+
+**Docs**
+- Power before any install everywhere (HOME_CHECKLIST rewritten for 0.15.1, TEST_SESSION 1,
+  MANUAL 2): charge first, then a computer USB-C port with a C-to-C cable — CHOMPI has one
+  USB port, so it cannot be on a charger during a USB install; recovery steps when it goes
+  dark (7.3p, 8.5).
+- TEST_SESSION corrections (3.48, 3.61, 3.65, 3.66, 3.68, 3.70, 3.72, 3.74, 3.75, 3F intro,
+  8.2, 8.6) and new steps 3.62b, 3.67b, 3.71b, 3.76b–g, 6.2g, 8.7 (bridge checklist 122);
+  results template covers 3E–3I, 6.2d–g, 7 and 8. MANUAL: quick-start recall (KEY_22 held
+  1 s), the menu row of the panel table, the CHOMPI light in the menu position, MIDI out in
+  the menu. PROTOCOL: keybed velocity 127.
+
 ## 0.15 Event recorder and projects — 2026-10-05 (software-tested; not installed yet)
 
 DC's item 4. DC's choices: record notes and knob moves as a loop with overdub; controls

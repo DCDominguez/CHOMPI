@@ -155,6 +155,23 @@ class PatchTests(unittest.TestCase):
             host.decode_response(rejected, 2)
         self.assertEqual(first[8:18], after[8:18])
 
+    def test_sampler_window_compared_as_the_device_words(self):
+        # 0.15.1: start just below end, but the same 14-bit word: the device would refuse it.
+        patch = host.upgrade_patch(host.load_patch(ROOT / "presets" / "07-warm-pad.json"), 4)
+        patch["modules"]["sampler"]["start"], patch["modules"]["sampler"]["end"] = 0.5, 0.5 + 1e-6
+        with self.assertRaises(ValueError): host.validate_patch(patch)
+        patch["modules"]["sampler"]["end"] = 0.5 + 1 / 16383
+        host.validate_patch(patch)
+
+    def test_cli_upgrade_reaches_every_version(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for to in (3, 4, 5, 6, 7):
+                out = Path(directory) / f"v{to}.json"
+                subprocess.run([sys.executable, str(ROOT / "host" / "forge_host.py"), "upgrade",
+                                str(ROOT / "presets" / "02-slap.json"), str(out), "--to", str(to)],
+                               check=True, capture_output=True, timeout=20)
+                self.assertEqual(host.load_patch(out)["version"], to)
+
     def test_schema_strictness(self):
         cases = [True, "0.5", float("nan"), float("inf"), 10**1000, -1, 1.1]
         for value in cases:

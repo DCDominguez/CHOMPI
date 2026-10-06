@@ -24,6 +24,19 @@ def session_ids():
 
 
 class ConsistencyTests(unittest.TestCase):
+    def test_version_strings_agree(self):
+        # 0.15.1: one version everywhere a person reads it (the docs had 0.5, 0.7 and 0.10).
+        import forge_host
+        version = forge_host.FIRMWARE_VERSION
+        minor = int(re.search(r"kFirmwareMinor = (\d+);", (ROOT / "core/protocol.h").read_text()).group(1))
+        self.assertEqual(int(version.split(".")[1]), minor)
+        docs = ROOT.parents[1] / "docs/forge"
+        self.assertTrue((docs / "CHANGELOG.md").read_text(encoding="utf-8").split("\n## ", 1)[1].startswith(version + " "))
+        for name, pattern in (("MANUAL.md", r"Firmware \*\*([0-9.]+)\*\*"), ("TEST_SESSION.md", r"^# Forge ([0-9.]+) "),
+                              ("HOME_CHECKLIST.md", r"^# First time home with Forge ([0-9.]+)")):
+            found = re.search(pattern, (docs / name).read_text(encoding="utf-8"), re.M)
+            self.assertTrue(found and found.group(1) == version, f"docs/forge/{name} names another firmware version")
+
     def test_bridge_checklist_matches_test_session(self):
         checks = json.loads((ROOT / "host/bridge_checks.json").read_text(encoding="utf-8"))
         bridge = [c["id"] for c in checks]

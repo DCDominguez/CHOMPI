@@ -115,6 +115,9 @@ public:
 #endif
         const bool chompi = (keys >> panel::kChompiKey) & 1u;
         menu_.Update(toggle_up, chompi);
+        // The page before this block's keys: KEY_22 / KEY_21 leaving another page for TAPE's
+        // must not also count as TAPE's tap (effects after / before the looper; 0.15.1).
+        const bool began_on_tape = menu_.Active() && menu_.Page() == MenuPage::Samples;
         // TAPE: jack insertion selects line in, removal the mic.
         if(first_ || jack != jack_) {
             jack_ = jack; first_ = false;
@@ -189,7 +192,7 @@ public:
         if(presets_page && ((rising >> panel::kFxAfter) & 1u)) engine.SetFxBeforeLoop(false);
         // TAPE's menu page: KEY_21 effects before the looper, KEY_22 after (on release, so a
         // 1 s hold can open Forge's presets page instead).
-        const bool tape_page = menu_.Active() && menu_.Page() == MenuPage::Samples;
+        const bool tape_page = began_on_tape && menu_.Active() && menu_.Page() == MenuPage::Samples;
         // KEY_21: a tap = effects before the looper; a 1 s hold opens the harmony page (0.13).
         if(tape_page && ((rising >> panel::kFxBefore) & 1u)) { fx_key_frames_ = 0; fx_key_armed_ = true; }
         if(fx_key_armed_ && ((keys >> panel::kFxBefore) & 1u)) {
@@ -630,8 +633,9 @@ private:
                     sink.Flash(false);
                 }
             } else {
-                if(action.kind == Kind::Save) engine.ExportSequence(action.bank, action.slot);   // the project's loop (0.15)
-                sink.PresetAction(action, engine.Snapshot());   // full queue: dropped, LEDs show no change
+                // Full queue: dropped, LEDs show no change. A queued save takes the project's
+                // loop along (0.15; exported after queueing, so a dropped save holds nothing).
+                if(sink.PresetAction(action, engine.Snapshot()) && action.kind == Kind::Save) engine.ExportSequence(action.bank, action.slot);
             }
         }
     }

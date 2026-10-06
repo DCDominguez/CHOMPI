@@ -1,7 +1,16 @@
-# Forge handoff — instrument candidate 0.6
+# Forge handoff — instrument candidate 0.15.1
 
-Updated 2026-10-04 (UTC). **Read [CONTINUE.md](CONTINUE.md) first**; it is the
+Updated 2026-10-06 (UTC). **Read [CONTINUE.md](CONTINUE.md) first**; it is the
 live checkpoint with claim levels, what changed and prioritized next actions.
+
+Latest: 0.15.1 fixes every verified finding of DC's full project review (recorder
+stuck notes, MIDI stop/start, full loop files, project hand-over, KEY_22 side effect,
+presets.json retries, host routes / validation / CLI / AI schema, install-power and
+test-session docs). Before it: 0.15 event recorder and projects, 0.14 clock / arp /
+bass, 0.13 harmony, 0.12 per-slot sample settings, 0.11 install power check, 0.10
+TAPE parity, 0.7–0.9 USB loader / power / key lights. Software-tested only; DC has
+not installed anything after the review (see CONTINUE). Paragraphs below are older
+milestones kept as history.
 
 Latest: knob pages and patch knobs (KNOBS.md, firmware 0.6) — press a knob to
 step its page (patch's knob, then filter / envelope / LFO / space controls),
