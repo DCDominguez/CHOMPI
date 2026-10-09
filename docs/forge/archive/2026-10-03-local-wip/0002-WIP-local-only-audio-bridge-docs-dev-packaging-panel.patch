@@ -1,0 +1,421 @@
+From 7f587fdda1ced1c94f6c3a8c35b16d4b84744c18 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 3 Oct 2026 16:36:06 +0000
+Subject: [PATCH 2/2] WIP (local only): audio bridge docs, dev packaging, panel
+ release safety
+
+Not pushed: origin/forge/foundation gained DC's Inspector/browser bridge
+commits (e1723a5..7fa8624) that overlap these files; to be reconciled
+before publishing.
+
+Software-tested: tests/test_bridge.py 10/10 (this version). Hardware-verified: nothing.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01SVpQSmS3DarhuapUr8tino
+---
+ docs/forge/BRIDGE.md                          | 172 ++++++++++++++++++
+ docs/forge/CHANGELOG.md                       |  24 +++
+ docs/forge/DEVELOPMENT.md                     |   7 +-
+ docs/forge/README.md                          |   6 +-
+ docs/forge/TEST_SESSION.md                    |  12 ++
+ firmware/chompi-forge/.gitignore              |   1 +
+ firmware/chompi-forge/host/forge_bridge.py    |   3 +
+ .../chompi-forge/host/package_candidate.py    |  15 +-
+ firmware/chompi-forge/host/verify_bundle.py   |   2 +
+ firmware/chompi-forge/tests/test_bridge.py    |   6 +-
+ 10 files changed, 239 insertions(+), 9 deletions(-)
+ create mode 100644 docs/forge/BRIDGE.md
+
+diff --git a/docs/forge/BRIDGE.md b/docs/forge/BRIDGE.md
+new file mode 100644
+index 0000000..d4a379c
+--- /dev/null
++++ b/docs/forge/BRIDGE.md
+@@ -0,0 +1,172 @@
++# Forge hardware test bridge (development only)
++
++Status: **implemented and software-tested against the simulated CHOMPI; never
++run on hardware.** Real audio devices, the development firmware on CHOMPI and
++Windows MIDI behaviour are unverified until DC's session.
++
++The bridge lets a test session hear and operate CHOMPI from a computer, so an
++agent can check what it can measure and DC only judges what needs ears:
++
++| Part | What it does |
++| --- | --- |
++| Ears | Records CHOMPI's outputs through an audio interface and measures level, pitch, onset/end, clicks, DC, clipping, noise floor and stereo correlation; draws a spectrogram PNG |
++| Voice | Plays test tones (−18 dBFS in the plans; hard limit −6 dBFS) into CHOMPI's line in, recorded at the same time |
++| Hands | With the **development firmware**: presses keys, holds CHOMPI, turns knobs, overrides the toggle and jack detect, and reads the menu state and all 26 key LED colours back |
++| Plans | JSON test plans (`tests/hardware/*.json`) run step by step into a report folder: `summary.md`, `report.json`, and a WAV + PNG per capture |
++
++Code: `firmware/chompi-forge/host/forge_bridge.py`; dependencies
++`host/bridge-requirements.txt` (numpy, sounddevice); plan
++`tests/hardware/smoke.json`; tests `tests/test_bridge.py`.
++
++## 1. Two firmware builds
++
++| Build | Make target | In the bundle | Difference |
++| --- | --- | --- | --- |
++| Release | `make firmware` | `firmware/FORGE.bin` | What a user runs |
++| Development | `make firmware-dev` | `firmware-dev/FORGE.bin` | Adds SysEx opcodes 0A (panel event) and 0B (probe), compiled in with `FORGE_TEST_HOOKS`; otherwise the same sources |
++
++The development hooks let any program on CHOMPI's MIDI port press virtual keys.
++They are for testing only: flash the release build for normal use. Virtual
++input is merged with the hardware in the same `PanelController` code, so a
++virtual key press takes the same path as a real one, but it **bypasses the
++key scanning, debouncing and encoder hardware**. A probe reports what the
++firmware draws, not what the LEDs physically show. Real keys, knobs, LEDs,
++headphones, mic and battery still need a person (TEST_SESSION.md).
++
++Recommended for the one session: flash `firmware-dev/FORGE.bin` (one flash),
++run the bridge plan and the manual TEST_SESSION steps, then optionally flash
++`firmware/FORGE.bin` and repeat 1.3 and 3.1 to confirm the release build boots
++and plays. With the release build the bridge still works for audio and MIDI;
++panel and probe steps report `error` and the rest of the plan runs.
++
++## 2. Wiring
++
++```
++CHOMPI main out (L/R) ──► interface inputs 1/2      (the bridge's "ears")
++interface outputs 1/2 ──► CHOMPI line in            (test tones; aux path)
++CHOMPI USB             ──► computer                 (MIDI: patches, notes, panel)
++```
++
++- **Turn off the interface's direct monitoring / loopback.** Otherwise CHOMPI's
++  output goes back into its own line in (dry aux passes it through): feedback.
++- Keep headphones on CHOMPI's headphone out at low volume to listen along.
++- Set CHOMPI's volume (SW6) to the mark from TEST_SESSION 0.5. Set the
++  interface input gain so step 2.1's capture reads about −18 to −12 dBFS
++  (`peak_db` in the report); never clip (`clipped` must be 0).
++- Plugging the line-in cable makes CHOMPI pick line in as the record source
++  (jack detect). The smoke plan forces it with `jack in` anyway.
++
++## 3. Windows setup (once)
++
++1. Install Python 3.11 or newer from python.org (tick "Add python.exe to PATH").
++2. In the unpacked bundle folder (or `firmware\chompi-forge` in a clone):
++   ```
++   py -m pip install -r host\requirements.txt -r host\bridge-requirements.txt
++   ```
++3. Set the interface to 48 kHz in Windows Sound settings (Recording and
++   Playback → device → Properties → Advanced). The bridge records at 48 kHz.
++4. Find the names:
++   ```
++   py host\forge_host.py ports
++   py host\forge_bridge.py devices
++   ```
++   Copy the exact CHOMPI MIDI port names. For audio, a unique part of the
++   interface's name is enough; the first match wins, so prefer a name that
++   only matches the **Windows WASAPI** entry (the `api` column).
++5. **Close the webapp, DAWs and any MIDI monitor** before a run: Windows MIDI
++   ports are exclusive, and the bridge holds both CHOMPI ports for the whole
++   run.
++
++## 4. Commands
++
++Shorthand: `B = py host\forge_bridge.py` and
++`P = --input "CHOMPI IN" --output "CHOMPI OUT"` (your port names).
++
++| Command | What |
++| --- | --- |
++| `B probe P` | Menu state, flags, voices, recording length, live sample, flash, and 26 LED colours (development firmware) |
++| `B panel "toggle up" P`, `B panel "hold CHOMPI" P`, `B panel "tap KEY_22" P`, `B panel "turn KNOB_1 +5" P`, `B panel "press SW5" P` | One virtual gesture. `release all` hands everything back to the hardware |
++| `B capture 3 take.wav P --audio-in "Interface"` | Record 3 s, write `take.wav` + `take.png`, print the measurements |
++| `B analyze take.wav` | Measure any 16/24-bit WAV |
++| `B run tests\hardware\smoke.json P --audio-in "Interface" --audio-out "Interface"` | Run a plan; report in `reports\smoke-<time>\` |
++| `B run … --unattended` | Never ask; steps needing a person are marked `needs-human` |
++| `B run … --sim` | Simulated CHOMPI (repository clone after `make test`; checks a plan's structure, not sound) |
++
++Panel names: `KEY_1` … `KEY_25` (TAPE/stock names), `CHOMPI`, knobs
++`KNOB_1` … `KNOB_4` (logical stock order), `SW5` (tone/cutoff, press = panic),
++`SW6` (volume). Toggle `up|down|hw`, jack `in|out|hw` (`hw` = real switch again).
++
++A run asks before playing tones (`y` to continue), and always releases the
++virtual panel at the end, even after a failed step. If a run is interrupted,
++send `B panel "release all" P`.
++
++## 5. Working with an agent
++
++The bridge runs where CHOMPI is plugged in, so the agent must run there too,
++or the results must travel to it.
++
++- **Local agent (best):** open Claude Code in the bundle or repository folder
++  on the Windows PC (Claude Desktop's Code tab, or `claude` in a terminal; run
++  `claude remote-control` there if you want to follow it from your phone or
++  claude.ai). The agent runs `B probe`, `B run …`, reads `summary.md`,
++  `report.json` and the spectrogram PNGs, and asks you only for what it
++  cannot measure ("does this sound right?").
++- **Cloud agent:** run the plan yourself, then commit the report folder on a
++  branch (WAVs are git-ignored; `report.json`, `summary.md` and PNGs are small)
++  or upload it to your Google Drive and share it. The agent reads it from there.
++
++Either way, record results in TEST_RESULTS.md and keep the claim levels:
++a bridge pass is a hardware result **for what the plan measured only**.
++
++## 6. Plan format
++
++```json
++{"name": "…", "steps": [
++  {"id": "3.1", "title": "…",
++   "do": [{"send": "presets/04-glass-keys.json"},
++          {"play": {"notes": [60], "seconds": 0.6, "tail": 0.3, "capture": "c4"}}],
++   "check": [{"capture": {"name": "c4", "pitch_hz": [259, 264.3], "clicks_max": 0}}],
++   "ask": "Optional question for the person (y/n)"}]}
++```
++
++Actions (`do`, run in order): `wait` s · `send` file or `{file, set: {"modules.delay.mix": 0.2}}`
++· `status` · `panic` · `samples` · `sample` [job args] · `cc` [number, value]
++· `panel` gesture or list · `probe` · `play` {notes, velocity, seconds, tail,
++capture} · `capture` {name, seconds, during, after} · `tone` {hz, seconds, db,
++tail, capture, during, after}. `during` actions run `after` seconds into the
++recording (keep them shorter than it).
++
++Checks (`check`, after the actions): `capture` (name + measurement fields),
++`status`, `probe`, `samples` (dotted paths into the reply, e.g.
++`menu.page`, `patch.parameters.mix`, `channels.1.pitch_hz`), `led`
++{`KEY_16`: `lit` | `off` | [r, g, b] (0–127, ±12)}. A `[low, high]` pair is a
++range; anything else must be equal; `clicks_max` caps the click count.
++
++Results per step: `pass`, `fail` (a check failed or the person said no),
++`error` (an action failed, e.g. no reply from the release firmware),
++`needs-human` (unattended). Exit code 0 only with no `fail` or `error`.
++
++## 7. The smoke plan
++
++`tests/hardware/smoke.json` covers the parts of TEST_SESSION a computer can
++judge: identity (1.3), noise floor, the aux path dry/echo/bypass with a line-in
++tone (2.1, 2.2, 2.4), pitch over MIDI and from a virtual key (3.1), voice
++stealing without clicks (3.4), Warm Pad tail (3.10), menu and samples page
++with LED read-back (3.17, 3.30), the sample list and a kit sample (3.28,
++3.29), a line-in recording played back at the right pitch (3.34), panic
++(4.1), CPU worst cases for 20 s each (6.2b, 6.2c) and the return to dry aux.
++It takes about 1.5 minutes. Thresholds are first guesses from simulation:
++if a check fails, look at the capture before calling it a firmware bug.
++
++## 8. Measurement notes
++
++- Pitch: FFT of the loudest 0.5 s, parabolic peak interpolation; ±0.2 % on
++  pure tones; none below −60 dBFS. A rich tone can lock onto a harmonic: use
++  sine presets (Glass Keys) for pitch checks.
++- Clicks: a second-difference spike above 0.02 and 10× its 10 ms
++  neighbourhood. Sensitive to steps (bad loop points, hard cuts), not to
++  ordinary attacks; a tone that starts or ends abruptly counts.
++- `silent`: every channel below −60 dBFS RMS. Onset/end: first/last 10 ms
++  window above −50 dBFS.
++- Latency between MIDI and audio on Windows is a few to tens of ms and is not
++  compensated; use ranges, not exact onsets.
+diff --git a/docs/forge/CHANGELOG.md b/docs/forge/CHANGELOG.md
+index 73ce450..1bcdbb8 100644
+--- a/docs/forge/CHANGELOG.md
++++ b/docs/forge/CHANGELOG.md
+@@ -1,5 +1,29 @@
+ # Forge changelog
+ 
++## 0.5 hardware test bridge (development only) — 2026-10-03
++
++DC: "a testing bridge so I can hook up the chompi and you can test as well".
++Software-tested against the simulated CHOMPI only. Design and use: BRIDGE.md.
++- Development firmware (`make firmware-dev`, `FORGE_TEST_HOOKS`): SysEx
++  opcode 0A injects panel events (keys, CHOMPI, knobs, SW5 press, toggle and
++  jack overrides, release) and 0B probes the menu state and the 26 key LED
++  colours. Release builds reject both (tested). The panel logic moved from
++  `forge_main.cpp` into `core/panel_controller.h` (`PanelController`,
++  `ComposeLeds`), so firmware, harness and tests run the same code; virtual
++  input is merged with the hardware there.
++- `host/forge_bridge.py`: audio capture and tones through an interface
++  (sounddevice), measurements (level, pitch, clicks, onset, noise, stereo)
++  and spectrogram PNGs, JSON test plans with checks and human questions,
++  report folders. `tests/hardware/smoke.json` covers the automatable
++  TEST_SESSION steps. `forge_host.py` decodes panel/probe replies.
++- Bundles carry `firmware-dev/FORGE.bin` next to the release binary.
++
++## 0.5 memory split — 2026-10-03
++
++- D1 SRAM split 282 KB code / 230 KB data (TEMPO's; `src/forge_sram.lds`)
++  instead of WAVE's 237/275: ~75 KB code headroom instead of ~24 KB.
++  Same image layout and entry rules; see COMPATIBILITY.md.
++
+ ## 0.5 sampler (roadmap item 4) — 2026-10-03
+ 
+ Following TAPE's sampling (DC's request), with cheap extras. Design and
+diff --git a/docs/forge/DEVELOPMENT.md b/docs/forge/DEVELOPMENT.md
+index 7ab27a1..53ceb89 100644
+--- a/docs/forge/DEVELOPMENT.md
++++ b/docs/forge/DEVELOPMENT.md
+@@ -21,6 +21,7 @@ This guide does not require merging the branch or flashing a unit.
+ | Optional CLI AI | A configured Ollama server and an already-installed model |
+ | Native software tests / renderer | GNU Make, a C++14 compiler, pthreads and Python 3.10+ |
+ | Firmware build | GNU Make and GNU Arm Embedded 10.3-2021.10 |
++| Hardware test bridge (development) | Python plus `host/requirements.txt` and `host/bridge-requirements.txt` (numpy, sounddevice), an audio interface; see [BRIDGE.md](BRIDGE.md) |
+ 
+ Native tests and the ARM build have been exercised in Linux. The upstream
+ [quickstart](../../firmware/README.md) covers macOS toolchain setup. Windows users
+@@ -69,9 +70,11 @@ make -C firmware/chompi-forge firmware GCC_PATH=/absolute/toolchain/path/bin
+ already on PATH, omit the argument.
+ 
+ The target rebuilds libDaisy into `firmware/chompi-forge/build/libdaisy/` and
+-links the application using WAVE's BOOT_SRAM layout. Outputs are
++links the application as BOOT_SRAM with TEMPO's code/data split (`src/forge_sram.lds`). Outputs are
+ `firmware/chompi-forge/src/build/FORGE.bin`, `.elf`, `.hex`, and `.map`.
+-Keep the map for memory allocation review; it does not measure runtime CPU or
++`make firmware-dev` builds the development variant with the bridge's panel
++and probe opcodes (`FORGE_TEST_HOOKS`) into `src/build-dev/`; never ship it
++as the user firmware. Keep the map for memory allocation review; it does not measure runtime CPU or
+ worst-case stack headroom. Forge's Makefile rejects flashing targets.
+ 
+ If the pinned Arm archive cannot be downloaded (blocked in the agent sandboxes
+diff --git a/docs/forge/README.md b/docs/forge/README.md
+index 00dee9c..8d14e6f 100644
+--- a/docs/forge/README.md
++++ b/docs/forge/README.md
+@@ -1,8 +1,9 @@
+ # Forge documentation
+ 
+ Forge is a community firmware project for CHOMPI, built on its Daisy Seed audio
+-hardware. Candidate **0.4** implements a playable synth (up to four voices, two oscillators, noise, resonant
+-filter with envelope, LFO, glide) plus stereo delay and reverb, live controls, atomic patch
++hardware. Candidate **0.5** implements a playable synth (up to four voices, two oscillators, noise, resonant
++filter with envelope, LFO, glide), a TAPE-compatible sampler with recording, SD-card presets,
++stereo delay and reverb, live controls, atomic patch
+ recall, host-managed JSON presets, and diagnostics. The computer can optionally
+ author presets through a local OpenAI/Gemini webapp with a user-supplied API
+ key, or through the optional Ollama CLI.
+@@ -26,6 +27,7 @@ one consolidated hardware session.
+ | [Compatibility](COMPATIBILITY.md) | Comparison with stock TAPE/TEMPO/WAVE: bootloader, memory, MIDI, keybed, CPU benchmark |
+ | [Sampling](SAMPLING.md) | Sampler design (roadmap item 4): TAPE behaviour kept, what Forge changes, memory, v4 patch, panel |
+ | [Test session](TEST_SESSION.md) | One physical acceptance checklist and results template |
++| [Hardware test bridge](BRIDGE.md) | Development only: let a computer (and an agent) hear and operate CHOMPI during the session |
+ | [Handoff](HANDOFF.md) | Latest implementation, evidence, limitations and next action |
+ | [Changelog](CHANGELOG.md) | Changes by candidate version |
+ 
+diff --git a/docs/forge/TEST_SESSION.md b/docs/forge/TEST_SESSION.md
+index d660e3b..a2a7986 100644
+--- a/docs/forge/TEST_SESSION.md
++++ b/docs/forge/TEST_SESSION.md
+@@ -29,6 +29,18 @@ feature has its own steps below so results can be recorded per feature.
+    test card's root (the same card you put `FORGE.bin` on in 1.1). Optionally add one WAV
+    of your own that is mono or 44.1 kHz, renamed `jammi_b1.wav`.
+ 
++7. **Optional, recommended: the test bridge** (`docs/BRIDGE.md` in
++   the bundle). Wire an audio interface (CHOMPI out → interface in, interface
++   out → CHOMPI line in, direct monitoring off), install
++   `host/bridge-requirements.txt`, and in 1.1 flash `firmware-dev/FORGE.bin`
++   instead of `firmware/FORGE.bin`. Then `forge_bridge.py run
++   tests/hardware/smoke.json …` measures 1.3, 2.1–2.4, 3.1, 3.4, 3.10, 3.17,
++   3.28–3.30, 3.34, 4.1 and 6.2b/c and writes a report; an agent on the same
++   PC can run it and read the report with you. Record those steps from the
++   report; everything it cannot hear or see (real keys and knobs, LED
++   brightness, headphones, mic, loudness by ear) still needs you. Optionally
++   flash `firmware/FORGE.bin` at the end and repeat 1.3 and 3.1.
++
+ Shorthand below: `H = python3 host/forge_host.py`, with
+ `--input "IN" --output "OUT"` set to your exact CHOMPI port names from `H ports`.
+ Keep monitoring volume low. Avoid audio feedback loops. The mic is used only
+diff --git a/firmware/chompi-forge/.gitignore b/firmware/chompi-forge/.gitignore
+index 27be2a8..29c5f49 100644
+--- a/firmware/chompi-forge/.gitignore
++++ b/firmware/chompi-forge/.gitignore
+@@ -2,3 +2,4 @@
+ /src/build/
+ /src/build-dev/
+ __pycache__/
++/reports/**/*.wav
+diff --git a/firmware/chompi-forge/host/forge_bridge.py b/firmware/chompi-forge/host/forge_bridge.py
+index 7485fc0..91bb776 100644
+--- a/firmware/chompi-forge/host/forge_bridge.py
++++ b/firmware/chompi-forge/host/forge_bridge.py
+@@ -287,6 +287,9 @@ class Runner:
+             if any(not c["ok"] for c in entry["checks"]) and entry["result"] == "pass": entry["result"] = "fail"
+             steps.append(entry)
+             print(f"{entry['id']:>6}  {entry['result']:<11} {entry['title']}", flush=True)
++        if any("panel" in a for s in plan["steps"] for a in s.get("do", [])):
++            try: self.device.panel("release")                # never leave virtual keys held or the toggle overridden
++            except Exception as error: print(f"warning: could not release the virtual panel: {error}", flush=True)
+         counts = {k: sum(s["result"] == k for s in steps) for k in ("pass", "fail", "error", "needs-human")}
+         result = {"plan": plan.get("name", ""), "started": plan.get("_started"), "counts": counts, "steps": steps}
+         (self.report / "report.json").write_text(json.dumps(result, indent=2) + "\n")
+diff --git a/firmware/chompi-forge/host/package_candidate.py b/firmware/chompi-forge/host/package_candidate.py
+index 60d8cc5..32d38a8 100644
+--- a/firmware/chompi-forge/host/package_candidate.py
++++ b/firmware/chompi-forge/host/package_candidate.py
+@@ -28,8 +28,12 @@ def main():
+     elf, binary = ROOT / "src/build/FORGE.elf", ROOT / "src/build/FORGE.bin"
+     sources = [*(ROOT / "core").glob("*.h"), ROOT / "src/forge_main.cpp", ROOT / "src/Makefile",
+                ROOT / "src/forge_sram.lds", ROOT / "src/fatfs_storage.h"]
+-    if not binary.is_file() or binary.stat().st_mtime < max(p.stat().st_mtime for p in sources):
++    dev_binary = ROOT / "src/build-dev/FORGE.bin"   # development firmware (FORGE_TEST_HOOKS) for the bridge
++    newest = max(p.stat().st_mtime for p in sources)
++    if not binary.is_file() or binary.stat().st_mtime < newest:
+         raise SystemExit("FORGE.bin is missing or older than firmware sources; run make firmware first")
++    if not dev_binary.is_file() or dev_binary.stat().st_mtime < newest:
++        raise SystemExit("Development FORGE.bin is missing or older than firmware sources; run make firmware-dev first")
+     # Record the compiler that actually built this binary (GCC writes it into .comment).
+     marker = elf.read_bytes().find(b"GCC: (")
+     if marker < 0:
+@@ -38,6 +42,9 @@ def main():
+     files = {
+         "README.md": (REPO / "docs/forge/TEST_SESSION.md").read_bytes(),
+         "firmware/FORGE.bin": binary.read_bytes(),
++        "firmware-dev/FORGE.bin": dev_binary.read_bytes(),
++        "docs/BRIDGE.md": (REPO / "docs/forge/BRIDGE.md").read_bytes(),
++        "tests/hardware/smoke.json": (ROOT / "tests/hardware/smoke.json").read_bytes(),
+         "verify_bundle.py": (ROOT / "host/verify_bundle.py").read_bytes(),
+         "docs/LIVE_AI_TEST.md": (REPO / "docs/forge/LIVE_AI_TEST.md").read_bytes(),
+         "docs/PROTOCOL.md": (REPO / "docs/forge/PROTOCOL.md").read_bytes(),
+@@ -48,7 +55,8 @@ def main():
+         "THIRD_PARTY.md": (REPO / "THIRD_PARTY.md").read_bytes(),
+         "TRADEMARKS.md": (REPO / "TRADEMARKS.md").read_bytes(),
+     }
+-    for name in ("forge_host.py", "forge_ai.py", "forge_ai_check.py", "forge_web.py", "requirements.txt", "README.md"):
++    for name in ("forge_host.py", "forge_ai.py", "forge_ai_check.py", "forge_web.py", "forge_bridge.py",
++                 "requirements.txt", "bridge-requirements.txt", "README.md"):
+         files["host/" + name] = (ROOT / "host" / name).read_bytes()
+     for path in sorted((ROOT / "host/web").iterdir()):
+         if path.is_file():
+@@ -83,7 +91,8 @@ def main():
+             info.external_attr = 0o100644 << 16
+             archive.writestr(info, data)
+     print(json.dumps({"file": str(Path(args.output).resolve()), "source_tree": source_tree,
+-                      "firmware_sha256": manifest["files"]["firmware/FORGE.bin"]["sha256"]}))
++                      "firmware_sha256": manifest["files"]["firmware/FORGE.bin"]["sha256"],
++                      "dev_firmware_sha256": manifest["files"]["firmware-dev/FORGE.bin"]["sha256"]}))
+ 
+ 
+ if __name__ == "__main__": main()
+diff --git a/firmware/chompi-forge/host/verify_bundle.py b/firmware/chompi-forge/host/verify_bundle.py
+index 42907d7..c5e8437 100644
+--- a/firmware/chompi-forge/host/verify_bundle.py
++++ b/firmware/chompi-forge/host/verify_bundle.py
+@@ -30,6 +30,8 @@ if __name__ == "__main__":
+     manifest, problems = verify(here)
+     print(f"{manifest['candidate']} · source {manifest['source_commit'][:12]} · compiler: {manifest['compiler']}")
+     print(f"firmware/FORGE.bin sha256 {manifest['files']['firmware/FORGE.bin']['sha256']}")
++    if "firmware-dev/FORGE.bin" in manifest["files"]:
++        print(f"firmware-dev/FORGE.bin sha256 {manifest['files']['firmware-dev/FORGE.bin']['sha256']} (development: test hooks)")
+     for problem in problems: print("FAIL", problem)
+     print("FAIL: do not flash this bundle" if problems else f"OK: all {len(manifest['files'])} files match the manifest")
+     sys.exit(1 if problems else 0)
+diff --git a/firmware/chompi-forge/tests/test_bridge.py b/firmware/chompi-forge/tests/test_bridge.py
+index dba83a5..b3d4043 100644
+--- a/firmware/chompi-forge/tests/test_bridge.py
++++ b/firmware/chompi-forge/tests/test_bridge.py
+@@ -114,12 +114,14 @@ class RunnerTests(unittest.TestCase):
+             {"id": "close", "do": [{"panel": ["let CHOMPI", "release all"]}, {"probe": True}],
+              "check": [{"probe": {"menu.open": False}}]},
+             {"id": "wrong", "do": [{"probe": True}], "check": [{"probe": {"menu.open": True}}]},
++            {"id": "left-held", "do": [{"panel": ["toggle up", "hold CHOMPI"]}]},
+         ])
+-        self.assertEqual([s["result"] for s in result["steps"]], ["pass", "pass", "fail"])
++        self.assertFalse(self.device.probe(0)["overridden"])          # the runner hands the panel back
++        self.assertEqual([s["result"] for s in result["steps"]], ["pass", "pass", "fail", "pass"])
+         failed = result["steps"][2]["checks"][0]
+         self.assertEqual((failed["expected"], failed["actual"], failed["ok"]), (True, False, False))
+         summary = (Path(self.tmp.name) / "summary.md").read_text()
+-        self.assertIn("pass 2 · fail 1", summary); self.assertIn("expected probe.menu.open = True, got False", summary)
++        self.assertIn("pass 3 · fail 1", summary); self.assertIn("expected probe.menu.open = True, got False", summary)
+         self.assertEqual(json.loads((Path(self.tmp.name) / "report.json").read_text())["counts"]["fail"], 1)
+ 
+     def test_patch_status_notes_and_capture(self):
+-- 
+2.43.0
+

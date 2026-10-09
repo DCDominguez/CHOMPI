@@ -1,0 +1,930 @@
+From 8ea052eebe1495dbf70b4e698088c5160cf44ba7 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 3 Oct 2026 11:49:04 +0000
+Subject: [PATCH 1/2] Hardware test bridge: audio capture/analysis, plan
+ runner, smoke plan
+
+Implemented:
+- host/forge_bridge.py (development only): records CHOMPI through an audio
+  interface (sounddevice/WASAPI), plays bounded test tones (<= -6 dBFS,
+  plans use -18) into line in, measures level/pitch/clicks/onset/noise and
+  draws spectrogram PNGs; drives the virtual panel and probe of the
+  development firmware; runs JSON plans into report folders
+  (report.json, summary.md, WAV + PNG per capture). Human-judgement steps
+  are asked, or marked needs-human with --unattended.
+- forge_host.py: panel/probe messages and replies (0x46/0x47).
+- tests/hardware/smoke.json: automatable parts of TEST_SESSION.
+- host/bridge-requirements.txt (numpy, sounddevice).
+
+Software-tested: tests/test_bridge.py (analysis on synthetic signals,
+WAV/PNG files, gestures, plans against the simulated CHOMPI with fake
+audio); make test 65 Python tests pass. smoke.json runs end to end on the
+simulator with no step errors (its audio checks fail there by design).
+
+Hardware-verified: nothing. Real audio devices and the dev firmware's
+panel/probe on CHOMPI are untested.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01SVpQSmS3DarhuapUr8tino
+---
+ .../chompi-forge/host/bridge-requirements.txt |   2 +
+ firmware/chompi-forge/host/forge_bridge.py    | 445 ++++++++++++++++++
+ firmware/chompi-forge/host/forge_host.py      |  75 +++
+ .../chompi-forge/tests/hardware/smoke.json    | 105 +++++
+ firmware/chompi-forge/tests/sim_device.py     |   9 +-
+ firmware/chompi-forge/tests/test_bridge.py    | 182 +++++++
+ 6 files changed, 815 insertions(+), 3 deletions(-)
+ create mode 100644 firmware/chompi-forge/host/bridge-requirements.txt
+ create mode 100644 firmware/chompi-forge/host/forge_bridge.py
+ create mode 100644 firmware/chompi-forge/tests/hardware/smoke.json
+ create mode 100644 firmware/chompi-forge/tests/test_bridge.py
+
+diff --git a/firmware/chompi-forge/host/bridge-requirements.txt b/firmware/chompi-forge/host/bridge-requirements.txt
+new file mode 100644
+index 0000000..4ff1e60
+--- /dev/null
++++ b/firmware/chompi-forge/host/bridge-requirements.txt
+@@ -0,0 +1,2 @@
++numpy>=1.24
++sounddevice>=0.4.6
+diff --git a/firmware/chompi-forge/host/forge_bridge.py b/firmware/chompi-forge/host/forge_bridge.py
+new file mode 100644
+index 0000000..7485fc0
+--- /dev/null
++++ b/firmware/chompi-forge/host/forge_bridge.py
+@@ -0,0 +1,445 @@
++#!/usr/bin/env python3
++"""Forge hardware test bridge (development only).
++
++Runs on the computer CHOMPI is connected to (Windows, macOS or Linux). It gives
++a test session "ears" (records CHOMPI's output through an audio interface and
++measures it), a "voice" (plays test tones into CHOMPI's line input) and, with
++the development firmware (`make firmware-dev`), "hands" (presses keys, turns
++knobs and reads back LEDs over SysEx). Test plans are JSON files
++(tests/hardware/*.json); each run writes a report folder (report.json,
++summary.md, WAV captures, spectrogram PNGs) that people and agents can read.
++
++Needs: python -m pip install -r host/requirements.txt -r host/bridge-requirements.txt
++Nothing here is used by the instrument itself.
++"""
++import argparse
++import datetime
++import json
++import math
++from pathlib import Path
++import secrets
++import struct
++import sys
++import time
++import wave
++import zlib
++
++import numpy as np
++
++import forge_host as host
++
++RATE = 48000
++MAX_TONE_DB = -6.0          # never drive CHOMPI's input harder than this
++
++
++# ---- audio -------------------------------------------------------------------
++class SoundDeviceAudio:
++    """Audio interface via sounddevice (PortAudio; on Windows prefer the WASAPI devices)."""
++    def __init__(self, input_name, output_name=None, channels=2):
++        import sounddevice as sd
++        self.sd, self.channels = sd, channels
++        self.input = self.find(input_name, "max_input_channels")
++        self.output = self.find(output_name, "max_output_channels") if output_name else None
++
++    def find(self, name, kind):
++        matches = [i for i, d in enumerate(self.sd.query_devices()) if d[kind] > 0 and name.lower() in d["name"].lower()]
++        if not matches: raise ValueError(f"No audio device matches '{name}'; run: forge_bridge.py devices")
++        return matches[0]
++
++    def start(self, seconds, play=None):
++        frames = int(seconds * RATE)
++        if play is None:
++            self.pending = self.sd.rec(frames, samplerate=RATE, channels=self.channels, dtype="float32", device=self.input)
++        else:
++            if self.output is None: raise ValueError("Playing a tone needs --audio-out")
++            padded = np.zeros((frames, 2), dtype=np.float32); padded[:min(frames, len(play))] = play[:frames]
++            self.pending = self.sd.playrec(padded, samplerate=RATE, channels=self.channels, dtype="float32",
++                                           device=(self.input, self.output))
++
++    def wait(self):
++        self.sd.wait()
++        return np.asarray(self.pending, dtype=np.float32).reshape(-1, self.channels)
++
++
++class FakeAudio:
++    """Stand-in for tests and --sim: returns `source(frames, play)` (default: faint noise)."""
++    def __init__(self, source=None):
++        rng = np.random.default_rng(1)
++        self.source = source or (lambda frames, play: (rng.standard_normal((frames, 2)) * 1e-4).astype(np.float32))
++
++    def start(self, seconds, play=None): self.result = self.source(int(seconds * RATE), play)
++    def wait(self): return self.result
++
++
++def list_devices():
++    import sounddevice as sd
++    apis = sd.query_hostapis()
++    return [{"index": i, "name": d["name"], "api": apis[d["hostapi"]]["name"],
++             "inputs": d["max_input_channels"], "outputs": d["max_output_channels"]} for i, d in enumerate(sd.query_devices())]
++
++
++def tone(hz, seconds, db=-18.0):
++    if not db <= MAX_TONE_DB: raise ValueError(f"Tone level must be at most {MAX_TONE_DB} dBFS")
++    t = np.arange(int(seconds * RATE)) / RATE
++    x = (10 ** (db / 20)) * np.sin(2 * np.pi * hz * t)
++    fade = min(len(x) // 2, int(0.01 * RATE))
++    if fade: x[:fade] *= np.linspace(0, 1, fade); x[-fade:] *= np.linspace(1, 0, fade)
++    return np.stack([x, x], axis=1).astype(np.float32)
++
++
++# ---- files ------------------------------------------------------------------
++def write_wav(path, x):
++    data = (np.clip(x, -1, 1) * 32767).astype("<i2")
++    with wave.open(str(path), "wb") as f:
++        f.setnchannels(data.shape[1]); f.setsampwidth(2); f.setframerate(RATE); f.writeframes(data.tobytes())
++
++
++def read_wav(path):
++    with wave.open(str(path), "rb") as f:
++        width, channels, rate, raw = f.getsampwidth(), f.getnchannels(), f.getframerate(), f.readframes(f.getnframes())
++    if width == 2: x = np.frombuffer(raw, "<i2").astype(np.float32) / 32768
++    elif width == 3:
++        b = np.frombuffer(raw, np.uint8).reshape(-1, 3)
++        x = ((b[:, 0].astype(np.int32) | (b[:, 1].astype(np.int32) << 8) | (b[:, 2].astype(np.int32) << 16)) << 8 >> 8) / 8388608.0
++    else: raise ValueError("Only 16/24-bit PCM WAV files")
++    return x.reshape(-1, channels).astype(np.float32), rate
++
++
++def write_png(path, image):
++    """Minimal greyscale/RGB PNG writer (no image library needed)."""
++    image = np.asarray(image, dtype=np.uint8)
++    height, width = image.shape[:2]
++    color = 2 if image.ndim == 3 else 0
++    rows = b"".join(b"\0" + image[y].tobytes() for y in range(height))
++    def chunk(kind, data): return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff)
++    Path(path).write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, color, 0, 0, 0))
++                           + chunk(b"IDAT", zlib.compress(rows, 9)) + chunk(b"IEND", b""))
++
++
++# ---- analysis -----------------------------------------------------------------
++def db(value): return round(20 * math.log10(max(float(value), 1e-9)), 1)
++
++
++def pitch(x, rate=RATE):
++    """Dominant frequency (Hz) of the loudest 0.5 s, parabolic-interpolated FFT peak; None below -60 dBFS."""
++    n = min(len(x), rate // 2)
++    if n < 2048: return None
++    hop = max(1, n // 4)
++    starts = range(0, len(x) - n + 1, hop)
++    start = max(starts, key=lambda s: float(np.sum(x[s:s + n] ** 2)))
++    seg = x[start:start + n] - np.mean(x[start:start + n])
++    if np.sqrt(np.mean(seg ** 2)) < 1e-3: return None     # below -60 dBFS: no pitch
++    spectrum = np.abs(np.fft.rfft(seg * np.hanning(n)))
++    spectrum[:int(20 * n / rate)] = 0
++    k = int(np.argmax(spectrum))
++    if 0 < k < len(spectrum) - 1:
++        a, b, c = np.log(spectrum[k - 1:k + 2] + 1e-12)
++        k = k + 0.5 * (a - c) / (a - 2 * b + c)
++    return round(float(k * rate / n), 2)
++
++
++def clicks(x, rate=RATE):
++    """Isolated discontinuities: second differences far above their local level (10 ms windows)."""
++    if len(x) < 3: return []
++    d2 = np.abs(x[2:] - 2 * x[1:-1] + x[:-2])
++    window = int(0.01 * rate)
++    found = []
++    for start in range(0, len(d2) - window + 1, window):
++        w = d2[start:start + window]
++        peak = int(np.argmax(w))
++        rest = np.delete(w, slice(max(0, peak - 2), peak + 3))
++        level = np.sqrt(np.mean(rest ** 2)) if len(rest) else 0.0
++        if w[peak] > 0.02 and w[peak] > 10 * max(level, 1e-6):
++            found.append(round((start + peak + 1) / rate, 4))
++    return found
++
++
++def analyze(x, rate=RATE):
++    x = np.asarray(x, dtype=np.float64)
++    if x.ndim == 1: x = x[:, None]
++    result = {"seconds": round(len(x) / rate, 3), "channels": []}
++    for c in range(x.shape[1]):
++        s = x[:, c]
++        envelope = np.sqrt(np.convolve(s ** 2, np.ones(480) / 480, mode="valid")) if len(s) >= 480 else np.abs(s)
++        loud = np.nonzero(envelope > 10 ** (-50 / 20))[0]
++        quiet = np.sort(envelope)[: max(1, len(envelope) // 10)]
++        result["channels"].append({
++            "peak_db": db(np.max(np.abs(s))) if len(s) else -180, "rms_db": db(np.sqrt(np.mean(s ** 2))) if len(s) else -180,
++            "dc": round(float(np.mean(s)), 5), "clipped": int(np.sum(np.abs(s) >= 0.999)),
++            "pitch_hz": pitch(s, rate), "noise_floor_db": db(np.mean(quiet)),
++            "onset_s": round(loud[0] / rate, 4) if len(loud) else None,
++            "end_s": round((loud[-1] + 480) / rate, 4) if len(loud) else None,
++            "clicks": clicks(s, rate)[:20]})
++    if x.shape[1] == 2 and np.std(x[:, 0]) > 1e-6 and np.std(x[:, 1]) > 1e-6:
++        result["stereo_correlation"] = round(float(np.corrcoef(x[:, 0], x[:, 1])[0, 1]), 3)
++    left = result["channels"][0]
++    result.update({key: left[key] for key in ("peak_db", "rms_db", "pitch_hz", "onset_s", "noise_floor_db")})
++    result["clicks"] = sorted({t for ch in result["channels"] for t in ch["clicks"]})
++    result["silent"] = all(ch["rms_db"] < -60 for ch in result["channels"])
++    return result
++
++
++def spectrogram(x, path, rate=RATE, top_hz=12000):
++    """Log-magnitude spectrogram of the mono sum as a PNG (time left to right, low notes at the bottom)."""
++    mono = np.asarray(x, dtype=np.float64).reshape(len(x), -1).mean(axis=1)
++    size, hop = 2048, 512
++    if len(mono) < size: mono = np.pad(mono, (0, size - len(mono)))
++    frames = [np.abs(np.fft.rfft(mono[i:i + size] * np.hanning(size))) for i in range(0, len(mono) - size + 1, hop)]
++    s = 20 * np.log10(np.array(frames).T[: int(top_hz * size / rate)] + 1e-9)
++    s = np.clip((s - (s.max() - 90)) / 90, 0, 1)
++    rows = np.linspace(0, s.shape[0] - 1, 256).astype(int)
++    cols = np.linspace(0, s.shape[1] - 1, min(1200, s.shape[1])).astype(int)
++    write_png(path, (255 * s[rows][:, cols][::-1]).astype(np.uint8))
++
++
++# ---- device ------------------------------------------------------------------------
++class Device:
++    """CHOMPI over MIDI with ONE input and ONE output held open for the whole run
++    (Windows MIDI ports are exclusive: close the webapp and DAWs first)."""
++    def __init__(self, input_name, output_name, midi=None, timeout=2.0):
++        self.midi = midi or host.midi_module()
++        if input_name not in self.midi.get_input_names() or output_name not in self.midi.get_output_names():
++            raise ValueError("MIDI port not found; run: forge_host.py ports, and copy the exact names")
++        self.source, self.destination = self.midi.open_input(input_name), self.midi.open_output(output_name)
++        self.timeout = timeout
++
++    def close(self):
++        for port in (self.source, self.destination):
++            close = getattr(port, "close", None)
++            if close: close()
++
++    def request(self, payload):
++        sequence = host.read14(payload, 5)
++        self.destination.send(self.midi.Message("sysex", data=payload))
++        deadline = time.monotonic() + self.timeout
++        while time.monotonic() < deadline:
++            reply = self.source.receive(block=False)
++            if reply is None: time.sleep(0.002); continue
++            data = list(getattr(reply, "data", ()))
++            if reply.type == "sysex" and len(data) >= 7 and data[:3] == host.PREFIX[:3] and host.read14(data, 5) == sequence:
++                return host.decode_response(data, sequence)
++        raise TimeoutError("No reply from CHOMPI (is the development firmware installed for panel/probe steps?)")
++
++    def seq(self): return secrets.randbelow(16384)
++    def send_patch(self, patch): return self.request(host.encode_patch(patch, self.seq()))
++    def status(self): return self.request(host.message(2, self.seq()))
++    def panic(self): return self.request(host.message(3, self.seq()))
++    def panel(self, kind, target=None, value=0): return self.request(host.panel_message(self.seq(), kind, target, value))
++    def probe(self, page=0): return self.request(host.probe_message(self.seq(), page))
++    def samples(self): return self.request(host.sample_message(8, self.seq()))
++    def sample_job(self, *args): return self.request(host.sample_message(9, self.seq(), *args))
++    def note(self, note, velocity):
++        kind = "note_on" if velocity else "note_off"
++        self.destination.send(self.midi.Message(kind, channel=0, note=note, velocity=velocity))
++    def cc(self, number, value): self.destination.send(self.midi.Message("control_change", channel=0, control=number, value=value))
++
++
++def panel_gesture(text):
++    """'toggle up|down|hw', 'jack in|out|hw', 'hold X', 'let X', 'tap X', 'turn KNOB_1 +10', 'press SW5', 'release all'."""
++    words = text.split()
++    if len(words) == 2 and words[0] in ("toggle", "jack"):
++        value = {"up": 1, "in": 1, "down": 0, "out": 0, "hw": -1}.get(words[1])
++        if value is None: raise ValueError(f"Bad panel step: {text}")
++        return [(words[0], None, value)]
++    if len(words) == 2 and words[0] in ("hold", "let"): return [("key", words[1], 1 if words[0] == "hold" else 0)]
++    if len(words) == 2 and words[0] == "tap": return [("key", words[1], 1), ("key", words[1], 0)]
++    if len(words) == 3 and words[0] == "turn": return [("turn", words[1], int(words[2]))]
++    if text in ("press SW5", "release all"): return [("press" if text.startswith("press") else "release", None, 0)]
++    raise ValueError(f"Bad panel step: {text}")
++
++
++# ---- plans --------------------------------------------------------------------------
++def lookup(data, dotted):
++    for part in dotted.split("."):
++        data = data[int(part) if isinstance(data, list) else part]
++    return data
++
++
++def compare(expected, actual):
++    if isinstance(expected, list) and len(expected) == 2 and all(isinstance(v, (int, float)) for v in expected) \
++            and not isinstance(actual, list):
++        return actual is not None and expected[0] <= actual <= expected[1]
++    return expected == actual
++
++
++class Runner:
++    def __init__(self, device, audio, report_dir, ask=input, root=None, unattended=False):
++        self.device, self.audio, self.ask, self.unattended = device, audio, ask, unattended
++        self.report = Path(report_dir); self.report.mkdir(parents=True, exist_ok=True)
++        self.root = Path(root or Path(__file__).resolve().parents[1])
++        self.captures, self.last = {}, {}
++
++    def run(self, plan):
++        steps = []
++        for step in plan["steps"]:
++            entry = {"id": step["id"], "title": step.get("title", ""), "log": [], "checks": [], "result": "pass"}
++            try:
++                for action in step.get("do", []): self.action(action, entry)
++                for check in step.get("check", []): self.check(check, entry)
++                if "ask" in step:
++                    if self.unattended: entry["human"] = "not asked (unattended)"; entry["result"] = "needs-human"
++                    else:
++                        answer = self.ask(f"[{step['id']}] {step['ask']} (y/n, then notes): ").strip()
++                        entry["human"] = answer
++                        if not answer.lower().startswith("y"): entry["result"] = "fail"
++            except Exception as error:   # a broken step must not stop the session
++                entry["result"], entry["error"] = "error", f"{type(error).__name__}: {error}"
++            if any(not c["ok"] for c in entry["checks"]) and entry["result"] == "pass": entry["result"] = "fail"
++            steps.append(entry)
++            print(f"{entry['id']:>6}  {entry['result']:<11} {entry['title']}", flush=True)
++        counts = {k: sum(s["result"] == k for s in steps) for k in ("pass", "fail", "error", "needs-human")}
++        result = {"plan": plan.get("name", ""), "started": plan.get("_started"), "counts": counts, "steps": steps}
++        (self.report / "report.json").write_text(json.dumps(result, indent=2) + "\n")
++        lines = [f"# {result['plan']}", "", f"pass {counts['pass']} · fail {counts['fail']} · error {counts['error']} · needs-human {counts['needs-human']}", ""]
++        for s in steps:
++            lines.append(f"- **{s['id']}** {s['result']}: {s['title']}" + (f" — {s.get('error')}" if s.get("error") else ""))
++            for c in s["checks"]:
++                if not c["ok"]: lines.append(f"  - expected {c['what']} = {c['expected']}, got {c['actual']}")
++        (self.report / "summary.md").write_text("\n".join(lines) + "\n")
++        return result
++
++    def action(self, action, entry):
++        (kind, arg), = action.items()
++        entry["log"].append(action)
++        if kind == "wait": time.sleep(float(arg))
++        elif kind == "send":
++            patch = host.load_patch(self.root / arg["file"]) if isinstance(arg, dict) else host.load_patch(self.root / arg)
++            for dotted, value in (arg.get("set", {}) if isinstance(arg, dict) else {}).items():
++                *path, last = dotted.split("."); node = patch
++                for part in path: node = node[part]
++                node[last] = value
++            self.last["status"] = self.device.send_patch(host.validate_patch(patch))
++        elif kind == "status": self.last["status"] = self.device.status()
++        elif kind == "panic": self.last["status"] = self.device.panic()
++        elif kind == "panel":
++            for gesture in (arg if isinstance(arg, list) else [arg]):
++                for k, target, value in panel_gesture(gesture):
++                    self.device.panel(k, target, value); time.sleep(0.03)
++        elif kind == "probe":
++            time.sleep(0.08)                                 # LEDs redraw at ~30 Hz
++            self.last["probe"] = self.device.probe(0); self.last["leds"] = self.device.probe(1)["leds"]
++        elif kind == "samples": self.last["samples"] = self.device.samples()
++        elif kind == "sample": self.last["sample"] = self.device.sample_job(*arg)
++        elif kind == "cc": self.device.cc(*arg)
++        elif kind == "play":                                 # notes held while recording CHOMPI's output
++            seconds, tail = float(arg.get("seconds", 1)), float(arg.get("tail", 0.5))
++            self.audio.start(seconds + tail)
++            for n in arg["notes"]: self.device.note(n, arg.get("velocity", 100))
++            time.sleep(seconds)
++            for n in arg["notes"]: self.device.note(n, 0)
++            self.store(arg["capture"], self.audio.wait(), entry)
++        elif kind == "capture":                              # plain recording, optionally while other actions run
++            self.audio.start(float(arg["seconds"])); self.during(arg, entry); self.store(arg["name"], self.audio.wait(), entry)
++        elif kind == "tone":                                 # test tone into CHOMPI's line input, recorded at the same time
++            self.audio.start(float(arg["seconds"]) + float(arg.get("tail", 0.5)), tone(arg["hz"], arg["seconds"], arg.get("db", -18)))
++            self.during(arg, entry); self.store(arg["capture"], self.audio.wait(), entry)
++        else: raise ValueError(f"Unknown action {kind}")
++
++    def during(self, arg, entry):
++        """Actions run while a recording is in progress ("after" seconds in; keep them shorter than the recording)."""
++        if "during" in arg:
++            time.sleep(float(arg.get("after", 0.2)))
++            for step in arg["during"]: self.action(step, entry)
++
++    def store(self, name, x, entry):
++        write_wav(self.report / f"{entry['id']}-{name}.wav", x)
++        spectrogram(x, self.report / f"{entry['id']}-{name}.png")
++        self.captures[name] = analyze(x)
++        entry.setdefault("captures", {})[name] = self.captures[name]
++
++    def check(self, check, entry):
++        (kind, expected), = check.items()
++        if kind == "capture":
++            data = self.captures[expected["name"]]
++            items = {k: v for k, v in expected.items() if k != "name"}
++        elif kind == "led":
++            leds = self.last["leds"]
++            for key, want in expected.items():
++                rgb = leds[host.key_led(key)]
++                ok = (max(rgb) > 8) if want == "lit" else (max(rgb) <= 8) if want == "off" else all(abs(a - b) <= 12 for a, b in zip(rgb, want))
++                entry["checks"].append({"what": f"led {key}", "expected": want, "actual": rgb, "ok": bool(ok)})
++            return
++        else:
++            data = self.last[kind]; items = expected
++        for dotted, want in items.items():
++            if dotted == "clicks_max": actual = len(data["clicks"]); ok = actual <= want
++            else:
++                try: actual = lookup(data, dotted)
++                except (KeyError, IndexError, TypeError): actual = None
++                ok = compare(want, actual)
++            entry["checks"].append({"what": f"{kind}.{dotted}", "expected": want, "actual": actual, "ok": bool(ok)})
++
++
++def cli(argv=None):
++    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
++    commands = parser.add_subparsers(dest="command", required=True)
++    commands.add_parser("devices", help="List audio devices (pick an interface; on Windows prefer WASAPI)")
++    analyze_cmd = commands.add_parser("analyze", help="Measure a WAV file (level, pitch, clicks) and draw its spectrogram")
++    analyze_cmd.add_argument("wav")
++    def ports(command, audio=True):
++        command.add_argument("--input", help="CHOMPI MIDI input port (exact name)")
++        command.add_argument("--output", help="CHOMPI MIDI output port (exact name)")
++        if audio:
++            command.add_argument("--audio-in", help="audio input device name (part of it)")
++            command.add_argument("--audio-out", help="audio output device name, to play tones into CHOMPI")
++        command.add_argument("--sim", action="store_true", help="simulated CHOMPI (build/forge_probe) and silent fake audio")
++    run = commands.add_parser("run", help="Run a test plan and write a report folder")
++    run.add_argument("plan"); run.add_argument("--report", help="report folder (default reports/<plan>-<time>)")
++    run.add_argument("--unattended", action="store_true", help="never ask; steps needing a person are marked needs-human")
++    ports(run)
++    capture = commands.add_parser("capture", help="Record CHOMPI's output to a WAV (and analyse it)")
++    capture.add_argument("seconds", type=float); capture.add_argument("wav"); ports(capture)
++    probe = commands.add_parser("probe", help="Development firmware: menu state and LED colours"); ports(probe, False)
++    panel = commands.add_parser("panel", help="Development firmware: e.g. 'tap KEY_22', 'toggle up', 'turn KNOB_1 +5'")
++    panel.add_argument("gesture", nargs="+"); ports(panel, False)
++    args = parser.parse_args(argv)
++    if args.command == "devices":
++        print(json.dumps(list_devices(), indent=2)); return 0
++    if args.command == "analyze":
++        x, rate = read_wav(args.wav)
++        result = analyze(x, rate); spectrogram(x, Path(args.wav).with_suffix(".png"), rate)
++        print(json.dumps(result, indent=2)); return 0
++    if args.sim:
++        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tests"))
++        import sim_device
++        midi = sim_device.SimulatedMido()
++        device = Device(sim_device.INPUT, sim_device.OUTPUT, midi)
++        audio = FakeAudio()
++    else:
++        if not args.input or not args.output: parser.error("--input and --output are required (or --sim)")
++        device = Device(args.input, args.output)
++        audio = SoundDeviceAudio(args.audio_in, getattr(args, "audio_out", None)) if getattr(args, "audio_in", None) else None
++    try:
++        if args.command == "probe":
++            print(json.dumps({"state": device.probe(0), "leds": device.probe(1)["leds"]}, indent=2))
++        elif args.command == "panel":
++            for k, target, value in panel_gesture(" ".join(args.gesture)): device.panel(k, target, value)
++            print("sent")
++        elif args.command == "capture":
++            if audio is None: parser.error("--audio-in is required")
++            audio.start(args.seconds); x = audio.wait(); write_wav(args.wav, x)
++            spectrogram(x, Path(args.wav).with_suffix(".png")); print(json.dumps(analyze(x), indent=2))
++        else:
++            plan = json.loads(Path(args.plan).read_text())
++            plan["_started"] = datetime.datetime.now().isoformat(timespec="seconds")
++            needs_audio = any(next(iter(a)) in ("play", "capture", "tone") for s in plan["steps"] for a in s.get("do", []))
++            if needs_audio and audio is None: parser.error("This plan records audio: pass --audio-in (and --audio-out for tones)")
++            if not args.sim and not args.unattended and any("tone" in a for s in plan["steps"] for a in s.get("do", [])):
++                if not input("Tones will play into CHOMPI's line in at up to -18 dBFS. Volume low, no feedback loop? (y/n): ").lower().startswith("y"):
++                    return 1
++            report = args.report or f"reports/{Path(args.plan).stem}-{plan['_started'].replace(':', '')}"
++            result = Runner(device, audio, report, unattended=args.unattended).run(plan)
++            print(json.dumps(result["counts"]), f"\nreport: {Path(report).resolve()}")
++            return 0 if not result["counts"]["fail"] and not result["counts"]["error"] else 2
++    finally:
++        device.close()
++        if args.sim: midi.close()
++    return 0
++
++
++if __name__ == "__main__":
++    try:
++        sys.exit(cli())
++    except (ValueError, RuntimeError, OSError, TimeoutError) as error:
++        print(f"Forge bridge: {error}", file=sys.stderr)
++        sys.exit(1)
+diff --git a/firmware/chompi-forge/host/forge_host.py b/firmware/chompi-forge/host/forge_host.py
+index aac04e3..7f2b834 100644
+--- a/firmware/chompi-forge/host/forge_host.py
++++ b/firmware/chompi-forge/host/forge_host.py
+@@ -406,6 +406,25 @@ def decode_response(data, sequence):
+             bits = data[8 + 3 * b] | data[9 + 3 * b] << 7 | data[10 + 3 * b] << 14
+             banks[b + 1] = [s + 1 for s in range(PRESET_SLOTS) if bits >> s & 1]
+         return {"sequence": sequence, "occupied": banks}
++    if data[4] == 0x47:
++        if len(data) != 9 or data[7] != 0: raise ValueError("Invalid panel acknowledgement")
++        return {"sequence": sequence, "panel": "queued"}
++    if data[4] == 0x46:
++        if data[7] != 0 or data[8] not in (0, 1): raise ValueError("Invalid probe reply")
++        if data[8] == 1:
++            if len(data) != 88: raise ValueError("Invalid probe LED reply")
++            return {"sequence": sequence, "leds": [data[9 + 3 * i: 12 + 3 * i] for i in range(26)]}
++        if len(data) != 24 or data[14] > 63 or data[22] > 1: raise ValueError("Invalid probe state reply")
++        packed = sum(data[9 + i] << (7 * i) for i in range(5))
++        flags = data[14]
++        live = read14(data, 19)
++        return {"sequence": sequence, "menu": decode_menu(packed), "menu_packed": packed,
++                "recording": bool(flags & 1), "loader_busy": bool(flags & 2), "loading": bool(flags & 4),
++                "sample_card": bool(flags & 8), "preset_card": bool(flags & 16), "overridden": bool(flags & 32),
++                "voices": data[15], "recording_seconds": (read14(data, 16) | data[18] << 14) / 1000,
++                "live": None if not live & 1 else {"mode": SAMPLE_MODES[live >> 1 & 1], "bank": SAMPLE_BANKS[(live >> 2 & 7) % 5],
++                                                   "slot": (live >> 5 & 15) + 1},
++                "flash_count": data[21], "flash_ok": bool(data[22])}
+     if data[4] == 0x44:
+         if len(data) != 36 or data[7] != 0 or data[28] > 7:
+             raise ValueError("Invalid sample list")
+@@ -532,6 +551,62 @@ def sample_message(opcode, sequence, action=None, mode=None, bank=None, slot=Non
+     return message(9, sequence, [actions.index(action), *source, *target])
+ 
+ 
++# ---- Development firmware only (make firmware-dev): panel injection and probe ----
++# Upstream SwId order (chompi hardware.h). CHOMPI = KEY_26.
++PANEL_BUTTONS = {name: index for index, name in enumerate((
++    "ENC_1_SW", "ENC_2_SW", "ENC_3_SW", "ENC_4_SW", "NC_6", "CHOMPI", "SW_TOG", "KEY_16",
++    "KEY_2", "KEY_3", "KEY_4", "KEY_5", "KEY_17", "KEY_18", "KEY_19", "KEY_1",
++    "KEY_6", "KEY_7", "KEY_8", "KEY_9", "KEY_10", "KEY_20", "KEY_21", "KEY_22",
++    "KEY_11", "KEY_12", "KEY_13", "KEY_14", "KEY_15", "KEY_23", "KEY_24", "KEY_25",
++    "ENC_6_SW", "KEY_27", "KEY_28"))}
++# Logical knobs 1-4 (stock order) are hardware encoders SW4, SW1, SW2, SW3; SW5 tone, SW6 volume.
++PANEL_ENCODERS = {"KNOB_1": 3, "KNOB_2": 0, "KNOB_3": 1, "KNOB_4": 2, "SW5": 4, "SW6": 5}
++PANEL_KINDS = ("key", "turn", "press", "toggle", "jack", "release")
++
++
++def key_led(name):
++    """Index of the SMT LED under a key (25 key LEDs; 25 = the CHOMPI key LED in probe page 1)."""
++    if name == "CHOMPI": return 25
++    number = int(name.split("_")[1])
++    if 1 <= number <= 15: return 25 - number                     # white keys: TAPE's 25 - slot#
++    if 16 <= number <= 25: return number - 16                    # black keys KEY_16..25
++    raise ValueError(f"{name} has no key LED")
++
++
++def panel_message(sequence, kind, target=None, value=0):
++    """Opcode 0A: key (target name/id, value 1 down / 0 up), turn (encoder, ±63), press (SW5),
++    toggle/jack (1, 0, or -1 = hardware again), release (all overrides)."""
++    if kind not in PANEL_KINDS: raise ValueError("Panel kind must be one of " + ", ".join(PANEL_KINDS))
++    ident = 0
++    if kind == "key":
++        ident = PANEL_BUTTONS.get(target, target)
++        if type(ident) is not int or not 0 <= ident < 40 or value not in (0, 1): raise ValueError("Unknown key or value")
++    elif kind == "turn":
++        ident = PANEL_ENCODERS.get(target, target)
++        if type(ident) is not int or not 0 <= ident < 6 or type(value) is not int or not -63 <= value <= 63:
++            raise ValueError("Turn needs an encoder and an increment -63..63")
++    elif kind == "press":
++        ident, value = 4, 0
++    elif kind in ("toggle", "jack"):
++        if value not in (-1, 0, 1): raise ValueError("Toggle/jack value must be 1, 0 or -1 (hardware)")
++    else:
++        value = 0
++    return message(0x0A, sequence, [PANEL_KINDS.index(kind), ident, value + 64])
++
++
++def probe_message(sequence, page=0):
++    if page not in (0, 1): raise ValueError("Probe page must be 0 (state) or 1 (LEDs)")
++    return message(0x0B, sequence, [page])
++
++
++def decode_menu(packed):
++    """PresetMenu::Packed() fields (core/preset_menu.h)."""
++    modes = ("none", "save", "erase", "copy_source", "copy_dest")
++    return {"open": bool(packed & 1), "mode": modes[(packed >> 1) & 7] if (packed >> 1) & 7 < 5 else "invalid",
++            "page": "samples" if packed >> 21 & 1 else "presets", "bank": (packed >> 4) & 7,
++            "sample_mode": SAMPLE_MODES[packed >> 22 & 1], "record_source": ("mic", "line", "resample", "?")[packed >> 25 & 3]}
++
++
+ def midi_module():
+     try:
+         import mido
+diff --git a/firmware/chompi-forge/tests/hardware/smoke.json b/firmware/chompi-forge/tests/hardware/smoke.json
+new file mode 100644
+index 0000000..0986f91
+--- /dev/null
++++ b/firmware/chompi-forge/tests/hardware/smoke.json
+@@ -0,0 +1,105 @@
++{
++  "name": "Forge 0.5 bridge smoke test (automatable parts of TEST_SESSION)",
++  "about": "Needs the development firmware (make firmware-dev) for panel/probe steps; with the release firmware those steps report error and the rest still runs. Wiring: CHOMPI main out -> interface inputs 1/2; interface outputs 1/2 -> CHOMPI line in. Tones are -18 dBFS. Step ids follow docs/forge/TEST_SESSION.md.",
++  "steps": [
++    {"id": "1.3", "title": "Identity: firmware 0.5, counters 0",
++     "do": [{"status": true}],
++     "check": [{"status": {"firmware": "0.5", "dropped": 0, "rejected": 0}}]},
++
++    {"id": "0.n", "title": "Noise floor with nothing playing",
++     "do": [{"send": "presets/01-dry.json"}, {"capture": {"name": "floor", "seconds": 1}}],
++     "check": [{"capture": {"name": "floor", "silent": true, "clicks_max": 0}}]},
++
++    {"id": "2.1", "title": "Aux path: line-in tone passes through dry, both channels",
++     "do": [{"send": "presets/01-dry.json"}, {"tone": {"hz": 1000, "seconds": 1.0, "capture": "dry"}}],
++     "check": [{"capture": {"name": "dry", "pitch_hz": [995, 1005], "silent": false, "clicks_max": 0,
++                            "channels.1.pitch_hz": [995, 1005]}}]},
++
++    {"id": "2.2", "title": "Aux path: slap echo extends the tone",
++     "do": [{"send": "presets/02-slap.json"}, {"tone": {"hz": 440, "seconds": 0.3, "tail": 1.0, "capture": "slap"}}],
++     "check": [{"capture": {"name": "slap", "pitch_hz": [437, 443], "end_s": [0.4, 1.3]}}]},
++
++    {"id": "2.4", "title": "CC 85 bypass: wet path off then on (dry still passes)",
++     "do": [{"send": "presets/03-long-echo.json"}, {"cc": [85, 127]},
++            {"tone": {"hz": 440, "seconds": 0.3, "tail": 1.0, "capture": "bypassed"}}, {"cc": [85, 0]}],
++     "check": [{"capture": {"name": "bypassed", "pitch_hz": [437, 443], "end_s": [0.25, 0.5]}}]},
++
++    {"id": "3.1", "title": "Instrument over MIDI: C3, C4, C5 at the right pitch",
++     "do": [{"send": "presets/04-glass-keys.json"},
++            {"play": {"notes": [48], "seconds": 0.6, "tail": 0.3, "capture": "c3"}},
++            {"play": {"notes": [60], "seconds": 0.6, "tail": 0.3, "capture": "c4"}},
++            {"play": {"notes": [72], "seconds": 0.6, "tail": 0.3, "capture": "c5"}}],
++     "check": [{"capture": {"name": "c3", "pitch_hz": [129.5, 132.2]}},
++               {"capture": {"name": "c4", "pitch_hz": [259.0, 264.3]}},
++               {"capture": {"name": "c5", "pitch_hz": [518.0, 528.5], "clicks_max": 0}}]},
++
++    {"id": "3.1k", "title": "Instrument from the keybed (virtual KEY_8 = MIDI 60)",
++     "do": [{"send": "presets/04-glass-keys.json"},
++            {"capture": {"name": "key8", "seconds": 1.2, "after": 0.1,
++                         "during": [{"panel": "hold KEY_8"}, {"wait": 0.6}, {"panel": "let KEY_8"}]}}],
++     "check": [{"capture": {"name": "key8", "pitch_hz": [259.0, 264.3], "silent": false}}]},
++
++    {"id": "3.4", "title": "Five notes on four voices: steal without a click",
++     "do": [{"send": "presets/04-glass-keys.json"},
++            {"play": {"notes": [60, 64, 67, 71, 74], "seconds": 1.5, "tail": 1.0, "capture": "steal"}}],
++     "check": [{"capture": {"name": "steal", "silent": false, "clicks_max": 0}}]},
++
++    {"id": "3.10", "title": "Warm Pad (v3) plays; listen for beating, swell and reverb",
++     "do": [{"send": "presets/07-warm-pad.json"},
++            {"play": {"notes": [57, 60, 64], "seconds": 2.0, "tail": 2.0, "capture": "pad"}}],
++     "check": [{"capture": {"name": "pad", "silent": false, "clicks_max": 0, "end_s": [2.2, 4.0]}}]},
++
++    {"id": "3.17", "title": "Menu opens: toggle up + hold CHOMPI, bank keys lit",
++     "do": [{"panel": ["release all", "toggle up", "hold CHOMPI"]}, {"probe": true}],
++     "check": [{"probe": {"menu.open": true, "menu.page": "presets", "overridden": true}}, {"led": {"KEY_16": "lit", "KEY_17": "lit"}}]},
++
++    {"id": "3.30", "title": "Samples page: KEY_22, page key lit, card present",
++     "do": [{"panel": "tap KEY_22"}, {"probe": true}],
++     "check": [{"probe": {"menu.open": true, "menu.page": "samples", "sample_card": true}}, {"led": {"KEY_22": "lit"}}]},
++
++    {"id": "3.30c", "title": "Close the menu and hand the panel back",
++     "do": [{"panel": ["tap KEY_22", "let CHOMPI", "release all"]}, {"probe": true}],
++     "check": [{"probe": {"menu.open": false, "overridden": false}}]},
++
++    {"id": "3.28", "title": "Sample list: card present (TAPE files from 0.6)",
++     "do": [{"samples": true}],
++     "check": [{"samples": {"card": true, "busy": false}}]},
++
++    {"id": "3.29", "title": "Kit a: white key 1 plays a sample",
++     "do": [{"send": "presets/12-tape-kit-a.json"}, {"wait": 3},
++            {"play": {"notes": [48], "seconds": 0.5, "tail": 0.5, "capture": "kit1"}}],
++     "check": [{"capture": {"name": "kit1", "silent": false}}]},
++
++    {"id": "3.34", "title": "Record a 440 Hz line-in tone (toggle down + hold CHOMPI), play it back at MIDI 60",
++     "do": [{"send": "presets/01-dry.json"}, {"panel": ["release all", "toggle down", "jack in"]},
++            {"tone": {"hz": 440, "seconds": 3.0, "tail": 0.3, "capture": "recording", "after": 0.3,
++                      "during": [{"panel": "hold CHOMPI"}, {"wait": 2.0}, {"probe": true}, {"panel": "let CHOMPI"}]}},
++            {"panel": "release all"}, {"wait": 0.5},
++            {"play": {"notes": [60], "seconds": 1.0, "tail": 0.5, "capture": "playback"}}],
++     "check": [{"probe": {"recording": true}},
++               {"capture": {"name": "playback", "pitch_hz": [436, 444], "silent": false, "clicks_max": 0}}]},
++
++    {"id": "3.34s", "title": "Recording length reported",
++     "do": [{"samples": true}],
++     "check": [{"samples": {"recording": true, "recording_seconds": [1.5, 2.6]}}]},
++
++    {"id": "4.1", "title": "Panic stops voices, echoes and reverb at once",
++     "do": [{"send": "presets/07-warm-pad.json"}, {"play": {"notes": [60, 64, 67], "seconds": 1.0, "tail": 0, "capture": "before"}},
++            {"panic": true}, {"capture": {"name": "after", "seconds": 0.5}}],
++     "check": [{"capture": {"name": "before", "silent": false}}, {"capture": {"name": "after", "silent": true}}]},
++
++    {"id": "6.2b", "title": "CPU worst case: cpu-stress, four notes for 20 s",
++     "do": [{"send": "presets/10-cpu-stress.json"},
++            {"play": {"notes": [48, 55, 60, 64], "seconds": 20, "tail": 1, "capture": "stress"}}, {"status": true}],
++     "check": [{"status": {"cpu_max_percent": [0, 100], "dropped": 0}}, {"capture": {"name": "stress", "clicks_max": 0}}]},
++
++    {"id": "6.2c", "title": "Sampler worst case: seven voices on the recording for 20 s",
++     "do": [{"send": "presets/13-sampler-stress.json"}, {"wait": 1},
++            {"play": {"notes": [48, 50, 52, 53, 55, 57, 59], "seconds": 20, "tail": 1, "capture": "sampler"}}, {"status": true}],
++     "check": [{"status": {"cpu_max_percent": [0, 100], "dropped": 0}}]},
++
++    {"id": "6.3", "title": "Back to dry aux",
++     "do": [{"panic": true}, {"send": "presets/01-dry.json"}, {"status": true}],
++     "check": [{"status": {"patch.parameters.mix": [0, 0.01]}}]}
++  ]
++}
+diff --git a/firmware/chompi-forge/tests/sim_device.py b/firmware/chompi-forge/tests/sim_device.py
+index 7f69a79..8deee12 100644
+--- a/firmware/chompi-forge/tests/sim_device.py
++++ b/firmware/chompi-forge/tests/sim_device.py
+@@ -16,8 +16,9 @@ INPUT, OUTPUT = "Forge Simulator In", "Forge Simulator Out"
+ 
+ 
+ class Message:
+-    def __init__(self, type, data=()):
++    def __init__(self, type, data=(), **fields):
+         self.type, self.data = type, tuple(data)
++        for key, value in fields.items(): setattr(self, key, value)
+ 
+ 
+ class _Port:
+@@ -44,7 +45,7 @@ class SimulatedMido:
+     def __init__(self, drop_replies=False):
+         self.replies, self.lock = deque(), threading.Lock()
+         self.drop_replies = drop_replies
+-        self.sent = []
++        self.sent, self.channel_messages = [], []
+         self.process = subprocess.Popen([str(ROOT / "build" / "forge_probe")], stdin=subprocess.PIPE,
+                                         stdout=subprocess.PIPE, text=True, bufsize=1)
+ 
+@@ -54,7 +55,9 @@ class SimulatedMido:
+     def open_output(self, name): assert name == OUTPUT; return _Output(self)
+ 
+     def handle(self, message):
+-        assert message.type == "sysex"
++        if message.type != "sysex":          # notes/CCs: recorded only (forge_probe speaks SysEx)
++            self.channel_messages.append(message)
++            return
+         self.sent.append(list(message.data))
+         self.process.stdin.write(bytes([0xF0, *message.data, 0xF7]).hex(" ") + "\n")
+         self.process.stdin.flush()
+diff --git a/firmware/chompi-forge/tests/test_bridge.py b/firmware/chompi-forge/tests/test_bridge.py
+new file mode 100644
+index 0000000..dba83a5
+--- /dev/null
++++ b/firmware/chompi-forge/tests/test_bridge.py
+@@ -0,0 +1,182 @@
++"""Hardware test bridge (host/forge_bridge.py): analysis, gestures and plans,
++run against the simulated CHOMPI (forge_probe built with the development hooks)
++and fake audio. No audio interface or hardware is involved."""
++import json
++from pathlib import Path
++import struct
++import sys
++import tempfile
++import unittest
++import zlib
++
++ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(ROOT / "host"))
++sys.path.insert(0, str(ROOT / "tests"))
++
++try:
++    import numpy as np
++    import forge_bridge as bridge
++except ModuleNotFoundError:          # numpy is a bridge-only dependency
++    np = bridge = None
++import sim_device
++
++RATE = 48000
++
++
++def sine(hz, seconds=1.0, amplitude=0.25, channels=2):
++    t = np.arange(int(seconds * RATE)) / RATE
++    x = amplitude * np.sin(2 * np.pi * hz * t)
++    return np.stack([x] * channels, axis=1).astype(np.float32)
++
++
++@unittest.skipIf(np is None, "numpy not installed (pip install -r host/bridge-requirements.txt)")
++class AnalysisTests(unittest.TestCase):
++    def test_pitch_level_and_silence(self):
++        for hz in (55.0, 261.63, 440.0, 3520.0):
++            self.assertAlmostEqual(bridge.analyze(sine(hz))["pitch_hz"], hz, delta=hz * 0.002)
++        a = bridge.analyze(sine(440, amplitude=0.5))
++        self.assertAlmostEqual(a["peak_db"], -6.0, delta=0.1)
++        self.assertAlmostEqual(a["rms_db"], -9.0, delta=0.1)
++        self.assertFalse(a["silent"])
++        self.assertEqual(a["stereo_correlation"], 1.0)
++        quiet = bridge.analyze(np.zeros((RATE, 2), np.float32))
++        self.assertTrue(quiet["silent"]); self.assertIsNone(quiet["pitch_hz"]); self.assertIsNone(quiet["onset_s"])
++        self.assertIsNone(bridge.analyze(bridge.FakeAudio().source(RATE, None))["pitch_hz"])   # -80 dB noise
++
++    def test_onset_clip_and_clicks(self):
++        x = np.zeros((RATE, 2), np.float32); x[RATE // 2:] = np.roll(sine(220, 0.5), -RATE // 880, axis=0)
++        a = bridge.analyze(x)                                # starts at a peak: a step, i.e. a click
++        self.assertAlmostEqual(a["onset_s"], 0.5, delta=0.011)
++        self.assertEqual(a["clicks"], [0.5])
++        smooth = sine(220); self.assertEqual(bridge.analyze(smooth)["clicks"], [])
++        clicked = sine(220, amplitude=0.1).copy(); clicked[12000:] += 0.2
++        self.assertEqual(bridge.analyze(clicked)["clicks"], [0.25])
++        self.assertGreater(bridge.analyze(sine(100, amplitude=1.2))["channels"][0]["clipped"], 0)
++
++    def test_tone_is_bounded_and_faded(self):
++        t = bridge.tone(440, 0.5)
++        self.assertAlmostEqual(20 * np.log10(np.max(np.abs(t))), -18, delta=0.1)
++        self.assertEqual(t[0, 0], 0); self.assertEqual(bridge.analyze(t)["clicks"], [])
++        with self.assertRaises(ValueError): bridge.tone(440, 0.5, db=0)
++
++    def test_wav_and_png_files(self):
++        with tempfile.TemporaryDirectory() as tmp:
++            path = Path(tmp) / "a.wav"
++            bridge.write_wav(path, sine(440, 0.2))
++            x, rate = bridge.read_wav(path)
++            self.assertEqual((rate, x.shape), (RATE, (9600, 2)))
++            self.assertLess(np.max(np.abs(x - sine(440, 0.2))), 1e-4)
++            png = Path(tmp) / "a.png"
++            bridge.spectrogram(x, png)
++            data = png.read_bytes()
++            self.assertEqual(data[:8], b"\x89PNG\r\n\x1a\n")
++            width, height = struct.unpack(">II", data[16:24])
++            self.assertEqual(height, 256); self.assertGreater(width, 0)
++            idat = data.index(b"IDAT"); size = struct.unpack(">I", data[idat - 4:idat])[0]
++            self.assertEqual(len(zlib.decompress(data[idat + 4:idat + 4 + size])), height * (width + 1))
++
++
++@unittest.skipIf(np is None, "numpy not installed")
++class GestureTests(unittest.TestCase):
++    def test_gestures(self):
++        g = bridge.panel_gesture
++        self.assertEqual(g("toggle up"), [("toggle", None, 1)])
++        self.assertEqual(g("jack hw"), [("jack", None, -1)])
++        self.assertEqual(g("tap KEY_22"), [("key", "KEY_22", 1), ("key", "KEY_22", 0)])
++        self.assertEqual(g("hold CHOMPI"), [("key", "CHOMPI", 1)])
++        self.assertEqual(g("turn KNOB_1 -5"), [("turn", "KNOB_1", -5)])
++        self.assertEqual(g("press SW5"), [("press", None, 0)])
++        self.assertEqual(g("release all"), [("release", None, 0)])
++        for bad in ("toggle sideways", "spin KNOB_1", "turn KNOB_1", ""):
++            with self.assertRaises(ValueError): g(bad)
++
++
++@unittest.skipIf(np is None, "numpy not installed")
++class RunnerTests(unittest.TestCase):
++    """Plans against the simulated CHOMPI: panel, probe, LEDs, status, captures."""
++    def setUp(self):
++        self.midi = sim_device.SimulatedMido()
++        self.device = bridge.Device(sim_device.INPUT, sim_device.OUTPUT, self.midi)
++        self.tmp = tempfile.TemporaryDirectory()
++
++    def tearDown(self):
++        self.device.close(); self.midi.close(); self.tmp.cleanup()
++
++    def run_plan(self, steps, audio=None, **kwargs):
++        runner = bridge.Runner(self.device, audio or bridge.FakeAudio(lambda frames, play: sine(440, frames / RATE)),
++                               self.tmp.name, root=ROOT, **kwargs)
++        return runner.run({"name": "t", "steps": steps})
++
++    def test_menu_and_leds_through_virtual_panel(self):
++        result = self.run_plan([
++            {"id": "open", "do": [{"panel": ["toggle up", "hold CHOMPI"]}, {"probe": True}],
++             "check": [{"probe": {"menu.open": True, "overridden": True}}, {"led": {"KEY_16": "lit"}}]},
++            {"id": "close", "do": [{"panel": ["let CHOMPI", "release all"]}, {"probe": True}],
++             "check": [{"probe": {"menu.open": False}}]},
++            {"id": "wrong", "do": [{"probe": True}], "check": [{"probe": {"menu.open": True}}]},
++        ])
++        self.assertEqual([s["result"] for s in result["steps"]], ["pass", "pass", "fail"])
++        failed = result["steps"][2]["checks"][0]
++        self.assertEqual((failed["expected"], failed["actual"], failed["ok"]), (True, False, False))
++        summary = (Path(self.tmp.name) / "summary.md").read_text()
++        self.assertIn("pass 2 · fail 1", summary); self.assertIn("expected probe.menu.open = True, got False", summary)
++        self.assertEqual(json.loads((Path(self.tmp.name) / "report.json").read_text())["counts"]["fail"], 1)
++
++    def test_patch_status_notes_and_capture(self):
++        result = self.run_plan([
++            {"id": "send", "do": [{"send": {"file": "presets/07-warm-pad.json", "set": {"modules.delay.mix": 0.25}}}],
++             "check": [{"status": {"dropped": 0}}]},
++            {"id": "play", "do": [{"play": {"notes": [60, 64], "seconds": 0.05, "tail": 0.05, "capture": "c"}}],
++             "check": [{"capture": {"name": "c", "pitch_hz": [438, 442], "silent": False, "clicks_max": 1}}]},
++            {"id": "deaf", "do": [{"capture": {"name": "d", "seconds": 0.1}}],
++             "check": [{"capture": {"name": "d", "pitch_hz": [100, 200]}}]},
++        ])
++        self.assertEqual([s["result"] for s in result["steps"]], ["pass", "pass", "fail"], result)
++        notes = [(m.type, m.note, m.velocity) for m in self.midi.channel_messages]
++        self.assertEqual(notes, [("note_on", 60, 100), ("note_on", 64, 100), ("note_off", 60, 0), ("note_off", 64, 0)])
++        for name in ("play-c.wav", "play-c.png", "deaf-d.wav"):
++            self.assertTrue((Path(self.tmp.name) / name).exists(), name)
++
++    def test_errors_and_humans_do_not_stop_the_run(self):
++        result = self.run_plan([
++            {"id": "bad", "do": [{"panel": "spin KNOB_1"}]},
++            {"id": "ear", "title": "Sounds right?", "do": [{"status": True}], "ask": "Does it sound right?"},
++            {"id": "after", "do": [{"status": True}], "check": [{"status": {"dropped": 0}}]},
++        ], unattended=True)
++        self.assertEqual([s["result"] for s in result["steps"]], ["error", "needs-human", "pass"])
++        self.assertIn("Bad panel step", result["steps"][0]["error"])
++        answers = iter(["n sounds harsh"])
++        result = self.run_plan([{"id": "ear", "do": [], "ask": "OK?"}], ask=lambda prompt: next(answers))
++        self.assertEqual((result["steps"][0]["result"], result["steps"][0]["human"]), ("fail", "n sounds harsh"))
++
++    def test_tone_reaches_the_audio_device(self):
++        played = []
++        def source(frames, play):
++            played.append(play); return np.zeros((frames, 2), np.float32)
++        result = self.run_plan([{"id": "line", "do": [{"tone": {"hz": 1000, "seconds": 0.1, "capture": "t",
++                                                                "during": [{"status": True}], "after": 0}}],
++                                 "check": [{"capture": {"name": "t", "silent": True}}, {"status": {"dropped": 0}}]}],
++                               audio=bridge.FakeAudio(source))
++        self.assertEqual(result["steps"][0]["result"], "pass", result)
++        self.assertAlmostEqual(bridge.analyze(played[0])["pitch_hz"], 1000, delta=2)
++
++    def test_cli_sim_run_and_smoke_plan_parses(self):
++        report = Path(self.tmp.name) / "cli"
++        plan = Path(self.tmp.name) / "p.json"
++        plan.write_text(json.dumps({"name": "cli", "steps": [{"id": "s", "do": [{"status": True}],
++                                                             "check": [{"status": {"dropped": 0}}]}]}))
++        self.assertEqual(bridge.cli(["run", str(plan), "--sim", "--report", str(report)]), 0)
++        self.assertEqual(json.loads((report / "report.json").read_text())["counts"]["pass"], 1)
++        smoke = json.loads((ROOT / "tests/hardware/smoke.json").read_text())
++        actions = {"wait", "send", "status", "panic", "panel", "probe", "samples", "sample", "cc", "play", "capture", "tone"}
++        for step in smoke["steps"]:
++            for action in step.get("do", []):
++                (kind, arg), = action.items(); self.assertIn(kind, actions, step["id"])
++                if kind == "panel":
++                    for gesture in (arg if isinstance(arg, list) else [arg]): bridge.panel_gesture(gesture)
++                if kind == "send":
++                    bridge.host.validate_patch(bridge.host.load_patch(ROOT / (arg["file"] if isinstance(arg, dict) else arg)))
++
++
++if __name__ == "__main__":
++    unittest.main()
+-- 
+2.43.0
+
