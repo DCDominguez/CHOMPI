@@ -1,7 +1,88 @@
 # Forge handoff — instrument candidate 0.15.1
 
-Updated 2026-10-06 (UTC). **Read [CONTINUE.md](CONTINUE.md) first**; it is the
+Updated 2026-10-09 (UTC). **Read [CONTINUE.md](CONTINUE.md) first**; it is the
 live checkpoint with claim levels, what changed and prioritized next actions.
+
+## Handoff: cloud session → DC's local PC (2026-10-09)
+
+DC is moving work from a Claude Code cloud session to a session on DC's own PC
+(`claude remote-control` in the repository folder, or the Claude Desktop app). The
+conversation does not carry over; this section and CONTINUE do.
+
+**Where things stand**
+- Branch `forge/foundation`, last code commit `7d1af64` (0.15.1, pushed). Working
+  tree clean. Draft PR #1 untouched; the designated `claude/forge-foundation-review-*`
+  branch is unused. GitHub Actions "Forge Bridge (Windows exe)" passed on `7d1af64`.
+- Firmware 0.15.1 = 0.15 event recorder and projects + fixes for every verified
+  finding of DC's full review (CHANGELOG 0.15.1). Software-tested: `make test`
+  16 native + 128 Python, `make sanitize` 15, `make browser-test` 11 + 7, `make bench`
+  PASS (pitch .75 2,676.2 vs WAVE 2,694.9); ARM release 235,380 B / development
+  249,188 B, layout OK.
+- Hardware: nothing from 0.11 on has run on a CHOMPI; whether 0.10 ever booted is
+  unknown (CONTINUE, "RESOLVED: CHOMPI dark after the 0.10 install"). DC was last on
+  stock TAPE 2.0 with a full battery.
+
+**Release-candidate assessment (2026-10-09): not an RC yet.** Blockers and to-dos,
+in the order recommended to DC:
+1. *Bug in 0.15.1's own fix (unreviewed code):* `core/parts.h` `keys_[128]` (held-key
+   count) is shared across note sources, so holding C4 on the panel while the recorded
+   loop or MIDI plays C4 through the arp lets the other source's note-off release the
+   panel key (unlatched phrase ends early). Fix: per-source bit per key (4 sources).
+   Related, older: the arp set (`Add` / `Remove`) has no reference count. Add tests in
+   `tests/parts_test.cpp`, then get an independent review of the whole 0.15.1 diff
+   (`1cd73ae..7d1af64`), especially the mailbox hand-over (`core/sequence_store.h`
+   `SaveFile`, `PanelController` export after `PresetAction`, `StoreQueued`).
+2. *Build identity:* the device reports only minor 15; 0.15.1 cannot be told from 0.15
+   on CHOMPI. Report a build id (commit hash or patch number) in status / Inspector and
+   show it in Connect CHOMPI / Check setup.
+3. *Start-up crash guard:* "stop restarting after repeated start-up crashes" (0.10.1
+   hardening list) is still not implemented.
+4. *CI:* the workflow runs 4 of 16 native suites, no Python tests, sanitizers or bench,
+   and ships only the development build (test hooks). Add the full gate and a release
+   build. Builds use xPack GCC 10.3.1, not the pinned Arm 10.3-2021.10 archive.
+5. *DC's hardware session* (HOME_CHECKLIST → TEST_SESSION), on charged power. Critical:
+   1.x (boots, right version), 4 (panic), 6.2b–g (CPU), 7–8 (install / power), and
+   reproducing or ruling out the 0.9 "random shut-off while playing" (still open).
+6. Then tag `forge-0.15.x-rc1` from the exact commit tested. No tags or releases exist.
+
+Items 1–4 are software work an agent can do now; 5 is DC's.
+
+**Standing rules (DC)**
+- Work on `forge/foundation`; never force-push; never touch `main`; no PRs unless asked.
+- No real API keys in chat, source or logs; DC runs `host/forge_ai_check.py` with
+  DC's own key.
+- Agents never flash hardware or claim hardware results DC did not report. One
+  consolidated hardware session, no per-feature flashing requests.
+- Keep upstream firmware (chompi-tape / wave / tempo, bootloader, vendored libDaisy)
+  untouched.
+- Commit messages separate implemented / software-tested / hardware-verified and end
+  with the session's `Co-Authored-By` / `Claude-Session` trailers. No model IDs in
+  artifacts. Report branch and commit after each push.
+- AGENTS.md checks: native tests for audio / protocol, sanitizers for DSP, ARM build for
+  firmware; v1 presets keep working; no allocation or blocking I/O in the audio
+  callback; update CONTINUE, RESOURCE_LEDGER and STORAGE_STREAMING figures as needed.
+
+**Local setup** (all commands from `firmware/chompi-forge/`)
+- Get the code: `git clone -b forge/foundation https://github.com/DCDominguez/CHOMPI.git`
+  (or `git fetch origin && git checkout forge/foundation && git pull`).
+- Native and Python tests: a C++14 compiler, `make`, Python 3 with
+  `pip install -r host/requirements.txt` (bridge: also `host/bridge-requirements.txt`).
+  `make test`; sanitizers: `ASAN_OPTIONS=detect_leaks=0 make sanitize`.
+- Firmware: Arm GCC 10.3 (`arm-none-eabi-gcc`) on PATH; `make firmware`,
+  `make firmware-dev`, `make bench` (needs the same toolchain). The cloud session's
+  xPack 10.3.1 copy does not move with the session.
+- Browser tests: `pip install playwright && python3 -m playwright install chromium`,
+  then `make browser-test`.
+- On Windows: use WSL (or Git Bash with make) for the Makefile; the hardware session
+  itself only needs the Forge Bridge exe from the Actions artifact.
+- A local session can reach CHOMPI over USB (bridge, `host/forge_host.py`); installing
+  firmware stays DC's action.
+
+**First prompt for the local session:** "Read AGENTS.md, docs/forge/CONTINUE.md and
+the 'Handoff: cloud session → DC's local PC' section of docs/forge/HANDOFF.md, then
+start on item 1."
+
+---
 
 Latest: 0.15.1 fixes every verified finding of DC's full project review (recorder
 stuck notes, MIDI stop/start, full loop files, project hand-over, KEY_22 side effect,

@@ -1,8 +1,15 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-06 (UTC), checkpoint: firmware 0.15.1 review fixes (see "Current
+Updated 2026-10-09 (UTC), checkpoint: firmware 0.15.1 review fixes; handoff to a local session (see "Current
 checkpoint" below). Read this first; DC's next session is
 [HOME_CHECKLIST.md](HOME_CHECKLIST.md), then [TEST_SESSION.md](TEST_SESSION.md).
+
+## Moving to DC's local PC (2026-10-09)
+
+Work continues in a session on DC's own PC. The release-candidate assessment (not an
+RC yet), the ordered next tasks, standing rules and local setup are in
+[HANDOFF.md](HANDOFF.md), section "Handoff: cloud session → DC's local PC". First task:
+the shared held-key count in `core/parts.h` (a bug in 0.15.1's own fix).
 
 ## Current checkpoint: firmware 0.15.1 review fixes (2026-10-06)
 
