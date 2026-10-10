@@ -17,6 +17,19 @@ Backward-compatible v1 delay presets must remain usable. Bound audio work and
 keep mutable DSP state in the audio callback; no dynamic allocation or blocking
 I/O there. Update documentation and preserve a runnable, documented checkpoint.
 
+Agent tooling (2026-10-10). The rules above win over both tools.
+- Ponytail: smallest complete change. Claude Code loads it as a plugin
+  (`.claude/settings.json`; `/ponytail lite|full|ultra|off`, `/ponytail-review`). Other
+  agents follow [docs/forge/PONYTAIL.md](docs/forge/PONYTAIL.md). Its "never cut" list
+  includes everything this file requires: tests, claim levels, docs, audio-callback limits.
+- Graphify: a knowledge graph of Forge only (`firmware/chompi-forge`, `docs/forge`;
+  `.graphifyignore`) in `graphify-out/` (`graph.json`, `GRAPH_REPORT.md`). Install with
+  `pip install graphifyy`; orient with `graphify query "<question>"`,
+  `graphify explain "<name>"`, `graphify path "<A>" "<B>"`, then read the source for
+  exact lines. After code changes run `graphify update .` (local, no API) and commit
+  `graphify-out/`. Code only so far: docs are not in the graph, and CONTINUE / HANDOFF
+  stay the authority on project state. `graph.html` is local: `graphify export html`.
+
 Forge v2 (parked): storage streaming, `docs/forge/STORAGE_STREAMING.md`. When v1
 changes SDRAM use, the sampler read path, loader/recorder/looper, USB file
 replacement, FatFS/SD config or code headroom, update that study's figures.

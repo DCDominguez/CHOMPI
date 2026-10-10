@@ -1,0 +1,13 @@
+# Graphify maps Forge only: its firmware, host tools, tests and docs. Upstream firmware
+# (chompi-tape / wave / tempo, bootloader), vendored libraries and hardware stay out.
+*
+!AGENTS.md
+!firmware/
+!firmware/chompi-forge/
+!firmware/chompi-forge/**
+!docs/
+!docs/forge/
+!docs/forge/**
+# Archived patches and raw resource dumps are history, not structure.
+docs/forge/archive/
+docs/forge/resources/
