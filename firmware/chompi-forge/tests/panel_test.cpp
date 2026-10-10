@@ -147,10 +147,18 @@ void LedComposition() {
     v.count_in = 2; ComposeLeds(v, keys, chompi); assert(chompi.r == 0.f && keys[panel::SlotLed(0)].r == 0.f);
     v.count_in = 0; v.record_position = false; v.input_level = 0.f;
     // SW5's lights: playing at 1x lights the forward LED only; reverse lights LED 5; dimmed in the record position.
-    Rgb rev, fwd; ComposeTransportLeds(true, 1.f, false, rev, fwd); assert(fwd.g > .5f && rev.r == 0.f && rev.g == 0.f);
-    ComposeTransportLeds(true, -1.f, false, rev, fwd); assert(rev.g > .5f && fwd.g == 0.f);
-    ComposeTransportLeds(true, 1.f, true, rev, fwd); assert(fwd.g < .75f);
-    ComposeTransportLeds(false, 1.f, false, rev, fwd); assert(fwd.g == 0.f && rev.g == 0.f);
+    const uint32_t playing = static_cast<uint32_t>(Looper::State::Playing) | 32u, paused = static_cast<uint32_t>(Looper::State::Paused) | 32u;
+    Rgb rev, fwd; ComposeTransportLeds(playing, 1.f, 1.f, 0, false, rev, fwd); assert(fwd.g > .5f && rev.r == 0.f && rev.g == 0.f);
+    ComposeTransportLeds(playing, -1.f, -1.f, 0, false, rev, fwd); assert(rev.g > .5f && fwd.g == 0.f);
+    ComposeTransportLeds(playing, 1.f, 1.f, 0, true, rev, fwd); assert(fwd.g < .75f);
+    ComposeTransportLeds(0, 1.f, 1.f, 0, false, rev, fwd); assert(fwd.g == 0.f && rev.g == 0.f);
+    // 0.16: paused with a loop: dim white (scrub ready); scrubbing lights the head's direction.
+    ComposeTransportLeds(paused, 1.f, 0.f, 0, false, rev, fwd); assert(fwd.r == .08f && rev.r == .08f);
+    ComposeTransportLeds(paused, 1.f, .8f, 0, false, rev, fwd); assert(fwd.g > .5f && rev.g == 0.f);
+    ComposeTransportLeds(paused, 1.f, -.8f, 0, false, rev, fwd); assert(rev.g > .5f && fwd.g == 0.f);
+    // A cutoff turn shows the cutoff on both lights for 1 s (closed purple, open white), loop or not.
+    ComposeTransportLeds(0, 1.f, 1.f, 1u << 8, false, rev, fwd); assert(fwd.b == 1.f && fwd.g < .1f && rev.b == 1.f);
+    ComposeTransportLeds(playing, 1.f, 1.f, (1u << 8) | (255u << 9), false, rev, fwd); assert(fwd.r == 1.f && fwd.g == 1.f && fwd.b == 1.f);
     PresetMenu menu; menu.Update(true, true); v.menu = menu.Packed(); v.preset_card = true; v.preset_occupancy = 1;
     ComposeLeds(v, keys, chompi); assert(keys[panel::SlotLed(0)].r > 0.f);                       // presets page drawn
     // Menu closed (TAPE NormalPage): held keys light white; nothing else without a sampler patch.
@@ -505,8 +513,104 @@ void BatteryHold() {
     rig.hw.keys = 0; rig.Block(); assert(!rig.panel.VolumePage());          // after the battery view: no switch
 }
 
+// 0.16 (DC): the open menu page on the CHOMPI light, colour per stepped setting and per page,
+// SW5's cutoff on the loop, harmony on/off with SW1 + SW2, the event recorder by a CHOMPI tap,
+// KEY_21 held 2 s to the parts page, chord colours on the keys.
+void PanelFeedback016() {
+    // CHOMPI light: the page colour while the menu is open (held: full; up with a save pending: dim).
+    LedView v; Rgb keys[25], chompi;
+    PresetMenu menu; menu.Update(true, true);
+    menu.ShowPage(MenuPage::Samples); v.menu = menu.Packed(); v.keys_down = uint64_t(1) << panel::kChompiKey;
+    ComposeLeds(v, keys, chompi); assert(chompi.r == knobs::colour::teal.r && chompi.g == 1.f);
+    menu.ShowPage(MenuPage::Presets); v.menu = menu.Packed(); ComposeLeds(v, keys, chompi); assert(chompi.b == 1.f && chompi.r == 0.f && chompi.g == 0.f);
+    menu.ShowPage(MenuPage::Harmony); v.menu = menu.Packed(); ComposeLeds(v, keys, chompi); assert(chompi.b == 1.f && chompi.r > .5f);
+    menu.ShowPage(MenuPage::Parts); v.menu = menu.Packed(); ComposeLeds(v, keys, chompi); assert(chompi.r == 1.f && chompi.b < .3f);
+    v.keys_down = 0; ComposeLeds(v, keys, chompi); assert(chompi.r < .4f && chompi.r > .3f);
+    // The step palette: page n and choice n are the same colour everywhere.
+    assert(knobs::StepColour(0).g == 1.f && knobs::StepColour(0).b == 1.f && knobs::StepColour(1).r == 0.f && knobs::StepColour(9).b == 1.f);
+    Rgb rings[4];
+    ComposeKnobLeds(0, 0u | (1u << 3), false, rings, 1u << 1); assert(rings[1].r == 0.f && rings[1].g == 1.f);   // SW1 page 2 flash: green
+    ComposeKnobLeds(0, 0, false, rings, (1u << 17) | (1u << 18)); assert(rings[0].g == 1.f && rings[3].g == 1.f && rings[2].r == 0.f);
+    ComposeKnobLeds(0, 0, true, rings, 1u); assert(rings[0].r == 0.f && rings[0].g == 0.f);                     // record position: off
+    harmony::State hs; hs.mode = harmony::Mode::Lydian; hs.extension = harmony::Extension::Fifth; hs.inversion = 2;
+    ComposeHarmonyKnobLeds(harmony::Pack(hs), rings); assert(rings[0].r == 1.f && rings[0].g == 0.f);         // off: red
+    ComposeHarmonyKnobLeds(harmony::Pack(hs), rings, 7u << 4);
+    assert(rings[0].r == knobs::colour::purple.r && rings[1].g == 1.f && rings[1].b == 1.f && rings[2].r == 1.f && rings[2].g > .9f);
+    ComposePartsKnobLeds(0, 128u << 8, rings, 1u << 4); assert(rings[0].r == 1.f && rings[0].g > .5f && rings[0].g < .7f);   // 128 BPM: orange
+    // Chord colours (C major, Static): I orange, ii blue, vii dim red, Shift dim white; Shift held: ii becomes V/V (orange).
+    hs = harmony::State{}; hs.enabled = true;
+    Rgb play[25]; RenderPlayLeds(0, 0, 0, false, play, harmony::Pack(hs));
+    auto at = [&](uint8_t slot) { return play[panel::SlotLed(slot)]; };
+    assert(at(0).r > .25f && at(0).g > .1f && at(0).b < .1f);       // C3: I major
+    assert(at(1).b > .25f && at(1).r == 0.f);                        // D3: ii minor
+    assert(at(6).r > .25f && at(6).g == 0.f && at(6).b == 0.f);      // B3: vii diminished
+    assert(at(14).r == .25f && at(14).g == .25f);                    // C5: Shift
+    RenderPlayLeds(0, 0, 0, false, play, harmony::Pack(hs, true));
+    assert(at(1).r > .25f && at(1).b < .1f && at(14).r == 1.f);
+    RenderPlayLeds(uint64_t(1) << kWhite[1], 0, 0, false, play, harmony::Pack(hs)); assert(at(1).r == 1.f && at(1).g == 1.f);   // held: white
+    RenderPlayLeds(0, 1u | 2u, 0, false, play, harmony::Pack(hs)); assert(at(1).r == 0.f && at(1).b == 0.f);   // kit: no chords
+
+    // Through the controller.
+    Rig rig;
+    std::vector<int16_t> memory(2 * 48000 * 4); Looper looper; looper.Init(memory.data(), 48000 * 4, 48000.f);
+    rig.engine.SetLooper(&looper);
+    harmony::Player player; rig.engine.SetHarmony(&player);
+    parts::Parts parts; parts.Init(48000.f); rig.engine.SetParts(&parts);
+    static seq::Sequencer sequencer; static seq::Mailbox box; rig.engine.SetSequencer(&sequencer, &box);
+    Parameters synth; synth.version = 3; synth.synth = true; assert(rig.engine.ApplyPatch(synth));
+    rig.Block();
+    // A knob's page change flashes; it ends after 0.6 s.
+    rig.Tap(panel::kKnobEncoder[1]); assert((rig.panel.KnobFlags() >> 1) & 1u);
+    for(int i = 0; i < 1300; ++i) rig.Block();
+    assert(!((rig.panel.KnobFlags() >> 1) & 1u));
+    // SW1 + SW2 held 1 s: harmony on (flash), no page step on release; again: off.
+    const uint16_t pages = rig.panel.KnobPages();
+    for(int round = 0; round < 2; ++round) {
+        rig.hw.keys = (uint64_t(1) << panel::kKnobEncoder[1]) | (uint64_t(1) << panel::kKnobEncoder[2]);
+        for(int i = 0; i < 2010; ++i) rig.Block();
+        assert(player.state.enabled == (round == 0) && ((rig.panel.KnobFlags() >> 17) & 1u));
+        rig.hw.keys = 0; rig.Block();
+        assert(rig.panel.KnobPages() == pages);
+    }
+    // A new first take starts at 1x; SW5's cutoff turns close the loop's tone too; a clear opens it.
+    looper.SetSpeed(2.f);
+    rig.Tap(panel::kLoopKey); assert(looper.GetState() == Looper::State::FirstTake);
+    for(int i = 0; i < 1000; ++i) rig.Block();
+    rig.Tap(panel::kPlayKey); assert(looper.GetState() == Looper::State::Playing && looper.Speed() == 1.f);
+    const float cutoff = rig.engine.GetParameters().cutoff;
+    rig.hw.turns[panel::kToneEncoder] = -10; rig.Block();
+    assert(std::fabs(looper.Tone() - .9f) < 1e-5f && std::fabs(rig.engine.GetParameters().cutoff - (cutoff - .1f)) < 1e-5f);
+    assert((rig.panel.KnobFlags() >> 8) & 1u);
+    rig.hw.keys = (uint64_t(1) << panel::kPlayKey) | (uint64_t(1) << panel::kLoopKey);
+    for(int i = 0; i < 4100; ++i) rig.Block();
+    rig.hw.keys = 0; for(int i = 0; i < 100; ++i) rig.Block();
+    assert(looper.Empty() && looper.Tone() == 1.f);
+    // CHOMPI tap (menu position): the recorder's F#4. Empty: nothing; armed: disarms.
+    rig.hw.toggle_up = true; rig.Block();
+    rig.Tap(panel::kChompiKey); assert(sequencer.GetState() == seq::Sequencer::State::Empty);
+    sequencer.RecordKey(); assert(sequencer.GetState() == seq::Sequencer::State::Armed);
+    rig.Key(panel::kChompiKey, true); for(int i = 0; i < 900; ++i) rig.Block(); rig.Key(panel::kChompiKey, false);
+    assert(sequencer.GetState() == seq::Sequencer::State::Armed);   // held 0.45 s: not a tap
+    rig.Key(panel::kChompiKey, true); rig.Tap(kWhite[3]); rig.Key(panel::kChompiKey, false);
+    assert(sequencer.GetState() == seq::Sequencer::State::Armed);   // another key used: not a tap
+    rig.Tap(panel::kChompiKey); assert(sequencer.GetState() == seq::Sequencer::State::Empty);
+    // KEY_21 held 2 s on TAPE's page: the harmony page at 1 s, then the parts page.
+    rig.Key(panel::kChompiKey, true); rig.Block();
+    rig.Key(panel::kPage, true); rig.Key(panel::kPage, false);         // TAPE's page
+    rig.Key(panel::kFxBefore, true);
+    for(int i = 0; i < 2010; ++i) rig.Block();
+    assert(rig.panel.HarmonyPage());
+    // Turning a stepped setting shows its colour (turn view) on the harmony page.
+    rig.hw.turns[panel::kKnobEncoder[1]] = 3; rig.Block(); assert((rig.panel.KnobFlags() >> 5) & 1u);
+    for(int i = 0; i < 2010; ++i) rig.Block();
+    assert(rig.panel.PartsPage());
+    rig.Key(panel::kFxBefore, false); assert(rig.panel.PartsPage());   // the release does not switch back
+    rig.Key(panel::kChompiKey, false); rig.hw.toggle_up = false; rig.Block();
+}
+
 int main() {
+    PanelFeedback016();
     KnobPages(); BatteryHold(); MenuKnobLayer(); OptionsAndMidiOut();
     KeysKnobsAndOverrides(); MenuAndRecordingThroughTheController(); LedComposition(); DevelopmentOpcodes(); LooperThroughThePanel(); LooperVoiceCap(); LooperSaveGesture();
-    std::cout << "PASS: panel controller keys/knobs/overrides, menu + recording via injection, LED composition, dev opcodes, looper via panel/MIDI, knob pages/LEDs/v5 assignment, SW6 battery hold\n";
+    std::cout << "PASS: panel controller keys/knobs/overrides, menu + recording via injection, LED composition, dev opcodes, looper via panel/MIDI, knob pages/LEDs/v5 assignment, SW6 battery hold, 0.16 panel feedback\n";
 }

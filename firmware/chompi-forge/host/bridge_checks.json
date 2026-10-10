@@ -582,6 +582,60 @@
     "group": "3I. Event recorder and projects (firmware 0.15)"
   },
   {
+    "id": "3.77",
+    "do": "**Page colours:** toggle down, hold CHOMPI; go to the presets page (hold KEY_22), back (KEY_22), harmony (hold KEY_21), parts (KEY_21)",
+    "expect": "CHOMPI teal on TAPE's page, blue presets, purple harmony, orange parts",
+    "group": "3J. Panel feedback and shortcuts (firmware 0.16, DC's UX review)"
+  },
+  {
+    "id": "3.78",
+    "do": "**Straight to parts:** on TAPE's page hold KEY_21 for 2 s",
+    "expect": "Purple at 1 s, orange (parts page) at 2 s; letting go stays on parts",
+    "group": "3J. Panel feedback and shortcuts (firmware 0.16, DC's UX review)"
+  },
+  {
+    "id": "3.79",
+    "do": "**Knob page flash:** menu closed, press and release SW1 three times",
+    "expect": "Each press flashes the next page's colour (green, yellow, then white back on page 1) before the value colour",
+    "group": "3J. Panel feedback and shortcuts (firmware 0.16, DC's UX review)"
+  },
+  {
+    "id": "3.80",
+    "do": "**Setting colours:** harmony page, turn SW4 slowly through all modes, SW1 through the chord sizes, SW2 through the inversions; parts page, turn SW4 from 60 to 160 BPM",
+    "expect": "Each step changes colour (white, green, yellow, orange, red, pink, purple, blue, teal); 1.5 s after stopping the ring returns to its on/off colour; tempo bands blue → green → yellow → orange → red",
+    "group": "3J. Panel feedback and shortcuts (firmware 0.16, DC's UX review)"
+  },
+  {
+    "id": "3.81",
+    "do": "**Harmony shortcut and chord keys:** Warm Pad, menu closed; hold SW1 + SW2 1 s; look at the keys; hold C5 (Shift); hold SW1 + SW2 again",
+    "expect": "Rings flash green; keys glow orange / blue / red by chord (C3 orange, D3 blue, B3 red), C5 dim white; with Shift held D3 turns orange and C5 bright; second hold: rings flash red, chord colours gone, no page changed",
+    "group": "3J. Panel feedback and shortcuts (firmware 0.16, DC's UX review)"
+  },
+  {
+    "id": "3.82",
+    "do": "**SW5 on the loop:** record a bright loop (Acid Bass); turn SW5 left slowly, then right; pause the loop (PLAY) and scrub (push and turn SW5)",
+    "expect": "The loop darkens with the live sound and opens again; SW5's lights show the cutoff for a second after each turn; paused: dim white, the direction lights while scrubbing",
+    "group": "3J. Panel feedback and shortcuts (firmware 0.16, DC's UX review)"
+  },
+  {
+    "id": "3.83",
+    "do": "**New loop at 1×:** with a loop playing, push and turn SW5 to reverse or double speed; clear (PLAY + LOOP 2 s); record a new loop",
+    "expect": "The new loop plays at normal speed and unfiltered",
+    "group": "3J. Panel feedback and shortcuts (firmware 0.16, DC's UX review)"
+  },
+  {
+    "id": "3.84",
+    "do": "**Recorder by tap:** arm on the parts page (F#4), let go, play a line; tap CHOMPI (toggle down); tap again; tap again",
+    "expect": "First tap closes the take at the bar line and it loops; second stops it; third plays it from bar 1. With the recorder empty a tap does nothing",
+    "group": "3J. Panel feedback and shortcuts (firmware 0.16, DC's UX review)"
+  },
+  {
+    "id": "3.85",
+    "do": "**Old presets:** play 06 Saw Bass from the starter bank (stored after this update) against the old file in the webapp",
+    "expect": "About as bright as the v2 original (it was half as bright before)",
+    "group": "3J. Panel feedback and shortcuts (firmware 0.16, DC's UX review)"
+  },
+  {
     "id": "4.1",
     "do": "Hold a long-release chord with echo (use Warm Pad for reverb too); hold SW4 + SW3 for 1 s (panic; SW5 was the panic before 0.10)",
     "expect": "Voices, old echo and reverb tails stop at once",

@@ -1,8 +1,12 @@
 # Forge Resource Ledger
 
-**Latest figures:** the newest dated snapshot below (2026-10-10, firmware 0.15.2 with
-the pinned Arm GCC 10.3-2021.10: release 232,580 B / development 246,256 B, headroom
-56,188 / 42,512 B). The baseline
+**Latest figures:** firmware 0.16.0 (2026-10-11, pinned Arm GCC 10.3-2021.10): release
+**235,628 B** / development **249,352 B** of SRAM_EXEC's 288,768 B, headroom **53,140 /
+39,416 B** (+3,048 / +3,096 B over 0.15.2: panel feedback, the loop's tone filter, chord
+colours, shortcuts). No new SDRAM, DTCM or D2 reservation; the loop filter adds 32 B of
+state to `Looper` and one TPT state-variable filter per stereo sample only while SW5 has
+turned it down (bypassed when open). The dated 0.15.2 snapshot below and the 2026-10-04
+baseline table are kept as history. The baseline
 table that follows is the 2026-10-04 review and is kept as history.
 
 Reviewed 2026-10-04 UTC. Branch: `forge/foundation`. Reviewed head:

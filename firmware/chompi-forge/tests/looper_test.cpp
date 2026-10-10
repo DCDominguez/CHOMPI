@@ -245,12 +245,33 @@ void RandomUse() {
         assert(rig.looper.Length() <= 9600 && rig.looper.Position() >= 0.f && rig.looper.Position() <= 1.f);
     }
 }
+// 0.16 (DC): a new first take starts at 1x whatever the speed was left at; SW5's tone filters
+// the loop's playback only (a 10 kHz loop is much quieter closed, unchanged open); a clear
+// opens it again.
+void NewTakeAtUnitySpeedAndLoopTone() {
+    Rig rig;
+    rig.looper.SetSpeed(-2.f);
+    Record(rig, 24000, [](uint64_t t) { return Sine(t, 10000.f); });
+    assert(rig.looper.Speed() == 1.f && rig.looper.Tone() == 1.f);
+    rig.Silence(4800); const float open = Rms(rig.out_l, 2400);
+    rig.looper.SetTone(.3f);                                   // ~240 Hz
+    rig.Silence(4800); const float closed = Rms(rig.out_l, 2400);
+    assert(open > .3f && closed < open * .02f);
+    rig.looper.NudgeTone(1.f); assert(rig.looper.Tone() == 1.f);
+    rig.Silence(4800); assert(std::fabs(Rms(rig.out_l, 2400) - open) < open * .02f);   // open again: as before
+    rig.looper.SetTone(.5f); rig.looper.SetSpeed(1.5f);
+    rig.looper.Clear(); rig.Silence(4800);
+    assert(rig.looper.Empty() && rig.looper.Tone() == 1.f);
+    Record(rig, 9600, [](uint64_t t) { return Sine(t, 440.f); });
+    assert(rig.looper.Speed() == 1.f);
+}
 } // namespace
 
 int main() {
     FirstTakeSeamAndPlayback(); LoopClosesIntoOverdubAndFeedback(); PlayWithoutOverdubLeavesTheLoopAlone();
     PauseResumeJumpAndClear(); CombinationsDoNotTriggerSingleKeys(); VarispeedReverseAndScrub();
     AutoCloseAndShortTakes(); PanicIsImmediateAndKeepsTheLoop(); LimiterKeepsOverdubsBounded(); CcButtons(); RandomUse();
+    NewTakeAtUnitySpeedAndLoopTone();
     std::cout << "PASS: looper first take/seam, overdub/feedback, play without dub, pause/resume/jump/clear, combinations/arm, "
-                 "varispeed/reverse/scrub, auto-close, panic, limiter, CC buttons, random use\n";
+                 "varispeed/reverse/scrub, auto-close, panic, limiter, CC buttons, random use, new take at 1x, loop tone\n";
 }

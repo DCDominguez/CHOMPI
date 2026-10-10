@@ -38,7 +38,7 @@ class PatchTests(unittest.TestCase):
             response = probe(packet)[0]
             self.assertEqual(response[8:len(packet)], packet[7:-1])
             result = host.decode_response(response, 129)
-            self.assertEqual(result["firmware"], "0.15.2")
+            self.assertEqual(result["firmware"], host.FIRMWARE_VERSION)
             self.assertEqual((result["build"], result["development"], result["dirty"], result["safe_mode"]),
                              (None, True, False, False))   # the probe: a development host build, commit unknown
             self.assertAlmostEqual(host.effect_patch(result["patch"])["parameters"]["time_ms"],
@@ -133,6 +133,18 @@ class PatchTests(unittest.TestCase):
         self.assertEqual([host.knob_control(sampler, k, 1) for k in range(1, 5)],
                          ["tape.speed", "sampler.start", "sampler.end", "tape.space"])          # TAPE's page 1
         self.assertEqual(host.knob_pages(sampler, 3), 4); self.assertEqual(host.knob_pages(sampler, 4), 3)
+
+    def test_v2_upgrade_keeps_brightness_by_waveform(self):
+        # 0.16 (DC): the v3 filter is 12 dB/oct, so a v2 cutoff rises with the waveform's harmonics.
+        expected = {"04-glass-keys.json": 12000, "05-soft-pad.json": 2400 * 1.6, "06-saw-bass.json": 900 * 2.5}
+        for name, cutoff in expected.items():
+            upgraded = host.upgrade_patch(host.load_patch(ROOT / "presets" / name), 7)
+            self.assertAlmostEqual(upgraded["modules"]["filter"]["cutoff_hz"], cutoff, places=1, msg=name)
+        square = host.load_patch(ROOT / "presets" / "06-saw-bass.json"); square["modules"]["synth"]["waveform"] = "square"
+        square["modules"]["synth"]["cutoff_hz"] = 9000
+        self.assertEqual(host.upgrade_patch(square, 3)["modules"]["filter"]["cutoff_hz"], 16000)     # capped
+        v1 = host.upgrade_patch(host.load_patch(ROOT / "presets" / "01-dry.json"), 3)
+        self.assertEqual(v1["modules"]["filter"]["cutoff_hz"], 8000)                                # v1: unchanged
 
     def test_random_patch_round_trips(self):
         rng = random.Random(481)
@@ -233,8 +245,8 @@ class PatchTests(unittest.TestCase):
         commit = 0x0f5bb18
         result = reply([tail[0], 2 | 4] + [commit >> (7 * i) & 127 for i in range(4)], [1, 1 | 32, 2])
         self.assertEqual((result["firmware"], result["build"], result["development"], result["dirty"], result["safe_mode"]),
-                         ("0.15.2", "0f5bb18", False, True, True))
-        self.assertEqual(host.describe_build(result), "Forge 0.15.2 (build 0f5bb18, uncommitted changes, SAFE MODE)")
+                         (host.FIRMWARE_VERSION, "0f5bb18", False, True, True))
+        self.assertEqual(host.describe_build(result), f"Forge {host.FIRMWARE_VERSION} (build 0f5bb18, uncommitted changes, SAFE MODE)")
         self.assertEqual(result["power"]["battery"], "high")
         self.assertEqual(host.describe_power(result["power"]),
                          "Battery high (green, as SW6 shows) · USB power · charging · install refused: charge first")
@@ -245,8 +257,9 @@ class PatchTests(unittest.TestCase):
         old = new[:-1 - host.STATUS_EXTRA] + [0]
         old[-1] = (128 - sum(old[:-1]) % 128) % 128
         result = host.decode_response(old, 21)
-        self.assertEqual((result["firmware"], result["build"], result["power"]), ("0.15", None, None))
-        self.assertEqual(host.describe_build(result), "Forge 0.15")
+        minor = host.FIRMWARE_VERSION.rsplit(".", 1)[0]            # firmware before 0.15.2 reports only 0.<minor>
+        self.assertEqual((result["firmware"], result["build"], result["power"]), (minor, None, None))
+        self.assertEqual(host.describe_build(result), f"Forge {minor}")
         self.assertIn("hold SW6", host.describe_power(None))
         short = new[:-2] + [0]                                    # one power byte missing
         short[-1] = (128 - sum(short[:-1]) % 128) % 128

@@ -106,7 +106,7 @@ class InstrumentTests(unittest.TestCase):
             self.assertEqual(len(reply), 81 + host.STATUS_EXTRA)
             self.assertEqual(reply[8:69], packet[7:68])                  # device echoes exactly what was sent
             captured = host.decode_response(reply, host.read14(packet, 5))
-            self.assertEqual(captured["firmware"], "0.15.2")
+            self.assertEqual(captured["firmware"], host.FIRMWARE_VERSION)
             self.assertEqual(host.encode_patch(captured["patch"], host.read14(packet, 5)), packet)
 
     def test_v3_rejection_is_atomic(self):
@@ -156,7 +156,7 @@ class InstrumentTests(unittest.TestCase):
                 self.assertEqual(new["routing"], old["routing"].replace(">delay>", ">delay>reverb>"))
                 for key in ("waveform", "attack_ms", "decay_ms", "sustain", "release_ms"):
                     self.assertEqual(m["synth"][key], old["modules"]["synth"][key])
-                self.assertEqual(m["filter"]["cutoff_hz"], old["modules"]["synth"]["cutoff_hz"])
+                self.assertEqual(m["filter"]["cutoff_hz"], host.v2_cutoff(old["modules"]["synth"]))   # 0.16: by waveform
             else:
                 self.assertEqual(new["routing"], "aux>delay>reverb>output")
             self.assertEqual(host.upgrade_patch(new), new)                          # idempotent

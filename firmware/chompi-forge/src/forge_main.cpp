@@ -213,7 +213,7 @@ forge::InstallGate install_gate;
 std::atomic<uint32_t> sample_wanted{0};                      // audio -> main: PackSelection of the live patch
 std::atomic<bool> recording_now{false};                       // audio -> main, for the CHOMPI LED
 std::atomic<float> input_peak{0.f};                           // audio -> main: input meter (record position)
-std::atomic<float> loop_speed{1.f};                           // audio -> main: SW5's lights
+std::atomic<float> loop_speed{1.f}, loop_head{1.f};           // audio -> main: SW5's lights (target, head)
 forge::SpscQueue<forge::SampleJob, 4> sample_jobs;            // audio -> main: panel save/erase/copy
 uint8_t led_shadow[26][3];                                    // main loop: what the LEDs show now (probe page 1)
 
@@ -311,7 +311,7 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     recording_now.store(recorder.Recording(), std::memory_order_relaxed);
     menu_state.store(panel_controller.MenuPacked(), std::memory_order_relaxed);
     looper_state.store(forge::PackLooper(looper, engine.FxBeforeLoop()), std::memory_order_relaxed);
-    loop_speed.store(looper.Speed(), std::memory_order_relaxed);
+    loop_speed.store(looper.Speed(), std::memory_order_relaxed); loop_head.store(looper.HeadSpeed(), std::memory_order_relaxed);
 
     const bool recording = recorder.Recording();
     // TAPE's monitor positions (menu SW6 press, options.json): Headphones = in the record
@@ -754,15 +754,16 @@ FORGE_COLD void DrawLeds() {
     if(view.record_position) { play = forge::knobs::Scale(play, .7f); loop = forge::knobs::Scale(loop, .7f); }  // TAPE kRecDim
     Pth(forge::panel::kPlayLed, play); Pth(forge::panel::kLoopLed, loop);
     forge::Rgb knobs[4], reverse, forward;
-    forge::ComposeKnobLeds(panel_controller.KnobValues(), panel_controller.KnobState(), view.record_position, knobs);
+    const uint32_t knob_flags = panel_controller.KnobFlags();
+    forge::ComposeKnobLeds(panel_controller.KnobValues(), panel_controller.KnobState(), view.record_position, knobs, knob_flags);
     const uint32_t knob_state = panel_controller.KnobState();
     forge::Rgb volume = forge::knobs::VolumeColour((knob_state >> 20) & 1u, (knob_state >> 24) / 255.f);
     forge::ComposeMenuKnobLeds(panel_controller.MenuLights(), knobs, volume);   // TAPE's menu page
-    if((view.menu & 1u) && ((view.menu >> 1) & 7u) == 7u) forge::ComposeHarmonyKnobLeds(view.harmony, knobs);   // harmony page
-    if((view.menu & 1u) && ((view.menu >> 1) & 7u) == 6u) forge::ComposePartsKnobLeds(view.parts, view.parts_clock, knobs);   // parts page
+    if((view.menu & 1u) && ((view.menu >> 1) & 7u) == 7u) forge::ComposeHarmonyKnobLeds(view.harmony, knobs, knob_flags);   // harmony page
+    if((view.menu & 1u) && ((view.menu >> 1) & 7u) == 6u) forge::ComposePartsKnobLeds(view.parts, view.parts_clock, knobs, knob_flags);   // parts page
     for(unsigned k = 0; k < 4; ++k) Pth(forge::panel::kKnobLed[k], knobs[k]);
-    forge::ComposeTransportLeds((view.looper & 7u) == static_cast<uint32_t>(forge::Looper::State::Playing),
-                                loop_speed.load(std::memory_order_relaxed), view.record_position, reverse, forward);
+    forge::ComposeTransportLeds(view.looper, loop_speed.load(std::memory_order_relaxed), loop_head.load(std::memory_order_relaxed),
+                                knob_flags, view.record_position, reverse, forward);
     Pth(5, reverse); Pth(6, forward);
     for(unsigned i = 0; i < 25; ++i) { const forge::Rgb c = Balance(keys[i]); SetSmtLedFloat(i, c.r, c.g, c.b); }
     if(safe_mode && (now / 250) % 8 == 0) chompi = kSafeModeColour;   // a magenta blink every 2 s

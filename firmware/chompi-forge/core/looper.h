@@ -10,7 +10,9 @@ namespace forge {
 // varispeed -2..+2 (negative = reverse) with linear interpolation, overdub
 // with feedback ("dub gain") through a soft limiter, 5 ms fades written into
 // the first take (seamless seam), 5 ms output fades for pause/clear/panic.
-// Work per sample is bounded: one interpolated read and at most two writes.
+// SW5's cutoff also filters the loop's playback (0.16, DC): a 12 dB/oct low-pass on the
+// loop only, never on what is recorded, open (bypassed, no work) until SW5 turns it down.
+// Work per sample is bounded: one interpolated read, at most two writes, one filter.
 //
 // Keys (TAPE): LOOP = KEY_28, PLAY = KEY_27.
 //   LOOP: empty -> first take; first take -> close, straight into overdub;
@@ -30,6 +32,7 @@ public:
         combo_ = static_cast<uint32_t>(0.010f * rate);
         hold_ = static_cast<uint32_t>(2.f * rate);
         scrub_period_ = static_cast<uint32_t>(0.125f * rate);
+        rate_ = rate;
         gain_step_ = 1.f / fade_;                       // linear 5 ms output fades
         Reset();
         play_down_ = loop_down_ = pending_play_ = pending_loop_ = false;
@@ -93,6 +96,18 @@ public:
     float SpeedTarget() const { return speed_target_; }
     void Scrub(int turns) { scrub_turns_ += static_cast<float>(turns); }       // while paused
     void SetTapeSlew(bool on) { tape_slew_ = on; }
+    // SW5's cutoff turns move the loop's tone by the same amount (0..1, 1 = open, as the
+    // cutoff knob: 40 Hz .. 16 kHz, log). A new take or a clear opens it again.
+    void NudgeTone(float delta) { SetTone(tone_ + delta); }
+    void SetTone(float tone) {
+        tone_ = Clamp(tone, 0.f, 1.f);
+        if(tone_ >= .999f) { filter_on_ = false; return; }
+        if(!filter_on_) { lp_[0] = lp_[1] = bp_[0] = bp_[1] = 0.f; filter_on_ = true; }
+        const float hz = 40.f * std::pow(400.f, tone_);                  // 40 Hz .. 16 kHz
+        const float g = std::tan(3.14159265f * Clamp(hz / rate_, 0.f, .45f));
+        g_ = g; h_ = 1.f / (1.f + 1.41421356f * g + g * g);              // TPT SVF, Q = 0.707
+    }
+    float Tone() const { return tone_; }
     void AdjustFeedback(float delta) { feedback_target_ = Clamp(feedback_target_ + delta, 0.f, 1.f); }
 
     // ---- audio: (l, r) in = what the looper hears; out = that plus the loop ----
@@ -109,8 +124,9 @@ public:
         const uint32_t next = index_ + 1 < length_ ? index_ + 1 : 0;
         const int16_t* a = memory_ + 2 * static_cast<size_t>(index_);
         const int16_t* b = memory_ + 2 * static_cast<size_t>(next);
-        const float out_l = (a[0] + (b[0] - a[0]) * frac_) * (gain_ / 32768.f);
-        const float out_r = (a[1] + (b[1] - a[1]) * frac_) * (gain_ / 32768.f);
+        float out_l = (a[0] + (b[0] - a[0]) * frac_) * (gain_ / 32768.f);
+        float out_r = (a[1] + (b[1] - a[1]) * frac_) * (gain_ / 32768.f);
+        if(filter_on_) { out_l = LowPass(0, out_l); out_r = LowPass(1, out_r); }
         // Advance; every frame the read head leaves is overdubbed (when on).
         frac_ += speed_;
         const bool dub = overdub_ && playing;
@@ -139,6 +155,7 @@ public:
     uint32_t Length() const { return state_ == State::FirstTake ? take_ : length_; }
     uint32_t Capacity() const { return capacity_; }
     float Speed() const { return speed_target_; }
+    float HeadSpeed() const { return speed_; }                              // SW5's lights: scrubbing
     float Feedback() const { return feedback_target_; }
     const int16_t* Data() const { return memory_; }
 
@@ -150,6 +167,12 @@ private:
         return std::copysign(0.8f + 0.2f * over / (1.f + over), x);
     }
     static FORGE_INLINE int16_t ToInt(float x) { return static_cast<int16_t>(x * 32767.f); }
+    FORGE_INLINE float LowPass(unsigned c, float x) {                       // Zavalishin TPT state-variable filter
+        const float hp = (x - 1.41421356f * bp_[c] - g_ * bp_[c] - lp_[c]) * h_;
+        const float v1 = g_ * hp, bp = v1 + bp_[c]; bp_[c] = bp + v1;
+        const float v2 = g_ * bp, lp = v2 + lp_[c]; lp_[c] = lp + v2;
+        return lp;
+    }
     FORGE_INLINE void Dub(uint32_t i, float l, float r) {
         int16_t* f = memory_ + 2 * static_cast<size_t>(i);
         f[0] = ToInt(SoftLimit(f[0] * (feedback_ / 32768.f) + l));
@@ -164,6 +187,7 @@ private:
     void StartTake() {
         if(!memory_ || capacity_ < 2 * fade_) return;
         take_ = 0; length_ = 0; overdub_ = false; clearing_ = false; state_ = State::FirstTake;
+        speed_target_ = 1.f; SetTone(1.f);              // a new loop starts at 1x, unfiltered (0.16, DC)
     }
     void CloseTake(bool overdub) {
         if(take_ < 2 * fade_) { Reset(); return; }      // shorter than its fades: discard
@@ -199,7 +223,7 @@ private:
     void Reset() {
         state_ = State::Empty; length_ = take_ = 0; index_ = 0; frac_ = 0.f;
         speed_ = 1.f; scrub_ = scrub_turns_ = 0.f; scrub_clock_ = 0; gain_ = 0.f;
-        overdub_ = clearing_ = false;
+        overdub_ = clearing_ = false; SetTone(1.f);
     }
 
     int16_t* memory_ = nullptr;
@@ -209,7 +233,8 @@ private:
     float frac_ = 0.f, speed_ = 1.f, speed_target_ = 1.f, gain_ = 0.f, gain_step_ = 0.f;
     float feedback_ = 1.f, feedback_target_ = 1.f, scrub_ = 0.f, scrub_turns_ = 0.f;
     uint32_t scrub_clock_ = 0, since_press_ = 0, held_ = 0;
-    bool overdub_ = false, clearing_ = false, tape_slew_ = false;
+    bool overdub_ = false, clearing_ = false, tape_slew_ = false, filter_on_ = false;
+    float rate_ = 48000.f, tone_ = 1.f, g_ = 0.f, h_ = 1.f, lp_[2] = {}, bp_[2] = {};
     bool play_down_ = false, loop_down_ = false, pending_play_ = false, pending_loop_ = false;
     bool combo_used_ = false, jumped_ = false, was_paused_ = false;
     std::atomic<bool> locked_{false};

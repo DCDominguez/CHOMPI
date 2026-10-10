@@ -1,4 +1,4 @@
-# Forge 0.15.2 — the one consolidated hardware test
+# Forge 0.16.0 — the one consolidated hardware test
 
 Status of the candidate: **software-tested, hardware-unverified.** This is the
 single planned physical session. Work top to bottom. If a stage fails, record
@@ -268,6 +268,23 @@ MANUAL section 8c. Software-tested only. 120 BPM unless a step says otherwise.
 | 3.76e | **Arming with the clock stopped (0.15):** press B4 (stopped), F#4 (armed), close the menu and play; then B4 | Nothing is recorded while the clock is stopped (F#4 stays armed); after B4 recording starts at the next bar line |
 | 3.76f | **Host store (0.15):** with a loop playing, `H store 2 3`; switch off and on; `H recall 2 3`. On the computer look in `FORGE/` | The recalled sound plays with its loop; `FORGE/B2S03.FSQ` is there beside `B2S03.FPR` |
 | 3.76g | **Patch change keeps the loop (0.15.1):** with a loop playing, send another synth preset (webapp or `H send`), then a kit preset | The loop keeps playing with the new sound (only the notes sounding at the switch are cut) |
+
+## 3J. Panel feedback and shortcuts (firmware 0.16, DC's UX review)
+
+MANUAL sections 4, 5, 8, 8a-8c. Software-tested only. DC judges whether each is easy to read
+and to use (UX_REVIEW.md: 4/5 or better).
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.77 | **Page colours:** toggle down, hold CHOMPI; go to the presets page (hold KEY_22), back (KEY_22), harmony (hold KEY_21), parts (KEY_21) | CHOMPI teal on TAPE's page, blue presets, purple harmony, orange parts |
+| 3.78 | **Straight to parts:** on TAPE's page hold KEY_21 for 2 s | Purple at 1 s, orange (parts page) at 2 s; letting go stays on parts |
+| 3.79 | **Knob page flash:** menu closed, press and release SW1 three times | Each press flashes the next page's colour (green, yellow, then white back on page 1) before the value colour |
+| 3.80 | **Setting colours:** harmony page, turn SW4 slowly through all modes, SW1 through the chord sizes, SW2 through the inversions; parts page, turn SW4 from 60 to 160 BPM | Each step changes colour (white, green, yellow, orange, red, pink, purple, blue, teal); 1.5 s after stopping the ring returns to its on/off colour; tempo bands blue → green → yellow → orange → red |
+| 3.81 | **Harmony shortcut and chord keys:** Warm Pad, menu closed; hold SW1 + SW2 1 s; look at the keys; hold C5 (Shift); hold SW1 + SW2 again | Rings flash green; keys glow orange / blue / red by chord (C3 orange, D3 blue, B3 red), C5 dim white; with Shift held D3 turns orange and C5 bright; second hold: rings flash red, chord colours gone, no page changed |
+| 3.82 | **SW5 on the loop:** record a bright loop (Acid Bass); turn SW5 left slowly, then right; pause the loop (PLAY) and scrub (push and turn SW5) | The loop darkens with the live sound and opens again; SW5's lights show the cutoff for a second after each turn; paused: dim white, the direction lights while scrubbing |
+| 3.83 | **New loop at 1×:** with a loop playing, push and turn SW5 to reverse or double speed; clear (PLAY + LOOP 2 s); record a new loop | The new loop plays at normal speed and unfiltered |
+| 3.84 | **Recorder by tap:** arm on the parts page (F#4), let go, play a line; tap CHOMPI (toggle down); tap again; tap again | First tap closes the take at the bar line and it loops; second stops it; third plays it from bar 1. With the recorder empty a tap does nothing |
+| 3.85 | **Old presets:** play 06 Saw Bass from the starter bank (stored after this update) against the old file in the webapp | About as bright as the v2 original (it was half as bright before) |
 
 ## 4. Panic and recovery
 

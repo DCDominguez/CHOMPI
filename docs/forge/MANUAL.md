@@ -1,6 +1,6 @@
 # Forge for CHOMPI — user manual
 
-Firmware **0.15.2** (development builds; experimental community firmware, not an
+Firmware **0.16.0** (development builds; experimental community firmware, not an
 official CHOMPI release). Forge turns CHOMPI into a playable synthesizer,
 TAPE-compatible sampler and looper whose sounds you can design on a computer —
 by hand or by describing them to an AI — and send over USB.
@@ -111,10 +111,11 @@ Forge keeps TAPE's panel workflow (firmware 0.10). The toggle has two positions:
 | Control | Normal play | In the menu (toggle down + hold CHOMPI) |
 | --- | --- | --- |
 | 25 keys (C3–C5) | Play notes (full velocity, as TAPE) | The menu opens on **TAPE's page** (section 7: sample slots, KEY_21 / KEY_22 taps place the effects). Hold KEY_22 1 s: Forge's **presets page** (white keys pick slots, black keys are save / copy / erase / bank). Hold KEY_21 1 s: the **harmony page**, then KEY_21: the **parts page** (sections 8a, 8b). KEY_22 goes back to TAPE's page |
-| CHOMPI key | Toggle **up** + hold = record (after a 1.5 s count-in) | Toggle **down** + hold = open the menu; press = confirm |
+| CHOMPI key | Toggle **up** + hold = record (after a 1.5 s count-in). Toggle **down**, a quick tap: the event recorder's record / stop / play (section 8c) | Toggle **down** + hold = open the menu; press = confirm |
 | SW4, SW1, SW2, SW3 | Turn: the knob's current page. Press and release: next page. Hold 1.5 s: reset that control | SW4 turns the bank |
 | SW4 + SW3 held 1 s | **Panic** (stops all sound) | — |
-| SW5 | Turn: filter cutoff. Push and turn (with a loop): loop speed, scrub when paused. Click: loop speed back to 1× | — |
+| SW1 + SW2 held 1 s | **Harmony on / off** (0.16; all knob lights flash green = on, red = off) | — |
+| SW5 | Turn: filter cutoff, and the loop's tone with it (0.16). Push and turn (with a loop): loop speed, scrub when paused. Click: loop speed back to 1× | — |
 | SW6 | Turn: volume. Short press: switch to input gain (light blue → red) and back. Hold 2 s: battery light | — |
 | PLAY (KEY_27), LOOP (KEY_28) | Looper (section 8) | Overdub feedback − / + |
 | Line in jack | Plugging in selects line in for recording; unplugging selects the mic | — |
@@ -125,20 +126,27 @@ key pink when there is a recording), in chromatic mode C3, C4 and C5 as guides
 (pink while playing the recording). The knob lights show each knob's value in
 TAPE's colours (section 5). In the **record position** the knob lights are off,
 PLAY/LOOP are dimmed and the CHOMPI light is the **input level meter** (dim white
-at silence, green → yellow → pink with level); in the menu position the CHOMPI
-light is purple while you hold it and otherwise shows the event recorder (section 8c:
+at silence, green → yellow → pink with level); in the menu position, while the menu is
+open, the CHOMPI light shows **which page** you are on (0.16): **teal** TAPE's page,
+**blue** presets, **purple** harmony, **orange** parts. Otherwise it shows the event recorder (section 8c:
 orange blinking on the beat when armed, orange recording, dim green playing, yellow
 overdubbing; off when it is empty or stopped). The CHOMPI light also shows recording
 (red), the count-in (red blinks), saving (pink blink), install (white blink) and
 results (green/red flash).
+
+**One colour rule (0.16).** Wherever you pick from a list or step through pages, the
+first choice is **white**, then **green, yellow, orange, red, pink, purple, blue, teal**.
+Page 2 of a knob is green, the 2nd chord size is green, 2 arp octaves are green, and so on.
 
 ---
 
 ## 5. Knobs and knob pages
 
 The knobs follow TAPE: TAPE's pages first, then Forge's extra synth controls. Press
-and **release** a knob to go to its next page; **hold it 1.5 s** (without turning)
-to put its control back to the preset's value (its light flashes white).
+and **release** a knob to go to its next page; its light flashes the page's colour for a
+moment (0.16: page 1 white, 2 green, 3 yellow, 4 orange, 5 red), then shows the value.
+**Hold it 1.5 s** (without turning) to put its control back to the preset's value (its
+light flashes white).
 
 | Knob | Sampler patch | Synth patch |
 | --- | --- | --- |
@@ -297,9 +305,16 @@ red; 75 % at power-on, as TAPE); short-press again for the volume. Up to about
 | Hold **PLAY** 2 s while paused | Back to the start |
 | Hold **PLAY + LOOP** 2 s | Clear the loop |
 | PLAY + LOOP with no loop, then play a key | Armed: recording starts with the first note |
-| **SW5** push and turn / click | Playing: loop speed (below zero = reverse) / back to 1×. Paused: scrub. A plain turn is always the filter cutoff |
+| **SW5** push and turn / click | Playing: loop speed (below zero = reverse) / back to 1×. Paused: scrub. A plain turn is always the filter cutoff, and it filters the loop too (0.16) |
 
-Up to about 83 s. Everything you hear goes into the loop. In the menu: PLAY/LOOP
+Up to about 83 s. Everything you hear goes into the loop. A new loop always starts at
+normal speed (0.16), even if the last one was left fast or reversed.
+
+**SW5 and the loop (0.16):** turning SW5 down darkens the playing loop along with the
+sound (a low-pass on the loop's playback only; the recording itself is untouched). A new
+loop or a clear opens it fully again. **SW5's lights:** loop speed while it plays (as
+TAPE); dim white while paused, the direction lighting up as you scrub; after a plain turn,
+the cutoff for a second (purple closed → blue → white open). In the menu: PLAY/LOOP
 lower/raise the overdub feedback; on TAPE's page KEY_21 = effects before the loop
 (default), a KEY_22 tap = after it (on Forge's presets page: KEY_21 / KEY_20). Panic pauses the loop without losing it. Save the loop
 as a sample: TAPE's menu page, KEY_24, LOOP, a white key, CHOMPI.
@@ -315,8 +330,16 @@ the stereo-delay (v1) patches play keys as usual. Chords have up to 5 notes and
 never more than the patch's voices. *Software-tested only; not yet heard on
 CHOMPI (TEST_SESSION 3.65–3.67).*
 
+**Quick on / off (0.16):** hold **SW1 + SW2** for 1 s with the menu closed; all knob
+lights flash green (on) or red (off).
+
+**The keys show the chords (0.16):** with harmony on, each key glows dim in the colour of
+the chord it plays: **orange** major, **blue** minor, **red** diminished, **pink**
+augmented, **teal** sus4. In the Static layout C5 (Shift) glows dim white; hold it and the
+keys change colour to show the shifted chords.
+
 **Open the harmony page:** toggle down, hold CHOMPI (TAPE's menu page), then
-**hold KEY_21 for 1 s**. A tap on KEY_22 goes back to TAPE's page. On the harmony
+**hold KEY_21 for 1 s** (the CHOMPI light turns purple). A tap on KEY_22 goes back to TAPE's page. On the harmony
 page the keys play nothing; **a key sets the key (tonic)** to its note. The key
 lights show the key: the tonic white, the rest of its scale blue (dimmer while
 harmony is off).
@@ -327,6 +350,12 @@ harmony is off).
 | SW1 | Chord size: fifth (power chord), triad, 7th, 9th, 11th, 13th | Layout Static / Real | white Static, orange Real |
 | SW2 | Inversion 0–3 (used when voice leading is off) | Voice leading on / off | white on, purple off |
 | SW3 | — | Open spread on / off | white on, dim off |
+
+While you turn SW4, SW1 or SW2 (and 1.5 s after) its light shows the value instead, in the
+one colour rule (0.16): **mode** major white, natural minor green, harmonic minor yellow,
+melodic minor orange, dorian red, phrygian pink, lydian purple, mixolydian blue, locrian
+teal; **chord size** fifth white, triad green, 7th yellow, 9th orange, 11th red, 13th pink;
+**inversion** 0 white, 1 green, 2 yellow, 3 orange.
 
 **Static layout** (the default): the white keys C3–B4 are the scale's chords I to
 vii, twice (lower and upper register), whatever the key; **C5 is Shift**. The black
@@ -365,7 +394,8 @@ sampler; kit patches play as before. *Software-tested only (TEST_SESSION 3.68–
 
 **Open the parts page:** open the harmony page (section 8a: toggle down, hold CHOMPI,
 hold KEY_21 1 s), then **tap KEY_21**. KEY_21 switches between the harmony and parts
-pages; KEY_22 goes back to TAPE's page. The keys light what is chosen.
+pages; KEY_22 goes back to TAPE's page. The keys light what is chosen. Shortcut (0.16): on
+TAPE's page keep holding KEY_21 for 2 s: harmony page at 1 s (purple), parts at 2 s (orange).
 
 | Keys | Choose |
 | --- | --- |
@@ -379,10 +409,10 @@ pages; KEY_22 goes back to TAPE's page. The keys light what is chosen.
 
 | Knob | Turn | Press |
 | --- | --- | --- |
-| SW4 | **Tempo**, 1 BPM a click (40–300) | Tap tempo |
-| SW1 | Arp octaves 1–4 (3 clicks a step; white, green, yellow, red) | — |
+| SW4 | **Tempo**, 1 BPM a click (40–300); while turning, the light shows the band: under 80 blue, 80–99 green, 100–119 yellow, 120–139 orange, 140+ red | Tap tempo |
+| SW1 | Arp octaves 1–4 (3 clicks a step; white, green, yellow, orange) | — |
 | SW2 | Arp gate (each note's length) 5–100 %, 5 % a click (brighter = longer) | — |
-| SW3 | Bass rate: once per chord change (purple), 1/2 (blue), 1/4 (green), 1/8 (yellow) | Bass octave C1 → C2 → C3 (0.15; the bass key gets brighter) |
+| SW3 | Bass rate: once per chord change (white), 1/2 (green), 1/4 (yellow), 1/8 (orange) | Bass octave C1 → C2 → C3 (0.15; the bass key gets brighter) |
 
 **Playing:** with the arp on, hold keys (or a chord key with harmony on): the notes cycle
 from the first one at once, then on the clock. Adding keys while holding adds notes; after
@@ -417,7 +447,9 @@ On the parts page (section 8b):
 | A#4 | **Clear**: press twice within 2 s (lights white after the first press) |
 
 Playing is done with the menu closed: arm on the parts page, let go of CHOMPI, play; to
-close the loop, open the menu again and press F#4. With the toggle down and the menu
+close the loop, **tap CHOMPI** (0.16; toggle down, a quick tap with nothing else pressed),
+or open the menu again and press F#4. The same tap stops a playing loop and plays it again.
+An empty recorder ignores the tap. With the toggle down and the menu
 closed, the CHOMPI light shows the recorder: orange blinking on the beat when armed,
 orange while recording, dim green while it plays, yellow while overdubbing. A take closes
 by itself after 8 bars. Notes still held when a take or overdub ends get their end just

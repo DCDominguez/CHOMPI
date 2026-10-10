@@ -1,5 +1,50 @@
 # Forge changelog
 
+## 0.16.0 Panel feedback and shortcuts (DC's UX review) — 2026-10-11 (software-tested; not installed yet)
+
+DC's decisions and ratings: [UX_REVIEW.md](UX_REVIEW.md). Bar: every function 4/5 for ease of use.
+
+**Batch 1: lights and the looper**
+- **One colour rule for lists:** the n-th choice or page is always the same colour, white
+  first: white, green, yellow, orange, red, pink, purple, blue, teal (`knobs::StepColour`).
+- **Knob pages:** pressing a knob to its next page flashes the page's colour for 0.6 s (page 1
+  white, 2 green, 3 yellow, 4 orange, 5 red), then the value colour as before.
+- **Harmony page:** while SW4 / SW1 / SW2 turn (and 1.5 s after), the ring shows the chosen
+  mode, chord size or inversion in the step colours instead of the on/off colour.
+- **Parts page:** SW1 octaves and SW3 bass rate use the step colours (bass rate was purple /
+  blue / green / yellow); turning SW4 shows the tempo band (under 80 BPM blue, 80-99 green,
+  100-119 yellow, 120-139 orange, 140+ red) for 1.5 s instead of the beat.
+- **CHOMPI light shows the menu page** while the menu is open: TAPE's page teal, presets
+  blue, harmony purple, parts orange (was purple on every page); dimmer while CHOMPI is up
+  with a save / copy / erase pending.
+- **SW5's lights:** a plain turn (cutoff) shows the cutoff on both lights for 1 s (purple
+  closed, blue, white open); paused with a loop both glow dim white and scrubbing lights the
+  head's direction (before: dark unless a loop played).
+- **SW5 filters the loop:** cutoff turns move a 12 dB/oct low-pass on the loop's playback by
+  the same amount (never on what is recorded; open and bypassed until turned; a new take or
+  a clear opens it). CC 24 over MIDI still sets the loop speed while a loop exists.
+- **A new first loop take starts at 1×** whatever speed the last loop was left at.
+- **Old presets keep their brightness:** upgrading a v2 patch raises its cutoff by the
+  waveform (sine ×1, triangle ×1.6, saw / square ×2.5; host `V2_CUTOFF_FACTOR`), because the
+  v3 filter is 12 dB/oct. Saw Bass (900 Hz) becomes 2,250 Hz, Soft Pad 3,840 Hz.
+
+**Batch 2: harmony, recorder and parts without digging**
+- **Keys show the chords:** with harmony on and the menu closed, every key glows dim in the
+  colour of the chord it plays: major orange, minor blue, diminished red, augmented pink,
+  sus4 teal. Holding Shift recolours them to the shifted chords; C5 (Shift, Static layout)
+  glows dim white, bright while Shift is on. Kit patches are unchanged.
+- **Harmony on / off without the menu:** hold SW1 + SW2 for 1 s; all four rings flash green
+  (on) or red (off). No page step or reset follows.
+- **Event recorder by a CHOMPI tap:** in the menu position, a tap (under 0.4 s, no other key or
+  knob) does what F#4 does (close the take / stop / play again; armed: disarm). An empty
+  recorder ignores it, and a pending save / copy / erase keeps CHOMPI as its confirm.
+- **Straight to the parts page:** on TAPE's page keep holding KEY_21: harmony page at 1 s
+  (CHOMPI turns purple), parts page at 2 s (orange).
+
+Checks: native suites (panel `PanelFeedback016`, looper `NewTakeAtUnitySpeedAndLoopTone`,
+parts colours) and Python (`test_v2_upgrade_keeps_brightness_by_waveform`) pass. Not on
+CHOMPI yet: every light and gesture above is software-tested only.
+
 ## 0.15.2 Build identity, held keys per source — 2026-10-10 (development build on CHOMPI since 2026-10-10, 34/34 automatic steps; the Shift and arp phrase-start fixes are software-tested only, not installed yet)
 
 **Build identity (HANDOFF item 2)**

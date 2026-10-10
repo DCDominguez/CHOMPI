@@ -76,6 +76,13 @@ inline Rgb Fade4(Rgb a, Rgb b, Rgb c, Rgb d, float t) {
     return t < .33f ? Fade(a, b, t * 3.f) : t < .66f ? Fade(b, c, (t - .33f) * 3.f) : Fade(c, d, (t - .66f) * 3.f);
 }
 inline Rgb Scale(Rgb c, float k) { return {c.r * k, c.g * k, c.b * k}; }
+// 0.16: one colour rule for every list on the panel: the n-th choice (or page) is always
+// the same colour, white first: white, green, yellow, orange, red, pink, purple, blue, teal.
+inline Rgb StepColour(unsigned step) {
+    using namespace colour;
+    static const Rgb steps[9] = {white, green, yellow, orange, red, pink, purple, blue, teal};
+    return steps[step % 9];
+}
 
 // A knob's light for its page and value (TAPE pages: TAPE's value colours;
 // Forge's extra pages: red then green; the patch page and the effects-only delay

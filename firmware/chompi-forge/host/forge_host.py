@@ -12,7 +12,7 @@ import urllib.request
 
 PREFIX = [0x7D, 0x46, 0x47, 1]
 # The firmware these tools match; its minor is core/protocol.h kFirmwareMinor (tests/test_consistency.py).
-FIRMWARE_VERSION = "0.15.2"
+FIRMWARE_VERSION = "0.16.0"
 ERRORS = {1: "invalid length", 2: "unsupported version", 3: "checksum mismatch",
           4: "invalid patch or preset address", 5: "unknown operation", 6: "device queue busy",
           7: "that slot is empty (preset, sample or recording)", 8: "SD card missing or storage failed",
@@ -388,13 +388,24 @@ def encode_word(value, codec):
     return word14(unit_word(value, codec))
 
 
+# v2 -> v3 cutoff by waveform (DC approved 2026-10-11): a sine has no harmonics to lose.
+V2_CUTOFF_FACTOR = {"sine": 1.0, "triangle": 1.6, "saw": 2.5, "square": 2.5}
+
+
+def v2_cutoff(synth):
+    low, high = SYNTH_LIMITS["cutoff_hz"]
+    return round(min(high, max(low, synth["cutoff_hz"] * V2_CUTOFF_FACTOR[synth["waveform"]])), 1)
+
+
 def upgrade_patch(patch, to=3):
     """Return a v3-v7 patch with the same delay/output (and v2 synth)
     settings; new modules start neutral (osc2/noise/LFO depths/reverb mix 0,
     filter envelope 0; v4 adds the sampler module, unused until routing selects
     it; v5 adds knob assignments, all "default"; v6 harmony off; v7 arp/bass off). The filter envelope copies the amp
-    envelope's shape at zero depth. The v3 filter is a steeper
-    resonant low-pass, so tone can differ slightly."""
+    envelope's shape at zero depth. The v3 filter is a steeper resonant low-pass
+    (12 dB/oct instead of v2's 6 dB/oct), so a v2 cutoff is raised by the waveform's
+    harmonic content to keep the brightness (V2_CUTOFF_FACTOR, measured on CHOMPI
+    2026-10-11: Saw Bass was half as bright upgraded 1:1)."""
     patch = validate_patch(patch)
     if to not in (3, 4, 5, 6, 7) or patch["version"] > to: raise ValueError("Upgrade target must be 3-7 and not older")
     if patch["version"] == to: return patch
@@ -424,7 +435,7 @@ def upgrade_patch(patch, to=3):
         "synth": synth,
         # The filter envelope starts neutral (0 octaves) but follows the amp envelope's shape,
         # so turning its amount on the panel is heard over the whole note.
-        "filter": {"cutoff_hz": old_synth["cutoff_hz"], "resonance": 0, "env_octaves": 0,
+        "filter": {"cutoff_hz": v2_cutoff(old_synth) if v2 else old_synth["cutoff_hz"], "resonance": 0, "env_octaves": 0,
                    **{key: old_synth[key] for key in ("attack_ms", "decay_ms", "sustain", "release_ms")}},
         "lfo": {"waveform": "sine", "rate_hz": 5, "pitch_cents": 0, "filter_octaves": 0, "amp_depth": 0, "mod_wheel": False},
         "delay": {key: source[key] for key in ("mix", "time_ms", "feedback", "bypass")},

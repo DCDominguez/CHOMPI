@@ -1,9 +1,22 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-11, checkpoint: 0.15.2 on CHOMPI, 34/34 automatic, 20-min soak passed; next Batch 1 + 2 (below). Read this first; DC's next session is
+Updated 2026-10-11, checkpoint: 0.16.0 (Batch 1 + 2) built and software-tested; next: install on CHOMPI (DC's key press), 3J checks, stress test to failure. Read this first; DC's next session is
 [HOME_CHECKLIST.md](HOME_CHECKLIST.md), then [TEST_SESSION.md](TEST_SESSION.md).
 
-## 2026-10-11: agent hardware checks, soak, UX review (resume here)
+## 2026-10-11 (later): 0.16.0 Batch 1 + 2 built (resume here)
+
+- Implemented (CHANGELOG 0.16.0): step colour rule, knob page flash, harmony / parts setting
+  colours while turning, CHOMPI page colour, SW5 lights (cutoff, scrub), SW5 filters the
+  loop (`Looper::SetTone`), new take at 1×, v2 → v3 cutoff by waveform (host), chord colours
+  on the keys, SW1 + SW2 harmony on/off, CHOMPI tap = recorder F#4, KEY_21 held 2 s = parts.
+- Checks: 16 native suites + 135 Python pass (MinGW 16.2; `parts_test` built as
+  `parts_suite.exe`, AVG blocks the old name); release 235,628 B / development 249,352 B,
+  layout OK. Not run locally: sanitizers, browser tests, bench (CI).
+- Not on CHOMPI: TEST_SESSION 3J (3.77-3.85). DC approved install + stress test to failure
+  (2026-10-11): installs need DC's physical CHOMPI press; no card writes outside an agreed
+  bank (DC has not answered whether bank 8 may be used: until then no card-write stress).
+
+## 2026-10-11: agent hardware checks, soak, UX review
 
 - On CHOMPI (agent over USB + UMC + webcam, TEST_RESULTS 2026-10-11): all 34 automatic steps;
   harmony chords, arp / bass / latch, event recorder 5/5; 20-min rapid-key soak (24,137
