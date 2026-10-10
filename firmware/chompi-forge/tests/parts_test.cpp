@@ -36,10 +36,13 @@ struct Rig {
     }
     std::vector<uint8_t> Ons() const { std::vector<uint8_t> v; for(auto& e : synth) if(e.velocity) v.push_back(e.note); return v; }
     unsigned Count(uint8_t status) const { unsigned n = 0; for(auto& m : midi) n += m.status == status; return n; }
-    void Keys(std::initializer_list<uint8_t> notes, int root = -1, uint8_t fifth = 7) {
-        std::vector<uint8_t> v(notes); parts.KeyDown(v[0], v.data(), static_cast<unsigned>(v.size()), root, fifth, 100, 2);
+    void Keys(std::initializer_list<uint8_t> notes, int root = -1, uint8_t fifth = 7, uint8_t source = 2) {
+        std::vector<uint8_t> v(notes); parts.KeyDown(v[0], v.data(), static_cast<unsigned>(v.size()), root, fifth, 100, source);
     }
-    void Release(std::initializer_list<uint8_t> notes) { std::vector<uint8_t> v(notes); parts.KeyUp(v[0], v.data(), static_cast<unsigned>(v.size())); }
+    void Release(std::initializer_list<uint8_t> notes, uint8_t source = 2) {
+        std::vector<uint8_t> v(notes); parts.KeyUp(v[0], v.data(), static_cast<unsigned>(v.size()), source);
+    }
+    bool InSet(uint8_t note) const { for(unsigned i = 0; i < parts.SetCount(); ++i) if(parts.Set()[i] == note) return true; return false; }
 };
 Settings Arp(Pattern p, Rate r = Rate::Sixteenth) { Settings s; s.pattern = p; s.rate = r; s.clock_out = false; return s; }
 
@@ -122,14 +125,14 @@ void GateLatchAndOwnership() {
         const uint32_t len = g.synth[i + 1].at - g.synth[i].at; assert(len >= 2952 && len <= 3048);
     }
     // Latch (default): released keys keep cycling; the next key after release replaces the set.
-    Rig l(Arp(Pattern::Up)); l.Keys({60, 64}); l.Release({60}); l.Release({64});
+    Rig l(Arp(Pattern::Up)); l.Keys({60}); l.Keys({64}); l.Release({60}); l.Release({64});
     assert(l.parts.Latched() && l.parts.SetCount() == 2);
     l.Run(0.5f); assert(l.Ons().size() >= 4);
     l.Keys({70}); l.synth.clear(); l.Run(0.5f);
     for(uint8_t n : l.Ons()) assert(n == 70);
     // Unlatched: the arp follows the held keys and stops when none are held.
     Settings free = Arp(Pattern::Up); free.latch = false;
-    Rig u(free); u.Keys({60, 64}); u.Run(0.3f); u.Release({64}); u.synth.clear(); u.Run(0.3f);
+    Rig u(free); u.Keys({60}); u.Keys({64}); u.Run(0.3f); u.Release({64}); u.synth.clear(); u.Run(0.3f);
     for(uint8_t n : u.Ons()) assert(n == 60);
     u.Release({60}); u.Run(0.3f);
     assert(u.parts.SetCount() == 0 && u.parts.ArpNote() == 0 && !u.synth.back().velocity);
@@ -137,6 +140,27 @@ void GateLatchAndOwnership() {
     // note-off ends an unlatched phrase.
     Rig d(free); d.Keys({60}); d.Keys({60}); d.Run(0.2f); d.Release({60}); d.Run(0.3f);
     assert(d.parts.SetCount() == 0 && d.parts.ArpNote() == 0 && !d.synth.back().velocity);
+    // Held keys are per source: the panel's C4 (2) survives the loop's (3) or MIDI's (1)
+    // C4 note-on / note-off, unlatched; the phrase ends with the panel's own key-up.
+    for(uint8_t other : {uint8_t{1}, uint8_t{3}}) {
+        Rig k(free); k.Keys({60}); k.Keys({60}, -1, 7, other); k.Run(0.2f);
+        k.Release({60}, other); assert(k.parts.SetCount() == 1 && k.InSet(60) && !k.parts.Latched());
+        k.synth.clear(); k.Run(0.5f); assert(k.Ons().size() >= 3);
+        for(uint8_t n : k.Ons()) assert(n == 60);
+        k.Release({60}); k.Run(0.3f);
+        assert(k.parts.SetCount() == 0 && k.parts.ArpNote() == 0 && !k.synth.back().velocity);
+    }
+    // A note-off from a source that does not hold the key changes nothing.
+    Rig x(free); x.Keys({60, 64}); x.Release({60}, 1); x.Release({60, 64}, 0);
+    assert(x.parts.SetCount() == 2 && x.InSet(60) && x.InSet(64));
+    x.Release({60, 64}); assert(x.parts.SetCount() == 0);
+    // The set counts sources per note: chords sharing E4 on two sources keep it until both let go.
+    Rig c(free); c.Keys({60, 64}); c.Keys({64, 67}, -1, 7, 1);
+    assert(c.parts.SetCount() == 3);
+    c.Release({64, 67}, 1); assert(c.parts.SetCount() == 2 && c.InSet(60) && c.InSet(64) && !c.InSet(67));
+    c.Release({60, 64}); assert(c.parts.SetCount() == 0);
+    // A new phrase after a full release starts clean: no source left on an old note.
+    c.Keys({64}, -1, 7, 1); c.Release({64}, 1); assert(c.parts.SetCount() == 0);
     // 0.15.1: ownership is per source: the arp's note on source 2 is not source 1's.
     Rig w(Arp(Pattern::Up, Rate::Quarter)); w.Keys({60}); w.Run(0.05f);
     assert(w.parts.ArpNote() == 60 && w.parts.Owns(60, 2) && !w.parts.Owns(60, 1));
@@ -236,6 +260,21 @@ void EngineAndPanel() {
     assert(e.Note(67, 100, 1) == 1); run(5); assert(e.ActiveVoices() == 1);
     parts.settings.pattern = Pattern::Up; e.PartsChanged();
     assert(e.Note(67, 0, 1) == 0); run(400); assert(e.ActiveVoices() == 0);
+    // Unlatched, the panel holds C4 while the recorded loop (source 3) plays and ends C4
+    // through the arp: the panel's phrase keeps going until its own key-up.
+    e.Panic(); run(5); parts.settings.latch = false; e.PartsChanged(); arp_notes.clear();
+    assert(e.Note(60, 100, 2) == 0 && e.Note(60, 100, 3) == 0 && e.Note(60, 0, 3) == 0);
+    run(1000); assert(parts.SetCount() == 1 && !parts.Latched());
+    auto steps = [&]() { bool on = false; unsigned starts = 0; for(int b = 0; b < 800; ++b) { run(1); const bool now = parts.ArpNote() == 60; starts += now && !on; on = now; } return starts; };
+    assert(steps() >= 2);                                   // 0.4 s of 1/16 at 120: still stepping
+    // With harmony on, MIDI (source 1) adds a chord (C3 = the I chord) and lets go: only the
+    // panel's C4 stays, even where the chord shared it.
+    player.state.enabled = true;
+    assert(e.Note(48, 100, 1) == 0 && parts.SetCount() >= 3);
+    e.Note(48, 0, 1); run(10); assert(parts.SetCount() == 1 && parts.Set()[0] == 60 && !parts.Latched());
+    player.state.enabled = false;
+    e.Note(60, 0, 2); run(400); assert(parts.SetCount() == 0 && parts.ArpNote() == 0 && e.ActiveVoices() == 0);
+    parts.settings.latch = true; e.PartsChanged();
     // Kit patches keep their pads: the parts stay out of the way.
     Parameters kit = synth; kit.source = 1; kit.sample_mode = 1; assert(e.ApplyPatch(kit) && !e.PartsOn());
     assert(e.ApplyPatch(synth)); e.Panic(); run(5);

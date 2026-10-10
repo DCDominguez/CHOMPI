@@ -24,7 +24,7 @@ conversation does not carry over; this section and CONTINUE do.
 
 **Release-candidate assessment (2026-10-09): not an RC yet.** Blockers and to-dos,
 in the order recommended to DC:
-1. *Bug in 0.15.1's own fix (unreviewed code):* `core/parts.h` `keys_[128]` (held-key
+1. *(Fix done 2026-10-10, see CONTINUE; the independent review is still to do.)* *Bug in 0.15.1's own fix (unreviewed code):* `core/parts.h` `keys_[128]` (held-key
    count) is shared across note sources, so holding C4 on the panel while the recorded
    loop or MIDI plays C4 through the arp lets the other source's note-off release the
    panel key (unlatched phrase ends early). Fix: per-source bit per key (4 sources).

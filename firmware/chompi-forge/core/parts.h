@@ -167,39 +167,47 @@ public:
     bool Active() const { return ArpOn() || BassOn(); }
     // A new chord or key set: `root` its root (harmony), or -1 for the lowest note; `fifth`
     // the chord's fifth in semitones (7 without harmony).
-    // `key`: the key (or MIDI note) pressed; held keys are counted once each, so a repeated
-    // note-on without its note-off never keeps a phrase open.
+    // `key`: the key (or MIDI note) pressed; held keys are counted once per source, so a
+    // repeated note-on without its note-off never keeps a phrase open, and one source's
+    // note-off never releases the same key held on another (panel C4 vs loop / MIDI C4).
+    static constexpr unsigned kSources = 4;          // UART, USB, keybed, event recorder (synth.h)
     FORGE_COLD void KeyDown(uint8_t key, const uint8_t* notes, unsigned count, int root, uint8_t fifth, uint8_t velocity, uint8_t source) {
-        if(!count || key > 127) return;
+        if(!count || key > 127 || source >= kSources) return;
         if(!held_) {                                  // first key after a release: a new phrase
-            set_count_ = 0; step_ = 0; random_ = Seed(); restart_ = true; bass_step_ = 0;
+            ClearSet(); step_ = 0; random_ = Seed(); restart_ = true; bass_step_ = 0;
         }
-        if(!keys_[key]) { keys_[key] = 1; ++held_; }
-        for(unsigned i = 0; i < count; ++i) Add(notes[i]);
+        const uint8_t bit = static_cast<uint8_t>(1u << source);
+        if(!(keys_[key] & bit)) { keys_[key] |= bit; ++held_; }
+        for(unsigned i = 0; i < count; ++i) Add(notes[i], bit);
         root_ = root >= 0 ? static_cast<uint8_t>(root % 12) : Lowest() % 12;
         fifth_ = fifth; velocity_ = velocity ? velocity : velocity_; source_ = source;
         bass_change_ = true;
         BuildOrder();
     }
-    FORGE_COLD void KeyUp(uint8_t key, const uint8_t* notes, unsigned count) {
-        if(key < 128 && keys_[key]) { keys_[key] = 0; --held_; }
+    // A key-up of a key this source does not hold (another source's, or one pressed before
+    // the parts were on) changes nothing.
+    FORGE_COLD void KeyUp(uint8_t key, const uint8_t* notes, unsigned count, uint8_t source) {
+        if(key > 127 || source >= kSources) return;
+        const uint8_t bit = static_cast<uint8_t>(1u << source);
+        if(!(keys_[key] & bit)) return;
+        keys_[key] &= static_cast<uint8_t>(~bit); --held_;
         if(settings.latch && ArpOn()) return;        // the set keeps cycling until the next phrase
-        for(unsigned i = 0; i < count; ++i) Remove(notes[i]);
+        for(unsigned i = 0; i < count; ++i) Remove(notes[i], bit);
         BuildOrder();
         if(!set_count_) { ReleaseKeys(); bass_change_ = true; }
     }
     // Patch / panel changes: stop what no longer applies.
     FORGE_COLD void Changed() {
         clock_.SetTempo(settings.bpm);
-        if(!ArpOn()) { StopArp(); if(!held_) set_count_ = 0; }
+        if(!ArpOn()) { StopArp(); if(!held_) ClearSet(); }
         if(!BassOn()) StopBass();
-        if(!Active()) { set_count_ = 0; ReleaseKeys(); }
+        if(!Active()) { ClearSet(); ReleaseKeys(); }
         BuildOrder();
     }
     // Everything off (panic, patch silence): the notes it owns stop on MIDI too.
     FORGE_COLD void Clear() {
         StopArp(); StopBass();
-        set_count_ = 0; order_count_ = 0; ReleaseKeys();
+        ClearSet(); order_count_ = 0; ReleaseKeys();
         for(auto& r : refs_) r = 0;
     }
     // One audio block: the clock, then steps and gate ends. The synth events it (or any
@@ -251,16 +259,22 @@ public:
     bool Latched() const { return set_count_ && !held_; }
     uint32_t Drops() const { return drops_; }
 private:
-    void Add(uint8_t note) {
-        for(unsigned i = 0; i < set_count_; ++i) if(set_[i] == note) return;
-        if(set_count_ < kMaxSet) set_[set_count_++] = note;
+    // The set keeps, per note, the sources that hold it (`bit` = 1 << source); a note leaves
+    // only when its last source lets go. Within one source harmony counts shared chord notes.
+    void Add(uint8_t note, uint8_t bit) {
+        if(note > 127) return;
+        for(unsigned i = 0; i < set_count_; ++i) if(set_[i] == note) { set_sources_[note] |= bit; return; }
+        if(set_count_ < kMaxSet) { set_[set_count_++] = note; set_sources_[note] = bit; }
     }
-    void Remove(uint8_t note) {
+    void Remove(uint8_t note, uint8_t bit) {
+        if(note > 127 || !(set_sources_[note] & bit)) return;
+        if((set_sources_[note] &= static_cast<uint8_t>(~bit))) return;   // another source still holds it
         for(unsigned i = 0; i < set_count_; ++i) if(set_[i] == note) {
             for(unsigned j = i + 1; j < set_count_; ++j) set_[j - 1] = set_[j];
             --set_count_; return;
         }
     }
+    void ClearSet() { for(unsigned i = 0; i < set_count_; ++i) set_sources_[set_[i]] = 0; set_count_ = 0; }
     uint8_t Lowest() const { uint8_t n = 127; for(unsigned i = 0; i < set_count_; ++i) if(set_[i] < n) n = set_[i]; return n; }
     uint32_t Seed() const { return 0x12345678u ^ (static_cast<uint32_t>(settings.seed) * 2654435761u); }
     // The cycle: played order or sorted, over the octaves (Up/Down/UpDown/Random sort).
@@ -337,7 +351,7 @@ private:
     SpscQueue<MidiOut, 64> midi_;
     uint8_t set_[kMaxSet] = {}, order_[kMaxSet * 4] = {}, refs_[128] = {}, owner_[128] = {}, bass_[2] = {};
     void ReleaseKeys() { for(auto& k : keys_) k = 0; held_ = 0; }
-    uint8_t keys_[128] = {};
+    uint8_t keys_[128] = {}, set_sources_[128] = {};   // per key / set note: a bit per source holding it
     unsigned set_count_ = 0, order_count_ = 0, step_ = 0, held_ = 0, bass_step_ = 0, bass_count_ = 0, last_ticks_ = 0;
     uint32_t random_ = 0x12345678u, drops_ = 0, now_ = 0;
     float arp_left_ = 0.f, bass_left_ = 0.f;

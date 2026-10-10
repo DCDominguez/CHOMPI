@@ -1,8 +1,31 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-09 (UTC), checkpoint: firmware 0.15.1 review fixes; handoff to a local session (see "Current
-checkpoint" below). Read this first; DC's next session is
+Updated 2026-10-10, checkpoint: HANDOFF item 1 (per-source held keys in `core/parts.h`) on
+DC's local PC. Read this first; DC's next session is
 [HOME_CHECKLIST.md](HOME_CHECKLIST.md), then [TEST_SESSION.md](TEST_SESSION.md).
+
+## Checkpoint: per-source held keys (HANDOFF item 1, 2026-10-10, local PC)
+
+- Implemented: `Parts::keys_` is a bit per source (UART 0, USB 1, keybed 2, recorder 3);
+  `KeyUp` takes the source and ignores a key that source does not hold; the arp set keeps
+  per-note source bits (`set_sources_`) so a note leaves only when its last source lets go
+  (also the missing set reference count). `Engine::PartsKey` passes the source.
+- Tests (`tests/parts_test.cpp`): panel C4 held while source 1 / 3 plays and ends C4
+  (unlatched), a stray key-up from another source, chords on two sources sharing a note, a
+  fresh phrase after release, engine with the loop's source 3 and with harmony + MIDI. Two
+  older cases released a key never pressed (one key carrying two notes); they now press two
+  keys. The new cases fail on the previous `parts.h` (checked).
+- Checks on Windows (MinGW-w64 GCC 16.2, `-D_USE_MATH_DEFINES` for `M_PI` under strict
+  C++14): 16 native suites PASS; Python 125 of 128 PASS, 1 skipped, 2 errors, both also on
+  the previous code: `test_card.test_low_power_refuses_the_install` needs
+  `src/build-dev/FORGE.bin` (no ARM toolchain here; the test lacks the `skipUnless` guard
+  its neighbour has), and `test_host.test_offline_audio_render`: `forge_probe --render`
+  crashes (access violation) when built `-O2` with MinGW, also from the unchanged commit;
+  `-O0` passes. Linux runs reported it passing; cause not found yet (possible latent UB).
+- Not run: `make sanitize` (no ASan/UBSan runtime in MinGW), ARM builds, bench, browser
+  tests. Not verified: anything on hardware.
+- Next: an independent review of the 0.15.1 diff (`1cd73ae..7d1af64`) plus this change,
+  then HANDOFF items 2-4; the `-O2` probe crash needs its own look (Linux / sanitizers).
 
 ## Moving to DC's local PC (2026-10-09)
 

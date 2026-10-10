@@ -482,7 +482,7 @@ private:
     }
     // Keys to the parts: true when the arp took them (they must not sound directly).
     FORGE_COLD bool PartsKey(uint8_t key, const uint8_t* notes, unsigned count, int root, uint8_t fifth, uint8_t velocity, uint8_t source) {
-        if(velocity) parts_->KeyDown(key, notes, count, root, fifth, velocity, source); else parts_->KeyUp(key, notes, count);
+        if(velocity) parts_->KeyDown(key, notes, count, root, fifth, velocity, source); else parts_->KeyUp(key, notes, count, source);
         SoundParts();
         return ArpOn();
     }

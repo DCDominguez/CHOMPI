@@ -1,5 +1,18 @@
 # Forge changelog
 
+## 0.15.1 follow-up: per-source held keys — 2026-10-10 (software-tested; not installed yet)
+
+Same version number (it is not bumped until builds carry an id; HANDOFF item 2).
+
+**Firmware, instrument core**
+- Arp / bass: held keys count per source. Holding C4 on the panel while the recorded loop
+  or MIDI plays and ends C4 no longer releases the panel's key (an unlatched phrase kept
+  going only until the other source's note-off). A key-up from a source that does not hold
+  the key changes nothing.
+- Arp set: each note keeps the sources that hold it and leaves the set only when the last
+  one lets go (chords on two sources sharing a note; HANDOFF item 1, the missing reference
+  count).
+
 ## 0.15.1 Review fixes — 2026-10-06 (software-tested; not installed yet)
 
 DC asked for a full project review and then "go for the fixes". Every verified finding is
