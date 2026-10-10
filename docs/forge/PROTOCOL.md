@@ -177,8 +177,13 @@ After patch DATA, diagnostics begin at offset **18 for v1**, **30 for v2**, **69
 | +2,+3 | Peak audio callback load since boot ×1000, 14-bit |
 | +4..+6 | Dropped ingress/control/reply count, saturated 21-bit |
 | +7..+9 | Rejected recognized requests, saturated 21-bit |
-| +10 | Firmware minor version (13 for 0.13) |
-| +11 | Checksum |
+| +10 | Firmware minor version (15 for 0.15.2) |
+| +11..+16 | From 0.15.2, the build identity: patch (2), flags (1 development build, 2 uncommitted changes, 4 safe mode: started without the card's settings after repeated start-up crashes), commit as 28 bits in four 7-bit bytes, low first (`0f5bb18`; 0 = unknown) |
+| +17..+19 | From 0.15.2, power (every build): battery level (0 full, 1 high, 2 medium, 3 low, 4 unknown), power flags (as Inspector page 2: 1 USB power, 2 charger fault, 4 USB lines to the charger, 8 weak supply, 16 a reading below 3.0 V, 32 a firmware install would be refused), charge state (CHG_STAT 0–7; 5 done) |
+| +20 | Checksum (+11 before 0.15.2) |
+
+A host tells the two layouts apart by length for the patch version in byte 8 (v7: 109
+bytes before 0.15.2, 118 from it); `host/forge_host.py` `decode_identity` / `decode_power` read both.
 
 CPU resolution is 0.1 percentage point; max 1638.3%. Readings are from completed
 callbacks before the snapshot, not total scheduling/interrupt-mask time. Offline
@@ -432,7 +437,7 @@ is 9 bytes: byte 7 zero, byte 8 checksum. Ack means queued, not yet applied.
 Page 6 additionally accepts a 14-byte request with cursor at 8–12 and checksum
 at 13; without the cursor it starts at serial 0. Cursor is unsigned 32-bit in
 five little-endian 7-bit chunks, with the fifth chunk at most 15. All sizes
-exclude F0/F7. Largest reply still fits `kMaxReply = 109` and the
+exclude F0/F7. Largest reply still fits `kMaxReply` (118 from 0.15.2: the v7 status with identity and power) and the
 existing USB/UART buffers. No subscription, background push or new transport.
 
 Page 0 (the original 24-byte state page) was retired on 2026-10-03: the
@@ -450,7 +455,7 @@ listed order, with no struct padding on the wire.
 
 | Page | Size | Body from byte 15 |
 | --- | --- | --- |
-| 2 SYSTEM | 98 (91 in 0.8–0.9, 88 before) | firmware minor, protocol, simulated flag (3 bytes); uptime ms, audio state timestamp ms, audio block count (3 U32); CPU average and peak ×1000 (2 14-bit words); UART then USB: RX complete accepted frames, TX accepted submissions, TX errors, ingress drops (4 U32 each); aggregate drops and rejections (2 U32); from 0.8: battery level (0 full, 1 high, 2 medium, 3 low, 4 unknown), power flags (1 USB power, 2 charger fault, 4 USB lines handed to the charger IC; from 0.12: 8 weak supply = legacy source or at its current limit in the last 8 readings, 16 a battery reading below the 3.0 V mark, 32 a firmware install would be refused now; hosts before 0.12 reject values above 7), charge state (charger CHG_STAT 0–7; 5 = done); from 0.10: reset flags (1 power-on, 2 brown-out, 4 reset pin, 8 software, 16 watchdog, 32 window watchdog, 64 low-power), crashed (0/1), crash PC (U32; details in FORGE/RESTARTS.TXT) |
+| 2 SYSTEM | 104 (98 in 0.10–0.15.1, 91 in 0.8–0.9, 88 before) | firmware minor, protocol, simulated flag (3 bytes); uptime ms, audio state timestamp ms, audio block count (3 U32); CPU average and peak ×1000 (2 14-bit words); UART then USB: RX complete accepted frames, TX accepted submissions, TX errors, ingress drops (4 U32 each); aggregate drops and rejections (2 U32); from 0.8: battery level (0 full, 1 high, 2 medium, 3 low, 4 unknown), power flags (1 USB power, 2 charger fault, 4 USB lines handed to the charger IC; from 0.12: 8 weak supply = legacy source or at its current limit in the last 8 readings, 16 a battery reading below the 3.0 V mark, 32 a firmware install would be refused now; hosts before 0.12 reject values above 7), charge state (charger CHG_STAT 0–7; 5 = done); from 0.10: reset flags (1 power-on, 2 brown-out, 4 reset pin, 8 software, 16 watchdog, 32 window watchdog, 64 low-power), crashed (0/1), crash PC (U32; details in FORGE/RESTARTS.TXT); from 0.15.2: the six build identity bytes of the status reply |
 | 3 PANEL | 97 | physical and merged key masks (6 7-bit chunks each, 40 bits); physical then merged flags (2 bytes); packed menu U32; six physical encoder accumulators then six merged accumulators (12 U32, signed two's complement); knob pages (two 7-bit chunks: knob n's page 0–4 in bits 3n..3n+2; firmware 0.9 and older: 0–3 in bits 2n, 2n+1) |
 | 4 ENGINE | 88 | seven voices (7 bytes each: note, source 0 UART/1 USB/2 panel/3 event recorder (0.15), stage 0 off/1 attack/2 decay/3 sustain/4 release, sample slot 0–14 or 127 none, flags sampled 1/sustained 2/reverse 4, envelope N14); smoothed cutoff normalized, (LFO+1)/2, mod wheel (3 N14); pedal-source bit mask byte; three smoothed bend ratios ×4096 (3 14-bit words); resolved mix, feedback/0.85, level, delay samples/48000, reverb mix (5 N14) |
 | 5 STORAGE | 94 | flags, recording source 0 mic/1 line/2 resample, queued sample-job count, active job 0 save/1 copy/2 erase/127 none, last generic error code, partial-file-slot count (6 bytes); actual loaded file selection, file readable frames, file allocated frames, pool reserved bytes, pool capacity bytes, recording frames, recording capacity frames, storage error count, audio event drops, emergency count, panel queue drops, sample queue drops (12 U32); looper: flags (state 0 empty/1 armed/2 first take/3 playing/4 paused, 8 overdub, 16 effects before the loop, 32 locked for saving), length frames (U32), position, speed ((s+2)/4) and feedback (N14) |

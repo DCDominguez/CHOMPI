@@ -23,6 +23,7 @@ one consolidated hardware session.
 
 | Document | Purpose |
 | --- | --- |
+| [Guide for other agents](AGENT_GUIDE.md) | Muse / Cosmo (Tab5) and any outside agent: what Forge is, how to talk to CHOMPI, patches, panel visualizations, adding effects, editing firmware |
 | [Agent resume checkpoint](CONTINUE.md) | Current implementation, evidence, known limits and exact next tasks |
 | [Project brief](PROJECT.md) | Goals, scope, decisions and milestones |
 | [Firmware guide](../../firmware/chompi-forge/README.md) | Build commands, audio routing, parameter/CC mapping and defaults |

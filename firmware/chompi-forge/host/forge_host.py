@@ -12,7 +12,7 @@ import urllib.request
 
 PREFIX = [0x7D, 0x46, 0x47, 1]
 # The firmware these tools match; its minor is core/protocol.h kFirmwareMinor (tests/test_consistency.py).
-FIRMWARE_VERSION = "0.15.1"
+FIRMWARE_VERSION = "0.15.2"
 ERRORS = {1: "invalid length", 2: "unsupported version", 3: "checksum mismatch",
           4: "invalid patch or preset address", 5: "unknown operation", 6: "device queue busy",
           7: "that slot is empty (preset, sample or recording)", 8: "SD card missing or storage failed",
@@ -593,6 +593,71 @@ def encode_value(value, codec):
     return encode_word(value, codec)
 
 
+# Status reply length per patch version without the build identity (firmware before 0.15.2).
+STATUS_LENGTHS = {1: 30, 2: 42, 3: 81, 4: 96, 5: 100, 6: 103, 7: 109}
+IDENTITY_SIZE = 6
+POWER_SIZE = 3                                              # battery, power flags, charge state (0.15.2)
+STATUS_EXTRA = IDENTITY_SIZE + POWER_SIZE
+BATTERY_LEVELS = ("full", "high", "medium", "low", "unknown")   # core/power.h Battery
+BATTERY_COLOURS = ("white", "green", "yellow", "red", None)      # SW6 held 2 s shows the same colour
+BUILD_DEVELOPMENT, BUILD_DIRTY, BUILD_SAFE_MODE = 1, 2, 4
+
+
+def decode_identity(minor, identity):
+    """The firmware version and build (core/protocol.h EncodeIdentity); older firmware has no identity."""
+    if identity is None:
+        return {"firmware": f"0.{minor}", "build": None, "development": None, "dirty": None, "safe_mode": None}
+    patch, flags = identity[0], identity[1]
+    commit = sum(b << (7 * i) for i, b in enumerate(identity[2:6]))
+    return {"firmware": f"0.{minor}.{patch}", "build": f"{commit:07x}" if commit else None,
+            "development": bool(flags & BUILD_DEVELOPMENT), "dirty": bool(flags & BUILD_DIRTY),
+            "safe_mode": bool(flags & BUILD_SAFE_MODE)}
+
+
+def decode_power(raw):
+    """Battery and charger from a 0.15.2 status reply (same fields as Inspector page 2)."""
+    level, flags, charge = raw
+    if level > 4 or charge > 7:
+        raise ValueError("Invalid power fields")
+    return {"battery": BATTERY_LEVELS[level], "colour": BATTERY_COLOURS[level], "usb_power": bool(flags & 1),
+            "charger_fault": bool(flags & 2), "weak_supply": bool(flags & 8), "battery_low_reading": bool(flags & 16),
+            "install_allowed": not flags & 32, "charge_state": charge, "charging": charge in (1, 2, 3, 4), "charge_done": charge == 5}
+
+
+def describe_power(power):
+    """One line for people, e.g. "Battery high (green, as SW6 shows) · USB power · charging · install allowed"."""
+    if power is None:
+        return "Battery: not reported (firmware before 0.15.2; hold SW6 for 2 s on CHOMPI)"
+    level = f"Battery {power['battery']}" + (f" ({power['colour']}, as SW6 shows)" if power["colour"] else "")
+    parts = [level, "USB power" if power["usb_power"] else "on battery"]
+    if power["charge_done"]: parts.append("charged")
+    elif power["charging"]: parts.append("charging")
+    if power["weak_supply"]: parts.append("weak USB supply (use a USB-C charger, 2 A or more)")
+    if power["battery_low_reading"]: parts.append("a reading below 3.0 V")
+    if power["charger_fault"]: parts.append("CHARGER FAULT")
+    parts.append("install allowed" if power["install_allowed"] else "install refused: charge first")
+    return " · ".join(parts)
+
+
+def find_chompi_ports(midi=None):
+    """CHOMPI's MIDI input and output by name, as Connect CHOMPI finds them."""
+    midi = midi or midi_module()
+    inputs = [n for n in midi.get_input_names() if "chompi" in n.lower()]
+    outputs = [n for n in midi.get_output_names() if "chompi" in n.lower()]
+    if not inputs or not outputs:
+        raise RuntimeError("CHOMPI is not connected over USB (no CHOMPI MIDI ports); use a data cable")
+    return inputs[0], outputs[0]
+
+
+def describe_build(status):
+    """One line for people, e.g. "Forge 0.15.2 (build 0f5bb18, development)"."""
+    notes = [f"build {status['build']}" if status.get("build") else "build unknown" if status.get("development") is not None else None,
+             "development" if status.get("development") else None, "uncommitted changes" if status.get("dirty") else None,
+             "SAFE MODE" if status.get("safe_mode") else None]
+    notes = [n for n in notes if n]
+    return f"Forge {status['firmware']}" + (f" ({', '.join(notes)})" if notes else "")
+
+
 def decode_response(data, sequence):
     data = list(data)
     if len(data) < 8 or data[:4] != PREFIX or any(type(x) is not int or not 0 <= x < 128 for x in data):
@@ -630,8 +695,10 @@ def decode_response(data, sequence):
             raise ValueError("Invalid sample acknowledgement")
         return {"sequence": sequence, "action": ("saved", "erased", "copied")[data[8]],
                 "mode": SAMPLE_MODES[data[9]], "bank": SAMPLE_BANKS[data[10]], "slot": data[11] + 1}
-    if len(data) not in (30, 42, 81, 96, 100, 103, 109) or data[4] != 0x40 or data[7] != 0 or data[8] not in (1, 2, 3, 4, 5, 6, 7) or data[17] > 1:
+    if (data[4] != 0x40 or len(data) < 18 or data[7] != 0 or data[8] not in STATUS_LENGTHS or data[17] > 1
+            or len(data) - STATUS_LENGTHS[data[8]] not in (0, STATUS_EXTRA)):
         raise ValueError("Invalid Forge status payload")
+    identity = len(data) != STATUS_LENGTHS[data[8]]          # 0.15.2: patch, flags and build after the minor
     patch = {"version": 1, "name": "Captured from Forge", "engine": "stereo_delay", "parameters": {
         "mix": read14(data, 9) / 16383,
         "time_ms": 10 + 990 * read14(data, 11) / 16383,
@@ -641,7 +708,7 @@ def decode_response(data, sequence):
     if data[8] in (3, 4, 5, 6, 7):
         patch, offset = decode_v3(data, patch["name"]), {3: 69, 4: 84, 5: 88, 6: 91, 7: 97}[data[8]]
     elif data[8] == 2:
-        if len(data) != 42 or data[18] > 1 or data[19] > 3:
+        if data[18] > 1 or data[19] > 3:
             raise ValueError("Invalid instrument status")
         synth = {"waveform": WAVEFORMS[data[19]]}
         for index, (key, (low, high)) in enumerate(SYNTH_LIMITS.items()):
@@ -652,8 +719,9 @@ def decode_response(data, sequence):
                  "modules": {"synth": synth, "delay": {k: v for k, v in params.items() if k != "level"},
                              "output": {"level": params["level"]}}}
         offset = 30
-    elif len(data) != 30: raise ValueError("Invalid v1 status length")
-    return {"sequence": sequence, "firmware": f"0.{data[offset + 10]}", "patch": validate_patch(patch),
+    return {"sequence": sequence, **decode_identity(data[offset + 10], data[offset + 11:offset + 17] if identity else None),
+            "power": decode_power(data[offset + 17:offset + 20]) if identity else None,
+            "patch": validate_patch(patch),
             "cpu_average_percent": read14(data, offset) / 10,
             "cpu_max_percent": read14(data, offset + 2) / 10,
             "dropped": read14(data, offset + 4) | data[offset + 6] << 14,
@@ -664,7 +732,7 @@ def decode_v3(data, name):
     """Inverse of the v3/v4/v5 part of encode_patch for an 81/96/100-byte status reply."""
     v4 = data[8] >= 4
     spec = V4_MODULES if v4 else V3_MODULES
-    if len(data) != {3: 81, 4: 96, 5: 100, 6: 103, 7: 109}[data[8]] or data[18] > 1 or data[19] > 3:
+    if data[18] > 1 or data[19] > 3:
         raise ValueError("Invalid v3/v4/v5 instrument status")
     modules = {module: {} for module in spec}
     modules["delay"] = {"mix": read14(data, 9) / 16383, "time_ms": 10 + 990 * read14(data, 11) / 16383,
@@ -913,6 +981,10 @@ def cli(argv=None):
     note.add_argument("--zero-velocity-off", action="store_true", help="Release with note-on velocity 0 instead of note-off")
     note.add_argument("--bend", type=int, help="Pitch bend -8192..8191 while held (8191 = +2 semitones); recentred afterwards")
     note.add_argument("--sustain", action="store_true", help="Pedal down, release keys at once, hold, then pedal up")
+    battery = commands.add_parser("battery", help="Battery, USB power and charging over USB (Forge 0.15.2 or newer); "
+                                  "finds CHOMPI's ports itself")
+    battery.add_argument("--input"); battery.add_argument("--output"); battery.add_argument("--timeout", type=float, default=2.0)
+    battery.add_argument("--json", action="store_true", help="Print the decoded fields instead of a sentence")
     ai = commands.add_parser("ai", help="Ask a local Ollama model for a validated patch; does not send MIDI")
     ai.add_argument("prompt"); ai.add_argument("--model", required=True)
     ai.add_argument("--endpoint", default="http://127.0.0.1:11434/api/chat")
@@ -933,6 +1005,15 @@ def cli(argv=None):
         play(args.output, notes=args.notes, velocity=args.velocity, hold=args.hold,
              zero_velocity_off=args.zero_velocity_off, bend=args.bend, sustain=args.sustain)
         print("sent and released")
+    elif args.command == "battery":
+        names = (args.input, args.output) if args.input and args.output else find_chompi_ports()
+        try:
+            status = exchange(message(2, secrets.randbelow(16384)), *names, args.timeout)
+        except TimeoutError:
+            raise RuntimeError("CHOMPI did not answer: it runs stock firmware (TAPE), not Forge. "
+                               "Hold SW6 for 2 s on CHOMPI: white = charged, green = good, yellow = low.") from None
+        if args.json: print(json.dumps({"firmware": status["firmware"], "build": status["build"], "power": status["power"]}, indent=2))
+        else: print(describe_build(status)); print(describe_power(status["power"]))
     elif args.command == "ai":
         patch = generate_patch(args.prompt, args.model, args.endpoint)
         save_patch(patch, args.out)

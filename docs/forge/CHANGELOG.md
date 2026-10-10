@@ -1,8 +1,79 @@
 # Forge changelog
 
-## 0.15.1 follow-up: per-source held keys — 2026-10-10 (software-tested; not installed yet)
+## 0.15.2 Build identity, held keys per source — 2026-10-10 (development build on CHOMPI since 2026-10-10, 34/34 automatic steps; the Shift and arp phrase-start fixes are software-tested only, not installed yet)
 
-Same version number (it is not bumped until builds carry an id; HANDOFF item 2).
+**Build identity (HANDOFF item 2)**
+- CHOMPI reports its patch number and build: the status reply and Inspector page 2 end in
+  six identity bytes (patch, flags, 7-hex-digit commit; PROTOCOL.md). Flags: development
+  build, uncommitted changes, safe mode. The firmware Makefile takes the commit from git
+  (`FORGE_BUILD_ID` / `FORGE_BUILD_DIRTY` override it; 0 = unknown).
+- The host reads both layouts (older firmware has no identity: `build` is none):
+  Connect CHOMPI, the webapp status line, the Inspector's SYSTEM line and Check setup show
+  e.g. "Forge 0.15.2 (build 0f5bb18, development)". Check setup's new first line warns on
+  another version, an unknown or uncommitted build, and fails in safe mode. Automatic
+  check 1.3 expects 0.15.2.
+
+**Start-up safe mode (HANDOFF item 3, DC's choice over "stop restarting")**
+- Crashes before CHOMPI has run 10 s are counted in backup SRAM (`core/restart.h`
+  `StartupGuard`); after three, it starts in safe mode: the card's settings view stays
+  closed (no `options.json`, `presets.json`, preset index, loops or samples are read, and no
+  settings or presets are written), while USB install and the restart log keep their own view of the card,
+  so recovery still works. Knob lights flash magenta three times at start, the CHOMPI light
+  blinks magenta every 2 s, `FORGE/RESTARTS.TXT` gets a SAFE MODE line, and the status
+  reply / Inspector carry flag 4. A power cycle, a start without a crash or a 10 s stable
+  run clears it. Check setup fails in safe mode and says what to do (MANUAL 12).
+
+**Harmony Shift (found on DC's CHOMPI, 2026-10-11)**
+- Releasing Shift (C5, Static layout) now clears it. Before, its release never reached the
+  harmony player (C5 holds no chord), so every later chord stayed shifted (ii played as
+  V/V) until a panic or patch change.
+
+**Arp / bass phrase start (found on DC's CHOMPI, 2026-10-11)**
+- A new phrase waits 15 ms after its first key before the first arp step and the chord-rate
+  bass, so the steps see the whole chord: a chord's keys land a few ms apart and "down"
+  started on a repeated note of the half-built chord. MIDI Start still begins at once.
+
+**SD card at start-up (found on DC's CHOMPI, 2026-10-10)**
+- Start-up hung 30–60 s on the dim blue light and every small card write failed: the six
+  main-loop FatFs file objects (`FIL`, which holds a 512-byte DMA sector buffer with
+  `_FS_TINY 0`) were locals on the stack, and the stack is DTCM, out of the SD DMA's reach.
+  Sub-sector reads (`options.json`) waited out libDaisy's 30 s timeout; writes
+  (`RESTARTS.TXT`, `presets.json` and its backup) failed, leaving empty files and lost
+  clusters on the card. They are `static` now (AXI SRAM). Measured: 3 s to a working Forge
+  with the card in. Also: the card mounts and the start-up card work runs first, as TAPE
+  does; a failing card is retried 1–32 s apart instead of every second; development builds
+  log each start-up step as Inspector "card" events; `RESTARTS.TXT` records the mount time.
+- Cards written by earlier builds may carry those empty files and lost clusters: run a disk
+  check (`chkdsk X: /F`) and delete empty `FORGE/RESTARTS.TXT`, `FORGE/presets_backup.json`
+  and `presets_temp.json` (MANUAL 12).
+
+**Battery checker**
+- The status reply also carries battery level, power flags and charge state in every build
+  (before, only the development Inspector had them). `forge_host.py battery` finds CHOMPI's
+  ports and prints e.g. "Battery high (green, as SW6 shows) · USB power · charging · install
+  allowed"; Connect CHOMPI and the webapp status line show it. Stock TAPE does not answer:
+  the command says to hold SW6 instead.
+- Unattended runs: `forge_audio.py run` reads the battery first and stops when an install
+  would be refused (low battery or weak supply; `--ignore-power`). TEST_SESSION "Unattended
+  over USB" lists what such a run covers and what still needs a person.
+
+**Presets**
+- Three demo presets of the new parts: 15 Harmony Pad, 16 Arp Bells, 17 Chord Arp; "Load
+  starter presets" now fills slots 1-15. After loading, the bridge switches harmony and the
+  parts off before sending back the sound that was playing (a pre-v7 sound keeps them).
+
+**Automatic checks**
+- "Silent" ignores one steady narrow rig tone (a USB whine or hum) quieter than -45 dB; the
+  looper step resets the loop speed first (a leftover reverse / 2× setting made it fail);
+  the setup detector prefers a stereo input pair.
+
+**CI (HANDOFF item 4)**
+- The workflow ("Forge CI and Bridge exe") now runs the whole gate on every push: release
+  and development firmware with the pinned Arm GCC 10.3-2021.10 (both uploaded), `make
+  test` (16 native suites + Python, card tests against that development firmware), the
+  sanitizers, the real-Chromium browser tests and the CPU benchmark (GCC 13.3 for TEMPO);
+  the bridge exe is built only after the tests pass. `test_card`'s low-power install test
+  skips without a firmware build, like its neighbour.
 
 **Firmware, instrument core**
 - Arp / bass: held keys count per source. Holding C4 on the panel while the recorded loop

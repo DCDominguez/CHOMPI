@@ -1,4 +1,4 @@
-# Forge 0.15.1 — the one consolidated hardware test
+# Forge 0.15.2 — the one consolidated hardware test
 
 Status of the candidate: **software-tested, hardware-unverified.** This is the
 single planned physical session. Work top to bottom. If a stage fails, record
@@ -46,7 +46,7 @@ switch on.
 | --- | --- | --- |
 | 1.1 | Put `firmware/FORGE.bin` on the test card root as the **only** `.bin` file. On macOS also remove `._FORGE.bin` (`dot_clean -m /Volumes/CARD` or delete it); the bootloader loads the first `.bin` it finds and would reject that metadata file. Use the installed bootloader's normal SD update | Update completes uninterrupted |
 | 1.2 | Power up; watch LED | Initialization completes; no output burst |
-| 1.3 | `H status ...` | Firmware 0.15 (the reply carries the minor version only; 0.15.1 is the bundle's), version 1 aux patch, counters 0 |
+| 1.3 | `H status ...` | Firmware 0.15.2 with a build (7-character commit) that matches the bundle's manifest; not development-only unless testing with the bridge; no "uncommitted changes", no SAFE MODE; version 1 aux patch, counters 0 |
 
 ## 1A. Inspector development candidate (before the normal audio checks)
 
@@ -60,6 +60,18 @@ export; record those steps from it, and judge by ear what it cannot. Enable test
 explicit actions. It coordinates polling with its own patch/MIDI/storage tests.
 Disconnect before running the separate `H` CLI commands below. The terminal
 Inspector remains an alternative; do not run both clients together.
+
+**Unattended over USB (0.15.2, nobody at CHOMPI):** after the one install (which needs a
+CHOMPI key press) and the cables above, an agent on the PC runs
+`python host/forge_audio.py run` from `firmware/chompi-forge`. It finds CHOMPI and the
+interface, reads the battery first (stops if a firmware install would be refused: low
+battery or weak supply; `--ignore-power` overrides), then runs every automatic step
+(`host/auto_checks.json`, 34 steps) with virtual keys and knobs, measures the audio and
+writes `reports/<time>/session.json`. What it cannot cover, and stays for a person: the
+physical keys, knobs, toggle and SD swap (virtual input bypasses the switches), how the
+lights look (only their commanded colours are read back), the speaker, headphones and mic,
+power-off and battery shut-off, and anything judged by ear. Record its results as
+automatic evidence, never as a full pass of this checklist.
 
 Use the development `src/build-dev/FORGE.bin` for this session if inspecting
 hardware. Release rejects probe reads; keep the two candidates separate and

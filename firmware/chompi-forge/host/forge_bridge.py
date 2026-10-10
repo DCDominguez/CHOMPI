@@ -1,6 +1,7 @@
 """Local hardware-test session; shares Inspector schema and the web server MIDI lock."""
 from collections import deque
 from datetime import datetime, timezone
+import copy
 import json
 import os
 from pathlib import Path
@@ -138,10 +139,13 @@ class Transport:
             self.reader.join(timeout=1)
             self.process.stdout.close()
         else:
-            try:
-                if self.destination: self.destination.close()
-            finally:
-                if self.source: self.source.close()
+            # A port whose device has just gone (CHOMPI restarting to install) cannot close
+            # cleanly on Windows (rtmidi SystemError); that is not a failure of the command.
+            for port in (self.destination, self.source):
+                try:
+                    if port: port.close()
+                except Exception:
+                    pass
 
 
 # Starter presets the bridge can write into one bank of CHOMPI's device presets
@@ -149,7 +153,8 @@ class Transport:
 STARTER_PRESETS = ((1, "01-dry.json"), (2, "02-slap.json"), (3, "03-long-echo.json"), (4, "04-glass-keys.json"),
                    (5, "05-soft-pad.json"), (6, "06-saw-bass.json"), (7, "07-warm-pad.json"), (8, "08-acid-bass.json"),
                    (9, "09-bell-keys.json"), (10, "11-recorded-keys.json"), (11, "12-tape-kit-a.json"),
-                   (12, "14-knob-pad.json"))
+                   (12, "14-knob-pad.json"), (13, "15-harmony-pad.json"), (14, "16-arp-bells.json"),
+                   (15, "17-chord-arp.json"))   # 13-15: harmony / arp / bass demos (2026-10-11)
 
 
 def load_starter_presets(device, bank, say, cancel, folder=None):
@@ -177,7 +182,16 @@ def load_starter_presets(device, bank, say, cancel, folder=None):
             stored.append(slot); say(f"Bank {bank} slot {slot}: {patch['name']}")
     finally:
         if playing:
-            try: device.send_patch(playing)
+            try:
+                # Patches before v7 leave harmony and the parts as they are, so the demos (13-15)
+                # would keep their latched arp / chords on the restored sound: switch them off
+                # first with a neutral v7 patch, unless the sound playing carries its own (v7).
+                if playing.get("version", 1) < 7:
+                    neutral = host.upgrade_patch(host.load_patch(folder / "01-dry.json"), 7)
+                    neutral["harmony"]["enabled"] = False
+                    neutral["parts"] = copy.deepcopy(host.PARTS_DEFAULTS)
+                    device.send_patch(neutral)
+                device.send_patch(playing)
             except (ValueError, RuntimeError, TimeoutError): pass
     return {"bank": bank, "stored": stored, "kept": kept}
 
@@ -426,7 +440,8 @@ class Bridge:
                 try:
                     status = transport.exchange(host.message(2, self.seq()), timeout=0.8)
                     if "firmware" in status:
-                        return {"input": i, "output": o, "firmware": status["firmware"]}
+                        return {"input": i, "output": o, "firmware": status["firmware"], "build": status.get("build"),
+                                "description": host.describe_build(status), "power": host.describe_power(status.get("power"))}
                     tried.append(f"{i} / {o}: unexpected reply")
                 except Exception as error:
                     tried.append(f"{i} / {o}: {type(error).__name__}")

@@ -31,6 +31,19 @@ def sine(hz, seconds=1.0, amplitude=0.25, channels=2, rate=RATE):
 
 @unittest.skipIf(np is None, "numpy not installed (pip install -r host/bridge-requirements.txt)")
 class AnalysisTests(unittest.TestCase):
+    def test_silence_ignores_one_steady_rig_tone(self):
+        # DC's rig (2026-10-11): a steady 2 kHz USB whine around -48 dB peak failed every
+        # "silent" check (noise floor 0.n, panic 4.1) although nothing was playing.
+        rng = np.random.default_rng(1)
+        whine = sine(2000.96, amplitude=10 ** (-48 / 20)) + rng.normal(0, 10 ** (-80 / 20), (RATE, 2)).astype(np.float32)
+        a = audio.analyze(whine)
+        self.assertTrue(a["silent"]); self.assertGreater(a["channels"][0]["rms_db"], -60)
+        self.assertAlmostEqual(a["channels"][0]["steady_tone_hz"], 2001, delta=2)
+        chord = sum(sine(hz, amplitude=10 ** (-48 / 20)) for hz in (261.63, 329.63, 392.0))
+        self.assertFalse(audio.analyze(chord)["silent"])                 # music is never set aside
+        noise = rng.normal(0, 10 ** (-50 / 20), (RATE, 2)).astype(np.float32)
+        self.assertFalse(audio.analyze(noise)["silent"])                 # nor broadband noise
+
     def test_pitch_level_and_silence(self):
         for hz in (55.0, 261.63, 440.0, 3520.0):
             self.assertAlmostEqual(audio.analyze(sine(hz))["pitch_hz"], hz, delta=hz * 0.002)
@@ -172,6 +185,21 @@ class FakeChompi:
 
 @unittest.skipIf(np is None, "numpy not installed")
 class DetectionTests(unittest.TestCase):
+    def test_prefers_the_stereo_pair_over_a_louder_single_input(self):
+        # DC's UMC204HD (2026-10-10): "IN 2" alone was 1 dB louder than "IN 1-2", was picked,
+        # and the both-channels check (2.1) then saw one channel.
+        world = FakeChompi(); interface = world.audio()
+        interface.devices = lambda: [{"index": 2, "name": "IN 1-2 (UMC204HD)", "api": "WASAPI", "inputs": 2, "outputs": 0},
+                                     {"index": 5, "name": "IN 2 (UMC204HD)", "api": "WASAPI", "inputs": 1, "outputs": 0},
+                                     {"index": 3, "name": "OUT 1-2 (UMC204HD)", "api": "WASAPI", "inputs": 0, "outputs": 2}]
+        wait = interface.wait
+        def louder_single():
+            if interface.input == 5 and interface.play is None: return sine(261.63, interface.seconds, 0.25)
+            return wait()
+        interface.wait = louder_single
+        info = audio.detect(world, interface, log=lambda line: None)
+        self.assertEqual(info["input"]["name"], "IN 1-2 (UMC204HD)")
+
     def test_finds_input_then_the_output_wired_to_line_in(self):
         world = FakeChompi(); interface = world.audio()
         info = audio.detect(world, interface, log=lambda line: None)
@@ -265,7 +293,7 @@ class BridgeAutomaticTests(unittest.TestCase):
         ports = FakePorts(["Microsoft GS Wavetable Synth", "Arturia KeyStep", "CHOMPI 0"],
                           ["Microsoft GS Wavetable Synth", "Arturia KeyStep", "CHOMPI 1"])
         found = self.make(ports).request("discover", {})
-        self.assertEqual((found["input"], found["output"], found["firmware"]), ("CHOMPI 0", "CHOMPI 1", "0.15"))
+        self.assertEqual((found["input"], found["output"], found["firmware"]), ("CHOMPI 0", "CHOMPI 1", "0.15.2"))
         self.assertEqual(ports.opened, [("CHOMPI 0", "CHOMPI 1")])
         self.assertFalse(self.lock.locked())
 

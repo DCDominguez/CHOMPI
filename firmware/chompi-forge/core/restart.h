@@ -29,6 +29,30 @@ struct FaultRecord {
     bool Valid() const { return magic == kMagic; }
 };
 
+// Start-up safe mode (0.15.2, DC): crashes before CHOMPI has run kStableMs in a row are
+// counted in backup SRAM; after kSafeModeCrashes of them it starts without the card's
+// settings (options.json, presets.json, the preset index), the likely triggers, and says
+// so. The card stays mounted: USB install and the bootloader's card install still work.
+// A power cycle (backup SRAM lost), a start without a crash or a stable run clears it.
+constexpr unsigned kSafeModeCrashes = 3;
+constexpr uint32_t kStableMs = 10000;
+struct StartupGuard {
+    static constexpr uint32_t kMagic = 0x53414645u;   // "SAFE"
+    uint32_t magic, crashes;
+};
+// The fault handler, before it restarts the chip.
+inline void CountCrash(StartupGuard& g) {
+    if(g.magic != StartupGuard::kMagic) { g.magic = StartupGuard::kMagic; g.crashes = 0; }
+    ++g.crashes;
+}
+// At start-up, once: `crashed` = this start follows a recorded crash. True = safe mode.
+inline bool SafeModeStart(StartupGuard& g, bool crashed) {
+    if(g.magic != StartupGuard::kMagic || !crashed) { g.magic = StartupGuard::kMagic; g.crashes = 0; }
+    return g.crashes >= kSafeModeCrashes;
+}
+// Main loop, from kStableMs after start: later crashes start a new count.
+inline void RanStably(StartupGuard& g) { g.magic = StartupGuard::kMagic; g.crashes = 0; }
+
 // One line for FORGE/RESTARTS.TXT, e.g. "boot 3: power-on brown-out; crash pc=0x24012345 cfsr=0x00008200".
 // Returns the length written (always NUL-terminated, at most `size` - 1 characters).
 FORGE_COLD inline unsigned Describe(uint32_t boot, uint8_t flags, const FaultRecord* fault, char* out, unsigned size) {

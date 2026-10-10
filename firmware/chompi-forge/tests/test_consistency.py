@@ -30,6 +30,8 @@ class ConsistencyTests(unittest.TestCase):
         version = forge_host.FIRMWARE_VERSION
         minor = int(re.search(r"kFirmwareMinor = (\d+);", (ROOT / "core/protocol.h").read_text()).group(1))
         self.assertEqual(int(version.split(".")[1]), minor)
+        patch = int(re.search(r"kFirmwarePatch = (\d+);", (ROOT / "core/protocol.h").read_text()).group(1))
+        self.assertEqual(int(version.split(".")[2]), patch)   # 0.15.2: the patch is on the wire too
         docs = ROOT.parents[1] / "docs/forge"
         self.assertTrue((docs / "CHANGELOG.md").read_text(encoding="utf-8").split("\n## ", 1)[1].startswith(version + " "))
         for name, pattern in (("MANUAL.md", r"Firmware \*\*([0-9.]+)\*\*"), ("TEST_SESSION.md", r"^# Forge ([0-9.]+) "),

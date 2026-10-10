@@ -1,7 +1,8 @@
 # Forge Resource Ledger
 
-**Latest figures:** the newest dated snapshot below (2026-10-06, firmware 0.15.1:
-release 235,380 B / development 249,188 B, headroom 53,388 / 39,580 B). The baseline
+**Latest figures:** the newest dated snapshot below (2026-10-10, firmware 0.15.2 with
+the pinned Arm GCC 10.3-2021.10: release 232,580 B / development 246,256 B, headroom
+56,188 / 42,512 B). The baseline
 table that follows is the 2026-10-04 review and is kept as history.
 
 Reviewed 2026-10-04 UTC. Branch: `forge/foundation`. Reviewed head:
@@ -214,6 +215,18 @@ docs, recheck `forge/foundation`; never overwrite a concurrent implementation.
 | QA | 15 native (new `parts_test`) + 123 Python PASS; 14 ASan/UBSan PASS; browser 11 + 7 PASS |
 | Value | Arpeggiator, bass part, tempo / tap / MIDI clock in and out, all from the panel and patches |
 | Decision | Hardware evidence needed: TEST_SESSION 3.68–3.72 (timing feel, MIDI clock with a DAW) |
+
+## Snapshot 2026-10-10: firmware 0.15.2 build identity, safe mode, held keys (not installed)
+
+| Field | Record |
+| --- | --- |
+| Identity | Built from the working tree on `c93357b` (build id `c93357b`, dirty); firmware 0.15.2 (wire minor 15, patch 2) |
+| Build | **Pinned Arm GCC 10.3-2021.10** (Windows, MD5-checked), first local build with it; earlier snapshots used xPack 10.3.1, so sizes are not a like-for-like delta. Release 232,580 B, development 246,256 B; layout OK both (with the battery bytes in every status reply) |
+| Memory | Headroom 56,188 / 42,512 B of the 282 KiB SRAM_EXEC. SRAM (release) 147,428 B used, 88,092 B left; backup SRAM 52 B (+8: `startup_guard`); held-key source bits +128 B (`set_sources_`). SDRAM unchanged (387,048 B free) |
+| CPU | Not re-measured (no bench toolchain here; CI now runs `make bench`). Changes are start-up, main-loop or control-rate (`FORGE_COLD`) |
+| QA | Windows / MinGW GCC 16.2: 16 native + 131 of 132 Python PASS (the MinGW -O2 render crash again) (card tests against this development build). Sanitizers, browser tests and bench not run locally (CI) |
+| Value | HANDOFF items 1-4: per-source held keys, build identity on the wire, start-up safe mode, full CI gate with a release build |
+| Decision | Hardware evidence needed: TEST_SESSION 1.3 (identity) plus everything from 0.11 on; safe mode itself cannot be triggered on purpose without a crashing build |
 
 ## Snapshot 2026-10-06: firmware 0.15.1 review fixes (not installed)
 

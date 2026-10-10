@@ -220,6 +220,21 @@ def clicks(x, rate=RATE):
     return found
 
 
+def without_steady_tone(s, rate=RATE):
+    """Level once the strongest narrow spectral peak (a whine or hum from the rig, e.g. DC's 2 kHz
+    USB whine, 2026-10-11) is notched out: (rms dB of the rest, the tone's Hz or None). A tone only
+    counts when it holds most of the energy in a band under 60 Hz wide and is quieter than -45 dB,
+    so a held note or a chord is never set aside."""
+    if len(s) < 256: return db(np.sqrt(np.mean(s ** 2))) if len(s) else -180, None
+    spec = np.fft.rfft(s * np.hanning(len(s))); power = np.abs(spec) ** 2; f = np.fft.rfftfreq(len(s), 1 / rate)
+    k = int(np.argmax(power[1:])) + 1; band = np.abs(f - f[k]) < 30
+    total = db(np.sqrt(np.mean(s ** 2)))
+    # Only a quiet tone is a rig artefact: anything at -45 dB or louder is real sound (a held note).
+    if power[band].sum() < 0.5 * power[1:].sum() or total > -45: return total, None
+    spec[band] = 0; spec[0] = 0; rest = np.fft.irfft(spec, len(s))
+    return db(np.sqrt(np.mean(rest ** 2)) / np.sqrt(np.mean(np.hanning(len(s)) ** 2))), round(float(f[k]), 1)
+
+
 def analyze(x, rate=RATE):
     x = np.asarray(x, dtype=np.float64)
     if x.ndim == 1: x = x[:, None]
@@ -237,13 +252,15 @@ def analyze(x, rate=RATE):
             "onset_s": round(loud[0] / rate, 4) if len(loud) else None,
             "end_s": round((loud[-1] + window) / rate, 4) if len(loud) else None,
             "clicks": clicks(s, rate)[:20]})
+        result["channels"][-1]["rms_db_without_tone"], result["channels"][-1]["steady_tone_hz"] = without_steady_tone(s, rate)
     if x.shape[1] == 2 and np.std(x[:, 0]) > 1e-6 and np.std(x[:, 1]) > 1e-6:
         result["stereo_correlation"] = round(float(np.corrcoef(x[:, 0], x[:, 1])[0, 1]), 3)
     left = result["channels"][0]
     result.update({key: left[key] for key in ("peak_db", "rms_db", "pitch_hz", "onset_s", "end_s", "noise_floor_db")})
     result["clipped"] = sum(ch["clipped"] for ch in result["channels"])
     result["clicks"] = sorted({t for ch in result["channels"] for t in ch["clicks"]})
-    result["silent"] = all(ch["rms_db"] < -60 for ch in result["channels"])
+    # Silent: below -60 dB once one steady rig tone (whine / hum) is set aside (0.15.2).
+    result["silent"] = all(min(ch["rms_db"], ch["rms_db_without_tone"]) < -60 for ch in result["channels"])
     return result
 
 
@@ -303,7 +320,9 @@ def detect(device, audio, log=print, cancel=None):
             a = analyze(audio.wait(), audio.rate)
             heard = a["pitch_hz"] is not None and abs(a["pitch_hz"] - 261.63) < 8 and a["peak_db"] > -55
             result["attempts"].append({"input": d["name"], "pitch_hz": a["pitch_hz"], "peak_db": a["peak_db"], "hears_chompi": heard})
-            if heard and (best is None or a["peak_db"] > best[1]): best = (d, a["peak_db"])
+            # A stereo pair beats a single side (both outputs are measured), then the louder one.
+            score = (min(d["inputs"], 2), a["peak_db"])
+            if heard and (best is None or score > best[1]): best = (d, score)
         except Exception as error:
             result["attempts"].append({"input": d["name"], "error": f"{type(error).__name__}: {error}"})
         log(f"input {d['name']}: {result['attempts'][-1]}")
@@ -361,6 +380,21 @@ def hum_hint(hz):
     return f" Strongest at {hz:g} Hz."
 
 
+def firmware_finding(status):
+    """Check setup's first line: which build CHOMPI runs (0.15.2 reports its commit) against these tools."""
+    what, line = "Firmware", host.describe_build(status)
+    if status.get("safe_mode"):
+        return (what, "fail", f"{line}: CHOMPI started in safe mode after repeated start-up crashes (card settings skipped).",
+                "Read FORGE/RESTARTS.TXT on the card, then switch CHOMPI off and on; report the crash.")
+    if status["firmware"] != host.FIRMWARE_VERSION:
+        return (what, "warn", f"{line}; these tools are for {host.FIRMWARE_VERSION}.",
+                "Install the firmware from this kit, or use the bridge that came with CHOMPI's firmware.")
+    if status.get("build") is None or status.get("dirty"):
+        return (what, "warn", f"{line}: not built from a clean commit, so results cannot be tied to one source.",
+                "For a test session, install a build made from a committed tree.")
+    return (what, "ok", line + ".")
+
+
 def setup_check(device, audio, output_found, log=print):
     """Measure the test rig before the automatic checks: both outputs wired, input gain, noise and
     hum, and the line input. Returns findings with a plain fix for each problem."""
@@ -369,6 +403,8 @@ def setup_check(device, audio, output_found, log=print):
         findings.append({"what": what, "status": status, "detail": detail, "fix": fix})
         log(f"{status.upper():5} {what}: {detail}" + (f" Fix: {fix}" if fix else ""))
     rate = audio.rate
+    status = device.status()
+    add(*firmware_finding(status))
     device.send_patch(host.load_patch(ROOT / "presets/01-dry.json")); time.sleep(0.3)
     audio.start(1.0); quiet = np.asarray(audio.wait(), dtype=np.float64)
     if quiet.ndim == 1: quiet = quiet[:, None]
@@ -655,6 +691,18 @@ def summary(result):
 
 
 # ---- command line: the same session the browser runs ----------------------------------------
+def power_ok(ports, ignore=False, exchange=None):
+    """Before an unattended run: CHOMPI's battery over USB (0.15.2). The CPU and sampler stress steps
+    on a low battery are how CHOMPI went dark after the 0.10 install, so a run refused by the
+    install power check stops here unless --ignore-power."""
+    status = (exchange or host.exchange)(host.message(2, int(time.time()) & 16383), ports["input"], ports["output"])
+    print(host.describe_build(status)); print(host.describe_power(status.get("power")), flush=True)
+    power = status.get("power")
+    if power is None or power["install_allowed"] or ignore: return True
+    print("Not running: charge CHOMPI first (USB-C charger, 2 A or more) or pass --ignore-power.", flush=True)
+    return False
+
+
 def cli(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -668,6 +716,7 @@ def cli(argv=None):
     run.add_argument("--sim", type=Path, metavar="FORGE_PROBE", help="simulated CHOMPI (no audio, no hardware evidence)")
     run.add_argument("--only", nargs="+", metavar="STEP", help="run only these steps (e.g. the ones that failed)")
     run.add_argument("--setup-only", action="store_true", help="only check the test setup (cables, gain, hum, line in)")
+    run.add_argument("--ignore-power", action="store_true", help="run even if CHOMPI reports a low battery or weak supply")
     args = parser.parse_args(argv)
     if args.command == "devices":
         print(json.dumps(SoundDeviceAudio().devices(), indent=2)); return 0
@@ -682,6 +731,7 @@ def cli(argv=None):
     try:
         ports = ({} if args.sim else {"input": args.input, "output": args.output} if args.input
                  else bridge.request("discover", {}))
+        if not args.sim and not power_ok(ports, args.ignore_power): return 3
         owner = bridge.request("connect", {"mode": "simulation" if args.sim else "hardware", **ports,
                                            "metadata": "forge_audio.py run"})["owner"]
         def wait(kind):

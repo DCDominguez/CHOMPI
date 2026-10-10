@@ -38,7 +38,9 @@ class PatchTests(unittest.TestCase):
             response = probe(packet)[0]
             self.assertEqual(response[8:len(packet)], packet[7:-1])
             result = host.decode_response(response, 129)
-            self.assertEqual(result["firmware"], "0.15")
+            self.assertEqual(result["firmware"], "0.15.2")
+            self.assertEqual((result["build"], result["development"], result["dirty"], result["safe_mode"]),
+                             (None, True, False, False))   # the probe: a development host build, commit unknown
             self.assertAlmostEqual(host.effect_patch(result["patch"])["parameters"]["time_ms"],
                                    host.effect_patch(patch)["parameters"]["time_ms"], delta=990 / 16383)
 
@@ -55,7 +57,7 @@ class PatchTests(unittest.TestCase):
             packet = host.encode_patch(patch, 91)
             self.assertEqual(len(packet), 91)
             response = probe(packet)[0]
-            self.assertEqual(len(response), 103)
+            self.assertEqual(len(response), 103 + host.STATUS_EXTRA)
             self.assertEqual(response[8:len(packet)], packet[7:-1])
             self.assertEqual(host.decode_response(response, 91)["patch"]["harmony"], harmony)
         for bad in ({**host.HARMONY_DEFAULTS, "tonic": "H"}, {**host.HARMONY_DEFAULTS, "inversion": 4},
@@ -82,7 +84,7 @@ class PatchTests(unittest.TestCase):
             packet = host.encode_patch(patch, 93)
             self.assertEqual(len(packet), 97)
             response = probe(packet)[0]
-            self.assertEqual(len(response), 109)
+            self.assertEqual(len(response), 109 + host.STATUS_EXTRA)
             self.assertEqual(response[8:len(packet)], packet[7:-1])
             decoded = host.decode_response(response, 93)["patch"]
             self.assertEqual((decoded["parts"], decoded["harmony"]), (parts, patch["harmony"]))
@@ -112,7 +114,7 @@ class PatchTests(unittest.TestCase):
             packet = host.encode_patch(patch, 77)
             self.assertEqual(len(packet), 88)
             response = probe(packet)[0]
-            self.assertEqual(len(response), 100)
+            self.assertEqual(len(response), 100 + host.STATUS_EXTRA)
             self.assertEqual(response[8:len(packet)], packet[7:-1])
             self.assertEqual(host.decode_response(response, 77)["patch"]["knobs"], knobs)
         for bad in (["delay.bypass"] + ["default"] * 3, ["default"] * 3, "default", [None] * 4):
@@ -216,6 +218,49 @@ class PatchTests(unittest.TestCase):
                 self.assertEqual((audio.getframerate(), audio.getnchannels(), audio.getsampwidth(), audio.getnframes()),
                                  (48000, 2, 2, 192000))
                 self.assertNotEqual(set(audio.readframes(192000)), {0})
+
+    def test_build_identity(self):
+        # 0.15.2: identity (patch, flags, commit) and power (battery, flags, charge) after the minor;
+        # older firmware has neither and still decodes.
+        new = probe(host.encode_patch(self.patch, 21))[0]
+        tail = new[-1 - host.STATUS_EXTRA:-1]
+        self.assertEqual(tail[0], int(host.FIRMWARE_VERSION.split(".")[2]))
+        self.assertEqual(tail[host.IDENTITY_SIZE:], [4, 0, 0])            # the probe has no charger: unknown
+        def reply(identity, power):
+            data = new[:-1 - host.STATUS_EXTRA] + identity + power + [0]
+            data[-1] = (128 - sum(data[:-1]) % 128) % 128
+            return host.decode_response(data, 21)
+        commit = 0x0f5bb18
+        result = reply([tail[0], 2 | 4] + [commit >> (7 * i) & 127 for i in range(4)], [1, 1 | 32, 2])
+        self.assertEqual((result["firmware"], result["build"], result["development"], result["dirty"], result["safe_mode"]),
+                         ("0.15.2", "0f5bb18", False, True, True))
+        self.assertEqual(host.describe_build(result), "Forge 0.15.2 (build 0f5bb18, uncommitted changes, SAFE MODE)")
+        self.assertEqual(result["power"]["battery"], "high")
+        self.assertEqual(host.describe_power(result["power"]),
+                         "Battery high (green, as SW6 shows) · USB power · charging · install refused: charge first")
+        done = reply(tail[:host.IDENTITY_SIZE], [0, 1, 5])["power"]
+        self.assertEqual(host.describe_power(done), "Battery full (white, as SW6 shows) · USB power · charged · install allowed")
+        weak = reply(tail[:host.IDENTITY_SIZE], [2, 8 | 16, 0])["power"]
+        self.assertIn("weak USB supply", host.describe_power(weak)); self.assertIn("on battery", host.describe_power(weak))
+        old = new[:-1 - host.STATUS_EXTRA] + [0]
+        old[-1] = (128 - sum(old[:-1]) % 128) % 128
+        result = host.decode_response(old, 21)
+        self.assertEqual((result["firmware"], result["build"], result["power"]), ("0.15", None, None))
+        self.assertEqual(host.describe_build(result), "Forge 0.15")
+        self.assertIn("hold SW6", host.describe_power(None))
+        short = new[:-2] + [0]                                    # one power byte missing
+        short[-1] = (128 - sum(short[:-1]) % 128) % 128
+        with self.assertRaisesRegex(ValueError, "status payload"): host.decode_response(short, 21)
+        with self.assertRaisesRegex(ValueError, "power"): reply(tail[:host.IDENTITY_SIZE], [5, 0, 0])
+
+    def test_battery_command_finds_chompi(self):
+        class Midi:
+            def get_input_names(self): return ["UMC204HD 192k MIDI In 0", "CHOMPI 1"]
+            def get_output_names(self): return ["Microsoft GS Wavetable Synth 0", "CHOMPI 2"]
+        self.assertEqual(host.find_chompi_ports(Midi()), ("CHOMPI 1", "CHOMPI 2"))
+        class Empty(Midi):
+            def get_input_names(self): return []
+        with self.assertRaisesRegex(RuntimeError, "not connected"): host.find_chompi_ports(Empty())
 
     def test_response_rejection(self):
         good = probe(host.encode_patch(self.patch, 17))[0]

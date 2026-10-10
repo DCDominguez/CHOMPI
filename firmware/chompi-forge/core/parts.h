@@ -157,7 +157,7 @@ public:
     // MIDI clock in: Start also starts the phrase over on the downbeat.
     FORGE_COLD void ClockMessage(Clock::Message m) {
         clock_.Midi(m);
-        if(m == Clock::Start) { step_ = 0; bass_step_ = 0; random_ = Seed(); restart_ = set_count_ != 0; }
+        if(m == Clock::Start) { step_ = 0; bass_step_ = 0; random_ = Seed(); restart_ = set_count_ != 0; gather_ = 0; }
         if(m == Clock::Stop) { StopArp(); StopBass(); }
     }
     // Tap tempo (the parts page): true once the tempo changed.
@@ -175,6 +175,7 @@ public:
         if(!count || key > 127 || source >= kSources) return;
         if(!held_) {                                  // first key after a release: a new phrase
             ClearSet(); step_ = 0; random_ = Seed(); restart_ = true; bass_step_ = 0;
+            gather_ = kGatherFrames;                  // let the rest of a chord's keys arrive first
         }
         const uint8_t bit = static_cast<uint8_t>(1u << source);
         if(!(keys_[key] & bit)) { keys_[key] |= bit; ++held_; }
@@ -224,16 +225,21 @@ public:
         if(bass_count_ && bass_left_ > 0.f && (bass_left_ -= static_cast<float>(frames)) <= 0.f) StopBass();
         if(!Active()) { restart_ = false; return; }
         if(!clock_.Running()) { StopArp(); return; }
-        // A new phrase starts at once; then on the grid.
-        if(restart_) { restart_ = false; if(ArpOn() && order_count_) ArpStep(tick); if(BassOn()) BassStep(tick); }
+        // A new phrase starts kGatherFrames after its first key (a chord's keys land a few ms apart:
+        // DC's CHOMPI played the first steps of a half-built chord, 2026-10-11); then on the grid.
+        if(restart_) {
+            if(gather_ > frames) gather_ -= frames;
+            else { gather_ = 0; restart_ = false; if(ArpOn() && order_count_) ArpStep(tick); if(BassOn()) BassStep(tick); }
+        }
         for(unsigned t = 0; t < ticks; ++t) {
             const uint32_t at = clock_.Ticks() - ticks + t + 1;
             if(sending) Midi(0xf8);
+            if(restart_) continue;                    // still gathering the chord: no grid steps yet
             if(ArpOn() && order_count_ && at % kRateTicks[static_cast<unsigned>(settings.rate)] == 0) ArpStep(tick);
             const uint8_t bt = kBassTicks[static_cast<unsigned>(settings.bass_rate)];
             if(BassOn() && bt && at % bt == 0) BassStep(tick);
         }
-        if(BassOn() && settings.bass_rate == BassRate::Chord && bass_change_) BassStep(tick);
+        if(!restart_ && BassOn() && settings.bass_rate == BassRate::Chord && bass_change_) BassStep(tick);
         if(BassOn() && !set_count_ && bass_count_) StopBass();
     }
     // Synth note events (velocity 0 = off) since the last call, oldest first.
@@ -357,6 +363,8 @@ private:
     float arp_left_ = 0.f, bass_left_ = 0.f;
     uint8_t arp_note_ = 0, root_ = 0, fifth_ = 7, velocity_ = 100, source_ = 2;
     bool restart_ = false, bass_change_ = false, sending_ = false;
+    static constexpr unsigned kGatherFrames = 720;   // 15 ms at 48 kHz
+    unsigned gather_ = 0;
     Event event_[kEvents] = {}; unsigned events_ = 0;
 };
 } // namespace parts

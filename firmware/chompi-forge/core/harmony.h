@@ -292,7 +292,12 @@ public:
     }
     // Keys harmony mode takes: Static, the keybed C3..C5; Real, every key.
     bool Maps(uint8_t key) const { return state.layout == Layout::Real ? key < 128 : key >= 48 && key <= 72; }
-    bool Holds(uint8_t key, uint8_t source) const { return const_cast<Player*>(this)->Find(key, source) != nullptr; }
+    // Keys whose key-up harmony must see: a held chord, and the Static Shift key while Shift is
+    // on (it holds no chord, so without this its release never reached KeyUp and Shift stuck).
+    bool Holds(uint8_t key, uint8_t source) const {
+        if(shift_ && state.layout == Layout::Static && key == kShiftKey) return true;
+        return const_cast<Player*>(this)->Find(key, source) != nullptr;
+    }
     // Panic, a structural patch change: forget everything (the synth is silenced).
     void Clear() { for(auto& h : held_) h = Held{}; for(auto& s : refs_) for(auto& r : s) r = 0; shift_ = false; last_ = Voiced{}; }
     const Voiced& LastVoiced() const { return last_; }

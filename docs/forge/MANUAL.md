@@ -1,6 +1,6 @@
 # Forge for CHOMPI — user manual
 
-Firmware **0.15.1** (development builds; experimental community firmware, not an
+Firmware **0.15.2** (development builds; experimental community firmware, not an
 official CHOMPI release). Forge turns CHOMPI into a playable synthesizer,
 TAPE-compatible sampler and looper whose sounds you can design on a computer —
 by hand or by describing them to an AI — and send over USB.
@@ -77,6 +77,10 @@ Rename `CHOMPI_TAPEv2_0_bin.old` back to `CHOMPI_TAPEv2_0.bin`, rename or remove
 
 - **On/off: the power switch.** Charging still works with it off.
 - **Charging:** plug USB into a wall charger or computer. A wall charger is faster.
+- **Battery over USB (0.15.2):** `python host/forge_host.py battery` (from
+  `firmware/chompi-forge`, CHOMPI on USB) prints the level, its SW6 colour, USB power,
+  charging and whether a firmware install is allowed; Connect CHOMPI and the webapp
+  show it too. Stock TAPE does not report it: use SW6.
 - **Battery level:** hold the **SW6** knob down for 2 s — its light shows
   **white** = charged (on the charger), **green** = good, **yellow** = low
   (below about 3.3 V). Release to hide it.
@@ -183,10 +187,12 @@ All white keys red = no usable SD card. **MIDI program change** (channel 1)
 recalls slots too: program = (bank − 1) × 15 + (slot − 1).
 
 **Starter presets:** Forge Bridge → *Card & firmware* → choose a bank →
-*Load starter presets* writes 12 sounds into slots 1–12 of that bank: 1 Dry,
+*Load starter presets* writes 15 sounds into slots 1–15 of that bank: 1 Dry,
 2 Slap echo, 3 Long echoes, 4 Glass Keys, 5 Soft Pad, 6 Saw Bass, 7 Warm Pad,
 8 Acid Bass, 9 Bell Keys, 10 Recorded Keys (plays the recording), 11 TAPE Kit A
-(needs the TAPE samples), 12 Knob Pad. Slots already holding a preset are kept,
+(needs the TAPE samples), 12 Knob Pad, and three demos of the new parts (0.15.2): 13 Harmony
+Pad (one key = a 7th chord), 14 Arp Bells (latched 1/16 arp with a root bass), 15 Chord Arp
+(minor chords through an up-down arp and an alternating bass). Slots already holding a preset are kept,
 never overwritten. No firmware update needed (it uses the normal store request).
 
 CHOMPI always starts in the pass-through mode; recall a preset after switching on.
@@ -545,6 +551,9 @@ so one card sets both firmwares:
 | Stuck notes or runaway echo | Hold **SW4 + SW3** for a second (panic; a loop is paused, not lost), or the bridge's Panic |
 | A knob seems to do nothing | Check its light: you may be on another page (press and release to step); hold it 1.5 s to reset it. Some pages need another control (e.g. LFO speed needs an LFO depth) |
 | CHOMPI switched itself off or restarted | *Check setup* shows **Last start** (power-on, brown-out = the supply dipped, or a crash); the card keeps a line per start in `FORGE/RESTARTS.TXT`. Send both with your report. A low battery switches CHOMPI off as stock TAPE does: with no USB after 15 s of amber flashes; on a weak USB supply (computer port) at once, lights off. From 0.11 these leave a "battery low" line in `RESTARTS.TXT`; charge it, or play on a USB-C charger |
+| Knob lights flash magenta three times at start, then the CHOMPI light blinks magenta every 2 s; menu keys red | **Safe mode** (0.15.2): Forge crashed three times within 10 s of starting, so it started without the card's settings, presets and samples. Playing works; your card is untouched. Copy `FORGE/RESTARTS.TXT` off the card and report it; switch off and on to leave safe mode. A firmware install over USB or from the card still works |
+| Dim blue light for 30 s or more at start, or it hangs there | A card written by Forge before the 0.15.2 card fix: put the card in a computer, run a disk check (Windows: `chkdsk X: /F`), delete empty files named `RESTARTS.TXT`, `presets_backup.json` (in `FORGE/`) and `presets_temp.json`; until then CHOMPI starts without the card |
+| Which build is on CHOMPI? | Connect CHOMPI (bridge) or the webapp's status line: e.g. "Forge 0.15.2 (build 0f5bb18)" — the build is the commit it was made from |
 | Dark after an install or a restart; only the red charge light | The bootloader is waiting on a low battery with a weak USB supply. Plug in a USB-C to USB-C charger, switch off, wait 5 s, switch on |
 | White keys all red in the menu | SD card missing or unreadable; reinsert it |
 | A sample doesn't play | Exact name in the card's top folder (`cubbi_a1.wav`), not inside a folder |

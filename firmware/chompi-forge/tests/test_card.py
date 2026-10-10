@@ -131,6 +131,7 @@ class CardTests(unittest.TestCase):
         state = self.card.status()
         self.assertTrue(state["restarting"]); self.assertFalse(state["install_pending"])
 
+    @unittest.skipUnless(FIRMWARE.exists(), "development firmware not built (make firmware-dev)")
     def test_low_power_refuses_the_install(self):
         """0.11: low battery on a weak supply (simulated) -> flag on every reply, Install refused (error 10)."""
         import os
@@ -218,9 +219,9 @@ class BridgeCardTests(unittest.TestCase):
         self.call("presets", bank=2, confirm=True)
         job = self.wait()
         self.assertIsNone(job["error"])
-        self.assertEqual(job["result"]["stored"], [s for s in range(1, 13) if s != 3])
+        self.assertEqual(job["result"]["stored"], [s for s in range(1, 16) if s != 3])
         self.assertEqual(job["result"]["kept"], [3])
-        self.assertEqual(transport.exchange(host.preset_message(7, seq()))["occupied"][2], list(range(1, 13)))
+        self.assertEqual(transport.exchange(host.preset_message(7, seq()))["occupied"][2], list(range(1, 16)))
         def sounds_like(name):                                          # the device's own reading of the v5 upgrade
             transport.exchange(host.encode_patch(host.upgrade_patch(host.load_patch(ROOT / "presets" / name), 5), seq()))
             return transport.exchange(host.message(2, seq()))["patch"]
@@ -235,7 +236,7 @@ class BridgeCardTests(unittest.TestCase):
 
     def test_starter_preset_files_exist_and_validate(self):
         for slot, name in bridge.STARTER_PRESETS: host.load_patch(ROOT / "presets" / name)
-        self.assertEqual([s for s, _ in bridge.STARTER_PRESETS], list(range(1, 13)))
+        self.assertEqual([s for s, _ in bridge.STARTER_PRESETS], list(range(1, 16)))
 
 
 if __name__ == "__main__":

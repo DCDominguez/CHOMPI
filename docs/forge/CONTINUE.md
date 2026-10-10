@@ -1,8 +1,79 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-10, checkpoint: HANDOFF item 1 (per-source held keys in `core/parts.h`) on
-DC's local PC. Read this first; DC's next session is
+Updated 2026-10-11, checkpoint: 0.15.2 on CHOMPI, 34/34 automatic, 20-min soak passed; next Batch 1 + 2 (below). Read this first; DC's next session is
 [HOME_CHECKLIST.md](HOME_CHECKLIST.md), then [TEST_SESSION.md](TEST_SESSION.md).
+
+## 2026-10-11: agent hardware checks, soak, UX review (resume here)
+
+- On CHOMPI (agent over USB + UMC + webcam, TEST_RESULTS 2026-10-11): all 34 automatic steps;
+  harmony chords, arp / bass / latch, event recorder 5/5; 20-min rapid-key soak (24,137
+  presses, no USB loss, 0 dropped, CPU peak 62.6 %). Videos in `reports/cam/` (gitignored).
+- Fixed in code, software-tested, **not installed**: harmony Shift stuck after release
+  (`core/harmony.h`); arp / bass phrase start sees a half-built chord (15 ms gathering,
+  `core/parts.h`); starter-preset loader restores a neutral v7 first; demo presets 15-17;
+  test-plan robustness (3.42 SW5 first, steady-tone silence rule).
+- DC's decisions and the per-function ease-of-use ratings (bar: 4/5 each):
+  [UX_REVIEW.md](UX_REVIEW.md), PROJECT.md backlog.
+- **Next (DC approved 2026-10-11): Batch 1** = new first loop take at 1×; SW5 lights during
+  scrub and cutoff turns; SW5 cutoff filters the loop; CHOMPI key colour per menu page;
+  knob colour per menu-item value while turning + page flash; waveform-aware v2 → v3 cutoff
+  upgrade (host). **Batch 2** = harmony keys lit by chord quality, Shift lit, quick harmony
+  on/off; event recorder close / play / stop without the menu; direct parts-page entry.
+  Then DC allows install + stress test to failure (safety rules in the 2026-10-11
+  conversation: physical CHOMPI press for installs, no card writes outside an agreed test
+  bank, stop on crash / safe mode / power fault).
+- Still open: SW3 DJ filter silencing, sound loss while modulating, unexplained looper
+  take, menu opening during the knob test, 0.9 shut-off on battery, design question (1)
+  (older preset switches harmony / parts off?).
+
+## Late session 2026-10-10: start-up stall fixed, guided pass started (resume here)
+
+- Fixed and verified on CHOMPI: the 30–60 s start-up stall and failing card writes (FatFs
+  `FIL` objects on the DTCM stack; CHANGELOG 0.15.2). DC's card repaired (chkdsk, empty
+  leftovers deleted; byte-identical to the afternoon backup otherwise). Boot: 3 s.
+- Installed on CHOMPI: the development build from the current tree (still reports build
+  c93357b, "uncommitted changes": nothing committed since c93357b).
+- Open, in order: (1) knob ring colour while turning (camera test, repeat in sync);
+  (2) looper take nobody may have pressed; (3) menu opening / sampler slot during knob test;
+  (4) SW3 DJ filter silencing; (5) misleading `toggle_up` name (true = physically down);
+  (6) `forge_card.py install` traceback when CHOMPI restarts; (7) commit + push, then a
+  clean build onto CHOMPI; then continue the guided pass from step 2 (knobs).
+
+## Hardware: 0.15.2 on CHOMPI, unattended run (2026-10-10 evening)
+
+DC installed the development build (c93357b, dirty) from the SD card. It boots and
+reports itself; over USB the agent ran the whole automatic plan: 34 of 34 pass after a
+host fix and reruns (TEST_RESULTS 2026-10-10 has every figure). First device CPU: synth
+stress peak ~44 %, sampler 55 %, sampler + TAPE effects 61 %. Open: start-up USB settling
+(descriptor failure, late replies for ~1 min), one-off clicks in 6.2b (not reproduced),
+brown-out among the start flags. Host fix: `forge_audio.detect` prefers a stereo input.
+Next: DC's listening session (sound and feel; DC does not hunt failures), then the
+person-only TEST_SESSION steps; re-run 6.2b at each session; a clean committed build.
+
+## Checkpoint: firmware 0.15.2, HANDOFF items 2-4 (2026-10-10, local PC)
+
+DC: "fix the blockers first"; for the crash guard DC chose safe mode over "stop restarting".
+- Implemented (CHANGELOG 0.15.2): build identity (status reply and Inspector page 2 end in
+  patch, flags, 28-bit commit; `src/Makefile` writes `forge_build_id.h` from git; host
+  `decode_identity` / `describe_build` read both layouts; Connect CHOMPI, webapp, Inspector
+  and Check setup show it; check 1.3 expects 0.15.2). Safe mode (`core/restart.h`
+  `StartupGuard`, `forge_main.cpp` `card` / `install_card` split, magenta lights, SAFE MODE
+  line in RESTARTS.TXT, flag 4). CI: full gate + release firmware + bench; exe after tests.
+- Checks (Windows, MinGW GCC 16.2 for host code, pinned Arm GCC 10.3-2021.10 for firmware):
+  16 native + 130 Python PASS (card tests ran against this development build); release
+  232,580 B / development 246,256 B, layout OK; `startup_guard` in backup SRAM (0x3880002c).
+- Battery checker (DC): power bytes in every status reply; `forge_host.py battery`; the
+  automatic run reads the battery first and stops if an install would be refused. Tried on
+  DC's CHOMPI (stock TAPE): ports found, no Forge reply, SW6 advice printed. TEST_SESSION
+  "Unattended over USB" is DC's no-one-at-CHOMPI method (after the one install).
+- Not run locally: sanitizers, browser tests, bench (CI runs them; first run unchecked).
+  Not verified: anything on hardware; safe mode cannot be triggered on purpose.
+- The MinGW `-O2` `forge_probe --render` crash came and went during these runs (passed in
+  the last full run); still open, see the item 1 checkpoint below.
+- Next: check the first CI run; the independent review (item 1's second half); then DC's
+  hardware session (charge first; TEST_SESSION 1.3 now checks the build). DC tests sound
+  and feel; agents run the failure testing over USB. After it: PROJECT.md "Backlog" (synth
+  edit page on CHOMPI, starter preset upgrades / demos).
 
 ## Checkpoint: per-source held keys (HANDOFF item 1, 2026-10-10, local PC)
 

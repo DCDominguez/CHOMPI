@@ -88,6 +88,9 @@ float __attribute__((section(".dtcmram_bss"))) reverb_memory[kReverbCapacity];
 struct BootCount { uint32_t magic, boots; };
 __attribute__((section(".backup_sram.forge"))) forge::restart::FaultRecord fault_record;   // after boot_info (0x38800000)
 __attribute__((section(".backup_sram.forge"))) BootCount boot_count;
+__attribute__((section(".backup_sram.forge"))) forge::restart::StartupGuard startup_guard;   // safe mode (0.15.2)
+bool safe_mode = false;                        // this start skips the card's settings (core/restart.h)
+uint32_t mount_ms = 0;                         // how long the start-up card mount took (RESTARTS.TXT)
 uint8_t reset_flags = 0;                       // this start's RCC_RSR, compacted
 forge::restart::FaultRecord last_fault{};      // the crash that caused this start, if any
 // Forge's fault handler replaces libDaisy's (a breakpoint that freezes CHOMPI without a
@@ -100,6 +103,7 @@ extern "C" __attribute__((used)) void ForgeFaultRecord(const uint32_t* frame) {
     fault_record.cfsr = SCB->CFSR; fault_record.hfsr = SCB->HFSR;
     fault_record.count = fault_record.Valid() ? fault_record.count + 1 : 1;
     fault_record.magic = forge::restart::FaultRecord::kMagic;
+    forge::restart::CountCrash(startup_guard);
     __DSB();
     NVIC_SystemReset();
 }
@@ -125,15 +129,27 @@ uint32_t dropped_commands = 0, rejected_messages = 0; // main-loop owned
 // (audio owner). Menu actions cross to the main loop with a parameter snapshot.
 SdmmcHandler sdmmc;
 FatFSInterface fsi;
-FatFsStorage card;
+FatFsStorage card;            // the card's settings, presets, loops and samples: not ready in safe mode
+FatFsStorage install_card;    // the same volume for USB install and the restart log: usable in safe mode
 forge::PresetStore store(card);
 // One line per start in FORGE/RESTARTS.TXT on the card (kept under 16 KB).
 FORGE_COLD void LogRestart() {
-    if(!card.Ready()) return;
+    if(!install_card.Ready()) return;
     char line[160];
-    const unsigned n = forge::restart::Describe(boot_count.boots, reset_flags, &last_fault, line, sizeof(line));
+    unsigned n = forge::restart::Describe(boot_count.boots, reset_flags, &last_fault, line, sizeof(line));
+    if(n < sizeof(line)) {                         // start-up card timing (DC's 60 s stall, 2026-10-10)
+        char text[48] = "card mount ";
+        unsigned k = 11; uint32_t v = mount_ms; char digits[11]; int d = 0;
+        do { digits[d++] = static_cast<char>('0' + v % 10); v /= 10; } while(v && d < 10);
+        while(d && k < sizeof(text) - 4) text[k++] = digits[--d];
+        text[k++] = ' '; text[k++] = 'm'; text[k++] = 's'; text[k] = 0;
+        n += forge::restart::DescribeEvent(boot_count.boots, text, line + n, sizeof(line) - n);
+    }
+    if(safe_mode && n < sizeof(line))
+        n += forge::restart::DescribeEvent(boot_count.boots, "SAFE MODE after repeated start-up crashes: card settings, presets and samples skipped",
+                                           line + n, sizeof(line) - n);
     f_mkdir("FORGE");
-    FIL file;
+    static FIL file;   // static: a FIL holds a DMA sector buffer and the stack is DTCM (out of the SD DMA's reach)
     FILINFO info;
     const bool big = f_stat("FORGE/RESTARTS.TXT", &info) == FR_OK && info.fsize > 16384;
     if(f_open(&file, "FORGE/RESTARTS.TXT", big ? (FA_WRITE | FA_CREATE_ALWAYS) : (FA_WRITE | FA_OPEN_APPEND)) != FR_OK) return;
@@ -156,11 +172,11 @@ bool InstallPowerOk() {
 FORGE_COLD void LogLockout(forge::power::Lockout lockout) {
     static uint8_t logged = 0;
     const uint8_t bit = static_cast<uint8_t>(1u << static_cast<unsigned>(lockout));
-    if((logged & bit) || !card.Ready()) return;
+    if((logged & bit) || !install_card.Ready()) return;
     logged |= bit;
     char line[160];
     const unsigned n = forge::restart::DescribeEvent(boot_count.boots, forge::power::LockoutText(lockout), line, sizeof(line));
-    FIL file;
+    static FIL file;   // static: a FIL holds a DMA sector buffer and the stack is DTCM (out of the SD DMA's reach)
     if(f_open(&file, "FORGE/RESTARTS.TXT", FA_WRITE | FA_OPEN_APPEND) != FR_OK) return;
     UINT written = 0;
     f_write(&file, line, n, &written);
@@ -191,7 +207,7 @@ forge::SampleLoader& sample_loader = Construct<forge::SampleLoader>();          
 forge::Recorder recorder;                                     // audio owner (Unlock: main)
 FatFsSampleFiles sample_files(card);
 // USB file transfer and firmware install (core/file_transfer.h; main loop, gate shared with audio).
-FatFsUploadFiles upload_files(card);
+FatFsUploadFiles upload_files(install_card);   // recovery works in safe mode
 forge::FileTransfer file_transfer;
 forge::InstallGate install_gate;
 std::atomic<uint32_t> sample_wanted{0};                      // audio -> main: PackSelection of the live patch
@@ -386,7 +402,7 @@ uint32_t slot_settings_failures = 0;
 FORGE_COLD void LoadSlotSettings() {
     slot_settings.Clear();
     if(!card.Ready()) return;
-    FIL file; UINT read = 0;
+    static FIL file; UINT read = 0;   // static: a FIL holds a DMA sector buffer and the stack is DTCM (out of the SD DMA's reach)
     if(f_open(&file, "presets.json", FA_READ) != FR_OK && f_open(&file, "presets_old.json", FA_READ) != FR_OK) return;   // a write cut short
     f_read(&file, presets_text, sizeof(presets_text) - 1, &read);
     f_close(&file);
@@ -394,7 +410,7 @@ FORGE_COLD void LoadSlotSettings() {
     slot_settings.Parse(presets_text, read);
 }
 FORGE_COLD bool CopyFile(const char* from, const char* to) {
-    FIL in, out;
+    static FIL in, out;   // static: a FIL holds a DMA sector buffer and the stack is DTCM (out of the SD DMA's reach)
     if(f_open(&in, from, FA_READ) != FR_OK) return false;
     bool ok = f_open(&out, to, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK;
     if(ok) {
@@ -416,7 +432,7 @@ FORGE_COLD bool WritePresetsFile() {
     }
     const size_t n = slot_settings.Write(presets_text, sizeof(presets_text));
     if(!n) return false;
-    FIL file; UINT written = 0;
+    static FIL file; UINT written = 0;   // static: a FIL holds a DMA sector buffer and the stack is DTCM (out of the SD DMA's reach)
     if(f_open(&file, "presets_temp.json", FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) return false;
     const bool ok = f_write(&file, presets_text, n, &written) == FR_OK && written == n;
     if(f_close(&file) != FR_OK || !ok) { f_unlink("presets_temp.json"); return false; }
@@ -437,17 +453,30 @@ void SaveSlotSettings(uint32_t now) {
     if(!WritePresetsFile()) { ++slot_settings_failures; schedule.Failed(slot_settings, now); }   // tried again later
 }
 // TAPE's options.json (core/options.h), read once before audio starts; Forge never writes it.
-FORGE_COLD void LoadOptions() {
-    forge::Options o;
+// Start-up step timing for the Inspector (development): "card" events id 3+ = step, value = ms.
+inline void BootStep(uint8_t id, uint32_t& since) {
+#ifdef FORGE_TEST_HOOKS
+    const uint32_t now = System::GetNow(); InspectorEvent(forge::InspectorEventKind::Card, id, now - since); since = now;
+#else
+    (void)id; (void)since;
+#endif
+}
+forge::Options boot_options;                   // read with the other start-up card files, applied later
+FORGE_COLD void ReadOptions() {
+    forge::Options& o = boot_options;
+    o = forge::Options{};
     if(card.Ready()) {
         alignas(32) static char text[1024];     // whole cache lines: the SD driver invalidates around DMA reads
-        FIL file; UINT read = 0;
+        static FIL file; UINT read = 0;   // static: a FIL holds a DMA sector buffer and the stack is DTCM (out of the SD DMA's reach)
         if(f_open(&file, "options.json", FA_READ) == FR_OK) {
             f_read(&file, text, sizeof(text), &read);
             f_close(&file);
             o = forge::options::Parse(text, read);
         }
     }
+}
+FORGE_COLD void LoadOptions() {
+    const forge::Options& o = boot_options;
     panel_controller.SetOptions(o);
     looper.SetTapeSlew(o.tape_slew);
     engine.SetSplitDelay(o.split_delay);
@@ -560,7 +589,17 @@ bool Queue(forge::Request& request) {
     return requests.Push(request);
 }
 
-void SendResponse(const forge::Response& response) {
+// Battery and charger, for the status reply (every build) and Inspector page 2.
+void ReadPower(uint8_t& battery, uint8_t& flags, uint8_t& charge) {
+    const auto power = forge::power::DecodeStatus(hw.mp_buff_, static_cast<forge::power::Battery>(hw.GetBatteryLevel()),
+                                                  charger_usb.Handover() || !usb_lines_to_daisy);
+    battery = static_cast<uint8_t>(power.level);
+    flags = static_cast<uint8_t>((power.usb_power ? 1 : 0) | (power.fault ? 2 : 0) | (power.usb_to_charger ? 4 : 0)
+                                 | forge::power::SupplyFlags(power.level, ChargerReadings()));
+    charge = power.charge_state;
+}
+void SendResponse(forge::Response response) {
+    if(response.kind == forge::ResponseKind::Status) ReadPower(response.battery, response.power_flags, response.charge_state);
     const uint32_t dropped = dropped_commands + uart_midi.dropped.load(std::memory_order_relaxed)
         + usb_midi.dropped.load(std::memory_order_relaxed);
     uint8_t envelope[kMaxEnvelope];
@@ -678,6 +717,7 @@ FORGE_COLD void RunSampler() {
 // the composed colours (tests, development probe) stay TAPE's.
 constexpr float kBalanceG = .85f, kBalanceB = .6f;
 forge::Rgb Balance(forge::Rgb c) { return forge::Rgb{c.r, c.g * kBalanceG, c.b * kBalanceB}; }
+constexpr forge::Rgb kSafeModeColour{1.f, 0.f, 1.f};
 void Pth(unsigned led, forge::Rgb c) { c = Balance(c); SetPthLedFloat(led, c.r, c.g, c.b); }
 FORGE_COLD void DrawLeds() {
     static uint32_t last_draw = 0;
@@ -725,6 +765,7 @@ FORGE_COLD void DrawLeds() {
                                 loop_speed.load(std::memory_order_relaxed), view.record_position, reverse, forward);
     Pth(5, reverse); Pth(6, forward);
     for(unsigned i = 0; i < 25; ++i) { const forge::Rgb c = Balance(keys[i]); SetSmtLedFloat(i, c.r, c.g, c.b); }
+    if(safe_mode && (now / 250) % 8 == 0) chompi = kSafeModeColour;   // a magenta blink every 2 s
     Pth(0, chompi);
     // SW6 (TAPE): held 2 s = battery; otherwise its page (volume / input gain) and value.
     if(panel_controller.BatteryView()) {
@@ -743,21 +784,47 @@ FORGE_COLD void DrawLeds() {
     }
 }
 // Card insert/remove: remount and rescan when the card comes back.
+// Safe mode at start-up: the four knob lights flash magenta three times (1.2 s).
+FORGE_COLD void FlashSafeMode() {
+    for(unsigned i = 0; i < 6; ++i) {
+        for(unsigned k = 0; k < 4; ++k) Pth(forge::panel::kKnobLed[k], i % 2 ? forge::Rgb{} : kSafeModeColour);
+        fill_led_data();
+        System::Delay(200);
+        hw.LowBatteryLockoutCheck();
+    }
+}
+// Both views of the card; the settings view stays closed in safe mode.
+FORGE_COLD void MountCard() {
+    const uint32_t started = System::GetNow();
+    const FRESULT result = f_mount(&fsi.GetSDFileSystem(), fsi.GetSDPath(), 1);
+    const bool mounted = result == FR_OK;
+#ifdef FORGE_TEST_HOOKS
+    InspectorEvent(forge::InspectorEventKind::Card, 1, System::GetNow() - started);   // mount time, ms
+    InspectorEvent(forge::InspectorEventKind::Card, 2, static_cast<uint32_t>(result)); // FatFs result (0 = ok)
+#endif
+    install_card.SetMounted(mounted);
+    card.SetMounted(mounted && !safe_mode);
+#ifdef FORGE_TEST_HOOKS
+    if(disk_status(0)==RES_OK && !mounted) InspectorStorageError(forge::Error::Storage);
+#endif
+}
 FORGE_COLD void WatchCard() {
-    static uint32_t last_check = 0; static bool was_ready = false;
+    // A card that is already mounted is left alone; a failing one is retried 1, 2, 4 … 32 s
+    // apart, so a bad card cannot stall the main loop (and USB replies) every second.
+    static uint32_t last_check = 0, retry_ms = 1000; static int8_t was_ready = -1;
     const uint32_t now = System::GetNow();
-    if(now - last_check < 1000) return;
+    if(was_ready < 0) was_ready = install_card.Ready() ? 1 : 0;   // the start-up mount's result
+    if(now - last_check < (was_ready ? 1000 : retry_ms)) return;
     last_check = now;
     const bool present = disk_status(0) == RES_OK;
     if(present && !was_ready) {
-        card.SetMounted(f_mount(&fsi.GetSDFileSystem(), fsi.GetSDPath(), 1) == FR_OK);
-#ifdef FORGE_TEST_HOOKS
-        if(!card.Ready()) InspectorStorageError(forge::Error::Storage);
-#endif
+        MountCard();
         store.Rescan();
         LoadSlotSettings();
+        retry_ms = install_card.Ready() ? 1000 : (retry_ms < 32000 ? retry_ms * 2 : 32000);
     }
-    was_ready = present && card.Ready();
+    if(!present) retry_ms = 1000;                  // a card taken out: look again soon
+    was_ready = present && install_card.Ready() ? 1 : 0;
 }
 
 #ifdef FORGE_TEST_HOOKS
@@ -792,12 +859,7 @@ FORGE_COLD void CaptureInspector() {
     sys.dropped=dropped_commands+sys.ingress_drops[0]+sys.ingress_drops[1]; sys.rejected=rejected_messages;
     sys.panel_drops=inspector_panel_drops.load(); sys.sample_drops=inspector_sample_drops.load();
     sys.event_drops=inspector_event_drops.load(); sys.emergencies=emergency_epoch.load();
-    const auto power=forge::power::DecodeStatus(hw.mp_buff_, static_cast<forge::power::Battery>(hw.GetBatteryLevel()),
-                                                charger_usb.Handover() || !usb_lines_to_daisy);
-    sys.battery=static_cast<uint8_t>(power.level);
-    sys.power_flags=static_cast<uint8_t>((power.usb_power?1:0)|(power.fault?2:0)|(power.usb_to_charger?4:0)
-                                         |forge::power::SupplyFlags(power.level,ChargerReadings()));
-    sys.charge_state=power.charge_state;
+    ReadPower(sys.battery, sys.power_flags, sys.charge_state);
     sys.reset_flags=reset_flags; sys.crashed=last_fault.Valid(); sys.crash_pc=last_fault.pc;
     auto& st=s.storage; sample_loader.Inspect(st);
     st.present=disk_status(0)==RES_OK; st.mounted=card.Mounted(); st.record_capacity_frames=kRecordFrames;
@@ -928,17 +990,41 @@ FORGE_COLD int main() {
     RCC->RSR |= RCC_RSR_RMVF;
     reset_flags = forge::restart::Flags(rsr);
     hw.Init();
-    InstallFaultHandler();
-    if(fault_record.Valid()) { last_fault = fault_record; fault_record.magic = 0; }
-    if(boot_count.magic != forge::restart::FaultRecord::kMagic) { boot_count.magic = forge::restart::FaultRecord::kMagic; boot_count.boots = 0; }
-    ++boot_count.boots;
-    LedSetup();
     hw.MpWrite(0x0c, 0B01010001); // retain upstream 3 V battery threshold
     hw.MpReadAll();
     for(unsigned i = 0; i < 10; ++i) {
         hw.LowBatteryLockoutCheck();
         System::Delay(10);
     }
+    // SD card first, exactly where TAPE mounts it (before USB, MIDI and the engine). Mounted
+    // after them it hung ~60 s at start-up (two of libDaisy's 30 s SD timeouts, DC's unit,
+    // 2026-10-10). Missing card: presets are unavailable (menu keys red), the rest works.
+    {
+        SdmmcHandler::Config sd_config;
+        sd_config.speed = SdmmcHandler::Speed::FAST;
+        sd_config.width = SdmmcHandler::BusWidth::BITS_4;
+        sdmmc.Init(sd_config);
+        fsi.Init(FatFSInterface::Config::MEDIA_SD);
+        const uint32_t started = System::GetNow();
+        MountCard();
+        mount_ms = System::GetNow() - started;
+    }
+    // Then Forge's own start: fault handler (also opens backup SRAM), restart records, safe
+    // mode (closes the card's settings view after the fact), lights.
+    InstallFaultHandler();
+    if(fault_record.Valid()) { last_fault = fault_record; fault_record.magic = 0; }
+    safe_mode = forge::restart::SafeModeStart(startup_guard, last_fault.Valid());
+    if(safe_mode) { forge::RuntimeBuildFlags() |= forge::kBuildSafeMode; card.SetMounted(false); }
+    if(boot_count.magic != forge::restart::FaultRecord::kMagic) { boot_count.magic = forge::restart::FaultRecord::kMagic; boot_count.boots = 0; }
+    ++boot_count.boots;
+    LedSetup();
+    // The start-up card work right after the mount, before USB / MIDI / the engine (TAPE reads
+    // its options here too). DC's unit stalled ~30-60 s when these ran after USB came up.
+    uint32_t step = System::GetNow();
+    store.Rescan();      BootStep(3, step);
+    LogRestart();        BootStep(4, step);
+    ReadOptions();       BootStep(5, step);
+    LoadSlotSettings();  BootStep(6, step);
     // Stock start-up scan (0.5 s, also clears shift-register junk): CHOMPI + PLAY +
     // LOOP held while CHOMPI starts switches it off (charger IC shipping mode).
     forge::power::BootGesture off_gesture;
@@ -967,6 +1053,7 @@ FORGE_COLD int main() {
     usb_config.periph = MidiUsbTransport::Config::EXTERNAL;
     usb_midi.transport.Init(usb_config);
     usb_midi.Listen();
+    BootStep(7, step);   // charger hand-over, boot scan, MIDI and USB
 
     engine.SetSamples(&sample_table);
     recorder.Init(record_memory, kRecordFrames, &sample_table.slots[forge::kRamSlot], hw.seed.AudioSampleRate());
@@ -982,21 +1069,8 @@ FORGE_COLD int main() {
     }
     SetPthLedFloat(0, 0.f, 0.05f, 0.1f);
     fill_led_data();
-    // SD card for device presets (as TAPE mounts it). Missing card: presets are
-    // unavailable (menu keys light red), everything else works.
-    SdmmcHandler::Config sd_config;
-    sd_config.speed = SdmmcHandler::Speed::FAST;
-    sd_config.width = SdmmcHandler::BusWidth::BITS_4;
-    sdmmc.Init(sd_config);
-    fsi.Init(FatFSInterface::Config::MEDIA_SD);
-    card.SetMounted(f_mount(&fsi.GetSDFileSystem(), fsi.GetSDPath(), 1) == FR_OK);
-#ifdef FORGE_TEST_HOOKS
-    if(disk_status(0)==RES_OK && !card.Ready()) InspectorStorageError(forge::Error::Storage);
-#endif
-    store.Rescan();
-    LogRestart();
+    BootStep(8, step);   // sampler, looper, engine
     LoadOptions();
-    LoadSlotSettings();
     engine.SetSlotSettings(&slot_settings);
     engine.SetHarmony(&harmony_player);
     parts.Init(hw.seed.AudioSampleRate()); engine.SetParts(&parts);
@@ -1004,8 +1078,11 @@ FORGE_COLD int main() {
     engine.SetSequencer(&sequencer, sequence_mailbox);
     panel_controller.SetInstallGate(&install_gate);
     cpu.Init(hw.seed.AudioSampleRate(), hw.seed.AudioBlockSize());
+    if(safe_mode) FlashSafeMode();
     hw.StartAudio(AudioCallback);
+    BootStep(9, step);   // the rest, up to audio running
     uint32_t battery_check = System::GetNow();
+    bool stable = false;
     while(true) {
         TransmitPending();
         SendPanelMidi();
@@ -1036,6 +1113,7 @@ FORGE_COLD int main() {
             hw.LowBatteryLockoutCheck();
             battery_check = now;
         }
+        if(!stable && now >= forge::restart::kStableMs) { forge::restart::RanStably(startup_guard); stable = true; }
         ServiceChargerUsb(now);
         SaveSlotSettings(now);
         if(install_gate.Poll(now)) {

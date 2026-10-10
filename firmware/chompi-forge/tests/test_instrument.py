@@ -25,7 +25,7 @@ class InstrumentTests(unittest.TestCase):
                 **{k: rng.uniform(*bounds) for k,bounds in host.SYNTH_LIMITS.items()}}
             packets.append(host.encode_patch(p, index))
         for packet, reply in zip(packets, probe(*packets)):
-            self.assertEqual(len(reply), 42)
+            self.assertEqual(len(reply), 42 + host.STATUS_EXTRA)
             self.assertEqual(reply[8:30], packet[7:29])
             captured = host.decode_response(reply, host.read14(packet,5))["patch"]
             self.assertEqual(host.encode_patch(captured, host.read14(packet,5)), packet)
@@ -103,10 +103,10 @@ class InstrumentTests(unittest.TestCase):
             packets.append(host.encode_patch(self.random_v3(rng, index), index))
         self.assertTrue(all(len(packet) == 69 for packet in packets))
         for packet, reply in zip(packets, probe(*packets)):
-            self.assertEqual(len(reply), 81)
+            self.assertEqual(len(reply), 81 + host.STATUS_EXTRA)
             self.assertEqual(reply[8:69], packet[7:68])                  # device echoes exactly what was sent
             captured = host.decode_response(reply, host.read14(packet, 5))
-            self.assertEqual(captured["firmware"], "0.15")
+            self.assertEqual(captured["firmware"], "0.15.2")
             self.assertEqual(host.encode_patch(captured["patch"], host.read14(packet, 5)), packet)
 
     def test_v3_rejection_is_atomic(self):
@@ -120,7 +120,7 @@ class InstrumentTests(unittest.TestCase):
         # v1 and v2 recall still work after a v3 patch, and v3 after them.
         v2 = host.encode_patch(self.patch, 3); v1 = host.encode_patch(host.load_patch(ROOT / "presets/01-dry.json"), 4)
         replies = probe(valid, v2, v1, valid)
-        self.assertEqual([len(r) for r in replies], [81, 42, 30, 81])
+        self.assertEqual([len(r) for r in replies], [81 + 9, 42 + 9, 30 + 9, 81 + 9])   # + the 0.15.2 build identity and power
 
     def test_v3_schema_is_strict(self):
         good = host.load_patch(ROOT / "presets/09-bell-keys.json")

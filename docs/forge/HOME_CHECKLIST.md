@@ -1,4 +1,4 @@
-# First time home with Forge 0.15.1
+# First time home with Forge 0.15.2
 
 One page, in order. About 45 minutes. Once Forge 0.7 or newer is on CHOMPI you
 should never need to take the SD card out for firmware or samples again.

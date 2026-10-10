@@ -49,7 +49,7 @@ def decode(data, sequence, expected_page=None):
         return {"page": 1, "rgb": [data[9+3*i:12+3*i] for i in range(26)]}
     if page not in range(2,11) or len(data) < 16 or data[9] != 1:
         raise ValueError("Unsupported Inspector schema/page; use the matching host")
-    lengths = {2:(88, 91, 98), 3:(97,), 4:(88,), 5:(94,), 8:(38,), 9:(50,), 10:(29,)}  # page 2: 91 from firmware 0.8 (power), 98 from 0.10 (restart)
+    lengths = {2:(88, 91, 98, 104), 3:(97,), 4:(88,), 5:(94,), 8:(38,), 9:(50,), 10:(29,)}  # page 2: 91 from firmware 0.8 (power), 98 from 0.10 (restart), 104 from 0.15.2 (build)
     if page in lengths and len(data) not in lengths[page]:
         raise ValueError("Invalid Inspector page length")
     pos = 10
@@ -89,13 +89,15 @@ def decode(data, sequence, expected_page=None):
                              "charge_done":charge==5,
                              # 0.12: weak USB supply, a reading below 3.0 V, an install would be refused
                              "weak_supply":bool(flags&8),"battery_low_reading":bool(flags&16),"install_blocked":bool(flags&32)}
-        if len(data) == 98:
+        if len(data) >= 98:
             flags,crashed=byte(),byte()
             if crashed>1: raise ValueError("Invalid Inspector restart fields")
             pc=u32()
             names=("power-on","brown-out","reset pin","software","watchdog","window watchdog","low-power")
             result["restart"]={"causes":[n for i,n in enumerate(names) if flags>>i&1],"crashed":bool(crashed),
                                "crash_pc":pc if crashed else None}
+        identity=[byte() for _ in range(host.IDENTITY_SIZE)] if len(data) == 104 else None
+        result.update(host.decode_identity(minor, identity))
     elif page == 3:
         for name in ("physical","logical"):
             chunks=[byte() for _ in range(6)]
@@ -104,8 +106,11 @@ def decode(data, sequence, expected_page=None):
             result[name+"_keys"]=[i for i in range(40) if mask >> i & 1]
         physical,logical=byte(),byte()
         if physical>7 or logical>15: raise ValueError("Invalid panel flags")
-        result["physical"]={"toggle_up":bool(physical&1),"line_jack":bool(physical&2),"tone_press":bool(physical&4)}
-        result["logical"]={"toggle_up":bool(logical&1),"line_jack":bool(logical&2),"tone_press":bool(logical&4),"overridden":bool(logical&8)}
+        # "toggle_up" is the firmware's name (TAPE's GetToggleState true) for the MENU position,
+        # which is physically DOWN on CHOMPI; "toggle_position" says it plainly (2026-10-11).
+        position=lambda f: "menu (physically down)" if f&1 else "record (physically up)"
+        result["physical"]={"toggle_up":bool(physical&1),"toggle_position":position(physical),"line_jack":bool(physical&2),"tone_press":bool(physical&4)}
+        result["logical"]={"toggle_up":bool(logical&1),"toggle_position":position(logical),"line_jack":bool(logical&2),"tone_press":bool(logical&4),"overridden":bool(logical&8)}
         menu=u32()
         result["menu"]={"packed":menu,"open":bool(menu&1),
                         "page":"samples" if menu>>21&1 else "harmony" if (menu>>1)&7==7 else "parts" if (menu>>1)&7==6 else "presets","bank_index":menu>>4&7}
@@ -313,10 +318,10 @@ def display(s, recent=()):
     cpu="unavailable" if sys["cpu_average_percent"] is None else f'{sys["cpu_average_percent"]:.1f}% avg / {sys["cpu_peak_percent"]:.1f}% peak'
     mode=engine["patch"].get("routing","aux").split(">")[0]
     lines=[f'Forge Inspector v1 | snapshot {s["generation"]} | {"SIMULATION" if sys["simulated"] else "DEVICE"}',
-           f'SYSTEM  firmware {sys["firmware"]}, protocol {sys["protocol"]}, uptime {sys["uptime_ms"]/1000:.1f}s',
+           f'SYSTEM  {host.describe_build(sys)}, protocol {sys["protocol"]}, uptime {sys["uptime_ms"]/1000:.1f}s',
            f'        audio {cpu}; state age {(sys["uptime_ms"]-sys["audio_time_ms"])&0xffffffff}ms; underruns unavailable',
            f'        drops {sys["dropped"]}, rejected {sys["rejected"]}, panel/sample queue {sys["panel_queue_drops"]}/{sys["sample_queue_drops"]}, emergencies {sys["emergencies"]}; MIDI {json.dumps(sys["midi"])}',
-           f'PANEL   physical keys {panel["physical_keys"]}; logical keys {panel["logical_keys"]}; notes {panel["held_notes"]}',
+           f'PANEL   toggle {panel["physical"]["toggle_position"]}; physical keys {panel["physical_keys"]}; logical keys {panel["logical_keys"]}; notes {panel["held_notes"]}',
            f'        physical {panel["physical"]}; logical {panel["logical"]}; menu {panel["menu"]}',
            f'        encoders raw {panel["raw_encoder_turns"]}; logical {panel["logical_encoder_turns"]}',
            f'        parameters {panel["logical_parameters"]}; lit LEDs {[i for i,c in enumerate(panel["leds"]) if any(c)]}',

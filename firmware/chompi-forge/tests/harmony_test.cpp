@@ -222,6 +222,24 @@ void EngineAndPanel() {
     forge::Parameters kit = synth; kit.source = 1; kit.sample_mode = 1; kit.voices = 7;
     assert(e.ApplyPatch(kit) && !e.HarmonyOn() && e.Note(48, 100, 1) == 1); e.Note(48, 0, 1);
     assert(e.ApplyPatch(synth) && e.HarmonyOn());
+    // Shift through the engine (DC's CHOMPI, 2026-10-11): releasing C5 clears Shift, so the
+    // next ii is minor again. Before the fix the release never reached the player (C5 has no
+    // held chord) and every later chord stayed shifted.
+    {
+        player.state.extension = Extension::Triad;
+        uint8_t pl[2 * kMaxNotes]; unsigned rel = 0;
+        assert(e.Note(72, 100, 1) == 0 && player.Shift());
+        e.Note(72, 0, 1); assert(!player.Shift());
+        const unsigned n = e.Note(50, 100, 1, pl, &rel);                            // D3 = ii: D F A
+        bool f_natural = false, f_sharp = false;
+        for(unsigned i = rel; i < n; ++i) { f_natural |= pl[i] % 12 == 5; f_sharp |= pl[i] % 12 == 6; }
+        assert(n == 3 && f_natural && !f_sharp);
+        e.Note(50, 0, 1); run(400);
+        assert(e.Note(72, 100, 1) == 0 && e.Note(50, 100, 1, pl, &rel) == 3);      // held Shift: ii -> V/V (D F# A)
+        bool sharp = false; for(unsigned i = rel; i < 3; ++i) sharp |= pl[i] % 12 == 6;
+        assert(sharp);
+        e.Note(50, 0, 1); e.Note(72, 0, 1); assert(!player.Shift()); run(400);
+    }
     // The panel: one key = the chord on MIDI out, notes on then off.
     forge::PanelController panel; forge::Recorder recorder; Sink sink; forge::PanelInput hw; hw.frames = 24; hw.toggle_up = true;
     std::vector<int16_t> rec(2 * 48000); forge::SampleTable table; recorder.Init(rec.data(), 48000, &table.slots[forge::kRamSlot], 48000.f);

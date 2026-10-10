@@ -177,7 +177,7 @@ void ProtocolV4() {
            && std::fabs(q.sample_end - 0.875f) < 1e-4f && std::fabs(q.sample_xfade - 0.3f) < 1e-4f);
     // Status echoes the same DATA bytes.
     Rig rig; Response response; assert(ExecuteRequest(decoded, rig.engine, response) && response.error == Error::None);
-    uint8_t reply[kMaxReply]; assert(EncodeResponse(response, 0, 0, reply) == kV4Request + 12);
+    uint8_t reply[kMaxReply]; assert(EncodeResponse(response, 0, 0, reply) == kV4Request + kStatusTail);
     for(size_t i = 7; i < kV4Request - 1; ++i) assert(reply[i + 1] == request[i]);
     // Byte limits, bools and start < end are enforced atomically.
     for(auto bad : std::vector<std::pair<unsigned, uint8_t>>{{68, 2}, {69, 2}, {70, 5}, {71, 15}, {78, 2}, {79, 2}, {80, 2}, {59, 8}, {59, 0}}) {

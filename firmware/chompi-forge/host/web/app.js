@@ -252,7 +252,7 @@ $("ports").addEventListener("click", () => run("Looking for MIDI ports…", asyn
   notice("Port list refreshed. Select both CHOMPI ports explicitly.");
 }));
 function ports() { return {input: $("input-port").value, output: $("output-port").value}; }
-function deviceStatus(result) { $("device-state").textContent = `Firmware ${result.firmware} · CPU average ${result.cpu_average_percent}% / peak ${result.cpu_max_percent}% · Dropped ${result.dropped} · Rejected ${result.rejected}`; }
+function deviceStatus(result) { $("device-state").textContent = `Firmware ${result.firmware}${result.build ? ` (build ${result.build})` : ""}${result.safe_mode ? " · SAFE MODE" : ""}${result.power ? ` · Battery ${result.power.battery}${result.power.usb_power ? (result.power.charging ? ", charging" : ", USB power") : ""}` : ""} · CPU average ${result.cpu_average_percent}% / peak ${result.cpu_max_percent}% · Dropped ${result.dropped} · Rejected ${result.rejected}`; }
 for (const id of ["status", "capture"]) $(id).addEventListener("click", () => run("Reading CHOMPI…", async () => {
   const result = await api("status", ports()); deviceStatus(result);
   if (id === "capture") { loadPatch(result.patch); $("preset").value = ""; }

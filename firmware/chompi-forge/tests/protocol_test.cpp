@@ -44,8 +44,8 @@ void ProtocolAndAtomicity() {
     assert(DecodeRequest(packet.data(), packet.size(), request) == Error::Length); // v3 needs 69 bytes
     uint8_t reply[kMaxReply]; response.error = Error::None;
     response.cpu_average = 0.254f; response.cpu_max = 1.1f;
-    assert(EncodeResponse(response, 99999999, 9, reply) == 30);
-    assert(Checksum(reply, 30) == 0 && Read14(reply + 18) == 254);
+    assert(EncodeResponse(response, 99999999, 9, reply) == 18 + kStatusTail);
+    assert(Checksum(reply, 18 + kStatusTail) == 0 && Read14(reply + 18) == 254);
     assert(reply[22] == 127 && reply[23] == 127 && reply[24] == 127);
 }
 // A v3 apply request with every field set to a distinct, valid value.
@@ -76,9 +76,19 @@ void ProtocolV3() {
     assert(engine.Init(48000.f, l.data(), r.data(), l.size(), rv.data(), rv.size()));
     Response response; assert(ExecuteRequest(request, engine, response) && response.error == Error::None);
     uint8_t reply[kMaxReply];
-    assert(EncodeResponse(response, 0, 0, reply) == kV3Request + 12 && Checksum(reply, kV3Request + 12) == 0);
+    assert(EncodeResponse(response, 0, 0, reply) == kV3Request + kStatusTail && Checksum(reply, kV3Request + kStatusTail) == 0);
     for(size_t i = 7; i < 68; ++i) assert(reply[i + 1] == packet[i]);
     assert(reply[79] == kFirmwareMinor);
+    // 0.15.2 build identity: patch, flags (none on a host build), commit 0 = unknown.
+    assert(reply[80] == kFirmwarePatch && reply[81] == 0 && reply[82] == 0 && reply[83] == 0 && reply[84] == 0 && reply[85] == 0);
+    assert(reply[86] == 4 && reply[87] == 0 && reply[88] == 0);              // power: battery unknown (filled by the main loop)
+    response.battery = 1; response.power_flags = 1 | 32; response.charge_state = 5;
+    assert(EncodeResponse(response, 0, 0, reply) == kV3Request + kStatusTail && reply[86] == 1 && reply[87] == 33 && reply[88] == 5);
+    response.battery = 4; response.power_flags = 0; response.charge_state = 0;
+    RuntimeBuildFlags() = kBuildSafeMode;
+    assert(EncodeResponse(response, 0, 0, reply) == kV3Request + kStatusTail && reply[81] == kBuildSafeMode
+           && Checksum(reply, kV3Request + kStatusTail) == 0);
+    RuntimeBuildFlags() = 0;
     // Each byte field rejects one past its maximum; voices also rejects 0.
     for(auto bad : std::vector<std::pair<unsigned, uint8_t>>{{29, 4}, {32, 49}, {49, 4}, {58, 2}, {59, 0}, {59, 5}}) {
         auto broken = PatchV3(); broken[bad.first] = bad.second; broken[68] = Checksum(broken.data(), 68);
@@ -180,7 +190,7 @@ void ProtocolV5() {
            && decoded.patch.KnobParameter(2) == Parameter::ReverbSize);
     std::vector<float> l(48002), r(48002); Engine engine; assert(engine.Init(48000.f, l.data(), r.data(), l.size()));
     Response response; assert(ExecuteRequest(decoded, engine, response) && response.error == Error::None);
-    uint8_t reply[kMaxReply]; assert(EncodeResponse(response, 0, 0, reply) == kV5Request + 12 && Checksum(reply, kV5Request + 12) == 0);
+    uint8_t reply[kMaxReply]; assert(EncodeResponse(response, 0, 0, reply) == kV5Request + kStatusTail && Checksum(reply, kV5Request + kStatusTail) == 0);
     for(size_t i = 7; i < kV5Request - 1; ++i) assert(reply[i + 1] == request[i]);
     // Not assignable (bypass, the knobs themselves, unknown ids) or a v4 size: rejected, nothing applied.
     for(uint8_t bad : {uint8_t(uint8_t(Parameter::Bypass) + 1), uint8_t(uint8_t(Parameter::Knob1) + 1), uint8_t(uint8_t(Parameter::Knob4) + 1),
@@ -225,7 +235,7 @@ void ProtocolV6() {
     Response response; assert(ExecuteRequest(decoded, engine, response) && response.error == Error::None);
     assert(player.state.enabled && player.state.tonic == 9 && player.state.mode == harmony::Mode::NaturalMinor
            && player.state.extension == harmony::Extension::Seventh && player.state.inversion == 2 && player.state.layout == harmony::Layout::Real);
-    uint8_t reply[kMaxReply]; assert(EncodeResponse(response, 0, 0, reply) == kV6Request + 12 && Checksum(reply, kV6Request + 12) == 0);
+    uint8_t reply[kMaxReply]; assert(EncodeResponse(response, 0, 0, reply) == kV6Request + kStatusTail && Checksum(reply, kV6Request + kStatusTail) == 0);
     for(size_t i = 7; i < kV6Request - 1; ++i) assert(reply[i + 1] == request[i]);   // the apply echo
     // Invalid harmony words are rejected; v5 sizes are not v6.
     for(uint32_t bad : {12u, 9u << 4, 6u << 8}) {

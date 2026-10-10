@@ -20,11 +20,25 @@ SYSTEM_FILES_DIR = $(LIBDAISY_DIR)/core
 ifeq ($(TEST_HOOKS),1)
 C_DEFS += -DFORGE_TEST_HOOKS
 endif
+# Build identity (status reply, Inspector page 2): the commit and whether Forge's sources had
+# uncommitted changes. Override with FORGE_BUILD_ID=<7 hex> (0 = unknown, e.g. a source ZIP).
+# The header is rewritten only when the identity changes, so forge_main.o rebuilds with it.
+FORGE_BUILD_ID ?= $(or $(shell git rev-parse --short=7 HEAD 2>/dev/null),0)
+FORGE_BUILD_DIRTY ?= $(if $(shell git status --porcelain --untracked-files=no -- .. 2>/dev/null),1,0)
+BUILD_DIR ?= build
+IDENTITY_HEADER = $(BUILD_DIR)/forge_build_id.h
+IDENTITY_TEXT = \#define FORGE_BUILD_ID 0x$(FORGE_BUILD_ID)u\n\#define FORGE_BUILD_DIRTY $(FORGE_BUILD_DIRTY)
+$(shell mkdir -p $(BUILD_DIR); printf '$(IDENTITY_TEXT)\n' > $(IDENTITY_HEADER).new; \
+  cmp -s $(IDENTITY_HEADER).new $(IDENTITY_HEADER) && rm -f $(IDENTITY_HEADER).new || mv -f $(IDENTITY_HEADER).new $(IDENTITY_HEADER))
 # Keep the foundation build-only without modifying the vendored Makefile.
 ifneq ($(filter program% flash%,$(MAKECMDGOALS)),)
 $(error Forge foundation is build-only; see ../README.md for hardware validation gates)
 endif
 include $(SYSTEM_FILES_DIR)/Makefile
+
+# Only forge_main.cpp sees the identity (core/protocol.h EncodeIdentity).
+$(BUILD_DIR)/forge_main.o: CPPFLAGS += -include $(IDENTITY_HEADER)
+$(BUILD_DIR)/forge_main.o: $(IDENTITY_HEADER)
 
 # Relink when the linker script changes (libDaisy's rule only lists objects and Makefile).
 $(BUILD_DIR)/FORGE.elf: ../build/libdaisy/libdaisy.a $(LDSCRIPT)

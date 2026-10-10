@@ -5,15 +5,44 @@
 
 namespace forge {
 constexpr uint8_t kProtocolVersion = 1, kPatchVersion = 1;
+constexpr uint8_t kFirmwarePatch = 2;  // 0.15.2: build identity, start-up safe mode, per-source held keys
 constexpr uint8_t kFirmwareMinor = 15; // 0.15.1: review fixes (same minor on the wire); 0.15: event recorder and projects (parts page, .FSQ beside presets, Inspector page 10); 0.14: clock, arp and bass (parts page, patch v7, Inspector page 9), CPU fix A; 0.13: harmony mode (menu page, patch v6, Inspector page 8), memory savings; 0.12: TAPE per-slot sample settings (presets.json); 0.11: install power check, battery lockout log, start-up fixes; 0.10: TAPE parity (knobs, effects, count-in, restart record); 0.9: key lights while playing (TAPE); 0.8: power as stock (off gesture, SW6 battery, charger hand-over); 0.7: USB file transfer (opcode 0C)
 // 7-9 are device-preset (SD) errors: empty slot, no/failed card, storage busy.
 // Power (0.11): a firmware install refused because the battery is low on a weak or missing supply.
 enum class Error : uint8_t { None, Length, Version, Checksum, Patch, Opcode, Busy, Empty, Storage, StorageBusy, Power };
 // Device presets: 8 banks x 15 slots on the SD card (see preset_store.h).
 constexpr uint8_t kPresetBanks = 8, kPresetSlots = 15;
-// Request/reply sizes exclude F0/F7. v6 is the largest: 91-byte apply request,
-// 103-byte status reply (v5: 88 / 100, v4: 84 / 96). Transport buffers are sized from these constants.
-constexpr size_t kV3Request = 69, kV4Request = 84, kV5Request = 88, kV6Request = 91, kMaxRequest = 97, kMaxReply = 109;
+// Build identity (0.15.2), after the minor in the status reply and Inspector page 2: the
+// patch, flags and the commit (7 hex digits = 28 bits in four 7-bit bytes). The firmware
+// Makefile defines FORGE_BUILD_ID / FORGE_BUILD_DIRTY from git; 0 = unknown (host builds).
+#ifndef FORGE_BUILD_ID
+#define FORGE_BUILD_ID 0
+#endif
+#ifndef FORGE_BUILD_DIRTY
+#define FORGE_BUILD_DIRTY 0
+#endif
+enum : uint8_t { kBuildDevelopment = 1, kBuildDirty = 2, kBuildSafeMode = 4 };
+constexpr size_t kIdentitySize = 6;
+// Set at start-up (kBuildSafeMode: started without the card's settings; forge_main.cpp).
+inline uint8_t& RuntimeBuildFlags() { static uint8_t flags = 0; return flags; }
+inline void EncodeIdentity(uint8_t* out) {
+    const uint32_t id = static_cast<uint32_t>(FORGE_BUILD_ID) & 0x0fffffffu;
+    uint8_t flags = RuntimeBuildFlags() | (FORGE_BUILD_DIRTY ? kBuildDirty : 0);
+#ifdef FORGE_TEST_HOOKS
+    flags |= kBuildDevelopment;
+#endif
+    out[0] = kFirmwarePatch; out[1] = flags & 127;
+    for(unsigned i = 0; i < 4; ++i) out[2 + i] = (id >> (7 * i)) & 127;
+}
+// Request/reply sizes exclude F0/F7. v7 is the largest: 97-byte apply request, 115-byte
+// status reply (the patch echo + kStatusTail). Transport buffers are sized from these constants.
+// Power (0.15.2, every build): battery level (core/power.h Battery: 0 full .. 3 low, 4 unknown),
+// flags (Inspector page 2: 1 USB power, 2 charger fault, 4 USB lines to the charger, 8 weak
+// supply, 16 a reading below 3.0 V, 32 a firmware install would be refused), charge state.
+constexpr size_t kPowerSize = 3;
+constexpr size_t kStatusTail = 12 + kIdentitySize + kPowerSize;   // CPU, counts, minor, identity, power, checksum
+constexpr size_t kV3Request = 69, kV4Request = 84, kV5Request = 88, kV6Request = 91, kMaxRequest = 97;
+constexpr size_t kMaxReply = kMaxRequest + kStatusTail;
 // Note, Pedal (CC64), Bend, ModWheel (CC1) and ResetControllers (CC121) are
 // channel-1 performance events: no reply, dropped if queued before an emergency.
 // Store/Recall/Erase/List are host requests for device presets; the main loop
@@ -71,6 +100,7 @@ struct Response {
     uint16_t sequence = 0;
     uint8_t source = 0;
     float cpu_average = 0.f, cpu_max = 0.f;
+    uint8_t battery = 4, power_flags = 0, charge_state = 0;   // status: filled by the main loop
 };
 inline uint16_t Read14(const uint8_t* bytes) { return bytes[0] | (uint16_t(bytes[1]) << 7); }
 inline void Write14(uint8_t* bytes, unsigned value) {
@@ -333,8 +363,12 @@ FORGE_COLD inline size_t EncodeResponse(const Response& response, uint32_t dropp
     Write14(bytes + offset + 2, cpu(response.cpu_max));
     Write21(bytes + offset + 4, dropped); Write21(bytes + offset + 7, rejected);
     bytes[offset + 10] = kFirmwareMinor;
-    bytes[offset + 11] = Checksum(bytes, offset + 11);
-    return offset + 12;
+    EncodeIdentity(bytes + offset + 11);
+    bytes[offset + 11 + kIdentitySize] = response.battery & 127;
+    bytes[offset + 12 + kIdentitySize] = response.power_flags & 127;
+    bytes[offset + 13 + kIdentitySize] = response.charge_state & 127;
+    bytes[offset + kStatusTail - 1] = Checksum(bytes, offset + kStatusTail - 1);
+    return offset + kStatusTail;
 }
 #ifdef FORGE_TEST_HOOKS
 // Development probe replies (main loop). 0x47: panel event queued. 0x46 page 1:

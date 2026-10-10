@@ -1,5 +1,130 @@
 # Forge test results
 
+## 2026-10-11 — automatic run on the SD-fix build (DC away, webcam + UMC)
+
+- Rig trouble first: UMC MIX at "IN" closed a feedback loop (392 / 175 Hz howl through the
+  dry patch and CHOMPI's delay); MIX fully to playback fixed it. Then PHONES (line-in feed)
+  and the MIDAS gains were ~25 / ~9 dB hotter than on 2026-10-10 and clipped; after DC
+  turned them down captures sat near -8 dB again.
+- Result: 28/34 on the first pass, then 2.1, 3.4, 3.34 pass at proper levels. 4.1 panic
+  works (-3 → -58 dB) but trips its silence threshold on the 2 kHz whine (DC: ignore the
+  whine; it is inaudible). 0.n fails on the same whine. 3.42: the loop played back at
+  2 kHz from a 1 kHz tone because the looper speed was left at -2.0 (reverse, 2×) from
+  DC's playing; recording and playback themselves are fine.
+- Done the same night (host only): 3.42 clicks SW5 (speed 1×) first; "silent" sets aside one
+  steady narrow tone quieter than -45 dB (`forge_audio.without_steady_tone`, test added).
+  Rerun on CHOMPI: 0.n, 3.42, 4.1 pass, so **all 34 automatic steps pass on the hardware**. DC questions: should a new first take start at 1×? Should SW5's
+  cutoff also filter the loop (loop only, or a master filter after the looper)?
+- Webcam framing fixed (whole panel visible, right way up).
+- **Harmony (agent, USB MIDI + UMC audio + video `reports/cam/harmony_check.mp4`):** v7 patch,
+  C major triads, static layout, voice leading off. All seven white-key chords identified
+  correctly from the audio (C, Dm, Em, F, G, Am, B°); Shift (C5) alone silent; Shift + D =
+  D major (V/V triad). **Bug:** after releasing C5, D still played D major: Shift stayed on
+  because C5's release never reached the harmony player (no held chord, so `Holds` was
+  false). Fixed in `core/harmony.h` (`Holds` reports the Static Shift key while Shift is
+  on); engine-level test added (fails on the old code); not yet installed on CHOMPI.
+- **Event recorder (agent, virtual panel keys + MIDI, plan `D:\tools\chompi-session\recorder_plan.json`,
+  video `reports/cam/recorder_check.mp4`): 5/5.** Harmony page (KEY_21 held 1 s) → parts page
+  (KEY_21) → F#4 armed; recording started on the next bar while C-E-G-C played over MIDI;
+  F#4 closed the loop on the bar → playing; it played back alone (-15.7 dB peak); A#4 twice
+  → empty. Covers TEST_SESSION 3.73's flow; the physical keys and lights are still DC's.
+- **Demo presets (agent):** new 15 Harmony Pad, 16 Arp Bells, 17 Chord Arp (v7), starter
+  slots 13-15; recorded on CHOMPI (`reports/cam/demo_*.mp4`, levels about -20 dB mean, -9 dB
+  peak). Musical judgement is DC's.
+- **Old presets A/B (agent, `reports/cam/ab_*.mp4`):** the bridge stores 04-06 upgraded v2 → v5
+  (v3 per-voice filter). Measured B against A: Glass Keys +13 % brightness / +0.5 dB, Soft Pad
+  -4 % / +0.9 dB, **Saw Bass -48 % brightness / +2.1 dB** (the upgraded filter is much darker).
+  DC to listen; then retune the v2 → v3 cutoff mapping or Saw Bass itself.
+  Measured on CHOMPI (spectral centroid against the v2 original, same notes): Saw Bass needs
+  the v3 cutoff ×2.5 (×2 -14 %, ×3 +11 %); Soft Pad ×1.6 (×1 -10 %, ×2.5 +13 %); a sine has
+  nothing to compensate. Proposal for `upgrade_patch` (not applied, DC's ear decides): v2 →
+  v3 cutoff ×1 sine, ×1.6 triangle, ×2.5 saw / square (the one-pole 6 dB/oct becomes a
+  12 dB/oct SVF).
+- **Bridge (found while adding the demos):** after "Load starter presets" the bridge sent back
+  the playing sound, but a pre-v7 patch keeps the live harmony / parts, so a demo's latched
+  arp would have kept running. It now sends a neutral v7 (harmony and parts off) first.
+- **Arp / bass (agent, CHOMPI's own MIDI out + video `reports/cam/arp_check.mp4`):** 120 BPM,
+  1/8: up C E G…, updown C E G E…, down cycles G E C, steps 0.250 s; latch keeps playing
+  after release (8 notes); bass alternate 1/4 on channel 2: C2 G2 C2 G2. **Small glitch:**
+  the first steps of a phrase see a half-built chord (keys arrive a few ms apart), so
+  "down" started E, E (71 ms) before settling. Fixed in code: a 15 ms chord-gathering
+  window (`core/parts.h`, test `ChordGathering`); not yet installed on CHOMPI.
+- **Rapid-key soak (agent, `D:\tools\chompi-session\soak.py`, log
+  `reports/soak-20261011-015848.jsonl`): pass.** 20 min on the development build (c93357b +
+  uncommitted changes), virtual panel key presses (same code path and key lights as real
+  presses) at ~12 events/s, 1-3 keys at once, patch changed every 45 s through 07 / 16 / 09 /
+  17 / 08 / 15 (pads, latched arp, harmony, bass), status every 5 s: 24,137 presses, USB
+  never lost, no restart or safe mode, 0 dropped / 0 rejected messages, CPU peak 62.6 %,
+  battery high and charging throughout (weak PC USB supply flagged, as before). The 0.9
+  "random shut-off while playing rapidly" did not reproduce on this build. Not covered: the
+  physical key matrix and the battery-only case (CHOMPI was on USB power), so DC's 0.9 report
+  stays open until it is played unplugged.
+
+## 2026-10-10 (late) — start-up stall found and fixed on CHOMPI
+
+- DC: dim blue light for about a minute at every start; once the card did not mount;
+  sound "gone" because a menu-selected sample slot never loaded (storage error 8).
+- Agent, development builds with start-up step timing (Inspector "card" events): card
+  mount 11 ms, preset scan 53 ms, `options.json` read **30,003 ms** (libDaisy's SD timeout).
+  Cause: FatFs `FIL` objects on the DTCM stack (see CHANGELOG 0.15.2). With them static
+  the next build hung at start with DC's card: the earlier failed writes had left 352 KB of
+  lost clusters and three empty files; without the card it started in 2 s. After
+  `chkdsk /F` and deleting the empty files (card otherwise byte-identical to the
+  afternoon backup): **Forge answers 3 s after power-on, card mounted, no storage errors.**
+- Five development builds were installed over USB tonight (DC pressing CHOMPI each time);
+  `forge_card.py install` prints a harmless traceback when CHOMPI restarts under it.
+- Still open from DC: no visible colour feedback while turning knobs; SW3's page 3 (DJ
+  filter) can silence the sound ("kind of" restored by the long-press reset).
+- Guided pass with a webcam (Logitech BRIO over the panel, frames in `reports/cam/`):
+  at rest the knob rings show the predicted page-1 colours for Warm Pad (SW4 green, SW1
+  orange, SW2 red, SW3 blue, SW6 green). Turning SW1 changes the attack (900 → 960 ms
+  per click, USB log) but in the frames its ring stayed yellow; not conclusive yet (the
+  USB log hung during the capture). Next session: repeat in sync ("go"), camera + log.
+- During that capture the looper recorded an 18.4 s take and played it (LOOP and PLAY
+  lit red / teal). Not yet known whether DC pressed LOOP / PLAY; if not, a phantom press.
+- Earlier the menu opened and loaded a sampler slot during the knob test (menu left open
+  until CHOMPI was pressed?); keys then picked slots instead of playing. Unexplained.
+- Tools: `scratchpad` watchers (USB health, UMC audio) and `gp.py` snapshots worked;
+  the USB watcher can hang after CHOMPI is unplugged and replugged (restart it).
+
+## 2026-10-10 — 0.15.2 on CHOMPI: first install since 0.9, unattended automatic run
+
+Build: development firmware, "Forge 0.15.2 (build c93357b, development, uncommitted
+changes)", SHA-256 2b8e2b0d…, installed by DC from the SD card (card backed up first to
+`D:\CHOMPI-card-backup\2026-10-10`; the card had never run Forge: no `FORGE/` folder).
+Rig: UMC204HD, CHOMPI main out → IN 1-2, UMC headphone out → CHOMPI line in; USB-C to
+the PC. Evidence below is **agent-measured over USB** (reports in
+`firmware/chompi-forge/reports/`, not committed) unless marked DC.
+
+- **Boots, right version (1.3):** yes. Status reports 0.15.2, build c93357b, development,
+  dirty. DC: all lights white at first, other lights after pressing keys.
+- **USB at start-up:** for the first minute or so Windows showed "Unknown USB Device
+  (Device Descriptor Request Failed)" and the first status replies came out only when
+  key presses pushed them; afterwards replies arrive in ~10 ms every time. Open: possibly
+  the USB / charger hand-over settling (core/power.h `ChargerUsb`). Watch at every start.
+- **Battery checker (0.15.2):** works: full, charged, USB power, weak supply (PC port),
+  install allowed. **Last start** reset flags: power-on, brown-out, reset pin, software;
+  no crash. Brown-out at a cold start is common on the H7; note it for the shut-off question.
+- **CPU (first device figures):** idle on the dry patch 14.8 % average, 18.7 % peak;
+  6.2b synth stress (four notes, 20 s) peak 40.8 / 44.8 / 44.4 % over three runs; 6.2c
+  seven sampler voices 55.0 %; 6.2e sampler + saturation + DJ filter 61.4 % (limit 70).
+  No dropped messages in any step.
+- **Automatic run:** 32 of 34 pass on the first run (`20261010-205826`); after fixes and
+  reruns all 34 pass. The two first-run failures:
+  - 2.1 (dry line in, both channels): rig selection, not firmware. The detector chose
+    "IN 2" alone (1 dB louder than "IN 1-2"), so channel 2 was never captured. Fixed in
+    the host (`forge_audio.detect` prefers a stereo pair; test added); rerun passes,
+    -26.1 / -25.2 dB, 1 kHz on both channels.
+  - 6.2b (synth CPU stress): CPU fine, but three clicks once (3.36–3.44 s; waveform jumps
+    up to 0.8 of full scale, not dropouts, all at the same offset in a 24-sample block,
+    which also fits the PC's 1 ms USB audio frames). Two reruns: no clicks. **Open:**
+    not reproduced; could be CHOMPI or the PC's USB audio. Repeat 6.2b at later sessions.
+- **Setup check:** after DC lowered the input gains ~10 dB: noise -60.5 dB, loud chord
+  -6.4 dB, line in OK (first check: gain clipped, input 1 noise -53.9 dB at 2 kHz).
+- **Not covered (needs a person):** physical keys, knobs, toggle, how the lights look,
+  speaker, headphones, mic, SD swap, power-off and battery shut-off, and everything judged
+  by ear. These automatic results are evidence for their steps, not a TEST_SESSION pass.
+
 ## 2026-10-05 — DC's panel-map walk-through on 0.9 (verbal)
 
 - **Works:** SW5 filter cutoff (clearly audible on Acid Bass); SW6 volume; webapp

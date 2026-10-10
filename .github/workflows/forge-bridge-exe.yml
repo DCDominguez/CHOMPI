@@ -1,11 +1,13 @@
-# Builds "Forge Bridge.exe": the hardware test bridge (setup check, panel walk, automatic checks,
-# USB card and firmware loader) with Forge's development firmware inside, as one Windows program.
-# Download it from the run's "Forge-Bridge-exe" artifact. No secrets are used.
-name: Forge Bridge (Windows exe)
+# Forge CI: the full software gate (16 native suites + Python, sanitizers, real-Chromium
+# browser tests, the CPU benchmark against stock), release and development firmware with the
+# pinned Arm GCC 10.3-2021.10, then "Forge Bridge.exe" (the hardware test bridge with the
+# development firmware inside). Artifacts: Forge-Bridge-exe, forge-release-firmware,
+# forge-dev-firmware. No secrets are used.
+name: Forge CI and Bridge exe
 on:
   push:
     branches: [forge/foundation]
-    paths: ["firmware/chompi-forge/**", "firmware/chompi-wave/code/libs/libDaisy/**", "docs/forge/HOME_CHECKLIST.md", "docs/forge/MANUAL.md", ".github/workflows/forge-bridge-exe.yml"]
+    paths: ["firmware/chompi-forge/**", "firmware/chompi-wave/code/libs/libDaisy/**", "docs/forge/**", ".github/workflows/forge-bridge-exe.yml"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -20,17 +22,71 @@ jobs:
       - uses: carlosperate/arm-none-eabi-gcc-action@v1
         with:
           release: "10.3-2021.10"
+      - name: Release firmware (with the layout check)
+        run: make -j"$(nproc)" -C firmware/chompi-forge firmware
       - name: Development firmware (with the layout check)
         run: make -j"$(nproc)" -C firmware/chompi-forge firmware-dev
-      - name: Native tests
-        run: make -j"$(nproc)" -C firmware/chompi-forge build/core_test build/protocol_test build/file_transfer_test build/panel_test && for t in core_test protocol_test file_transfer_test panel_test; do firmware/chompi-forge/build/$t; done
+      - name: Build identity (status reply, Inspector page 2)
+        run: cat firmware/chompi-forge/src/build/forge_build_id.h
+      - uses: actions/upload-artifact@v4
+        with:
+          name: forge-release-firmware
+          path: |
+            firmware/chompi-forge/src/build/FORGE.bin
+            firmware/chompi-forge/src/build/FORGE.map
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: forge-dev-firmware
           path: firmware/chompi-forge/src/build-dev/FORGE.bin
           if-no-files-found: error
-  exe:
+  tests:
     needs: firmware
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: firmware/chompi-forge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4            # the card tests install the development firmware
+        with:
+          name: forge-dev-firmware
+          path: firmware/chompi-forge/src/build-dev
+      - name: Packages
+        run: |
+          sudo apt-get update && sudo apt-get install -y libportaudio2
+          python -m pip install -r host/requirements.txt -r host/bridge-requirements.txt playwright
+          python -m playwright install --with-deps chromium
+      - name: Native and Python tests (make test)
+        run: make -j"$(nproc)" test
+      - name: Sanitizers (ASan + UBSan)
+        run: ASAN_OPTIONS=detect_leaks=0 make sanitize
+      - name: Browser tests (real Chromium)
+        run: make browser-test
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: carlosperate/arm-none-eabi-gcc-action@v1   # TEMPO's upstream compiler
+        with:
+          release: "13.3.Rel1"
+          path-env-var: ARM_GCC_13
+      - uses: carlosperate/arm-none-eabi-gcc-action@v1   # Forge, TAPE, WAVE (installed last: first on PATH)
+        with:
+          release: "10.3-2021.10"
+          path-env-var: ARM_GCC_10
+      - name: CPU benchmark against stock firmware (emulated instruction counts)
+        run: |
+          python -m pip install unicorn pyelftools
+          make -j"$(nproc)" -C firmware/chompi-forge bench GCC_PATH="$ARM_GCC_10" TEMPO_GCC_PATH="$ARM_GCC_13"
+  exe:
+    needs: [firmware, tests]
     runs-on: windows-latest
     defaults:
       run:

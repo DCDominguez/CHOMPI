@@ -117,6 +117,20 @@ void ArpPatterns() {
     Rig t(Arp(Pattern::Up, Rate::EighthTriplet)); t.Keys({60}); t.Run(1.01f); assert(t.Ons().size() == 7);
 }
 
+// A chord's keys land a few ms apart (DC's CHOMPI, 2026-10-11): the phrase waits ~15 ms, so the
+// first step sees the whole chord and nothing repeats at the start.
+void ChordGathering() {
+    Rig r(Arp(Pattern::Down)); r.Keys({60}); r.Run(0.003f); r.Keys({64}); r.Run(0.003f); r.Keys({67});
+    r.Run(0.6f);
+    const auto ons = r.Ons(); assert(ons.size() >= 4);
+    assert(ons[0] == 67 && ons[1] == 64 && ons[2] == 60 && ons[3] == 67);      // G E C G, no repeat
+    assert(r.synth[0].at >= 600 && r.synth[0].at <= 1200);                    // first step ~15 ms after the first key
+    Settings b; b.bass = Bass::Root; b.bass_rate = BassRate::Chord; b.clock_out = false;
+    Rig c(b); c.Keys({64, 67, 71}, 4, 7); c.Run(0.003f); c.Keys({64, 67, 71}, 4, 7); c.Run(0.1f);
+    std::vector<uint8_t> bass; for(auto& m : c.midi) if(m.status == 0x91) bass.push_back(m.data1);
+    assert(bass.size() == 1);                                                 // one bass note for the chord
+}
+
 void GateLatchAndOwnership() {
     // Gate 50 % of a 1/16 (125 ms): each note ends ~62 ms after it starts.
     Rig g(Arp(Pattern::Up)); g.Keys({60, 64}); g.Run(0.5f);
@@ -250,7 +264,7 @@ void EngineAndPanel() {
     // Bass only: the chord sounds directly, the bass adds its root (C2) on MIDI channel + 1.
     parts.settings.pattern = Pattern::Off; parts.settings.bass = Bass::Root; parts.settings.bass_rate = BassRate::Chord; e.PartsChanged();
     uint8_t played[16]; unsigned released = 0; midi();                          // (the panic's note-offs)
-    assert(e.Note(60, 100, 2, played, &released) == 3); run(10);
+    assert(e.Note(60, 100, 2, played, &released) == 3); run(40);                // past the 15 ms chord gathering
     assert(e.ActiveVoices() == 4 && parts.BassNote() == 36);
     auto out = midi(); assert(out.size() == 1 && out[0].status == 0x91 && out[0].data1 == 36);
     assert(e.Note(60, 0, 2) == 3); run(400);
@@ -327,7 +341,7 @@ void EngineAndPanel() {
 } // namespace
 
 int main() {
-    Packing(); ClockTempoTapAndMidi(); ArpPatterns(); GateLatchAndOwnership(); BassModesAndMidi(); EngineAndPanel();
+    Packing(); ClockTempoTapAndMidi(); ArpPatterns(); ChordGathering(); GateLatchAndOwnership(); BassModesAndMidi(); EngineAndPanel();
     std::cout << "PASS: parts packing, clock (tempo, tap, MIDI follow/stop/start/timeout), arp patterns/octaves/"
                  "rates/seeded random, gate, latch, panic, shared-pitch ownership, bass modes/rates, MIDI out and clock out, engine (arp, harmony + arp, bass with chords, latch, panic, kit), parts page (keys, knobs, tap, run/stop, lights)\n";
 }

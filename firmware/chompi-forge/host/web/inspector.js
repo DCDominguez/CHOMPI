@@ -62,7 +62,7 @@ function render(s) {
   const sys=s.system, p=s.panel, e=s.engine, st=s.storage;
   $("telemetry").classList.remove("stale");
   $("notice").classList.toggle("simulation",sys.simulated);
-  fields("system-summary",{firmware:sys.firmware,protocol:sys.protocol,uptime_seconds:sys.uptime_ms/1000,
+  fields("system-summary",{firmware:sys.firmware,build:sys.build||"unknown",development:sys.development,uncommitted_changes:sys.dirty,safe_mode:sys.safe_mode,protocol:sys.protocol,uptime_seconds:sys.uptime_ms/1000,
     CPU_average_percent:sys.cpu_average_percent,CPU_peak_percent:sys.cpu_peak_percent,dropped:sys.dropped,rejected:sys.rejected,
     audio_state_age_ms:(sys.uptime_ms-sys.audio_time_ms)>>>0});
   fields("panel-summary",{physical:p.physical,logical:p.logical,menu:p.menu,raw_encoder_turns:p.raw_encoder_turns,
@@ -112,7 +112,7 @@ bind("connect",async()=>{
     notice("Looking for CHOMPI…");
     const found=await api("/api/bridge/discover",{});
     for (const kind of ["input","output"]) options(kind,[[found[kind],found[kind]]]);
-    notice(`Found CHOMPI (Forge ${found.firmware}) on ${found.input} / ${found.output}. Connecting…`);
+    notice(`Found CHOMPI (${found.description||"Forge "+found.firmware}) on ${found.input} / ${found.output}. ${found.power?found.power+". ":""}Connecting…`);
   }
   const r=await bridge("connect",{mode:value("mode"),input:value("input"),output:value("output"),metadata:value("metadata")});
   owner=r.owner; connected=true; paused=false; armed=false; $("arm").checked=false; events=[]; results={};

@@ -17,6 +17,8 @@ Backward-compatible v1 delay presets must remain usable. Bound audio work and
 keep mutable DSP state in the audio callback; no dynamic allocation or blocking
 I/O there. Update documentation and preserve a runnable, documented checkpoint.
 
+Outside agents (DC's Muse / Cosmo on the Tab5): start with docs/forge/AGENT_GUIDE.md.
+
 Agent tooling (2026-10-10). The rules above win over both tools.
 - Ponytail: smallest complete change. Claude Code loads it as a plugin
   (`.claude/settings.json`; `/ponytail lite|full|ultra|off`, `/ponytail-review`). Other

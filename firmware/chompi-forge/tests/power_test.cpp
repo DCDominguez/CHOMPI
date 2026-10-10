@@ -78,6 +78,23 @@ void RestartReason() {
     Describe(1, 0, nullptr, line, sizeof(line)); assert(std::strcmp(line, "boot 1: (no reset flags)\n") == 0);
     char small[8]; assert(Describe(1, 0, nullptr, small, sizeof(small)) == 7 && small[7] == 0);   // truncated, terminated
 }
+// Start-up safe mode (0.15.2): three crashes before a stable run; cleared by a clean start,
+// a stable run or a power loss (backup SRAM garbage = an invalid magic).
+void SafeMode() {
+    using namespace forge::restart;
+    StartupGuard g{0xdeadbeefu, 77};                       // power-on: backup SRAM holds junk
+    assert(!SafeModeStart(g, false) && g.crashes == 0);
+    for(unsigned crash = 1; crash < kSafeModeCrashes; ++crash) { CountCrash(g); assert(!SafeModeStart(g, true)); }
+    CountCrash(g); assert(SafeModeStart(g, true));        // the third early crash
+    CountCrash(g); assert(SafeModeStart(g, true));        // safe mode crashing early stays safe
+    RanStably(g); assert(!SafeModeStart(g, false) && g.crashes == 0);
+    CountCrash(g); CountCrash(g); assert(!SafeModeStart(g, false));   // a reset without a crash record starts over
+    CountCrash(g); assert(g.crashes == 1 && !SafeModeStart(g, true));
+    StartupGuard junk{0x12345678u, 99}; CountCrash(junk); assert(junk.magic == StartupGuard::kMagic && junk.crashes == 1);
+    char line[200];
+    DescribeEvent(4, "SAFE MODE after repeated start-up crashes", line, sizeof line);
+    assert(std::strcmp(line, "boot 4: SAFE MODE after repeated start-up crashes\n") == 0);
+}
 
 // TAPE's options.json, exactly as TAPE writes it (OptionsManager::WriteFile), and edge cases.
 void OptionsFile() {
@@ -140,7 +157,7 @@ void InstallPower() {
 }
 
 int main() {
-    BootGestureOff(); Colours(); ChargerHandover(); StatusDecode(); RestartReason(); OptionsFile(); InstallPower();
-    std::cout << "PASS: power off gesture, battery colours, charger/USB hand-over (edges, timeout, wrap), status decode, restart reason, options.json,"
+    BootGestureOff(); Colours(); ChargerHandover(); StatusDecode(); RestartReason(); SafeMode(); OptionsFile(); InstallPower();
+    std::cout << "PASS: power off gesture, battery colours, charger/USB hand-over (edges, timeout, wrap), status decode, restart reason, safe mode, options.json,"
                  " stock battery lockout, install power check, low-battery warning, supply flags\n";
 }

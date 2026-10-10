@@ -1,5 +1,7 @@
 """Panel walk and setup check: a scripted hand on a fake CHOMPI, the setup check against DC's
 2026-10-04 rig faults, and the bridge's walk/setup/re-run operations in the simulation."""
+import contextlib
+import io
 from pathlib import Path
 import queue
 import sys
@@ -165,6 +167,8 @@ class SetupCheckTests(unittest.TestCase):
         def send_patch(self, patch): pass
         def note(self, note, velocity): pass
         def snapshot(self): return {"panel": {"physical": {"line_jack": self.jack}}}
+        def status(self): return {"firmware": host.FIRMWARE_VERSION, "build": "0f5bb18", "development": True,
+                                  "dirty": False, "safe_mode": False}
 
     def rig(self, left_only, hum, hot):
         calls = []
@@ -229,7 +233,33 @@ class SetupCheckTests(unittest.TestCase):
     def test_good_rig_passes(self):
         result = audio.setup_check(self.Device(True), self.rig(False, False, False), True, log=lambda line: None)
         self.assertTrue(result["ok"], result)
-        self.assertEqual([f["status"] for f in result["findings"]], ["ok"] * 5)
+        self.assertEqual([f["status"] for f in result["findings"]], ["ok"] * 6)
+        self.assertEqual(result["findings"][0]["what"], "Firmware")
+
+    def test_power_gate_before_an_unattended_run(self):
+        ports = {"input": "CHOMPI 1", "output": "CHOMPI 2"}
+        def status(power):
+            return lambda payload, i, o: {"firmware": host.FIRMWARE_VERSION, "build": "0f5bb18", "development": True,
+                                          "dirty": False, "safe_mode": False, "power": power}
+        low = host.decode_power([2, 8 | 32, 0]); good = host.decode_power([1, 1, 2])
+        quiet = io.StringIO()
+        with contextlib.redirect_stdout(quiet):
+            self.assertTrue(audio.power_ok(ports, exchange=status(good)))
+            self.assertFalse(audio.power_ok(ports, exchange=status(low)))
+            self.assertTrue(audio.power_ok(ports, ignore=True, exchange=status(low)))
+            self.assertTrue(audio.power_ok(ports, exchange=status(None)))      # before 0.15.2: not reported
+        self.assertIn("install refused", quiet.getvalue()); self.assertIn("charge CHOMPI first", quiet.getvalue())
+
+    def test_firmware_line(self):
+        # 0.15.2: Check setup names the build; another version, an unknown or uncommitted build warn; safe mode fails.
+        good = {"firmware": host.FIRMWARE_VERSION, "build": "0f5bb18", "development": False, "dirty": False, "safe_mode": False}
+        self.assertEqual(audio.firmware_finding(good)[1:3], ("ok", f"Forge {host.FIRMWARE_VERSION} (build 0f5bb18)."))
+        self.assertEqual(audio.firmware_finding({**good, "firmware": "0.15", "build": None, "development": None,
+                                                  "dirty": None, "safe_mode": None})[1], "warn")
+        self.assertEqual(audio.firmware_finding({**good, "dirty": True})[1], "warn")
+        self.assertEqual(audio.firmware_finding({**good, "build": None})[1], "warn")
+        failed = audio.firmware_finding({**good, "safe_mode": True})
+        self.assertEqual(failed[1], "fail"); self.assertIn("RESTARTS.TXT", failed[3])
 
 
 class BridgeWalkTests(unittest.TestCase):

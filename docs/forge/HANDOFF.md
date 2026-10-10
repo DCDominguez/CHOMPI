@@ -32,14 +32,15 @@ in the order recommended to DC:
    `tests/parts_test.cpp`, then get an independent review of the whole 0.15.1 diff
    (`1cd73ae..7d1af64`), especially the mailbox hand-over (`core/sequence_store.h`
    `SaveFile`, `PanelController` export after `PresetAction`, `StoreQueued`).
-2. *Build identity:* the device reports only minor 15; 0.15.1 cannot be told from 0.15
+2. *(Done in 0.15.2, 2026-10-10: patch + commit + flags on the wire; CHANGELOG.)* *Build identity:* the device reports only minor 15; 0.15.1 cannot be told from 0.15
    on CHOMPI. Report a build id (commit hash or patch number) in status / Inspector and
    show it in Connect CHOMPI / Check setup.
-3. *Start-up crash guard:* "stop restarting after repeated start-up crashes" (0.10.1
+3. *(Done in 0.15.2 as safe mode, DC's choice; CHANGELOG, MANUAL 12.)* *Start-up crash guard:* "stop restarting after repeated start-up crashes" (0.10.1
    hardening list) is still not implemented.
-4. *CI:* the workflow runs 4 of 16 native suites, no Python tests, sanitizers or bench,
+4. *(Done 2026-10-10: full gate + release build; the first run on GitHub is still to be checked.)* *CI:* the workflow runs 4 of 16 native suites, no Python tests, sanitizers or bench,
    and ships only the development build (test hooks). Add the full gate and a release
-   build. Builds use xPack GCC 10.3.1, not the pinned Arm 10.3-2021.10 archive.
+   build. (CI already used the pinned Arm 10.3-2021.10; only the cloud session's local
+   builds used xPack 10.3.1. DC's PC now has the pinned archive in D:	ools.)
 5. *DC's hardware session* (HOME_CHECKLIST → TEST_SESSION), on charged power. Critical:
    1.x (boots, right version), 4 (panic), 6.2b–g (CPU), 7–8 (install / power), and
    reproducing or ruling out the 0.9 "random shut-off while playing" (still open).
