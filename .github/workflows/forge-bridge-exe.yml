@@ -1,0 +1,146 @@
+# Forge CI: the full software gate (16 native suites + Python, sanitizers, real-Chromium
+# browser tests, the CPU benchmark against stock), release and development firmware with the
+# pinned Arm GCC 10.3-2021.10, then "Forge Bridge.exe" (the hardware test bridge with the
+# development firmware inside). Artifacts: Forge-Bridge-exe, forge-release-firmware,
+# forge-dev-firmware. No secrets are used.
+name: Forge CI and Bridge exe
+on:
+  push:
+    branches: [forge/foundation]
+    paths: ["firmware/chompi-forge/**", "firmware/chompi-wave/code/libs/libDaisy/**", "docs/forge/**", ".github/workflows/forge-bridge-exe.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: forge-bridge-exe-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: "10.3-2021.10"
+      - name: Release firmware (with the layout check)
+        run: make -j"$(nproc)" -C firmware/chompi-forge firmware
+      - name: Development firmware (with the layout check)
+        run: make -j"$(nproc)" -C firmware/chompi-forge firmware-dev
+      - name: Build identity (status reply, Inspector page 2)
+        run: cat firmware/chompi-forge/src/build/forge_build_id.h
+      - uses: actions/upload-artifact@v4
+        with:
+          name: forge-release-firmware
+          path: |
+            firmware/chompi-forge/src/build/FORGE.bin
+            firmware/chompi-forge/src/build/FORGE.map
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: forge-dev-firmware
+          path: firmware/chompi-forge/src/build-dev/FORGE.bin
+          if-no-files-found: error
+  tests:
+    needs: firmware
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: firmware/chompi-forge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4            # the card tests install the development firmware
+        with:
+          name: forge-dev-firmware
+          path: firmware/chompi-forge/src/build-dev
+      - name: Packages
+        run: |
+          sudo apt-get update && sudo apt-get install -y libportaudio2
+          python -m pip install -r host/requirements.txt -r host/bridge-requirements.txt playwright
+          python -m playwright install --with-deps chromium
+      - name: Native and Python tests (make test)
+        run: make -j"$(nproc)" test
+      - name: Sanitizers (ASan + UBSan)
+        run: ASAN_OPTIONS=detect_leaks=0 make sanitize
+      - name: Browser tests (real Chromium)
+        run: make browser-test
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: carlosperate/arm-none-eabi-gcc-action@v1   # TEMPO's upstream compiler
+        with:
+          release: "13.3.Rel1"
+          path-env-var: ARM_GCC_13
+      - uses: carlosperate/arm-none-eabi-gcc-action@v1   # Forge, TAPE, WAVE (installed last: first on PATH)
+        with:
+          release: "10.3-2021.10"
+          path-env-var: ARM_GCC_10
+      - name: CPU benchmark against stock firmware (emulated instruction counts)
+        run: |
+          python -m pip install unicorn pyelftools
+          make -j"$(nproc)" -C firmware/chompi-forge bench GCC_PATH="$ARM_GCC_10" TEMPO_GCC_PATH="$ARM_GCC_13"
+  exe:
+    needs: [firmware, tests]
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: firmware/chompi-forge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: forge-dev-firmware
+          path: firmware/chompi-forge/firmware
+      - name: Packages
+        # Pinned together: PyInstaller 6.11 could not freeze numpy 2.4+ (numpy._core._exceptions missing at run time).
+        run: python -m pip install -r host/requirements.txt -r host/bridge-requirements.txt numpy==2.4.6 sounddevice==0.5.6 pyinstaller==6.22.3
+      - name: Build Forge Bridge.exe
+        run: >
+          pyinstaller --noconfirm --onefile --console --name "Forge Bridge" --paths host
+          --add-data "host/web;host/web" --add-data "host/bridge_checks.json;host" --add-data "host/auto_checks.json;host"
+          --add-data "presets;presets" --add-data "firmware/FORGE.bin;firmware"
+          --hidden-import mido.backends.rtmidi --collect-all rtmidi --collect-all sounddevice --collect-all _sounddevice_data
+          --hidden-import forge_card --hidden-import forge_walk --hidden-import forge_audio --hidden-import check_firmware_layout
+          host/forge_bridge_app.py
+      - name: Smoke test (everything loads, server, pages, presets, firmware inside, card tool)
+        shell: pwsh
+        run: |
+          $exe = Resolve-Path "dist/Forge Bridge.exe"
+          & $exe selftest
+          if ($LASTEXITCODE -ne 0) { throw "selftest failed: a bundled module does not load" }
+          $p = Start-Process -FilePath $exe -ArgumentList "--port","8795" -PassThru
+          try {
+            $ok = $false
+            foreach ($i in 1..30) { try { $r = Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8795/api/session; $ok = $true; break } catch { Start-Sleep 1 } }
+            if (-not $ok) { throw "Bridge did not start" }
+            $j = $r.Content | ConvertFrom-Json
+            if ($j.presets.Count -lt 14 -or $j.checks.Count -lt 80) { throw "Presets or checks missing" }
+            if ((Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8795/inspector).StatusCode -ne 200) { throw "No bridge page" }
+          } finally { Stop-Process -Id $p.Id -Force }
+          & $exe card --help
+          if ($LASTEXITCODE -ne 0) { throw "card tool failed" }
+          & $exe --help
+          Get-Item $exe | Format-List Name, Length
+      - name: Collect the download (exe, FORGE.bin for the one SD-card flash, what to do first)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item "dist/Forge Bridge.exe" out/
+          Copy-Item firmware/FORGE.bin out/
+          Copy-Item ../../docs/forge/HOME_CHECKLIST.md out/
+          Copy-Item ../../docs/forge/MANUAL.md out/
+          Get-ChildItem out | Format-Table Name, Length
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Forge-Bridge-exe
+          path: firmware/chompi-forge/out/
+          if-no-files-found: error

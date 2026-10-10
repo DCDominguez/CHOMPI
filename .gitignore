@@ -7,3 +7,13 @@ Icon?
 # Editor state
 .cortex-debug.*.state.json
 .vs/
+
+# Local bridge launcher environment
+.bridge-venv/
+
+# Graphify: commit the graph, keep the cache, local root and HTML viewer out
+graphify-out/cache/
+graphify-out/.graphify_root
+graphify-out/graph.html
+# graphify update writes dated backups of the curated graph
+graphify-out/20??-??-??/

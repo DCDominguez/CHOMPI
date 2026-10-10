@@ -1,0 +1,991 @@
+#pragma once
+#include <cstdint>
+#include "command_queue.h"
+#include "engine.h"
+#include "file_transfer.h"
+#include "knob_layout.h"
+#include "options.h"
+#include "power.h"
+#include "preset_menu.h"
+#include "recorder.h"
+#include "sample_loader.h"
+#include "sampler_runtime.h"
+
+namespace forge {
+namespace panel {
+// Matches upstream NormalPage::key_map: 25 chromatic keys, MIDI 48..72.
+constexpr uint8_t kKeyNotes[40] = {0,0,0,0,0,0,0,49,50,52,53,55,51,54,56,48,
+    57,59,60,62,64,58,61,63,65,67,69,71,72,66,68,70,0,0,0,0,0,0,0,0};
+constexpr unsigned kButtons = 40, kEncoders = 6, kVolumeEncoder = 5, kToneEncoder = 4;
+// Looper keys (as TAPE): KEY_27 PLAY, KEY_28 LOOP; their LEDs are through-hole 7 / 8.
+// Menu (presets page): KEY_21 effects before the loop, KEY_20 after.
+constexpr uint8_t kPlayKey = 33, kLoopKey = 34, kPlayLed = 7, kLoopLed = 8, kFxBefore = 22, kFxAfter = 21;
+static_assert(kFxBefore == kPartsKey, "KEY_21 opens the harmony page and switches to the parts page");
+// SW6 (volume) press is ENC_6_SW; its ring LED is through-hole 9 (TAPE). Held 2 s: battery.
+constexpr uint8_t kVolumePress = 32, kVolumeLed = 9;
+// Knob pages (docs/forge/KNOBS.md, core/knob_layout.h). Releasing logical knob n's
+// switch (button kKnobEncoder[n]) steps its page, as TAPE; holding it 1.5 s without
+// turning resets its control; SW4 + SW3 held together 1 s = panic.
+// Knob n's ring LED is through-hole LED n + 1 (ENC_4, ENC_1, ENC_2, ENC_3 as TAPE); SW5's are 5 and 6.
+constexpr uint8_t kKnobLed[4] = {1, 2, 3, 4};
+constexpr uint32_t kResetHoldFrames = 48 * 1500, kPanicHoldFrames = 48 * 1000;   // 48 kHz
+constexpr uint32_t kPresetsHoldFrames = 48 * 1000;     // menu: hold KEY_22 1 s = Forge presets page
+// 0.16 light feedback: a stepped setting shows its value colour while turned and 1.5 s
+// after; a knob's page change flashes the page's colour; SW5's cutoff shows 1 s.
+constexpr uint32_t kTurnViewFrames = 48 * 1500, kPageFlashFrames = 48 * 600, kToneViewFrames = 48 * 1000;
+constexpr uint32_t kHarmonyFlashFrames = 48 * 500;     // SW1 + SW2 held 1 s: harmony on / off (rings flash)
+constexpr uint32_t kChompiTapFrames = 48 * 400;        // a CHOMPI tap (menu position): the event recorder's F#4
+// TAPE's monitor positions (options.json "Monitor Position" 1-3; menu SW6 press cycles).
+enum class MonitorMode : uint8_t { Headphones, Both, SendReturn };
+} // namespace panel
+
+// One block of debounced hardware input (audio owner).
+struct PanelInput {
+    uint64_t keys = 0;                   // bit k: button k held (upstream SwId order)
+    bool toggle_up = false, jack = false;
+    bool tone_down = false;              // SW5 switch held
+    int16_t turns[panel::kEncoders]{};   // increments by hardware encoder index
+    uint16_t frames = 48;                // audio frames in this block (looper key timing)
+};
+
+// Development-only panel events (firmware built with FORGE_TEST_HOOKS, and
+// the offline harness). They are merged with the hardware so the same code
+// paths run: a virtual key press is indistinguishable from a real one.
+struct PanelEvent {
+    enum class Kind : uint8_t { Key, Turn, Press, Toggle, Jack, Release };
+    Kind kind = Kind::Release;
+    uint8_t id = 0;      // Key: button 0-39; Turn: hardware encoder 0-5
+    int8_t value = 0;    // Key: 1 down / 0 up; Turn: increment; Toggle/Jack: 0, 1, or -1 = hardware again
+};
+
+// MIDI the panel sends out (TAPE: keys, knob CCs, PLAY/LOOP/CHOMPI CCs), audio -> main loop.
+
+// Work the panel hands to the rest of the firmware (main-loop side).
+class PanelSink {
+public:
+    virtual ~PanelSink() = default;
+    virtual bool PresetAction(const MenuAction& action, const Parameters& snapshot) = 0;  // false: queue full
+    virtual bool SampleJob(const forge::SampleJob& job) = 0;
+    virtual void Flash(bool ok) = 0;
+};
+
+// Everything the CHOMPI panel does, once per audio block: the TAPE-style menu
+// (presets and samples pages), the record gesture, keys -> notes, knobs ->
+// parameters, SW5 cutoff/panic, SW6 level, jack -> record source.
+class PanelController {
+public:
+    void Inject(const PanelEvent& e) {
+        switch(e.kind) {
+            case PanelEvent::Kind::Key:
+                if(e.id < panel::kButtons) { const uint64_t bit = uint64_t(1) << e.id; virtual_keys_ = e.value ? virtual_keys_ | bit : virtual_keys_ & ~bit; }
+                break;
+            case PanelEvent::Kind::Turn: if(e.id < panel::kEncoders) virtual_turns_[e.id] = static_cast<int16_t>(virtual_turns_[e.id] + e.value); break;
+            case PanelEvent::Kind::Press: virtual_tone_ = e.value == 1 ? 1 : e.value == 2 ? 0 : 2; break;  // 0 click, 1 down, 2 up
+            case PanelEvent::Kind::Toggle: toggle_override_ = e.value; break;
+            case PanelEvent::Kind::Jack: jack_override_ = e.value; break;
+            case PanelEvent::Kind::Release:
+                virtual_keys_ = 0; toggle_override_ = jack_override_ = -1; virtual_tone_ = 0;
+                for(auto& t : virtual_turns_) t = 0;
+                break;
+        }
+    }
+    bool Overridden() const { return virtual_keys_ || toggle_override_ >= 0 || jack_override_ >= 0; }
+#ifdef FORGE_TEST_HOOKS
+    void SetInspectorEvents(SpscQueue<InspectorEvent,64>* events, std::atomic<uint32_t>* drops, uint32_t now) {
+        events_=events; event_drops_=drops; event_time_=now;
+    }
+#endif
+
+    FORGE_COLD void Block(const PanelInput& hardware, Engine& engine, Recorder& recorder, PanelSink& sink) {
+        engine.SyncSlotSettings();                                         // kit pads follow menu copies/erases
+        uint64_t keys = hardware.keys | virtual_keys_;
+        if(install_gate_) install_gate_->Filter(keys, panel::kChompiKey);   // firmware install confirmation owns CHOMPI
+        const bool toggle_up = toggle_override_ >= 0 ? toggle_override_ != 0 : hardware.toggle_up;
+        const bool jack = jack_override_ >= 0 ? jack_override_ != 0 : hardware.jack;
+#ifdef FORGE_TEST_HOOKS
+        for(unsigned key=0;key<panel::kButtons;++key) {
+            const uint64_t bit=uint64_t(1)<<key;
+            if((keys^event_keys_)&bit) {
+                const bool down=(keys&bit)!=0;
+                const uint64_t physical=down?hardware.keys:physical_keys_;
+                const uint64_t injected=down?virtual_keys_:event_virtual_keys_;
+                LogEdge(down?InspectorEventKind::KeyDown:InspectorEventKind::KeyUp,key,
+                        (physical&bit?1u:0u)|(injected&bit?2u:0u));
+            }
+        }
+        event_keys_=keys; event_virtual_keys_=virtual_keys_;
+        physical_keys_=hardware.keys; logical_keys_=keys;
+        physical_flags_=(hardware.toggle_up?1:0)|(hardware.jack?2:0)|(hardware.tone_down?4:0);
+        logical_flags_=(toggle_up?1:0)|(jack?2:0)|((hardware.tone_down||virtual_tone_)?4:0)|(Overridden()?8:0);
+#endif
+        const bool chompi = (keys >> panel::kChompiKey) & 1u;
+        const bool menu_was_active = menu_.Active();
+        menu_.Update(toggle_up, chompi);
+        // The page before this block's keys: KEY_22 / KEY_21 leaving another page for TAPE's
+        // must not also count as TAPE's tap (effects after / before the looper; 0.15.1).
+        const bool began_on_tape = menu_.Active() && menu_.Page() == MenuPage::Samples;
+        // TAPE: jack insertion selects line in, removal the mic.
+        if(first_ || jack != jack_) {
+            jack_ = jack; first_ = false;
+            source_ = jack ? RecordSource::Line : RecordSource::Mic;
+            menu_.SetRecordSource(static_cast<uint8_t>(source_));
+        }
+        // TAPE: toggle down + hold CHOMPI records; on release the take becomes
+        // the chromatic recording slot and plays at once.
+        // Forge: a 1.5 s count-in (CHOMPI and the white keys blink red) before recording.
+        switch(gesture_.Update(toggle_up, chompi, hardware.frames)) {
+            case RecordGesture::Event::Start:
+                if(!recorder.Start()) { gesture_.Cancel(); sink.Flash(false); }
+                break;
+            case RecordGesture::Event::Stop: {
+                recorder.Stop();
+                // TAPE: the take plays at once, chromatic, with pitch, gain, start and end back to default.
+                const Parameters& p = engine.GetParameters();
+                Parameters take = SelectSample(p, 0, p.sample_bank, kRamSlot);
+                take.sample_start = 0.f; take.sample_end = 1.f;
+                engine.ApplyPatch(take, SlotPolicy::Select);
+                engine.ResetControl(Parameter::Speed); engine.ResetControl(Parameter::VoiceGain);
+                break;
+            }
+            default: break;
+        }
+        recording_position_.store(!toggle_up, std::memory_order_relaxed);
+        if(!toggle_up && chompi != chompi_was_) SendMidi(0xb0, 21, chompi ? 127 : 0);   // TAPE: CHOMPI = CC 21 in the record position
+        chompi_was_ = chompi;
+        count_in_.store(gesture_.CountInPhase(), std::memory_order_relaxed);
+        const uint64_t rising = keys & ~prev_keys_, falling = prev_keys_ & ~keys;
+        prev_keys_ = keys;
+        // 0.16: a short CHOMPI tap in the menu position, nothing else touched, runs the event
+        // recorder's F#4 (close the take / stop / play) without opening a menu page. Empty: nothing
+        // (arming stays on the parts page). A pending save / copy / erase keeps its CHOMPI confirm.
+        if((rising >> panel::kChompiKey) & 1u) { tap_down_ = toggle_up && !menu_was_active; tap_frames_ = 0; tap_clean_ = true; }
+        if(tap_down_ && chompi) { tap_frames_ += hardware.frames; if(rising & ~(uint64_t(1) << panel::kChompiKey)) tap_clean_ = false; }
+        if(tap_down_ && ((falling >> panel::kChompiKey) & 1u)) {
+            tap_down_ = false;
+            seq::Sequencer* q = engine.Sequencer();
+            if(tap_clean_ && tap_frames_ < panel::kChompiTapFrames && menu_.Mode() == MenuMode::None && q
+               && q->GetState() != seq::Sequencer::State::Empty) q->RecordKey();
+        }
+        // TAPE: SW6 held 2 s shows the battery on its light while it stays down; a
+        // shorter press switches SW6 between volume and input gain.
+        if((keys >> panel::kVolumePress) & 1u) {
+            if(volume_held_ < kBatteryHoldFrames) volume_held_ += hardware.frames;
+        } else {
+            if((falling >> panel::kVolumePress) & 1u && volume_held_ < kBatteryHoldFrames && !volume_in_menu_) volume_page_ = !volume_page_;
+            if((falling >> panel::kVolumePress) & 1u) volume_in_menu_ = false;
+            volume_held_ = 0;
+        }
+        battery_view_.store(volume_held_ >= kBatteryHoldFrames, std::memory_order_relaxed);
+        keys_down_.store(static_cast<uint32_t>(keys), std::memory_order_relaxed);   // all 25 note keys are switches 0-31
+        for(unsigned key = 0; key < panel::kButtons; ++key) if(panel::kKeyNotes[key]) {
+            const bool harmony_page = HarmonyPage(), parts_page = PartsPage();   // before the key may change the page
+            if(((rising >> key) & 1u) && !menu_.Key(static_cast<uint8_t>(key), true))
+                PlayKey(engine, panel::kKeyNotes[key], 127);   // TAPE: full velocity
+            else if(((rising >> key) & 1u) && harmony_page && HarmonyPage() && engine.Harmony())
+                engine.Harmony()->state.tonic = static_cast<uint8_t>(panel::kKeyNotes[key] % 12);   // harmony page: the key's note is the tonic
+            else if(((rising >> key) & 1u) && parts_page && PartsPage() && engine.Parts()) PartsKey(panel::kKeyNotes[key], engine);
+            if((falling >> key) & 1u) {
+                menu_.Key(static_cast<uint8_t>(key), false); PlayKey(engine, panel::kKeyNotes[key], 0);
+            }
+        }
+        Looper* looper = engine.GetLooper();
+        if(looper) {
+            // PLAY / LOOP. In the menu they set the overdub feedback (-/+ 10 %, as TAPE);
+            // releases always reach the looper so no key can stay held there.
+            for(const uint8_t key : {panel::kPlayKey, panel::kLoopKey}) {
+                const bool play = key == panel::kPlayKey;
+                if((rising >> key) & 1u) {
+                    if(menu_.Active()) { if(play || !menu_.SelectLoopSource()) looper->AdjustFeedback(play ? -0.1f : 0.1f); }
+                    else if(play) looper->Play(true); else looper->Loop(true);
+                }
+                if((falling >> key) & 1u) { if(play) looper->Play(false); else looper->Loop(false); }
+                if(((rising | falling) >> key) & 1u) SendMidi(0xb0, play ? 26 : 27, (keys >> key) & 1u ? 127 : 0);   // TAPE
+            }
+            looper->Tick(hardware.frames);
+        }
+        // Effects before/after the looper (menu keys), outside the looper so it works without one.
+        const bool presets_page = menu_.Active() && menu_.Page() == MenuPage::Presets;
+        if(presets_page && ((rising >> panel::kFxBefore) & 1u)) engine.SetFxBeforeLoop(true);
+        if(presets_page && ((rising >> panel::kFxAfter) & 1u)) engine.SetFxBeforeLoop(false);
+        // TAPE's menu page: KEY_21 effects before the looper, KEY_22 after (on release, so a
+        // 1 s hold can open Forge's presets page instead).
+        const bool tape_page = began_on_tape && menu_.Active() && menu_.Page() == MenuPage::Samples;
+        // KEY_21: a tap = effects before the looper; a 1 s hold opens the harmony page (0.13).
+        if(tape_page && ((rising >> panel::kFxBefore) & 1u)) { fx_key_frames_ = 0; fx_key_armed_ = true; }
+        if(fx_key_armed_ && ((keys >> panel::kFxBefore) & 1u)) {
+            fx_key_frames_ += hardware.frames;
+            if(fx_key_frames_ >= panel::kPresetsHoldFrames) { menu_.ShowPage(MenuPage::Harmony); fx_key_armed_ = false; fx_key_parts_ = true; }
+        }
+        // 0.16: keep holding KEY_21 another second: straight on to the parts page.
+        if(fx_key_parts_) {
+            if(!((keys >> panel::kFxBefore) & 1u)) fx_key_parts_ = false;
+            else if((fx_key_frames_ += hardware.frames) >= 2 * panel::kPresetsHoldFrames) { if(HarmonyPage()) menu_.ShowPage(MenuPage::Parts); fx_key_parts_ = false; }
+        }
+        if(fx_key_armed_ && ((falling >> panel::kFxBefore) & 1u)) { if(tape_page) engine.SetFxBeforeLoop(true); fx_key_armed_ = false; }
+        if(tape_page && ((rising >> panel::kPage) & 1u)) { page_key_frames_ = 0; page_key_armed_ = true; }
+        if(page_key_armed_ && ((keys >> panel::kPage) & 1u)) {
+            page_key_frames_ += hardware.frames;
+            if(page_key_frames_ >= panel::kPresetsHoldFrames) { menu_.ShowPage(MenuPage::Presets); page_key_armed_ = false; }
+        }
+        if(page_key_armed_ && ((falling >> panel::kPage) & 1u)) { if(tape_page) engine.SetFxBeforeLoop(false); page_key_armed_ = false; }
+        RunActions(engine, recorder, sink);
+        const Parameters& live = engine.GetParameters();
+        if(live.Sampler()) menu_.FollowSampler(live.sample_mode, live.sample_bank, live.sample_slot);
+        // Encoders: SW5 turn = cutoff, push and turn = looper speed (scrub when paused),
+        // click = speed back to 1x; knobs 1-4 in TAPE's layout; SW6 = level / input gain.
+        // Virtual turns are consumed with the hardware ones.
+        int16_t turns[panel::kEncoders];
+        for(unsigned i = 0; i < panel::kEncoders; ++i) { turns[i] = static_cast<int16_t>(hardware.turns[i] + virtual_turns_[i]); virtual_turns_[i] = 0; }
+#ifdef FORGE_TEST_HOOKS
+        for(unsigned i=0;i<panel::kEncoders;++i) {
+            raw_turns_[i]+=uint32_t(hardware.turns[i]); turns_[i]+=uint32_t(turns[i]);
+            if(turns[i]) LogEdge(InspectorEventKind::Knob, i, uint32_t(turns[i]));
+        }
+#endif
+        if(clear_frames_) clear_frames_ = clear_frames_ > hardware.frames ? clear_frames_ - hardware.frames : 0;   // A#4 clear window
+        if(tap_down_) for(unsigned i = 0; i < panel::kEncoders; ++i) if(turns[i]) tap_clean_ = false;
+        auto count_down = [&](uint32_t& f) { f = f > hardware.frames ? f - hardware.frames : 0; };
+        for(unsigned k = 0; k < 4; ++k) { count_down(turn_view_[k]); count_down(page_flash_[k]); }
+        count_down(tone_view_); count_down(harmony_flash_);
+        // TAPE's menu page: the knobs are TAPE's shift layer (MenuControls).
+        if(menu_.Active() && menu_.Page() == MenuPage::Samples) MenuControls(hardware, keys, rising, turns, engine);
+        else if(HarmonyPage()) HarmonyControls(keys, turns, engine);
+        else if(PartsPage()) PartsControls(keys, turns, engine);
+        else {
+            // SW5 (virtual: 2 = one click, 1 = held).
+            const bool tone_down = hardware.tone_down || virtual_tone_ != 0;
+            if(virtual_tone_ == 2) virtual_tone_ = 3; else if(virtual_tone_ == 3) virtual_tone_ = 0;   // click: down one block
+            if(tone_down && !tone_was_down_) tone_turned_ = false;
+            if(const int t = turns[panel::kToneEncoder]) {
+                if(tone_down) {
+                    tone_turned_ = true;
+                    if(looper && looper->HasLoop()) {
+                        if(looper->GetState() == Looper::State::Playing) TurnLoopSpeed(looper, t, !options_.quantise_menu);
+                        else looper->Scrub(t);
+                    }
+                } else {                                    // the cutoff, and the loop's tone with it (0.16)
+                    engine.Apply({Parameter::Cutoff, engine.Value(Parameter::Cutoff) + t * knobs::Step(4, Parameter::Cutoff)});
+                    if(looper && looper->HasLoop()) looper->NudgeTone(t * knobs::Step(4, Parameter::Cutoff));
+                    tone_view_ = panel::kToneViewFrames;
+                }
+            }
+            if(!tone_down && tone_was_down_ && !tone_turned_ && looper) looper->ResetSpeed();
+            tone_was_down_ = tone_down;
+            // Knobs 1-4. Presses act on release (TAPE); a 1.5 s hold resets; SW4 + SW3 = panic.
+            const Parameters& patch = engine.GetParameters();
+            const bool combo = hold_[0].down && hold_[3].down;
+            if(combo) {
+                combo_frames_ += hardware.frames;
+                if(combo_frames_ >= panel::kPanicHoldFrames && !hold_[0].used) { engine.Panic(); hold_[0].used = hold_[3].used = true; }
+            } else combo_frames_ = 0;
+            // 0.16: SW1 + SW2 held 1 s = harmony on / off without the menu (all rings flash green / red).
+            const bool harmony_combo = hold_[1].down && hold_[2].down;
+            if(harmony_combo) {
+                harmony_combo_frames_ += hardware.frames;
+                if(harmony_combo_frames_ >= panel::kPanicHoldFrames && !hold_[1].used && engine.Harmony()) {
+                    harmony::State& s = engine.Harmony()->state;
+                    s.enabled = !s.enabled; hold_[1].used = hold_[2].used = true; harmony_flash_ = panel::kHarmonyFlashFrames;
+                }
+            } else harmony_combo_frames_ = 0;
+            for(unsigned knob = 0; knob < 4; ++knob) {
+                KnobHold& h = hold_[knob];
+                if(knob_page_[knob] >= knobs::Pages(knob, patch)) knob_page_[knob] = 0;   // a new patch has fewer pages
+                const Parameter target = knobs::Target(knob, knob_page_[knob], patch);
+                const bool down = (keys >> panel::kKnobEncoder[knob]) & 1u;
+                const int increment = turns[panel::kKnobEncoder[knob]];
+                if(down) {
+                    if(!h.down) h = KnobHold{}, h.down = true; else h.frames += hardware.frames;
+                    if(increment) h.turned = true;
+                    if(!h.used && !h.turned && !combo && !harmony_combo && h.frames >= panel::kResetHoldFrames && !menu_.Active()) {
+                        engine.ResetControl(target); h.used = true; reset_flash_[knob] = 48 * 300;
+                    }
+                } else if(h.down) {
+                    if(!h.used) { knob_page_[knob] = static_cast<uint8_t>((knob_page_[knob] + 1) % knobs::Pages(knob, patch)); page_flash_[knob] = panel::kPageFlashFrames; }
+                    h = KnobHold{};
+                }
+                if(reset_flash_[knob]) reset_flash_[knob] = reset_flash_[knob] > hardware.frames ? reset_flash_[knob] - hardware.frames : 0;
+                if(increment && !menu_.Encoder(static_cast<uint8_t>(knob), increment)) {  // knob 1 picks the bank while the menu is open
+                    if(target == Parameter::Speed && !options_.quantise_menu) TurnSpeed(engine, increment, true);
+                    else engine.Apply({target, engine.Value(target) + increment * knobs::Step(knob, target)});
+                }
+            }
+            const Parameter volume = volume_page_ ? Parameter::InputGain : Parameter::Level;
+            if(turns[panel::kVolumeEncoder])
+                engine.Apply({volume, engine.Value(volume) + turns[panel::kVolumeEncoder] * knobs::Step(5, volume)});
+        }
+        recorder.SetInputGain(engine.GetPerformance().input_gain);
+        PublishKnobs(engine);
+        if(!(menu_.Active() && menu_.Page() == MenuPage::Samples)) SendKnobCcs(engine, turns);
+    }
+    uint32_t MenuPacked() const { return menu_.Packed(); }
+    bool HarmonyPage() const { return menu_.Active() && menu_.Page() == MenuPage::Harmony; }
+    bool PartsPage() const { return menu_.Active() && menu_.Page() == MenuPage::Parts; }
+    // parts::PackArp of the parts settings, and the clock for the lights: bit 0 running,
+    // 1 MIDI clock, 2 on the beat (first 1/16 of each quarter), bits 8-16 the tempo.
+    uint32_t PartsLights() const { return parts_lights_.load(std::memory_order_relaxed); }
+    uint32_t PartsClock() const { return parts_clock_.load(std::memory_order_relaxed); }
+    // The event recorder for the lights: bits 0-2 state (Sequencer::State), 3 overdub, 4 clear armed.
+    uint32_t SequenceLights() const { return sequence_lights_.load(std::memory_order_relaxed); }
+    // harmony::Pack of the engine's harmony state (for the LEDs and the Inspector).
+    uint32_t HarmonyLights() const { return harmony_lights_.load(std::memory_order_relaxed); }
+    void SetInstallGate(InstallGate* gate) { install_gate_ = gate; }
+    // Knob n's page in bits 3n..3n+2.
+    uint16_t KnobPages() const {
+        return static_cast<uint16_t>(knob_page_[0] | knob_page_[1] << 3 | knob_page_[2] << 6 | knob_page_[3] << 9);
+    }
+    // Main loop (knob lights): pages, values and flags published once per block.
+    uint32_t KnobValues() const { return knob_values_.load(std::memory_order_relaxed); }
+    uint32_t KnobState() const { return knob_state_.load(std::memory_order_relaxed); }
+    // 0.16 light feedback: bits 0-3 page flash, 4-7 a stepped setting being turned, 8 SW5's
+    // cutoff shown, 9-16 the cutoff 0..255, 17 harmony on/off flash, 18 harmony now on.
+    uint32_t KnobFlags() const { return knob_flags_.load(std::memory_order_relaxed); }
+    bool RecordPosition() const { return recording_position_.load(std::memory_order_relaxed); }
+    uint8_t CountIn() const { return count_in_.load(std::memory_order_relaxed); }
+    bool VolumePage() const { return volume_page_; }
+    panel::MonitorMode Monitor() const { return monitor_; }
+    // Main loop: the next MIDI message to send (TAPE's MIDI out).
+    bool PopMidi(MidiOut& m) { return midi_out_.Pop(m); }
+    const Options& GetOptions() const { return options_; }
+    // TAPE's options.json (start-up): record latch, monitor position, which pitch mode is quantised.
+    void SetOptions(const Options& o) {
+        options_ = o; gesture_.SetLatch(o.record_latch); monitor_ = static_cast<panel::MonitorMode>(o.monitor % 3);
+    }
+    void SetMonitor(panel::MonitorMode mode) { monitor_ = mode; }
+    // Main loop (lights): bit 0 TAPE menu page open, 1 sample loop on, 2 sample hold (sustain) on,
+    // bits 3-4 monitor mode.
+    uint8_t MenuLights() const { return menu_lights_.load(std::memory_order_relaxed); }
+    RecordSource Source() const { return source_; }
+    // Main loop (LED drawing): SW6 has been held long enough to show the battery.
+    bool BatteryView() const { return battery_view_.load(std::memory_order_relaxed); }
+    // Main loop (LED drawing): note keys held this block (physical and injected); switches 0-31
+    // (32 bits: the Cortex-M7 has no lock-free 64-bit atomics).
+    uint32_t KeysDown() const { return keys_down_.load(std::memory_order_relaxed); }
+    const PresetMenu& Menu() const { return menu_; }
+#ifdef FORGE_TEST_HOOKS
+    void Inspect(InspectorAudio& a) const {
+        a.physical_keys=physical_keys_; a.logical_keys=logical_keys_;
+        a.physical_flags=physical_flags_; a.logical_flags=logical_flags_; a.menu=MenuPacked();
+        a.record_source=static_cast<uint8_t>(source_); a.knob_pages=KnobPages();
+        for(unsigned i=0;i<panel::kEncoders;++i) { a.raw_turns[i]=raw_turns_[i]; a.turns[i]=turns_[i]; }
+    }
+#endif
+private:
+    static constexpr uint32_t kBatteryHoldFrames = 48 * power::kBatteryHoldMs;   // 48 kHz
+    struct KnobHold { bool down = false, turned = false, used = false; uint32_t frames = 0; };
+    // Knob values 0..255 (8 bits each, knob 0 lowest); state: pages (12 bits), patch-page
+    // flags (bits 12-15), reset flashes (16-19), SW6 page (20), effects-only patch (21),
+    // SW6 value 0..255 (24-31).
+    FORGE_COLD void PublishKnobs(const Engine& engine) {
+        const Parameters& p = engine.GetParameters();
+        uint32_t values = 0, state = KnobPages();
+        for(unsigned k = 0; k < 4; ++k) {
+            const float v = Clamp(engine.Value(knobs::Target(k, knob_page_[k], p)), 0.f, 1.f);
+            values |= static_cast<uint32_t>(v * 255.f + .5f) << (8 * k);
+            if(knobs::IsPatchPage(k, knob_page_[k], p)) state |= 1u << (12 + k);
+            if(reset_flash_[k]) state |= 1u << (16 + k);
+        }
+        if(volume_page_) state |= 1u << 20;
+        if(knobs::KindOf(p) == knobs::Kind::Effects) state |= 1u << 21;
+        const float vol = Clamp(engine.Value(volume_page_ ? Parameter::InputGain : Parameter::Level), 0.f, 1.f);
+        state |= static_cast<uint32_t>(vol * 255.f + .5f) << 24;
+        knob_values_.store(values, std::memory_order_relaxed); knob_state_.store(state, std::memory_order_relaxed);
+        uint32_t flags = 0;
+        for(unsigned k = 0; k < 4; ++k) flags |= (page_flash_[k] ? 1u << k : 0u) | (turn_view_[k] ? 1u << (4 + k) : 0u);
+        if(tone_view_) flags |= 1u << 8;
+        flags |= static_cast<uint32_t>(Clamp(engine.Value(Parameter::Cutoff), 0.f, 1.f) * 255.f + .5f) << 9;
+        if(harmony_flash_) flags |= 1u << 17;
+        if(engine.Harmony() && engine.Harmony()->state.enabled) flags |= 1u << 18;
+        knob_flags_.store(flags, std::memory_order_relaxed);
+        const bool tape_menu = menu_.Active() && menu_.Page() == MenuPage::Samples;
+        harmony_lights_.store(engine.Harmony() ? harmony::Pack(engine.Harmony()->state, engine.Harmony()->Shift()) : 0u, std::memory_order_relaxed);
+        if(const parts::Parts* pp = engine.Parts()) {
+            const parts::Clock& c = pp->GetClock();
+            parts_lights_.store(parts::PackArp(pp->settings), std::memory_order_relaxed);
+            parts_clock_.store((c.Running() ? 1u : 0u) | (c.External() ? 2u : 0u) | (c.Ticks() % parts::kPpqn < 6 ? 4u : 0u)
+                               | static_cast<uint32_t>(c.Bpm() + .5f) << 8, std::memory_order_relaxed);
+        }
+        if(const seq::Sequencer* q = engine.Sequencer())
+            sequence_lights_.store(static_cast<uint32_t>(q->GetState()) | (q->Overdub() ? 8u : 0u) | (clear_frames_ ? 16u : 0u), std::memory_order_relaxed);
+        menu_lights_.store(static_cast<uint8_t>((tape_menu ? 1u : 0u) | (p.sample_loop ? 2u : 0u) | (p.sample_gate ? 4u : 0u)
+                                                | (static_cast<unsigned>(monitor_) << 3)), std::memory_order_relaxed);
+    }
+    // TAPE's menu knob layer (MenuPage.h): turns and presses while the TAPE menu page is open.
+    FORGE_COLD void MenuControls(const PanelInput& hardware, uint64_t keys, uint64_t rising, const int16_t (&turns)[panel::kEncoders], Engine& engine) {
+        const Parameters& p = engine.GetParameters();
+        for(unsigned knob = 0; knob < 4; ++knob) {
+            KnobHold& h = hold_[knob];
+            const bool down = (keys >> panel::kKnobEncoder[knob]) & 1u;
+            if(down && !h.down) { h = KnobHold{}; h.down = true; h.used = true; MenuPress(knob, engine); }   // no page step after
+            const int t = turns[panel::kKnobEncoder[knob]];
+            if(!t) continue;
+            const unsigned page = knob_page_[knob];
+            auto nudge = [&](Parameter q, float step) { engine.Apply({q, engine.Value(q) + t * step}); };
+            switch(knob) {
+                case 0:
+                    if(page == 0) TurnSpeed(engine, t, options_.quantise_menu);   // the other pitch mode (TAPE default: quantised)
+                    else nudge(Parameter::Pan, .01f);
+                    break;
+                case 1: case 2:
+                    if(page == 0 && p.Sampler()) {          // move the start-end window together (.03 per click)
+                        const float start = p.sample_start, end = p.sample_end;      // p follows the engine: copy first
+                        const float d = Clamp(t * .03f, -start, 1.f - end);
+                        if(d > 0.f) { engine.Apply({Parameter::SampleEnd, end + d}); engine.Apply({Parameter::SampleStart, start + d}); }
+                        else { engine.Apply({Parameter::SampleStart, start + d}); engine.Apply({Parameter::SampleEnd, end + d}); }
+                    } else {                                // attack and release together (TAPE: attack and "decay")
+                        const float v = Clamp(engine.Value(Parameter::Attack) + t * .03f, 0.f, 1.f);
+                        engine.Apply({Parameter::Attack, v}); engine.Apply({Parameter::Release, v});
+                    }
+                    break;
+                default:
+                    if(page == 0) { nudge(Parameter::Time, .03f); engine.Apply({Parameter::ReverbSize, engine.Value(Parameter::Time)}); }
+                    else if(page == 1) nudge(Parameter::Warble, .03f);
+                    else nudge(Parameter::DjResonance, .03f);
+                    break;
+            }
+        }
+        for(unsigned knob = 0; knob < 4; ++knob) if(!((keys >> panel::kKnobEncoder[knob]) & 1u)) hold_[knob].down = false;
+        // SW5: the looper's pitch (TAPE: free even while paused); click: back to 1x.
+        Looper* looper = engine.GetLooper();
+        if(looper && turns[panel::kToneEncoder]) TurnLoopSpeed(looper, turns[panel::kToneEncoder], options_.quantise_menu);
+        if(looper && hardware.tone_down && !tone_was_down_) looper->ResetSpeed();
+        tone_was_down_ = hardware.tone_down;
+        // SW6: the output compressor; press: next monitor position.
+        if(turns[panel::kVolumeEncoder])
+            engine.Apply({Parameter::Compressor, engine.Value(Parameter::Compressor) + turns[panel::kVolumeEncoder] * .03f});
+        if((rising >> panel::kVolumePress) & 1u) { monitor_ = static_cast<panel::MonitorMode>((static_cast<unsigned>(monitor_) + 1) % 3); volume_in_menu_ = true; }
+    }
+    // TAPE menu presses: SW4 resets pitch (page 1) or gain and pan (page 2); SW1 auto-loop
+    // on/off; SW2 sustain (hold) on/off; SW3 resets every effect.
+    FORGE_COLD void MenuPress(unsigned knob, Engine& engine) {
+        switch(knob) {
+            case 0:
+                if(knob_page_[0] == 0) engine.ResetControl(Parameter::Speed);
+                else { engine.ResetControl(Parameter::VoiceGain); engine.ResetControl(Parameter::Pan); }
+                break;
+            case 1: engine.ToggleSampleLoop(); break;
+            case 2: engine.ToggleSampleHold(); break;
+            default:
+                for(Parameter q : {Parameter::Space, Parameter::Saturation, Parameter::DjFilter, Parameter::Time,
+                                   Parameter::DjResonance, Parameter::Warble}) engine.ResetControl(q);
+                break;
+        }
+    }
+    // Pitch turns: free (.003 per click) or quantised (fifths/octaves, one step per 4 clicks).
+    FORGE_COLD void TurnSpeed(Engine& engine, int t, bool quantised) {
+        if(!quantised) { engine.Apply({Parameter::Speed, engine.Value(Parameter::Speed) + t * knobs::Step(0, Parameter::Speed)}); return; }
+        speed_detents_ += t;
+        while(speed_detents_ >= 4 || speed_detents_ <= -4) {
+            const int dir = speed_detents_ > 0 ? 1 : -1; speed_detents_ -= 4 * dir;
+            engine.Apply({Parameter::Speed, TapeSpeedKnob(QuantisedSpeedStep(TapeSpeedRatio(engine.GetPerformance().speed), dir))});
+        }
+    }
+    FORGE_COLD void TurnLoopSpeed(Looper* looper, int t, bool quantised) {
+        if(!quantised) { looper->NudgeSpeed(t * knobs::kLoopSpeedPerClick); return; }
+        loop_detents_ += t;
+        while(loop_detents_ >= 4 || loop_detents_ <= -4) {
+            const int dir = loop_detents_ > 0 ? 1 : -1; loop_detents_ -= 4 * dir;
+            looper->SetSpeed(QuantisedSpeedStep(looper->SpeedTarget(), dir));
+        }
+    }
+    // Harmony page (0.13): SW4 turn mode, press on/off; SW1 turn chord size (fifth, triad,
+    // 7th, 9th, 11th, 13th), press Static/Real; SW2 turn inversion, press voice leading;
+    // SW3 press open spread. Three clicks per step; nothing wraps.
+    FORGE_COLD void HarmonyControls(uint64_t keys, const int16_t (&turns)[panel::kEncoders], Engine& engine) {
+        harmony::Player* player = engine.Harmony();
+        for(unsigned knob = 0; knob < 4; ++knob) {
+            KnobHold& h = hold_[knob];
+            const bool down = (keys >> panel::kKnobEncoder[knob]) & 1u;
+            if(!down) { h.down = false; continue; }
+            if(h.down || !player) continue;
+            h = KnobHold{}; h.down = true; h.used = true;
+            harmony::State& s = player->state;
+            if(knob == 0) s.enabled = !s.enabled;
+            else if(knob == 1) s.layout = s.layout == harmony::Layout::Static ? harmony::Layout::Real : harmony::Layout::Static;
+            else if(knob == 2) s.block = !s.block;
+            else s.open = !s.open;
+        }
+        if(!player) return;
+        harmony::State& s = player->state;
+        for(unsigned knob = 0; knob < 3; ++knob) {
+            if(turns[panel::kKnobEncoder[knob]]) turn_view_[knob] = panel::kTurnViewFrames;
+            harmony_detents_[knob] += turns[panel::kKnobEncoder[knob]];
+            while(harmony_detents_[knob] >= 3 || harmony_detents_[knob] <= -3) {
+                const int dir = harmony_detents_[knob] > 0 ? 1 : -1; harmony_detents_[knob] -= 3 * dir;
+                auto step = [dir](unsigned v, unsigned count) { const int n = static_cast<int>(v) + dir; return static_cast<unsigned>(n < 0 ? 0 : n >= static_cast<int>(count) ? count - 1 : n); };
+                if(knob == 0) s.mode = static_cast<harmony::Mode>(step(static_cast<unsigned>(s.mode), harmony::kModes));
+                else if(knob == 1) {                  // knob order: fifth, triad, 7, 9, 11, 13
+                    static const harmony::Extension order[harmony::kExtensions] = {harmony::Extension::Fifth, harmony::Extension::Triad,
+                        harmony::Extension::Seventh, harmony::Extension::Ninth, harmony::Extension::Eleventh, harmony::Extension::Thirteenth};
+                    unsigned at = 0; while(at < harmony::kExtensions && order[at] != s.extension) ++at;
+                    s.extension = order[step(at % harmony::kExtensions, harmony::kExtensions)];
+                } else s.inversion = static_cast<uint8_t>(step(s.inversion, 4));
+            }
+        }
+    }
+    int harmony_detents_[3] = {};
+    // Parts page (0.14), keys: C3 arp off, D3 up, E3 down, F3 up-down, G3 played order, A3 random,
+    // B3 latch; C4 1/4, D4 1/8, E4 1/8 triplet, F4 1/16, G4 1/16 triplet, A4 1/32, B4 run / stop;
+    // C#3 bass off, D#3 root, F#3 root + fifth, G#3 root / fifth, A#3 root / octave; C5 tap tempo.
+    // Event recorder (0.15): F#4 record (arm / close / stop / play), G#4 overdub, A#4 clear
+    // (twice within 2 s). KEY_21 harmony page, KEY_22 TAPE's page.
+    FORGE_COLD void PartsKey(uint8_t note, Engine& engine) {
+        parts::Parts& p = *engine.Parts(); parts::Settings& s = p.settings;
+        switch(note) {
+            case 48: s.pattern = parts::Pattern::Off; break;       case 50: s.pattern = parts::Pattern::Up; break;
+            case 52: s.pattern = parts::Pattern::Down; break;      case 53: s.pattern = parts::Pattern::UpDown; break;
+            case 55: s.pattern = parts::Pattern::Order; break;     case 57: s.pattern = parts::Pattern::Random; break;
+            case 59: s.latch = !s.latch; break;
+            case 60: s.rate = parts::Rate::Quarter; break;         case 62: s.rate = parts::Rate::Eighth; break;
+            case 64: s.rate = parts::Rate::EighthTriplet; break;   case 65: s.rate = parts::Rate::Sixteenth; break;
+            case 67: s.rate = parts::Rate::SixteenthTriplet; break; case 69: s.rate = parts::Rate::ThirtySecond; break;
+            case 71: p.GetClock().Run(!p.GetClock().Running()); break;
+            case 49: s.bass = parts::Bass::Off; break;              case 51: s.bass = parts::Bass::Root; break;
+            case 54: s.bass = parts::Bass::Fifth; break;            case 56: s.bass = parts::Bass::Alternate; break;
+            case 58: s.bass = parts::Bass::Octave; break;
+            case 66: if(engine.Sequencer()) engine.Sequencer()->RecordKey(); return;
+            case 68: if(engine.Sequencer()) engine.Sequencer()->OverdubKey(); return;
+            case 70:
+                if(!engine.Sequencer()) return;
+                if(clear_frames_) { engine.Sequencer()->Clear(); clear_frames_ = 0; } else clear_frames_ = kClearFrames;
+                return;
+            case 72: p.Tap(); break;
+            default: return;
+        }
+        engine.PartsChanged();
+    }
+    // Knobs: SW4 tempo (1 BPM a click; press = tap), SW1 arp octaves 1-4, SW2 gate 5-100 %
+    // (5 % a click), SW3 bass rate (chord change, 1/2, 1/4, 1/8; press = bass octave C1 / C2 / C3).
+    // Three clicks per step for SW1/SW3.
+    FORGE_COLD void PartsControls(uint64_t keys, const int16_t (&turns)[panel::kEncoders], Engine& engine) {
+        parts::Parts* p = engine.Parts();
+        if(!p) return;
+        parts::Settings& s = p->settings;
+        bool changed = false;
+        for(unsigned knob = 0; knob < 4; ++knob) if(turns[panel::kKnobEncoder[knob]]) turn_view_[knob] = panel::kTurnViewFrames;
+        const bool down = (keys >> panel::kKnobEncoder[0]) & 1u;
+        if(down && !hold_[0].down) { hold_[0] = KnobHold{}; hold_[0].down = true; hold_[0].used = true; changed = p->Tap() || changed; }
+        if(!down) hold_[0].down = false;
+        const bool sw3 = (keys >> panel::kKnobEncoder[3]) & 1u;
+        if(sw3 && !hold_[3].down) { hold_[3] = KnobHold{}; hold_[3].down = true; hold_[3].used = true; s.bass_octave = static_cast<uint8_t>((s.bass_octave + 1) % 3); changed = true; }
+        if(!sw3) hold_[3].down = false;
+        if(const int t = turns[panel::kKnobEncoder[0]]) {
+            const int bpm = static_cast<int>(s.bpm) + t;
+            s.bpm = static_cast<uint16_t>(bpm < parts::kMinBpm ? parts::kMinBpm : bpm > parts::kMaxBpm ? parts::kMaxBpm : bpm); changed = true;
+        }
+        if(const int t = turns[panel::kKnobEncoder[2]]) {
+            const int gate = static_cast<int>(s.gate) + t;
+            s.gate = static_cast<uint8_t>(gate < 1 ? 1 : gate > 20 ? 20 : gate); changed = true;
+        }
+        for(unsigned knob : {1u, 3u}) {
+            parts_detents_[knob] += turns[panel::kKnobEncoder[knob]];
+            while(parts_detents_[knob] >= 3 || parts_detents_[knob] <= -3) {
+                const int dir = parts_detents_[knob] > 0 ? 1 : -1; parts_detents_[knob] -= 3 * dir;
+                if(knob == 1) { const int o = s.octaves + dir; s.octaves = static_cast<uint8_t>(o < 1 ? 1 : o > 4 ? 4 : o); }
+                else { const int r = static_cast<int>(s.bass_rate) + dir; s.bass_rate = static_cast<parts::BassRate>(r < 0 ? 0 : r > 3 ? 3 : r); }
+                changed = true;
+            }
+        }
+        if(changed) engine.PartsChanged();
+    }
+    int parts_detents_[4] = {};
+    static constexpr uint32_t kClearFrames = 2 * 48000;   // A#4: the second press within 2 s clears
+    uint32_t clear_frames_ = 0;
+    std::atomic<uint32_t> parts_lights_{0}, parts_clock_{0}, sequence_lights_{0};
+    uint32_t fx_key_frames_ = 0;
+    bool fx_key_armed_ = false, fx_key_parts_ = false;
+    bool tap_down_ = false, tap_clean_ = false;
+    uint32_t tap_frames_ = 0;
+    // 0.16 light feedback timers (frames): turned stepped settings, page flashes, SW5 cutoff, harmony on/off.
+    uint32_t turn_view_[4]{}, page_flash_[4]{}, tone_view_ = 0, harmony_flash_ = 0, harmony_combo_frames_ = 0;
+    std::atomic<uint32_t> knob_flags_{0};
+    std::atomic<uint32_t> harmony_lights_{0};
+    int speed_detents_ = 0, loop_detents_ = 0;
+    Options options_;
+    uint32_t page_key_frames_ = 0;
+    bool page_key_armed_ = false, volume_in_menu_ = false;
+    panel::MonitorMode monitor_ = panel::MonitorMode::Headphones;
+    std::atomic<uint8_t> menu_lights_{0};
+    // TAPE's MIDI out: cc_map[page][knob] for knobs 1-4 (TAPE's pages; Forge's extra pages
+    // send nothing), CC 24 = SW5 (cutoff), CC 25 / 32 = SW6 (volume / input gain). A CC is
+    // sent when that knob was turned (as TAPE: physical turns, not the menu) and its 7-bit value changed.
+    // A keybed key to the engine, and what it played (a chord in harmony mode) to MIDI out.
+    FORGE_COLD void PlayKey(Engine& engine, uint8_t note, uint8_t velocity) {
+        uint8_t played[2 * harmony::kMaxNotes]; unsigned released = 0;
+        const unsigned n = engine.Note(note, velocity, 2, played, &released);
+        for(unsigned i = 0; i < n; ++i) {
+            const bool off = i < released;
+            SendMidi(off ? 0x80 : 0x90, played[i], off ? 0 : velocity);
+        }
+    }
+    void SendMidi(uint8_t status, uint8_t data1, uint8_t data2) {
+        if(!midi_out_.Push({static_cast<uint8_t>(status | (options_.midi_out & 15u)), data1, data2})) ++midi_out_drops_;
+    }
+    FORGE_COLD void SendKnobCcs(const Engine& engine, const int16_t (&turns)[panel::kEncoders]) {
+        static const uint8_t cc_map[3][4] = {{20, 21, 22, 23}, {28, 29, 30, 31}, {0, 0, 0, 33}};
+        const Parameters& p = engine.GetParameters();
+        auto send = [&](unsigned slot, uint8_t cc, Parameter q) {
+            if(!cc || !turns[slot < 4 ? panel::kKnobEncoder[slot] : slot == 4 ? panel::kToneEncoder : panel::kVolumeEncoder]) return;
+            const uint8_t v = static_cast<uint8_t>(Clamp(engine.Value(q), 0.f, 1.f) * 127.f + .5f);
+            if(v != cc_sent_[slot] || cc != cc_number_[slot]) { cc_sent_[slot] = v; cc_number_[slot] = cc; SendMidi(0xb0, cc, v); }
+        };
+        for(unsigned k = 0; k < 4; ++k) {
+            const unsigned page = knob_page_[k];
+            send(k, page < 3 && page < knobs::TapePages(k) ? cc_map[page][k] : 0, knobs::Target(k, page, p));
+        }
+        send(4, 24, Parameter::Cutoff);
+        send(5, volume_page_ ? 32 : 25, volume_page_ ? Parameter::InputGain : Parameter::Level);
+    }
+    uint8_t cc_sent_[6] = {255, 255, 255, 255, 255, 255}, cc_number_[6]{};
+    bool chompi_was_ = false;
+    SpscQueue<MidiOut, 64> midi_out_;
+    uint32_t midi_out_drops_ = 0;
+    KnobHold hold_[4];
+    uint32_t combo_frames_ = 0, reset_flash_[4]{};
+    bool tone_was_down_ = false, tone_turned_ = false, volume_page_ = false;
+    std::atomic<uint32_t> knob_values_{0}, knob_state_{0};
+    std::atomic<bool> recording_position_{false};
+    std::atomic<uint8_t> count_in_{0};
+    uint32_t volume_held_ = 0;
+    std::atomic<bool> battery_view_{false};
+    std::atomic<uint32_t> keys_down_{0};
+#ifdef FORGE_TEST_HOOKS
+    uint64_t physical_keys_=0, logical_keys_=0;
+    uint32_t raw_turns_[6]{}, turns_[6]{};
+    uint8_t physical_flags_=0, logical_flags_=0;
+    SpscQueue<InspectorEvent,64>* events_=nullptr; std::atomic<uint32_t>* event_drops_=nullptr;
+    uint32_t event_time_=0; uint64_t event_keys_=0, event_virtual_keys_=0;
+    void LogEdge(InspectorEventKind kind, uint8_t id, uint32_t value) {
+        if(events_ && !events_->Push({0,event_time_,value,kind,id})) event_drops_->fetch_add(1,std::memory_order_relaxed);
+    }
+#endif
+    FORGE_COLD void RunActions(Engine& engine, Recorder& recorder, PanelSink& sink) {
+        for(MenuAction action; menu_.PopAction(action);) {
+            using Kind = MenuAction::Kind;
+            if(action.kind == Kind::SampleSelect) {                 // applied here, as TAPE does
+                engine.ApplyPatch(SelectSample(engine.GetParameters(), action.mode, action.bank, action.slot), SlotPolicy::Select);
+            } else if(action.kind == Kind::RecordSource) {
+                source_ = static_cast<RecordSource>(action.slot);
+            } else if(action.kind == Kind::SampleCopy && action.slot == PresetMenu::kLoopSource) {
+                // Save the loop into a sample slot (locked while the file is written).
+                Looper* looper = engine.GetLooper();
+                forge::SampleJob job;
+                job.kind = SampleJob::Kind::Save; job.from_loop = true;
+                job.mode = action.to_mode; job.bank = action.to_bank; job.slot = action.to_slot;
+                if(!looper || !looper->Lock()) { sink.Flash(false); continue; }
+                job.frames = looper->Length(); job.gain = 1.f;
+                if(!sink.SampleJob(job)) { looper->Unlock(); sink.Flash(false); }
+            } else if(action.kind == Kind::SampleSave || action.kind == Kind::SampleErase || action.kind == Kind::SampleCopy) {
+                forge::SampleJob job;
+                job.mode = action.mode; job.bank = action.bank; job.slot = action.slot;
+                job.to_mode = action.to_mode; job.to_bank = action.to_bank; job.to_slot = action.to_slot;
+                job.kind = action.kind == Kind::SampleSave ? SampleJob::Kind::Save
+                         : action.kind == Kind::SampleErase ? SampleJob::Kind::Erase : SampleJob::Kind::Copy;
+                if(job.kind == SampleJob::Kind::Save) {
+                    if(!recorder.Lock()) { sink.Flash(false); continue; }
+                    job.frames = recorder.Length(); job.gain = recorder.Gain();
+                }
+                if(!sink.SampleJob(job)) {
+                    if(job.kind == SampleJob::Kind::Save) recorder.Unlock();
+                    sink.Flash(false);
+                }
+            } else {
+                // Full queue: dropped, LEDs show no change. A queued save takes the project's
+                // loop along (0.15; exported after queueing, so a dropped save holds nothing).
+                if(sink.PresetAction(action, engine.Snapshot()) && action.kind == Kind::Save) engine.ExportSequence(action.bank, action.slot);
+            }
+        }
+    }
+    PresetMenu menu_;
+    RecordGesture gesture_;
+    RecordSource source_ = RecordSource::Line;
+    uint64_t prev_keys_ = 0, virtual_keys_ = 0;
+    int8_t toggle_override_ = -1, jack_override_ = -1;
+    bool first_ = true, jack_ = false;
+    uint8_t virtual_tone_ = 0;
+    int16_t virtual_turns_[panel::kEncoders]{};
+    uint8_t knob_page_[4]{};
+    InstallGate* install_gate_ = nullptr;
+};
+
+// Everything the key LEDs and the CHOMPI key LED show (main loop, pure), as
+// drawn by the firmware and reported by the development probe.
+struct LedView {
+    uint32_t menu = 0;                            // PresetMenu::Packed()
+    uint16_t preset_occupancy = 0;                // shown preset bank
+    bool preset_card = false;
+    uint8_t last_bank = 0, last_slot = panel::kNoSlot;
+    uint16_t sample_occupancy = 0;                // shown sample mode/bank
+    bool sample_card = false, recording_present = false, recording_now = false;
+    uint32_t live = 0;                            // PackSelection of the playing patch
+    bool blink = false, slow_blink = false;       // 250 ms / 300 ms phases
+    int8_t flash = -1;                            // -1 none, 0 failed, 1 ok (panel LED feedback)
+    bool saving = false;                          // a sample save/copy is running
+    uint32_t looper = 0;                          // PackLooper()
+    uint8_t install = 0;                          // 1 waiting for the CHOMPI press, 2 restarting
+    uint64_t keys_down = 0;                       // panel keys held (PanelController::KeysDown)
+    bool record_position = false;                 // toggle in the record position (TAPE: switch_state false)
+    uint8_t count_in = 0;                         // RecordGesture::CountInPhase (0 none, 1..6)
+    float input_level = 0.f;                      // input meter 0..1 (record position)
+    uint16_t kit_occupancy = 0;                   // sample files of the live kit bank
+    uint32_t harmony = 0;                         // harmony::Pack (PanelController::HarmonyLights)
+    uint32_t parts = 0, parts_clock = 0;          // PanelController::PartsLights / PartsClock (0.14)
+    uint32_t sequence = 0;                        // PanelController::SequenceLights (0.15)
+};
+// 0.16: with harmony on, each key glows dim in the colour of the chord it plays now: major
+// orange, minor blue, diminished red, augmented pink, sus4 teal (Shift held: the shifted
+// chords). Static layout: C5 (Shift) dim white, bright while Shift is on.
+FORGE_COLD inline Rgb ChordColour(uint8_t note, const harmony::State& s, bool shift) {
+    using namespace knobs::colour;
+    const harmony::Function f = s.layout == harmony::Layout::Static ? harmony::StaticFunction(note) : harmony::RealFunction(note, s.tonic, s.mode);
+    if(f.kind == harmony::Kind::ShiftKey) return shift ? white : Rgb{.25f, .25f, .25f};
+    const harmony::Chord c = harmony::Resolve(f, s.tonic, s.mode, shift);
+    if(c.kind == harmony::Kind::None) return Rgb{};
+    const uint8_t third = c.tone[1], fifth = c.tone[2];
+    const Rgb colour = third == 5 ? teal : third == 3 ? (fifth == 6 ? red : med_blue) : fifth == 8 ? pink : orange;
+    return knobs::Scale(colour, .3f);
+}
+// Menu closed (TAPE NormalPage): a key lights white while held. With a sampler patch,
+// kit mode shows the bank's occupied slots dim in the bank colour (the recording key
+// dim pink); chromatic mode marks C3, C4 and C5 dim (pink when playing the recording).
+FORGE_COLD inline void RenderPlayLeds(uint64_t keys_down, uint32_t live, uint16_t kit_occupancy, bool recording, Rgb (&leds)[25], uint32_t harmony = 0) {
+    for(auto& led : leds) led = Rgb{};
+    auto dim = [](Rgb c) { return Rgb{c.r * .25f, c.g * .25f, c.b * .25f}; };
+    const Rgb pink{1, .2f, .6f};
+    const harmony::State hs = harmony::Unpack(harmony);
+    if(hs.enabled && !((live & 1u) && ((live >> 1) & 1u))) {      // harmony on (kit patches play keys as usual)
+        for(uint8_t key = 0; key < panel::kButtons; ++key) {
+            const uint8_t note = panel::kKeyNotes[key];
+            if(!note) continue;
+            const uint8_t slot = panel::KeyToSlot(key);
+            const uint8_t led = slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key);
+            if(led < 25) leds[led] = ChordColour(note, hs, (harmony >> 17) & 1u);
+        }
+    } else if(live & 1u) {
+        const bool kit = (live >> 1) & 1u;
+        const uint8_t bank = (live >> 2) & 7u, slot = (live >> 5) & 15u;
+        const Rgb colour = !kit && slot == kRamSlot ? pink : SampleBankColour(bank);
+        if(kit) {
+            for(uint8_t s = 0; s < kRamSlot; ++s) if((kit_occupancy >> s) & 1u) leds[panel::SlotLed(s)] = dim(colour);
+            if(recording) leds[panel::SlotLed(kRamSlot)] = dim(pink);
+        } else for(uint8_t s : {uint8_t(0), uint8_t(7), uint8_t(14)}) leds[panel::SlotLed(s)] = dim(colour);
+    }
+    for(uint8_t key = 0; key < panel::kButtons; ++key) {
+        if(!panel::kKeyNotes[key] || !((keys_down >> key) & 1u)) continue;
+        const uint8_t slot = panel::KeyToSlot(key);
+        const uint8_t led = slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key);
+        if(led < 25) leds[led] = Rgb{1, 1, 1};
+    }
+}
+// Looper state for the LEDs (audio -> main loop in one word): bits 0-2 state,
+// 3 overdub, 4 effects before the loop, 5 has a loop, 6-15 position x 1023.
+inline uint32_t PackLooper(const Looper& l, bool fx_before) {
+    return static_cast<uint32_t>(l.GetState()) | (l.Overdubbing() ? 8u : 0u) | (fx_before ? 16u : 0u)
+         | (l.HasLoop() ? 32u : 0u) | (static_cast<uint32_t>(l.Position() * 1023.f) << 6);
+}
+// PLAY / LOOP LEDs (as TAPE). PLAY: off empty, white armed, teal recording or
+// playing (fading over the loop), white fading when paused. LOOP: red first
+// take, red blink armed, yellow overdub, white otherwise (rising over the loop).
+inline void ComposeLooperLeds(uint32_t looper, bool blink, Rgb& play, Rgb& loop) {
+    const auto state = static_cast<Looper::State>(looper & 7u);
+    const float position = ((looper >> 6) & 1023u) / 1023.f;
+    const Rgb teal{0.f, .7f, .6f}, red{1.f, 0.f, 0.f}, yellow{1.f, .75f, 0.f}, white{1.f, 1.f, 1.f};
+    auto scaled = [](Rgb c, float k) { return Rgb{c.r * k, c.g * k, c.b * k}; };
+    play = loop = Rgb{};
+    switch(state) {
+        case Looper::State::Armed: play = white; loop = blink ? red : Rgb{}; break;
+        case Looper::State::FirstTake: play = teal; loop = red; break;
+        case Looper::State::Playing:
+            play = scaled(teal, 1.f - position);
+            loop = scaled((looper >> 3) & 1u ? yellow : white, position);
+            break;
+        case Looper::State::Paused: play = scaled(white, 1.f - position); loop = scaled(white, position); break;
+        default: break;
+    }
+}
+// SW5's two lights (TAPE): with a loop playing, the speed (LED 6 forward, LED 5
+// reverse, blue -> green -> yellow -> red with speed, red spilling over near the ends);
+// dimmed in the record position. 0.16: paused with a loop, both glow dim white (scrub
+// ready) and the direction's light shows the head moving while you scrub; a cutoff turn
+// shows the cutoff on both for 1 s (purple closed -> blue -> white open).
+inline void ComposeTransportLeds(uint32_t looper, float speed, float head, uint32_t flags, bool record_position, Rgb& reverse, Rgb& forward) {
+    using namespace knobs::colour;
+    reverse = forward = Rgb{};
+    const auto state = static_cast<Looper::State>(looper & 7u);
+    auto speed_lights = [&](float s) {
+        const float v = Clamp((s + 2.f) * .25f, 0.f, 1.f);
+        const float idx = v < .5f ? v * 2.f : (1.f - v) * 2.f;
+        Rgb on = knobs::Fade4(med_blue, green, yellow, red, idx), off{};
+        if(idx > .8f) off = knobs::Scale(red, (idx - .8f) * 5.f);
+        if(v > .5f) { forward = on; reverse = off; } else { reverse = on; forward = off; }
+    };
+    if((flags >> 8) & 1u) reverse = forward = knobs::Fade3(purple, med_blue, white, ((flags >> 9) & 255u) / 255.f);
+    else if(state == Looper::State::Playing) speed_lights(speed);
+    else if(state == Looper::State::Paused && ((looper >> 5) & 1u)) {
+        if(std::fabs(head) > .02f) {
+            speed_lights(head);
+            const float k = Clamp(std::fabs(head) * 2.f, .3f, 1.f);
+            reverse = knobs::Scale(reverse, k); forward = knobs::Scale(forward, k);
+        } else reverse = forward = Rgb{.08f, .08f, .08f};
+    }
+    if(record_position) { reverse = knobs::Scale(reverse, .7f); forward = knobs::Scale(forward, .7f); }
+}
+// Knob ring LEDs (TAPE): each knob's colour from its page and value (knob_layout.h);
+// a reset flashes white; in the record position knob lights 1-4 are off (TAPE).
+// 0.16 (flags = PanelController::KnobFlags): a page change shows the page's step colour for
+// 0.6 s (page 1 white, 2 green, 3 yellow, 4 orange, 5 red); SW1 + SW2 flash all four green
+// (harmony on) or red (off).
+inline void ComposeKnobLeds(uint32_t values, uint32_t state, bool record_position, Rgb (&rings)[4], uint32_t flags = 0) {
+    for(unsigned k = 0; k < 4; ++k) {
+        const unsigned page = (state >> (3 * k)) & 7u;
+        rings[k] = knobs::KnobColour(k, page, ((values >> (8 * k)) & 255u) / 255.f, (state >> (12 + k)) & 1u, (state >> 21) & 1u);
+        if((state >> (16 + k)) & 1u) rings[k] = Rgb{1.f, 1.f, 1.f};
+        else if((flags >> k) & 1u) rings[k] = knobs::StepColour(page);
+        if((flags >> 17) & 1u) rings[k] = (flags >> 18) & 1u ? knobs::colour::green : knobs::colour::red;
+        if(record_position && !((state >> (16 + k)) & 1u)) rings[k] = Rgb{};
+    }
+}
+// TAPE's menu page (MenuLights bit 0): SW1 white while auto-loop is on, SW2 white while
+// sustain is on (dim otherwise); SW6 shows the monitor position (orange headphones, blue
+// both, yellow send/return).
+inline void ComposeMenuKnobLeds(uint8_t lights, Rgb (&rings)[4], Rgb& volume) {
+    if(!(lights & 1u)) return;
+    const Rgb on{1.f, 1.f, 1.f}, off{.08f, .08f, .08f};
+    rings[1] = (lights >> 1) & 1u ? on : off;
+    rings[2] = (lights >> 2) & 1u ? on : off;
+    static const Rgb monitor[3] = {knobs::colour::orange, knobs::colour::blue, knobs::colour::yellow};
+    volume = monitor[((lights >> 3) & 3u) % 3];
+}
+// Harmony page: the keys show the key (tonic white, its scale blue; dimmer while harmony
+// is off). Knob rings: SW4 on (green) / off (red), SW1 Static (white) / Real (orange),
+// SW2 voice leading on (white) / off (purple), SW3 open spread (white) / close (dim).
+FORGE_COLD inline void RenderHarmonyLeds(uint32_t packed, Rgb (&keys)[25]) {
+    const harmony::State s = harmony::Unpack(packed);
+    const float level = s.enabled ? 1.f : .3f;
+    for(auto& led : keys) led = Rgb{};
+    for(uint8_t key = 0; key < panel::kButtons; ++key) {
+        const uint8_t note = panel::kKeyNotes[key];
+        if(!note) continue;
+        const uint8_t slot = panel::KeyToSlot(key);
+        const uint8_t led = slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key);
+        if(led >= 25) continue;
+        if(note % 12 == s.tonic) keys[led] = Rgb{level, level, level};
+        else if(harmony::InKey(note % 12, s)) keys[led] = Rgb{0.f, .25f * level, level};
+    }
+}
+// 0.16: while a knob is turned (and 1.5 s after) its ring shows the chosen value's step
+// colour instead: SW4 the mode (major white, natural minor green, harmonic minor yellow,
+// melodic minor orange, dorian red, phrygian pink, lydian purple, mixolydian blue, locrian
+// teal), SW1 the chord size (fifth white, triad green, 7th yellow, 9th orange, 11th red,
+// 13th pink), SW2 the inversion (0 white, 1 green, 2 yellow, 3 orange).
+inline unsigned ExtensionStep(harmony::Extension e) { return e == harmony::Extension::Fifth ? 0u : static_cast<unsigned>(e) + 1u; }
+inline void ComposeHarmonyKnobLeds(uint32_t packed, Rgb (&rings)[4], uint32_t flags = 0) {
+    const harmony::State s = harmony::Unpack(packed);
+    const Rgb white{1.f, 1.f, 1.f}, dim{.08f, .08f, .08f};
+    rings[0] = s.enabled ? knobs::colour::green : knobs::colour::red;
+    rings[1] = s.layout == harmony::Layout::Static ? white : knobs::colour::orange;
+    rings[2] = s.block ? knobs::colour::purple : white;
+    rings[3] = s.open ? white : dim;
+    if((flags >> 4) & 1u) rings[0] = knobs::StepColour(static_cast<unsigned>(s.mode));
+    if((flags >> 5) & 1u) rings[1] = knobs::StepColour(ExtensionStep(s.extension));
+    if((flags >> 6) & 1u) rings[2] = knobs::StepColour(s.inversion);
+}
+// Parts page (0.14): the chosen pattern (blue), rate (green), bass mode (orange) and bass
+// octave (yellow) keys lit; B3 white with latch; B4 green running / red stopped; C5 blinks
+// white on the beat. Knob rings: SW4 white on the beat (blue when following MIDI clock),
+// SW1 octaves (white, green, yellow, red), SW2 gate (brightness), SW3 bass rate (purple
+// chord change, blue 1/2, green 1/4, yellow 1/8).
+FORGE_COLD inline void RenderPartsLeds(uint32_t packed, uint32_t clock, uint32_t sequence, Rgb (&keys)[25]) {
+    const parts::Settings s = parts::Unpack(packed, parts::kDefaultBpm);
+    for(auto& led : keys) led = Rgb{};
+    static const uint8_t pattern[parts::kPatterns] = {48, 50, 52, 53, 55, 57}, rate[parts::kRates] = {60, 62, 64, 65, 67, 69};
+    static const uint8_t bass[parts::kBassModes] = {49, 51, 54, 56, 58};
+    auto lit = [&](uint8_t note, Rgb c) {
+        for(uint8_t key = 0; key < panel::kButtons; ++key) if(panel::kKeyNotes[key] == note) {
+            const uint8_t slot = panel::KeyToSlot(key);
+            const uint8_t led = slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key);
+            if(led < 25) keys[led] = c;
+        }
+    };
+    lit(pattern[static_cast<unsigned>(s.pattern) % parts::kPatterns], knobs::colour::blue);
+    lit(rate[static_cast<unsigned>(s.rate) % parts::kRates], knobs::colour::green);
+    static const float octave[3] = {.35f, .65f, 1.f};          // bass octave C1 / C2 / C3: brighter = higher
+    lit(bass[static_cast<unsigned>(s.bass) % parts::kBassModes], knobs::Scale(knobs::colour::orange, octave[s.bass_octave % 3]));
+    // Event recorder (0.15): F#4 dim white empty, red blinking on the beat armed, red recording,
+    // green playing (dim stopped); G#4 yellow while overdubbing; A#4 white once clear is armed.
+    const unsigned state = sequence & 7u; const bool beat = (clock & 5u) == 5u;
+    const Rgb dim{.08f, .08f, .08f};
+    lit(66, state == 1 ? (beat ? knobs::colour::red : Rgb{}) : state == 2 ? knobs::colour::red : state == 3 ? knobs::colour::green
+            : state == 4 ? knobs::Scale(knobs::colour::green, .25f) : dim);
+    lit(68, (sequence & 8u) ? knobs::colour::yellow : dim);
+    lit(70, (sequence & 16u) ? Rgb{1.f, 1.f, 1.f} : state >= 3 ? dim : Rgb{});
+    lit(59, s.latch ? Rgb{1.f, 1.f, 1.f} : Rgb{.08f, .08f, .08f});
+    lit(71, clock & 1u ? knobs::colour::green : knobs::colour::red);
+    lit(72, (clock & 5u) == 5u ? Rgb{1.f, 1.f, 1.f} : Rgb{.08f, .08f, .08f});
+}
+// 0.16: SW1 and SW3 follow the step colours (octaves 1-4 white, green, yellow, orange; bass
+// rate chord change white, 1/2 green, 1/4 yellow, 1/8 orange); while SW4 is turned (and 1.5 s
+// after) its ring shows the tempo band: under 80 BPM blue, 80-99 green, 100-119 yellow,
+// 120-139 orange, 140 or more red.
+inline Rgb TempoColour(unsigned bpm) {
+    return knobs::StepColour(bpm < 80 ? 7u : bpm < 100 ? 1u : bpm < 120 ? 2u : bpm < 140 ? 3u : 4u);
+}
+inline void ComposePartsKnobLeds(uint32_t packed, uint32_t clock, Rgb (&rings)[4], uint32_t flags = 0) {
+    const parts::Settings s = parts::Unpack(packed, parts::kDefaultBpm);
+    const Rgb white{1.f, 1.f, 1.f}, dim{.08f, .08f, .08f};
+    rings[0] = (clock & 5u) == 5u ? ((clock & 2u) ? knobs::colour::blue : white) : dim;
+    if((flags >> 4) & 1u) rings[0] = TempoColour((clock >> 8) & 511u);
+    rings[1] = knobs::StepColour((s.octaves - 1u) & 3u);
+    const float g = s.gate / 20.f; rings[2] = Rgb{g, g, g};
+    rings[3] = knobs::StepColour(static_cast<unsigned>(s.bass_rate) & 3u);
+}
+FORGE_COLD inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chompi) {
+    if((v.menu & 1u) && ((v.menu >> 1) & 7u) == 7u)
+        RenderHarmonyLeds(v.harmony, keys);
+    else if((v.menu & 1u) && ((v.menu >> 1) & 7u) == 6u)
+        RenderPartsLeds(v.parts, v.parts_clock, v.sequence, keys);
+    else if(!(v.menu & 1u))
+        RenderPlayLeds(v.keys_down, v.live, v.kit_occupancy, v.recording_present, keys, v.harmony);
+    else if((v.menu >> 21) & 1u)
+        RenderSampleLeds(v.menu, v.sample_occupancy, v.sample_card, v.recording_present, v.live, v.blink, keys);
+    else
+        RenderMenuLeds(v.menu, v.preset_occupancy, v.preset_card, v.last_bank, v.last_slot, v.blink, keys);
+    // CHOMPI key LED (as TAPE): red recording, flash after an action, pink blink while
+    // saving; otherwise the input meter in the record position, the menu page's colour while
+    // the menu is open (0.16; purple before), purple while held in the menu position. Forge's count-in: CHOMPI and the white keys blink red 3 times.
+    const bool count_lit = v.count_in & 1u;
+    if(v.recording_now) chompi = Rgb{1.f, 0.f, 0.f};
+    else if(v.count_in) {
+        chompi = count_lit ? Rgb{1.f, 0.f, 0.f} : Rgb{};
+        if(!(v.menu & 1u)) for(uint8_t s = 0; s < 15; ++s) keys[panel::SlotLed(s)] = count_lit ? Rgb{1.f, 0.f, 0.f} : Rgb{};
+    }
+    else if(v.flash >= 0) chompi = v.flash ? Rgb{0.f, .3f, 0.f} : Rgb{.3f, 0.f, 0.f};
+    else if(v.saving) chompi = v.slow_blink ? Rgb{1.f, 0.f, .6f} : Rgb{};
+    else if(v.record_position)
+        chompi = knobs::Fade4(Rgb{.1f, .1f, .1f}, knobs::colour::green, knobs::colour::yellow, knobs::colour::pink, Clamp(v.input_level, 0.f, 1.f));
+    else if(v.menu & 1u) {
+        // 0.16: the open menu page: TAPE's teal, presets blue, harmony purple, parts orange
+        // (dimmer while CHOMPI is up with a save / copy / erase pending).
+        const unsigned mode = (v.menu >> 1) & 7u;
+        const Rgb page = mode == 7u ? knobs::colour::purple : mode == 6u ? knobs::colour::orange
+                       : (v.menu >> 21) & 1u ? knobs::colour::teal : knobs::colour::blue;
+        chompi = (v.keys_down >> panel::kChompiKey) & 1u ? page : knobs::Scale(page, .35f);
+    }
+    else if((v.keys_down >> panel::kChompiKey) & 1u) chompi = knobs::colour::purple;
+    else {
+        // The event recorder (0.15), menu position: orange blinking on the beat armed, orange
+        // recording, dim green playing (yellow overdubbing).
+        const unsigned state = v.sequence & 7u;
+        chompi = state == 1 ? ((v.parts_clock & 5u) == 5u ? knobs::colour::orange : Rgb{}) : state == 2 ? knobs::colour::orange
+               : state == 3 ? ((v.sequence & 8u) ? knobs::colour::yellow : knobs::Scale(knobs::colour::green, .3f)) : Rgb{};
+    }
+    // Firmware install: CHOMPI blinks white until pressed, then stays white while CHOMPI restarts.
+    if(v.install == 1) chompi = v.blink ? Rgb{1.f, 1.f, 1.f} : Rgb{};
+    else if(v.install == 2) chompi = Rgb{1.f, 1.f, 1.f};
+    // Menu, presets page: KEY_21 / KEY_20 show where the effects sit (before / after the loop).
+    if((v.menu & 1u) && !((v.menu >> 21) & 1u) && ((v.menu >> 1) & 7u) < 6u) {   // not on the harmony / parts pages
+        const bool before = (v.looper >> 4) & 1u;
+        keys[panel::BlackLed(panel::kFxBefore)] = before ? Rgb{.8f, .8f, .8f} : Rgb{.1f, .1f, .1f};
+        keys[panel::BlackLed(panel::kFxAfter)] = before ? Rgb{.1f, .1f, .1f} : Rgb{.8f, .8f, .8f};
+    }
+}
+} // namespace forge

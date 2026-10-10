@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "name": "Dry routing check",
+  "engine": "stereo_delay",
+  "parameters": {"mix": 0, "time_ms": 250, "feedback": 0, "level": 0.25, "bypass": false}
+}

@@ -1,0 +1,386 @@
+# Forge 0.16.0 — the one consolidated hardware test
+
+Status of the candidate: **software-tested, hardware-unverified.** This is the
+single planned physical session. Work top to bottom. If a stage fails, record
+it, stop that stage, and continue only where later stages do not depend on it.
+Never mark a stage passed that you did not run. Expect roughly 2 hours.
+Features were developed first and QA was deferred (DC, 2026-10-02); each
+feature has its own steps below so results can be recorded per feature.
+
+## 0. Before you start (no CHOMPI needed)
+
+1. Unzip the bundle. In its folder run `python3 verify_bundle.py`.
+   It must print `OK`. It also prints the firmware SHA-256 and the compiler that
+   built it — copy both into your results.
+2. `python3 -m pip install -r host/requirements.txt`
+3. Optional, recommended: the live AI preflight in `docs/LIVE_AI_TEST.md`.
+   It needs no hardware.
+4. Back up your normal SD card and keep it aside. Use a separate test card.
+   Have the stock firmware and the known restore procedure at hand. Exact
+   factory card contents are in the repository under `firmware/card-profiles/`
+   (TAPE 2.0, TEMPO 1.0, WAVE 1.0). Do **not** install the repository's beta bootloader.
+5. **Stock reference (before flashing, still on your stock firmware):** set
+   the volume (SW6) to a position you can find again (mark it), play a few
+   keys and note how loud the stock sound is on headphones and on the main
+   outputs. Steps 3.10–3.13 compare Forge against this. `docs/COMPATIBILITY.md`
+   (in the bundle) lists what differs from stock.
+6. **Samples for 3D:** copy the `jammi_a*.wav` and `cubbi_a*.wav` files
+   (with their `_double` files) from `firmware/card-profiles/tape-2.0/` to the
+   test card's root (the same card you put `FORGE.bin` on in 1.1). Optionally add one WAV
+   of your own that is mono or 44.1 kHz, renamed `jammi_b1.wav`.
+
+Shorthand below: `H = python3 host/forge_host.py`, with
+`--input "IN" --output "OUT"` set to your exact CHOMPI port names from `H ports`.
+Keep monitoring volume low. Avoid audio feedback loops. The mic is used only
+when recording from it (3D); keep headphones on so the speaker cannot feed back.
+
+## 1. Flash and identity
+
+**Power first (every install, SD card or USB):** charge CHOMPI on a USB-C to USB-C
+charger (2 A or more) until the battery light (hold SW6 for 2 s) is **green or white**.
+With a low battery on a weak supply the bootloader can wait with every light off after
+the restart (DC, 2026-10-05); recovery: plug in the USB-C charger, switch off, wait 5 s,
+switch on.
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 1.1 | Put `firmware/FORGE.bin` on the test card root as the **only** `.bin` file. On macOS also remove `._FORGE.bin` (`dot_clean -m /Volumes/CARD` or delete it); the bootloader loads the first `.bin` it finds and would reject that metadata file. Use the installed bootloader's normal SD update | Update completes uninterrupted |
+| 1.2 | Power up; watch LED | Initialization completes; no output burst |
+| 1.3 | `H status ...` | Firmware 0.15.2 with a build (7-character commit) that matches the bundle's manifest; not development-only unless testing with the bridge; no "uncommitted changes", no SAFE MODE; version 1 aux patch, counters 0 |
+
+## 1A. Inspector development candidate (before the normal audio checks)
+
+The [hardware test bridge](BRIDGE.md) provides this checklist in the browser,
+with observations, state evidence and exports. With the development kit,
+double-click `Start Forge bridge.cmd` and press Connect CHOMPI (from a clone:
+`python host/forge_web.py --open`). With an audio interface wired in, Find
+audio interface and Run automatic checks measure 1.3, 2.1–2.4, 3.1, 3.4, 3.10,
+3.17, 3.28–3.30, 3.34, 3.42–3.45, 4.1 and 6.2b/c and record the results in the session
+export; record those steps from it, and judge by ear what it cannot. Enable test controls only for
+explicit actions. It coordinates polling with its own patch/MIDI/storage tests.
+Disconnect before running the separate `H` CLI commands below. The terminal
+Inspector remains an alternative; do not run both clients together.
+
+**Unattended over USB (0.15.2, nobody at CHOMPI):** after the one install (which needs a
+CHOMPI key press) and the cables above, an agent on the PC runs
+`python host/forge_audio.py run` from `firmware/chompi-forge`. It finds CHOMPI and the
+interface, reads the battery first (stops if a firmware install would be refused: low
+battery or weak supply; `--ignore-power` overrides), then runs every automatic step
+(`host/auto_checks.json`, 34 steps) with virtual keys and knobs, measures the audio and
+writes `reports/<time>/session.json`. What it cannot cover, and stays for a person: the
+physical keys, knobs, toggle and SD swap (virtual input bypasses the switches), how the
+lights look (only their commanded colours are read back), the speaker, headphones and mic,
+power-off and battery shut-off, and anything judged by ear. Record its results as
+automatic evidence, never as a full pass of this checklist.
+
+Use the development `src/build-dev/FORGE.bin` for this session if inspecting
+hardware. Release rejects probe reads; keep the two candidates separate and
+record the exact binary hash. [Inspector guide](INSPECTOR.md) explains the
+read-only viewer and measured versus unavailable fields. No agent has flashed
+or verified it on hardware.
+
+These four checks match the bridge's guided checks 1A.1–1A.4. The bridge
+records state and events into its session export by itself. Terminal
+alternative: `python host/forge_inspector.py --input "IN" --output "OUT" --watch
+--record inspector-session.jsonl`; keep that JSONL through the later sampler,
+record, jack and card tests (wanted patch versus loaded files, frame totals,
+partial slots, recording source, lock/job state, card flags, errors).
+
+1. At the dry aux startup patch, hold then release physical button 15 (C3).
+   Expect physical/logical bit 15, mapped note 48, down/up events whose value
+   includes physical bit 1, no override. Aux intentionally starts no voice.
+2. Turn logical knob 1 (SW4, encoder index 3) one step each way. Expect both
+   hardware and merged counters to move at index 3 and mix to follow. Match the
+   commanded LED shadow to actual board positions/colours.
+3. Send preset 04 Glass Keys and repeat C3. Expect a panel-owned note-48 voice,
+   release, then stop.
+4. Compare CPU peak, audio continuity, MIDI RX/TX failures, request/event drops
+   and emergency count with polling on versus paused (terminal: `--interval 5`
+   on UART if one-second polling causes traffic loss). Check SD load progress
+   with polling on/off during the sampler tests.
+
+Record every discrepancy, polling interval, transport, binary hash and CPU
+reading. Actual DMA underruns and MIDI framing errors are **unavailable**, not
+zero. LED shadow is intent, not an electrical measurement. Do not count offline
+injections or simulated file loading as a physical pass.
+
+## 2. External audio path (v1 compatibility)
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 2.1 | Aux source in; `H send presets/01-dry.json ...`; play left-only then right-only | Correct L/R on headphones and main outs |
+| 2.2 | `H send presets/02-slap.json`, then `03-long-echo.json`, while audio plays | Acknowledged; echoes change; no crash; time change glides in pitch |
+| 2.3 | Turn knobs 1–4 (hardware SW4, SW1, SW2, SW3, in panel order) and volume SW6; `H status` | Mix/time/feedback/level move in that knob order; level can mute. Note which physical knob is which |
+| 2.4 | `H cc 85 127 --output "OUT"`, then `H cc 85 0` | Wet fades out then back; dry still follows level |
+| 2.5 | `H capture saved-aux.json ...`; send another preset; `H send saved-aux.json` | Returns within 14-bit quantization |
+
+## 3. Instrument
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.1 | Unplug aux source. `H send presets/04-glass-keys.json ...`; play all 25 keys | Chromatic low→high (MIDI 48–72); sound on press, release on key-up, nothing stuck |
+| 3.2 | `H note 60 --output "OUT"`; `H note 60 --velocity 30` | Correct pitch; second clearly quieter |
+| 3.3 | `H note 60 64 67 --zero-velocity-off` | Chord sounds and releases (velocity-0 note-on = note-off) |
+| 3.4 | `H note 60 64 67 71 74 --hold 3` | Four voices max; oldest note (60) stolen without a click; all release |
+| 3.5 | Hold a key on CHOMPI; `H note` the same pitch; release the key | MIDI note keeps sounding until its own release |
+| 3.6 | Send `05-soft-pad.json`, `06-saw-bass.json`; turn SW5 | Audibly different; SW5 sweeps tone. Steal/retrigger should not click and triangle should be clean high up (both fixed in software). **Record any click, or aliasing on high saw/square notes — don't fix during session** |
+| 3.7 | In the webapp, change waveform, ADSR, cutoff; Send | Each change audible as described |
+| 3.8 | `H note 60 64 67 --sustain --hold 3`; while it sustains, play a CHOMPI key | Chord rings ~3 s after keys release, stops when pedal lifts; keybed note unaffected by the MIDI pedal |
+| 3.9 | `H note 69 --bend 8191 --hold 2`, then `--bend -8192` | Pitch glides up / down two semitones without zipper noise; returns to A afterwards |
+
+## 3B. v3 instrument modules (firmware 0.4)
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.10 | `H send presets/07-warm-pad.json ...`; hold chords on the keys | Two detuned oscillators (slow beating), filter swells open over ~1 s, gentle vibrato, reverb tail after release. At the marked SW6 position, record loudness vs the stock reference from 0.5 (quieter / similar / louder), on headphones and main outs |
+| 3.11 | `H send presets/08-acid-bass.json`; play overlapping notes low on the keys | Monophonic; pitch glides between notes; resonant filter "snap" on each note |
+| 3.12 | With Acid Bass: `H cc 1 127 --output "OUT"`, hold a note, then `H cc 1 0` | Mod wheel brings in a filter wobble; at 0 it stops |
+| 3.13 | `H send presets/09-bell-keys.json`; play single notes | Bell-like tone (second oscillator a 12th above); reverb tail; slight vibrato only with mod wheel up |
+| 3.14 | With a v3 patch: `H cc 71 110`, `H cc 91 110`; `H capture cc-test.json ...` | Resonance and reverb mix audibly increase; captured JSON shows filter.resonance and reverb.mix near 0.87 |
+| 3.15 | Webapp: load Soft Pad (v2), **Convert to v3 instrument**, Send | Sounds close to the v2 Soft Pad (filter slightly steeper); no error |
+| 3.16 | Send a v2 preset, then a v3 preset, while holding a note | Sound stops cleanly at the format change (like a route change); next note plays |
+
+## 3C. Device presets on the SD card (TAPE-style keys + encoder)
+
+Use the test card from 1.1 (it may be otherwise empty). "Menu position" means the
+toggle position in which TAPE's CHOMPI key opens its menu (down on DC's unit; up is the record position).
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.17 | Toggle down (menu position), hold the CHOMPI key; then hold KEY_22 for 1 s | The menu opens on TAPE's page (0.10): KEY_16/17 chromatic/kit, the record source key lit; after holding KEY_22 1 s, Forge's presets page: bank keys (KEY_16/17) in bank 1's colour, save/copy/erase dim blue/green/red, white keys off (empty card); playing keys makes no sound while held |
+| 3.18 | `H send presets/07-warm-pad.json`. Menu: press SAVE (KEY_25), release CHOMPI, press white key 1 (it turns blue), press CHOMPI | Panel LED flashes green; white key 1 now dim (occupied). `FORGE/B1S01.FPR` exists on the card afterwards |
+| 3.19 | Send `08-acid-bass.json`, save it to slot 2 the same way. Release CHOMPI | Menu closes; keys play Acid Bass again |
+| 3.20 | Hold CHOMPI (menu), press white key 1, release CHOMPI, play | Warm Pad plays; key 1 shows white while the menu is open. Repeat with key 2 → Acid Bass |
+| 3.21 | Menu: turn knob 1 (hw SW4) and press KEY_17 / KEY_16 | Bank colour changes on the bank keys; encoder stops at banks 1 and 8, keys wrap. Mix (knob 1's normal job) does not change while the menu is open |
+| 3.22 | Menu: COPY (KEY_24), white key 1 (green), KEY_17 to bank 2, white key 5 (blue), CHOMPI | Green flash; bank 2 key 5 occupied. ERASE (KEY_23), key 5, CHOMPI → key 5 empty |
+| 3.23 | Send MIDI program change 1 on channel 1 from a keyboard or DAW | Acid Bass (bank 1 slot 2) loads; program 0 → Warm Pad |
+| 3.24 | `H slots ...`, `H recall 1 1 ...`, `H store 1 3 ...`, `H erase 1 3 ...` | JSON lists occupied slots; recall returns the patch; store/erase acknowledged |
+| 3.25 | Webapp Device presets: Read slots, select bank 1 slot 2, Recall; then Store into slot 4; Erase slot 4 (press twice) | Slot buttons show stored slots; recall loads the sound into the editor; erase asks for a second press |
+| 3.26 | Power off and on; open the menu | Slots 1 and 2 still occupied and recall correctly (boot itself still starts in dry aux) |
+| 3.27 | Optional: power off, remove the card, power on, open the menu; reinsert the card | White keys red without a card; nothing crashes; within ~1 s of reinserting, slots show again |
+
+## 3D. Sampler (TAPE-style, firmware 0.5)
+
+Card prepared in 0.6. "Menu" = toggle down (the menu position) + CHOMPI key, as in 3.17.
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.28 | `H samples ...` | JSON lists chromatic a and kit a slots matching the files you copied; `card` true; no recording yet |
+| 3.29 | `H send presets/12-tape-kit-a.json`; play the white keys | Each white key plays its TAPE kit sample (one-shots), as on stock TAPE; black keys silent; no clicks at sample ends. Note how long after Send the first key sounds (loading time) |
+| 3.30 | Menu (opens on TAPE's page; from Forge's presets page tap KEY_22) | Page key magenta; KEY_17 lit in bank a's colour; occupied kit slots dim/white; KEY_19 (line) or KEY_18 (mic) lit depending on the line-in jack. On this page a KEY_22 tap = effects after the looper, KEY_21 = before (TAPE) |
+| 3.31 | Samples page: KEY_16 (chromatic), white key 1; close the menu; play keys across the keybed | `jammi_a1` plays chromatically, KEY_8 (middle C) at original pitch; press KEY_16 again in the menu → bank b (your own WAV if added in 0.6 plays at the right pitch) |
+| 3.32 | Turn knobs 1–3 while holding a key | Pitch, start and end change like TAPE's first page; knob 4 changes the delay mix |
+| 3.33 | Webapp: Capture to editor (chromatic `jammi_a1` playing), set Start 0.2, End 0.4, Loop on, Crossfade 50 ms, Send, hold a key | The loop repeats without a click or level dip at the loop point; Reverse on → plays backwards |
+| 3.34 | **Record (line):** line in plugged, source KEY_19 lit. Toggle up (the record position), hold CHOMPI while playing audio into line in for ~6 s, release | CHOMPI and the white keys blink red three times (1.5 s count-in; letting go earlier records nothing), then CHOMPI is red while recording; the input is heard in the headphones in the record position (TAPE); on release the keys play the recording chromatically at once, normalised (similar loudness to the kit) and without clicks at its start/end |
+| 3.35 | **Record (mic):** unplug line in (source switches to the mic), record a few words, release | Plays back; record the level (too quiet / ok / distorted) and any hum |
+| 3.36 | **Resample:** menu, KEY_20; send `07-warm-pad.json` (oscillators), toggle up (record position), hold CHOMPI through the count-in while playing a chord, release | The recording is the instrument's own output and plays chromatically |
+| 3.37 | Menu, Samples page: KEY_25 (save), KEY_17 kit, white key 9, CHOMPI | CHOMPI LED blinks pink, then green flash; key 9 of kit bank a now occupied. `cubbi_a9.wav` on the card afterwards |
+| 3.38 | Put the card in a computer: open `cubbi_a9.wav` | Plays in any audio app (16-bit stereo 48 kHz) |
+| 3.39 | Menu: KEY_24 copy kit a9 → chromatic c2 (KEY_16, bank c, key 2), CHOMPI; then KEY_23 erase kit a9, CHOMPI | Copy and erase confirmed (green flashes); `H samples` agrees |
+| 3.40 | `H sample-save chromatic d 1 ...`, `H sample-copy chromatic d 1 kit e 14 ...`, `H sample-erase chromatic d 1 ...` | Each acknowledged; webapp Device samples shows the same slots after Read samples |
+| 3.41 | Optional, **TAPE compatibility:** put stock TAPE (`firmware/card-profiles/tape-2.0` .bin) on this card, boot | TAPE plays the samples Forge saved (after regenerating their `_double` files at boot); Forge's `FORGE/` folder does not disturb it. Then restore `FORGE.bin` |
+
+## 3E. Looper (TAPE-style, roadmap item 5)
+
+KEY_28 = LOOP, KEY_27 = PLAY (the two keys TAPE uses); their LEDs are the big
+key lights. The loop records what you hear (effects before the loop). Up to
+~83 s. Nothing is written to the card except in 3.49.
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.42 | Send `07-warm-pad.json`. Tap LOOP, play a phrase for a few seconds, tap PLAY | PLAY LED teal while recording, LOOP LED red; after PLAY the phrase repeats seamlessly (no click or gap at the loop point) while you can play over it |
+| 3.43 | Tap LOOP (overdub), play another phrase for one pass, tap LOOP again | LOOP LED yellow while overdubbing; both phrases play back; tap LOOP during the first take of a new loop instead of PLAY: it goes straight into overdub (TAPE) |
+| 3.44 | Tap PLAY (pause), tap PLAY (resume); pause again and hold PLAY 2 s, then tap PLAY | Pause and resume fade without clicks; after the 2 s hold the loop restarts from its beginning |
+| 3.45 | Hold PLAY + LOOP 2 s | The loop fades out and is gone (LEDs dark); SW5 turns the cutoff again |
+| 3.46 | With no loop: press PLAY + LOOP together, release, then play a key | LOOP LED blinks red (armed); recording starts with the first note |
+| 3.47 | With a loop playing: turn SW5, press SW5; pause and turn SW5 | Loop pitch/speed follows (reverse below zero), press = back to normal; paused, turning scrubs (tape-like); SW5 never changes the cutoff while a loop exists |
+| 3.48 | Menu (toggle down + CHOMPI; it opens on TAPE's page): PLAY / LOOP a few times; tap KEY_22, then tap KEY_21; hold KEY_22 1 s (presets page) and look at KEY_21 / KEY_20 | Overdub feedback down / up (older layers fade faster or stay); KEY_22 tap = effects after the loop (the delay/reverb applies to the loop too), KEY_21 tap = before (default); on the presets page the lit key (KEY_21 before, KEY_20 after) shows which |
+| 3.49 | Menu, Samples page: KEY_24 (copy), LOOP, a white key, CHOMPI | CHOMPI LED pink, then green; the loop is now that sample slot and plays on the keys; while saving, LOOP cannot overdub |
+| 3.50 | `H cc 27 127`, `H cc 27 0`, `H cc 26 127`, `H cc 26 0`, `H cc 24 100` | CC 27 = LOOP, CC 26 = PLAY (as TAPE); CC 24 changes the loop speed while a loop exists |
+| 3.51 | Panic (`H panic`, SW4 + SW3 held together 1 s, CC 120) while a loop plays; then switch presets | Panic stops the loop at once (it stays, PLAY resumes it); a preset change does not stop the loop; the two knobs do not change page |
+
+## 3F. Knob pages and patch knobs (firmware 0.6; TAPE's layout from 0.10)
+
+Each of the four knobs (SW4, SW1, SW2, SW3 = knobs 1–4) has TAPE's pages first, then
+Forge's extra synth controls (MANUAL section 5); a v5+ patch's own knob choices are each
+knob's **last** page (dim white light). **Press and release a knob** to step its page;
+its light shows the page's control in TAPE's colours. Pages belong to the panel (they
+stay when you change presets). See `docs/forge/KNOBS.md` (in the repository) for the full map. The knob lights are
+TAPE's through-hole LEDs 1–4; if a light shows up at a different knob, write
+down which one lit — that mapping is not yet hardware-verified.
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.52 | Send `07-warm-pad.json`, toggle in the menu position (down). Look at the knob lights; turn each knob while holding a chord; then press and release SW4 once and turn it | Lights in TAPE's colours (SW4 green-yellow at 1x pitch, SW1 yellow-orange, SW2 orange-red, SW3 teal-blue); SW4 = pitch (TAPE: centre stops, below plays backwards on samples), SW1 = attack, SW2 = release, SW3 = reverb + delay together; one click is clearly audible (TAPE's step: 3 % on SW1-SW3, pitch finer). After the release SW4 = voice gain (blue to pink to red) |
+| 3.53 | Step each knob through its pages (press and release): SW4 pitch, gain, resonance (red), filter envelope (green); SW1 attack, decay, LFO speed (red); SW2 release, sustain, LFO filter (red), detune (green); SW3 reverb + delay, saturation (yellow to red), DJ filter (purple to pink to white: left of centre low-pass, right high-pass) | Each page audibly does its job; the page changes when the knob is released (as TAPE); pages are per knob and wrap back to page 1 |
+| 3.54 | Hold a knob 1.5 s without turning; hold SW4 + SW3 together 1 s while a note plays; flip the toggle up (record position); short-press SW6 and turn it, then short-press again | The held knob's light flashes white and its control goes back to the preset's value (no page change); SW4 + SW3 stops all sound; in the record position the knob lights go out, PLAY/LOOP dim and CHOMPI's light shows the input level; SW6's light turns blue to red for input gain (TAPE), then back to volume |
+| 3.55 | Send `14-knob-pad.json` (a v5 patch). Step SW4 to page 5, SW1 to page 4, SW2 to page 5, SW3 to page 4 (each knob's last page, dim white light); turn them; then `H cc 20 0` and `H cc 20 127` | SW4 = cutoff, SW1 = LFO speed, SW2 = reverb size, SW3 = reverb mix (the patch chose them, on the last page); CC 20 moves the cutoff the same way |
+| 3.56 | Send `12-tape-kit-a.json` and play: SW1 page 1 = sample start, SW2 page 1 = sample end, SW2 page 4 = loop crossfade. Send `02-slap.json` (effects only) and turn the knobs while playing into line in. Webapp: open any preset, **Convert to v5**, choose a job for each knob under *Panel knobs*, Send | Sampler: start/end move in fine steps (TAPE), crossfade changes on looped samples only, no crash; effects-only: SW4 = delay mix (page 2 level), SW1 = delay time, SW2 = feedback, SW3 = TAPE's effects on the line input; the webapp patch's knobs are on each knob's last page |
+| 3.57 | **Automatic (bridge):** SW4 pitch, SW1 attack, SW2 release, SW3 reverb + delay and DJ filter, SW5 cutoff: a held note recorded before and after 10 clicks | Each pair of recordings differs by at least 5 % (spectrum, envelope, loudness or stereo balance); the same check runs on every page of every starter preset in the simulation (`tests/knob_audio_test.cpp`) |
+| 3.58 | **TAPE's menu knobs:** sampler patch, open the menu (TAPE's page) and hold CHOMPI. SW4: turn (pitch in fifths/octaves, 4 clicks a step), press (1×); SW1/SW2: turn (moves the start-end window), press (SW1 auto-loop, SW2 sustain on/off: their lights white/dim); SW3: turn (delay time; page 2 warble, page 3 DJ resonance), press (all effects back to default); SW5: turn (loop speed, also when paused); SW6: turn (output compressor) | Each does what TAPE's shift menu does; knob pages never change in the menu; holding a knob in the menu never resets it; closing the menu gives the knobs back |
+| 3.59 | **Monitor positions:** in the menu press SW6 (cycles: orange = headphones, blue = both, yellow = send/return). With line in playing: headphones = heard in the headphones only in the record position (toggle up); both = always heard, through the effects, on both outputs; send/return = line in always in the headphones | As described; the main out carries the input only in *both* (and the mic in *send/return* in the record position); the CHOMPI light meters the input |
+| 3.60 | **TAPE's options.json:** on a card where TAPE has written `options.json`, set Record Latch true, Midi Out Channel 2 and Split Delay true on the computer; start Forge | CHOMPI press starts a take after the count-in and a second press stops it; SW3 page 1 left = delay only, right = reverb only; MIDI out on channel 2 (next row). Set them back afterwards |
+| 3.61 | **MIDI out:** connect CHOMPI's USB (or MIDI out) to a MIDI monitor on the computer; play keys, turn SW1 on page 1 and 2, tap PLAY and LOOP, hold CHOMPI in the record position | Notes at velocity 127; CC 21 / 29 for SW1's pages, CC 26 / 27 for PLAY / LOOP (127 then 0, also with the menu open), CC 21 for CHOMPI; the knobs send nothing on TAPE's menu page |
+| 3.62 | **Per-slot settings, chromatic (0.12):** sampler, chromatic. Menu: choose slot 1, turn SW4 (pitch) and SW1 (start) clearly; choose slot 2 (TAPE's defaults: 1×, full sample), then slot 1 again. Wait 3 s, switch off and on, choose slot 1 | Slot 1 comes back with its pitch and start each time, also after the restart; slot 2 does not have them. On the computer the card has `presets.json` and `FORGE/presets_backup.json` (if the card had a `presets.json` before) |
+| 3.63 | **Per-slot settings, kit (0.12):** sampler, kit. Play pad 1, turn SW4 up and the pan (menu SW4 page 2) left; play pad 2 and turn SW4 down. Play both | Pad 1 higher and on the left, pad 2 lower and centred; each pad's knob lights show its own values when played; other pads unchanged |
+| 3.62b | **presets.json write (0.15.1):** after 3.62, turn SW4 on slot 1 again, wait 3 s; switch off; on the computer look at the card's top folder and `FORGE/` | `presets.json` holds the new pitch; no `presets_old.json` or `presets_temp.json` is left; `FORGE/presets_backup.json` is unchanged (the copy from before Forge's first write) |
+| 3.64 | **Shared with TAPE (0.12, optional):** after 3.62, put TAPE on the card (only TAPE's `.bin`), start it, choose the same slot 1; then back to Forge | TAPE plays slot 1 with the pitch and start set in Forge (TAPE's pitch curve is the same); settings changed in TAPE are there in Forge |
+
+## 3G. Harmony (firmware 0.13)
+
+One key plays a chord (MANUAL section 8a). Software-tested only; these steps are
+the first time it is heard. Use the Warm Pad preset (synth).
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.65 | **Harmony page (0.13):** Warm Pad. Toggle down, hold CHOMPI, hold KEY_21 1 s. Press SW4 (on), press the A key, turn SW4 one step = 3 clicks (natural minor); close the menu and play C3, F3, G3 | On the page the A keys light white and A minor's scale blue; SW4's light green. Played: C3 = A minor chord, F3 = D minor, G3 = E minor (chords of 3 notes), also on a MIDI monitor (3.61) as 3 notes each. Inspector shows *Am · I · tonic* after C3 |
+| 3.66 | **Chord size, Shift, voice leading (0.13):** harmony page: turn SW1 one step = 3 clicks (7th); play C3, F3, G3, C3 again; hold C5 and play G3; press SW2 (voice leading off), turn SW2 and play C3 again | 4-note chords that move smoothly (few notes change between chords); C5 + G3 = E7 (Shift turns the minor v into the major dominant); with voice leading off each SW2 step changes the inversion; no hung notes when releasing in any order |
+| 3.67 | **Real layout and saving (0.13):** harmony page: press SW1 (light orange); play C#3 and D3; save the preset on CHOMPI (section 6), switch off and on, recall it; hold SW4 + SW3 for 1 s while holding a chord | Real: each key is the chord's root (D3 in A minor = D minor); after the restart the recalled preset still plays chords in A minor; the panic stops the chord at once |
+| 3.67b | **Open spread (0.13):** harmony page as 3.65 (static layout); press SW3 (light white), play C3; press SW3 again (dim), play C3 | Open: the chord's second-lowest note sounds an octave higher (wider, airier); closed: the compact chord again |
+
+## 3H. Arp, bass and tempo (firmware 0.14)
+
+The parts page (MANUAL section 8b). Software-tested only; these steps are the first
+time it is heard. Warm Pad (synth) unless a step says otherwise.
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.68 | **Arp (0.14):** Warm Pad. Menu: tap KEY_22 first (TAPE's page; the menu remembers its page), hold KEY_21 1 s (harmony page), tap KEY_21 (parts page: C3, C#3, D4, B3 and B4 lit; F#4 and G#4 dim). Press D3 (up) and F4 (1/16). Close the menu; hold C3, E3 and G3, then let go; then play A3 alone; then hold SW4 + SW3 1 s | The three notes cycle upwards one at a time, 4 per beat at 120 BPM; after letting go they keep going (latch); A3 alone replaces them; the panic stops it. On a MIDI monitor (3.61) each arp note on channel 1, no chord |
+| 3.69 | **Tempo on CHOMPI (0.14):** parts page with the arp running (latched): turn SW4 right 20 clicks, then left 40; tap C5 four times at a slow, steady beat; press B4 twice | The arp speeds up (140 BPM), slows (100), then follows the taps; C5 and the SW4 light blink white on each beat; B4 red = stopped (arp silent), green = running again |
+| 3.70 | **Arp with harmony (0.14):** menu: tap KEY_22 (TAPE's page), harmony page as 3.65 (on, A natural minor); KEY_21 to the parts page; arp up-down (F3), 1/8 (D4); play C3, then F3 | C3 plays the A minor chord one note at a time (A C E, up and down), F3 then D minor; only one voice sounds at a time |
+| 3.71 | **Bass (0.14):** parts page: arp off (C3), bass root (D#3), SW3 to green (1/4; the octave stays C2, an SW3 press steps it); play and hold C3 (harmony on); then try F#3 (root + fifth), G#3 (root / fifth), A#3 (root / octave), SW3 to purple (once per chord) | The chord sounds as usual with a low A under it on every beat; the variations as named; purple: one bass note per chord change. MIDI monitor: bass on channel 2, chord on channel 1 |
+| 3.71b | **Bass octave (0.14):** parts page, bass root, SW3 at green (1/4); hold C3; press SW3 three times | Each press moves the bass up an octave (C2 → C3 → C1 → C2; the lit bass key's orange brightness steps with it); the chord above is unchanged |
+| 3.72 | **MIDI clock (0.14, optional):** a DAW sends MIDI clock to CHOMPI over USB at 100 BPM with the arp latched; stop the DAW, start it again; then turn its clock output off. Separately, with the DAW set to follow external clock, run the arp on CHOMPI's tempo | The arp follows the DAW's tempo (SW4 light blinks blue), stops with it and restarts on its downbeat; **while the DAW is stopped CHOMPI stays stopped** (0.15.1; B4 starts it on CHOMPI's own tempo); turning the clock output off while it runs: half a second later CHOMPI keeps going on its own tempo. The DAW follows CHOMPI's tempo (start, clock, stop) |
+
+## 3I. Event recorder and projects (firmware 0.15)
+
+MANUAL section 8c. Software-tested only. 120 BPM unless a step says otherwise.
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.73 | **Record a loop (0.15):** Warm Pad, parts page, arp and bass off. Press F#4, let go of CHOMPI (menu closed, toggle down). Watch the CHOMPI light; when it turns solid orange play a short line on the keys and turn SW5 (cutoff) once; open the menu (parts page), press F#4 | F#4 blinks red on the beat, then CHOMPI orange from the next bar; after F#4 the take closes at the bar line and loops (F#4 green, CHOMPI dim green): the line and the cutoff move come back each bar exactly where they were played; the volume knob stays yours |
+| 3.74 | **Overdub, stop, clear (0.15):** while it loops: menu (parts page) G#4 (yellow), close the menu and play a second line for a pass, open the menu, G#4 again; then F#4 (stop) and F#4 (play); then A#4 once, wait 3 s, A#4 twice quickly | The second line joins from the next pass; no hanging notes when overdub ends with a key held; F#4 stops (all notes off) and restarts from bar 1; one A#4 press does nothing after 2 s; two quick presses clear (F#4 dim) |
+| 3.75 | **With harmony, arp and MIDI (0.15):** harmony on (3.65), arp up (3.68); arm on the parts page (F#4), close the menu and record a loop of two chord keys; also play a note from a MIDI keyboard or DAW into CHOMPI while recording; MIDI monitor on CHOMPI's output | The loop plays the chords through the arp (one note at a time), the MIDI note is in the loop too; on the monitor the loop's notes appear on channel 1 as it plays |
+| 3.76 | **Projects (0.15):** with a loop playing, save the preset to a slot (section 6). Switch off and on, recall the slot; then recall a slot without a loop; then copy the slot and erase the copy. On the computer, look in `FORGE/` | After the restart the recalled slot plays the same sound with its loop; a slot without a loop changes the sound under the running loop; the copy plays the loop too; `FORGE/` holds `BbSss.FSQ` beside the saved `.FPR`, and none for the erased copy |
+| 3.76b | **Recorder and panic (0.15):** with a loop playing (and a note in it held across the bar), hold SW4 + SW3 1 s; then menu, parts page, F#4 | Everything silent at once, nothing hangs; F#4 dim (stopped, loop kept); F#4 plays it again from bar 1 |
+| 3.76c | **8-bar limit (0.15):** arm (F#4), close the menu and keep playing for more than 8 bars without pressing F#4 | The take closes by itself after 8 bars and loops (F#4 green) |
+| 3.76d | **Clock stop and MIDI Start (0.15.1):** with a loop playing and a long note sounding in it, press B4 (clock stop); then B4 again; with a DAW sending clock (3.72), press Stop then Start in the DAW | B4: the loop's notes stop at once (no hanging note) and it waits; B4 again: it carries on from where it stopped. DAW Start: the loop jumps back to bar 1, the old notes end first |
+| 3.76e | **Arming with the clock stopped (0.15):** press B4 (stopped), F#4 (armed), close the menu and play; then B4 | Nothing is recorded while the clock is stopped (F#4 stays armed); after B4 recording starts at the next bar line |
+| 3.76f | **Host store (0.15):** with a loop playing, `H store 2 3`; switch off and on; `H recall 2 3`. On the computer look in `FORGE/` | The recalled sound plays with its loop; `FORGE/B2S03.FSQ` is there beside `B2S03.FPR` |
+| 3.76g | **Patch change keeps the loop (0.15.1):** with a loop playing, send another synth preset (webapp or `H send`), then a kit preset | The loop keeps playing with the new sound (only the notes sounding at the switch are cut) |
+
+## 3J. Panel feedback and shortcuts (firmware 0.16, DC's UX review)
+
+MANUAL sections 4, 5, 8, 8a-8c. Software-tested only. DC judges whether each is easy to read
+and to use (UX_REVIEW.md: 4/5 or better).
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.77 | **Page colours:** toggle down, hold CHOMPI; go to the presets page (hold KEY_22), back (KEY_22), harmony (hold KEY_21), parts (KEY_21) | CHOMPI teal on TAPE's page, blue presets, purple harmony, orange parts |
+| 3.78 | **Straight to parts:** on TAPE's page hold KEY_21 for 2 s | Purple at 1 s, orange (parts page) at 2 s; letting go stays on parts |
+| 3.79 | **Knob page flash:** menu closed, press and release SW1 three times | Each press flashes the next page's colour (green, yellow, then white back on page 1) before the value colour |
+| 3.80 | **Setting colours:** harmony page, turn SW4 slowly through all modes, SW1 through the chord sizes, SW2 through the inversions; parts page, turn SW4 from 60 to 160 BPM | Each step changes colour (white, green, yellow, orange, red, pink, purple, blue, teal); 1.5 s after stopping the ring returns to its on/off colour; tempo bands blue → green → yellow → orange → red |
+| 3.81 | **Harmony shortcut and chord keys:** Warm Pad, menu closed; hold SW1 + SW2 1 s; look at the keys; hold C5 (Shift); hold SW1 + SW2 again | Rings flash green; keys glow orange / blue / red by chord (C3 orange, D3 blue, B3 red), C5 dim white; with Shift held D3 turns orange and C5 bright; second hold: rings flash red, chord colours gone, no page changed |
+| 3.82 | **SW5 on the loop:** record a bright loop (Acid Bass); turn SW5 left slowly, then right; pause the loop (PLAY) and scrub (push and turn SW5) | The loop darkens with the live sound and opens again; SW5's lights show the cutoff for a second after each turn; paused: dim white, the direction lights while scrubbing |
+| 3.83 | **New loop at 1×:** with a loop playing, push and turn SW5 to reverse or double speed; clear (PLAY + LOOP 2 s); record a new loop | The new loop plays at normal speed and unfiltered |
+| 3.84 | **Recorder by tap:** arm on the parts page (F#4), let go, play a line; tap CHOMPI (toggle down); tap again; tap again | First tap closes the take at the bar line and it loops; second stops it; third plays it from bar 1. With the recorder empty a tap does nothing |
+| 3.85 | **Old presets:** play 06 Saw Bass from the starter bank (stored after this update) against the old file in the webapp | About as bright as the v2 original (it was half as bright before) |
+
+## 4. Panic and recovery
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 4.1 | Hold a long-release chord with echo (use Warm Pad for reverb too); hold SW4 + SW3 for 1 s (panic; SW5 was the panic before 0.10) | Voices, old echo and reverb tails stop at once |
+| 4.2 | Repeat with `H cc 123 0`, `H cc 120 0`, `H panic ...`, webapp Panic | Same each time; notes retrigger normally afterwards |
+| 4.3 | Switch route aux↔synth (webapp Signal path, Send) while notes ring | Sound stops cleanly; next keypress plays; aux stays stereo |
+
+## 5. Webapp end to end
+
+`python3 host/forge_web.py`, open `http://localhost:8765`.
+Load preset → edit → Save JSON → Import JSON → Refresh ports → select both →
+Send → Read device status → Capture to editor → Panic.
+Pass: every step works; saved file re-imports; capture matches what was sent.
+If you have keys: Generate an instrument with each provider, review, Send, play.
+Record provider/model/seconds, never the key.
+
+## 6. Sustained run and power
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 6.1 | 10 minutes: four-voice playing with delay and reverb, recalling presets (v1, v2 and v3), turning knobs, normal MIDI clock if you have it | No hang, dropout, stuck note or noise burst |
+| 6.2 | `H status` at the end | Peak CPU < 100% (fail at ≥100%; < 70% is the comfort target). Record average, peak, dropped, rejected |
+| 6.2b | **Worst case:** reboot (resets peak), `H send presets/10-cpu-stress.json`, hold four keys for 1 minute, `H status` | Record average and peak. If peak ≥ 70 %, set voices to 3 then 2 in the webapp, Send, repeat, and record each. This sets the v3 CPU budget |
+| 6.2c | **Sampler worst case:** record a ≥ 5 s take (3.34), reboot is not needed but note the peak first, `H send presets/13-sampler-stress.json`, hold seven keys for 1 minute, `H status` | Record average and peak. If peak ≥ 70 %, lower voices to 5 then 4 and repeat. Sample reads come from SDRAM, so this is the number the emulator cannot predict |
+| 6.2d | **Sampler + looper:** as 6.2c, then tap LOOP and overdub for 1 minute while holding the seven keys, `H status` | Record average and peak. While the looper records or overdubs, a seventh sampler voice is released (6 voices max, by design); report whether that is noticeable |
+| 6.2e | **Sampler + TAPE effects:** as 6.2c, with SW3 on page 2 (saturation) turned well up and page 3 (DJ filter) turned left (low-pass), and the warble and compressor up in the menu once they exist (stage 2); hold seven keys for 1 minute, `H status` | Record average and peak; must stay < 70 % (the emulator puts every TAPE effect at once about 15 % above WAVE's engine, ~63 % on CHOMPI by projection) |
+| 6.2f | **Sampler, pitched down (0.12):** as 6.2c, then turn SW4 page 1 (TAPE pitch) down to about 0.75× (below the 1× light, still forwards); hold seven keys for 1 minute, `H status`. Then the same in kit mode with seven pads each turned below 1× (press a pad, turn SW4) | Record average and peak; must stay < 70 % (0.13: the emulator puts this 1 % below WAVE's engine after the table cubic read; it was 4 % above in 0.10–0.12) |
+| 6.2g | **Everything at once (0.15.1):** Warm Pad with harmony on (7th chords, 3.66), arp up 1/16 and bass alternate (3.68, 3.71), a recorded loop playing (3.73) and the audio looper overdubbing (3.42); play chords for 1 minute, `H status` | Record average and peak; must stay < 100 % (< 70 % comfort). The emulator cannot predict this combination; if it is ≥ 70 %, also record it with the arp off, then with harmony off |
+| 6.3 | Reboot; `H status`; resend a saved patch | Boots to dry aux defaults; recall works |
+| 6.4 | Optional: restore stock firmware with your normal card (or copy a folder from `firmware/card-profiles/` to a card) | Stock works again |
+
+Do not deep-discharge the battery to test shutdown; record it as not run.
+
+## 7. USB card and firmware (firmware 0.7)
+
+From 0.7 on, files and firmware go to the card over the USB cable (bridge:
+*Card & firmware*, or `host/forge_card.py`). The card stays in CHOMPI.
+**Before any install:** CHOMPI has one USB port, so it cannot be on a charger while
+the computer installs. Charge first on a USB-C to USB-C charger (2 A or more) until the
+battery light (SW6 held 2 s) is green or white, then connect the computer's **USB-C
+port with a USB-C to USB-C cable** (a USB-A port or C-to-A cable is a weak "legacy"
+supply). A low battery on a computer port leaves CHOMPI dark after the restart until it
+is switched off and on (2026-10-05): plug in the USB-C charger, switch off, wait 5 s,
+switch on.
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 7.1 | Put two TAPE samples (e.g. `cubbi_b1.wav`, `jammi_b1.wav`) in the kit's `card` folder; bridge: Refresh list, Copy selected to CHOMPI. Then send a kit patch for bank b and play | Both copied (time per MB noted); the sample list shows them; they play. Nothing else on the card changed |
+| 7.2 | Pull the USB cable in the middle of a copy; reconnect; copy again | The interrupted file never appears half-written (the old one, or none, stays); the second copy completes |
+| 7.3 | Install this kit's firmware; do **not** press CHOMPI for 15 s | CHOMPI's light blinks white, then stops; nothing installed; Forge keeps running |
+| 7.3p | 0.11, optional (only if the battery light is yellow anyway): on the computer's USB port, Install this kit's firmware | Refused before anything is copied: the bridge says the battery is low and the supply weak; CHOMPI keeps running. Then disconnect, charge on the USB-C charger until the battery light is green or white, reconnect the computer (USB-C to USB-C) and continue with 7.4. If CHOMPI goes dark at any point: plug in the charger, switch off, wait 5 s, switch on |
+| 7.4 | Install again and press the CHOMPI key | CHOMPI restarts; rainbow lights while the bootloader flashes; Forge starts; Connect CHOMPI shows the expected firmware version. Any other firmware file on the card was renamed so the bootloader ignores it (`CHOMPI_TAPEv2_0.bin` → `CHOMPI_TAPEv2_0_bin.old`; rename it back to use TAPE again) |
+
+## 8. Power and battery (firmware 0.8)
+
+As stock TAPE: the start-up storage (shipping-mode) gesture, the SW6 battery
+light, and the USB/charger hand-over when power is plugged in while CHOMPI runs.
+The power switch is the normal on/off. Do not run the battery flat on purpose.
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 8.1 | Unplug the USB cable and play for a few minutes on the battery (keys, a preset, the looper) | Forge keeps running normally on the battery: sound, keys, lights |
+| 8.2 | Hold the SW6 (volume) knob pressed for 2 s, then let go; also give it a short press | While held after 2 s its light shows the battery: white = charged (on the charger), green = good, yellow = low (below ~3.3 V). Dark again on release. A short press switches SW6 to input gain (light blue → red, TAPE); a second short press goes back to volume |
+| 8.3 | Plug the USB cable back in (wall charger first, then the PC), wait 5 s; in the bridge press Connect CHOMPI and Check setup | CHOMPI keeps playing; the bridge connects (USB may drop for a moment while the charger identifies the source); Check setup's Power line says on USB power and a charge state; SW6 held shows yellow/green while charging, white when charged |
+| 8.4 | Storage mode: switch CHOMPI off, unplug USB, then hold CHOMPI + PLAY + LOOP while switching it on (the stock gesture, same as TAPE); keep holding about 1 s | All lights go out and stay out, even with the switch on: the battery is disconnected for storage. Plugging USB in brings CHOMPI back. (Normal on/off is the power switch; charging also works with it off) |
+| 8.5 | **Low-battery warning (0.12, only when the battery is yellow anyway):** unplug USB, or use the computer's USB port; watch SW6 for 10 s; then plug in a USB-C to USB-C charger | Unplugged / computer port: SW6 blinks yellow twice every 4 s (fast blinking means the shut-off is near: charge now); on the USB-C charger the blinking stops. If CHOMPI goes dark (stock protection on a weak port): plug in the USB-C charger, switch off, wait 5 s, switch on |
+| 8.6 | **Power in Check setup (0.12):** Check setup needs the computer, so run it on the computer's USB-C port (USB-C to USB-C cable), then, if you have one, on a USB-A port or C-to-A cable | USB-C port: no weak-supply note (unless the port hit its current limit); USB-A / C-to-A: the Power line mentions a weak USB supply (a warning if the battery is low, saying installs are refused) |
+| 8.7 | **Low-battery record (0.11, only if 8.5 ended in a shut-off or dark CHOMPI):** after recovering, on the computer open `FORGE/RESTARTS.TXT` on the card | The last lines name the stock protection (battery low, no USB power, or battery low on a weak USB supply) |
+
+## Results — copy into docs/forge/TEST_RESULTS.md
+
+```text
+Date / tester:
+Bundle source commit / firmware SHA-256 / compiler (from verify_bundle.py):
+Board / bootloader / stock firmware / OS / Python / MIDI connection:
+1 Flash & identity:
+2 Aux path 2.1–2.5:
+3 Instrument 3.1–3.9 (note clicks/aliasing, sustain, bend here):
+3B v3 modules 3.10–3.16 (incl. loudness vs stock reference):
+3C Device presets 3.17–3.27 (note the toggle "menu position"):
+3D Sampler 3.28–3.41 (loading time, recording levels per source, TAPE compatibility):
+3E Looper 3.42–3.51:
+3F Knob pages 3.52–3.64 (incl. 3.62b presets.json):
+3G Harmony 3.65–3.67b:
+3H Arp, bass, tempo 3.68–3.72 (incl. 3.71b):
+3I Recorder and projects 3.73–3.76g:
+4 Panic & recovery 4.1–4.3:
+5 Webapp (+ AI provider/model/seconds or "not run"):
+6 Sustained: minutes / avg CPU / peak CPU / dropped / rejected; reboot; restore:
+6.2b CPU stress: avg / peak at 4 voices (and at 3 / 2 if needed):
+6.2c Sampler stress: avg / peak at 7 voices (and lower counts if needed):
+6.2d Sampler + looper / 6.2e TAPE effects / 6.2f pitched down / 6.2g everything: avg / peak each:
+7 USB card and firmware 7.1–7.4 (7.3p if run):
+8 Power 8.1–8.7 (battery colour at the start):
+Unexpected behavior:
+Overall: pass / partial / blocked
+```

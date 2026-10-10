@@ -1,0 +1,65 @@
+{
+  "version": 4,
+  "name": "Sampler Stress (test)",
+  "engine": "instrument",
+  "routing": "sampler>delay>reverb>output",
+  "modules": {
+    "synth": {
+      "waveform": "sine",
+      "attack_ms": 2,
+      "decay_ms": 300,
+      "sustain": 1,
+      "release_ms": 250,
+      "osc2_waveform": "sine",
+      "osc2_level": 0,
+      "osc2_semitones": 0,
+      "osc2_detune_cents": 0,
+      "noise": 0,
+      "voices": 7,
+      "glide_ms": 80
+    },
+    "filter": {
+      "cutoff_hz": 1200,
+      "resonance": 0.6,
+      "env_octaves": 3,
+      "attack_ms": 20,
+      "decay_ms": 600,
+      "sustain": 0.3,
+      "release_ms": 800
+    },
+    "lfo": {
+      "waveform": "triangle",
+      "rate_hz": 4,
+      "pitch_cents": 15,
+      "filter_octaves": 1,
+      "amp_depth": 0.2,
+      "mod_wheel": false
+    },
+    "sampler": {
+      "mode": "chromatic",
+      "bank": "a",
+      "slot": 15,
+      "pitch_semitones": 0,
+      "start": 0.5,
+      "end": 0.5107,
+      "loop": true,
+      "hold": true,
+      "reverse": false,
+      "crossfade_ms": 250
+    },
+    "delay": {
+      "mix": 0.3,
+      "time_ms": 350,
+      "feedback": 0.45,
+      "bypass": false
+    },
+    "reverb": {
+      "mix": 0.4,
+      "size": 0.8,
+      "damping": 0.4
+    },
+    "output": {
+      "level": 0.2
+    }
+  }
+}

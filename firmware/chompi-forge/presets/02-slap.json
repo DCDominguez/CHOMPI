@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "name": "Short slap",
+  "engine": "stereo_delay",
+  "parameters": {"mix": 0.3, "time_ms": 110, "feedback": 0.12, "level": 0.25, "bypass": false}
+}

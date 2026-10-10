@@ -1,0 +1,53 @@
+{
+  "version": 3,
+  "name": "Acid Bass",
+  "engine": "instrument",
+  "routing": "synth>delay>reverb>output",
+  "modules": {
+    "synth": {
+      "waveform": "saw",
+      "attack_ms": 2,
+      "decay_ms": 300,
+      "sustain": 0.7,
+      "release_ms": 80,
+      "osc2_waveform": "square",
+      "osc2_level": 0,
+      "osc2_semitones": -12,
+      "osc2_detune_cents": 0,
+      "noise": 0,
+      "voices": 1,
+      "glide_ms": 90
+    },
+    "filter": {
+      "cutoff_hz": 260,
+      "resonance": 0.8,
+      "env_octaves": 4,
+      "attack_ms": 1,
+      "decay_ms": 220,
+      "sustain": 0.1,
+      "release_ms": 120
+    },
+    "lfo": {
+      "waveform": "triangle",
+      "rate_hz": 5,
+      "pitch_cents": 0,
+      "filter_octaves": 0.6,
+      "amp_depth": 0,
+      "mod_wheel": true
+    },
+    "delay": {
+      "mix": 0.15,
+      "time_ms": 300,
+      "feedback": 0.35,
+      "bypass": false
+    },
+    "reverb": {
+      "mix": 0.08,
+      "size": 0.3,
+      "damping": 0.6
+    },
+    "output": {
+      "level": 0.25
+    }
+  }
+}
