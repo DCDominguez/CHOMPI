@@ -43,6 +43,7 @@ function openForge() {
   $("forge").hidden = false; $("connect-card").classList.add("done");
   const on = connected();
   $("audition").hidden = !on; $("device-short").textContent = on ? $("device").textContent : "";
+  $("save-device").hidden = !on; if (on) readSlots(); updateButtons();
   if (!patch && DATA.presets.length) loadPatch(DATA.presets[Math.max(0, DATA.presets.findIndex(p => p.name === "Warm Pad"))], false);
 }
 $("connect").addEventListener("click", async () => {
@@ -106,6 +107,30 @@ function labelKeys() {
 $("oct-down").addEventListener("click", () => { base = Math.max(24, base - 12); labelKeys(); });
 $("oct-up").addEventListener("click", () => { base = Math.min(84, base + 12); labelKeys(); });
 
+// ---- save to CHOMPI: the sound is sent first, then stored in a preset slot (opcode 4) ------------------
+const BANKS = ["red", "orange", "yellow", "green", "teal", "blue", "purple", "pink"];   // presets 1-8, as the bank keys light
+let occupied = {};
+BANKS.forEach((c, i) => $("save-bank").add(new Option(`${c} (${i + 1})`, String(i + 1))));
+function drawSlots() {
+  const used = occupied[Number($("save-bank").value)] || [], keep = $("save-slot").value;
+  $("save-slot").replaceChildren(...[...Array(15).keys()].map(i => new Option(`${i + 1}${used.includes(i + 1) ? " (used)" : ""}`, String(i + 1))));
+  if (keep) $("save-slot").value = keep;
+}
+$("save-bank").addEventListener("change", drawSlots); drawSlots();
+async function readSlots() { try { occupied = (await exchange(W.presetList(sequence()))).occupied; drawSlots(); } catch { /* the list is a nicety */ } }
+$("save-to-chompi").addEventListener("click", async () => {
+  const bank = Number($("save-bank").value), slot = Number($("save-slot").value), name = `${BANKS[bank - 1]} ${slot}`;
+  try {
+    if ((occupied[bank] || []).includes(slot) && !confirm(`Bank ${name} already holds a sound. Replace it with ${patch.name}?`)) return;
+    clearTimeout(timer); while (sending) await new Promise(r => setTimeout(r, 30));
+    notice(`Saving ${patch.name} to bank ${name}…`);
+    await exchange(W.encodePatch(patch, sequence()));       // CHOMPI plays exactly this sound
+    const done = await exchange(W.presetStore(sequence(), bank, slot), 6000);
+    notice(`Saved ${patch.name} to bank ${BANKS[done.bank - 1]}, slot ${done.slot}. It's on CHOMPI's card now.`);
+    await readSlots();
+  } catch (error) { notice(error.message, true); }
+});
+
 // ---- easy: idea -> prompt -> chatbot -> reply ------------------------------------------------------
 $("make-prompt").addEventListener("click", async () => {
   const idea = $("idea").value.trim();
@@ -126,7 +151,7 @@ $("use-reply").addEventListener("click", () => {
 function showJSON() { $("json").textContent = JSON.stringify(patch, null, 2); }
 function changed() { showJSON(); audition(); }
 function updateButtons() {
-  $("download").disabled = !patch; $("editor").disabled = !patch;
+  $("download").disabled = !patch; $("editor").disabled = !patch; $("save-to-chompi").disabled = !patch || !connected();
   for (const c of CONTROLS) { const off = !patch || !path(c, 7); $(c.id).disabled = off; if ($(`${c.id}-range`)) $(`${c.id}-range`).disabled = off; }
 }
 function loadPatch(value, send = true) {

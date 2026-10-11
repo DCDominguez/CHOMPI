@@ -76,9 +76,18 @@
           <div class="fold-bar"><p class="group">Settings</p><button id="fold-all" type="button" class="quiet small">open all</button></div>
           <div id="groups"></div>
         </fieldset>
+        <div id="save-device" class="save-device">
+          <p class="group">Save to CHOMPI</p>
+          <div class="pair">
+            <div><label for="save-bank">Bank</label><select id="save-bank"></select></div>
+            <div><label for="save-slot">Slot (white key)</label><select id="save-slot"></select></div>
+          </div>
+          <button id="save-to-chompi" class="primary wide" type="button" disabled>Save to CHOMPI <span aria-hidden="true">✦</span></button>
+          <p class="hint">Saves the sound CHOMPI is playing into that slot on its card, like the panel's save. Recall it on the panel: toggle down, hold CHOMPI, presets page, the slot's white key.</p>
+        </div>
         <div class="button-row"><button id="download" class="primary" type="button" disabled>Save JSON</button><label class="file-button" for="import">Open JSON<input id="import" type="file" accept=".json,application/json"></label></div>
         <details><summary>Peek at the JSON</summary><pre id="json">No sound yet.</pre></details>
-        <p class="footnote">CHOMPI plays what you hear here until you change it; to keep it on CHOMPI, save it to a slot on the panel (toggle down, hold CHOMPI, presets page, KEY_25, a slot, CHOMPI). Save JSON keeps it on this computer.</p>
+        <p class="footnote">CHOMPI plays what you hear here until you change it. Save to CHOMPI keeps it on CHOMPI's card; Save JSON keeps it on this computer.</p>
       </section>
     </div>
   </div>

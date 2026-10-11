@@ -59,6 +59,24 @@ def random_patch(r, base):
 
 @unittest.skipIf(NODE is None, "Node.js not found (set FORGE_NODE)")
 class WireJsTests(unittest.TestCase):
+    def test_preset_store_and_list(self):
+        # Save to CHOMPI on the site: store (4) and list (7) as forge_host.preset_message; their replies decoded alike.
+        cases = [{"seq": s, "bank": b, "slot": sl} for s, b, sl in ((1, 1, 1), (900, 8, 15), (16383, 6, 3))]
+        got = node("console.log(JSON.stringify(input.map(c => [w.presetStore(c.seq, c.bank, c.slot), w.presetList(c.seq)])));", cases)
+        for c, (store, listing) in zip(cases, got):
+            self.assertEqual(store, host.preset_message(4, c["seq"], c["bank"], c["slot"]))
+            self.assertEqual(listing, host.preset_message(7, c["seq"]))
+        sent = host.preset_message(4, 42, 6, 3)
+        stored = host.message(0x42, 42, [0, 1, 5, 2])
+        bits = [0] * 24; bits[3 * 5] = 0b101                    # bank 6: slots 1 and 3
+        listed = host.message(0x43, 43, [0] + bits)
+        py = [host.decode_response(stored, 42), host.decode_response(listed, 43)]
+        js = node("console.log(JSON.stringify(input.map(c => w.decodeReply(c.reply, c.sent))));",
+                  [{"reply": stored, "sent": sent}, {"reply": listed, "sent": host.preset_message(7, 43)}])
+        self.assertEqual((js[0]["action"], js[0]["bank"], js[0]["slot"]), (py[0]["action"], py[0]["bank"], py[0]["slot"]))
+        self.assertEqual({int(k): v for k, v in js[1]["occupied"].items()}, py[1]["occupied"])
+        self.assertEqual(node("console.log(JSON.stringify(input.map(b => { try { w.presetStore(1, b, 1); return 'ok'; } catch (e) { return 'no'; } })));", [0, 9, 1.5]), ["no"] * 3)
+
     def test_encoding_matches_python_byte_for_byte(self):
         presets = [host.upgrade_patch(host.load_patch(path), 7) for path in sorted((ROOT / "presets").glob("*.json"))]
         r = random.Random(20261012)

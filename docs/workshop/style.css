@@ -86,3 +86,4 @@ details.group-set[open]{padding-bottom:16px}
 .tabs{display:none;gap:8px;margin-bottom:12px}.tabs button{flex:1}.tabs button[aria-selected=true]{background:var(--ink);color:var(--paper)}
 @media(max-width:760px){.tabs{display:flex}.grid>[role=tabpanel]:not(.shown){display:none}.audition{top:58px}.keys{height:80px}.key{min-height:80px}}
 .octave{display:inline-flex;align-items:center;gap:6px}.octave .hint{margin:0;font-family:var(--mono);min-width:64px;text-align:center}
+.save-device{margin-top:22px;padding-top:4px;border-top:2px dashed var(--rule)}

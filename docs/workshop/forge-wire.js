@@ -150,6 +150,19 @@
     if (read14(data, 5) !== read14(sent, 5)) throw new Error("Reply to another request");
     if (checksum(data) !== 0) throw new Error("Reply damaged on the way (checksum)");
     if (data[4] === 0x41 && data.length === 9) throw new Error(`CHOMPI said no: ${ERRORS[data[7]] || "unknown error"}`);
+    if (data[4] === 0x42) {                                  // preset stored / erased (forge_host decode_response)
+      if (data.length !== 12 || data[7] !== 0 || ![1, 2].includes(data[8]) || data[9] > 7 || data[10] > 14) throw new Error("Unexpected preset reply");
+      return {action: data[8] === 1 ? "stored" : "erased", bank: data[9] + 1, slot: data[10] + 1};
+    }
+    if (data[4] === 0x43) {                                  // which preset slots are used
+      if (data.length !== 33 || data[7] !== 0) throw new Error("Unexpected preset list");
+      const occupied = {};
+      for (let b = 0; b < 8; b++) {
+        const bits = data[8 + 3 * b] | data[9 + 3 * b] << 7 | data[10 + 3 * b] << 14;
+        occupied[b + 1] = [...Array(15).keys()].filter(s => bits >> s & 1).map(s => s + 1);
+      }
+      return {occupied};
+    }
     const version = data[8];
     if (data[4] !== 0x40 || data.length < 18 || data[7] !== 0 || !(version in STATUS_LENGTHS)
         || ![0, STATUS_EXTRA].includes(data.length - STATUS_LENGTHS[version])) throw new Error("Unexpected reply from CHOMPI");
@@ -173,6 +186,12 @@
     let patch; try { patch = JSON.parse(raw); } catch { throw new Error("That isn't valid JSON"); }
     return validate(patch);
   }
-  const api = {encodePatch, validate, readSound, decodeReply, statusMessage: s => message(2, s), stopMessage: s => message(3, s), frame, message};
+  // forge_host.preset_message: store (4) saves the sound CHOMPI is playing into bank 1-8, slot 1-15; list (7).
+  function presetStore(sequence, bank, slot) {
+    if (!Number.isInteger(bank) || !Number.isInteger(slot) || bank < 1 || bank > 8 || slot < 1 || slot > 15) throw new Error("Bank must be 1-8 and slot 1-15");
+    return message(4, sequence, [bank - 1, slot - 1]);
+  }
+  const api = {encodePatch, validate, readSound, decodeReply, statusMessage: s => message(2, s), stopMessage: s => message(3, s),
+               presetStore, presetList: s => message(7, s), frame, message};
   if (typeof module !== "undefined") module.exports = api; else root.ForgeWire = api;
 })(typeof window !== "undefined" ? window : globalThis);
