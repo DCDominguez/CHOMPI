@@ -17,13 +17,12 @@ only. Keep a backup of your SD card.
 
 1. Install Forge on CHOMPI (section 2).
 2. Plug headphones into CHOMPI and switch it on. Turn **SW6** (volume) up a little.
-3. Forge starts as a clean pass-through effect: line in (or the built-in mic when
+3. If a preset has been saved or recalled, Choowi loads it at power-on. Otherwise it starts as a clean pass-through effect: line in (or the built-in mic when
    nothing is plugged in) goes to the output. **The keys play nothing until a
    sound is loaded.** Load one of these ways:
    - **Record:** toggle **up**, **hold CHOMPI** through the short red count-in, make a sound, release — the keys
      now play your recording (section 7).
-   - **Recall a saved preset:** toggle **down**, hold CHOMPI (the menu opens on TAPE's
-     page), **hold KEY_22 for 1 s** (Forge's presets page), press a lit white key, release
+   - **Recall a saved preset:** toggle **down**, hold CHOMPI (the menu remembers its last page). If needed, tap KEY_22 back to TAPE, then **hold KEY_22 for 1 s** (Forge's presets page), press a lit white key, release
      (section 6).
    - **Send one from the computer:** connect USB, open Forge Bridge, choose a
      patch, *Send* (section 10).
@@ -34,7 +33,7 @@ only. Keep a backup of your SD card.
 ## 2. Installing and updating
 
 ### Install and update from the SD card (the easy way)
-Download **`FORGE.bin`** from the Forge repository's **Releases** page (the newest Choowi).
+Download **`choowi-0.19.2-card.zip`** from the [0.19.2 release candidate](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc1). Read **README-FIRST** before copying the kit to the card’s top folder. It contains `FORGE.bin`, Choowi’s bank purple samples and the illustrated tutorial as `MANUAL.html`. Keep your card backup; a kit sample filename can replace an existing sample. A standalone `FORGE.bin` is also available for firmware-only updates.
 Nothing to install on the computer.
 
 1. Back up the card (copy everything to the computer).
@@ -58,7 +57,7 @@ green or white, then connect a **computer USB-C port with a USB-C to USB-C cable
 USB-A port or a C-to-A cable is a weak "legacy" supply). Forge refuses an install
 otherwise (section 3). With a low battery on a computer's USB port, CHOMPI's bootloader
 waits with every light off after the restart and stays dark until the power switch is
-turned off and on (the owner, 2026-10-05). If that happens: plug in a USB-C charger, switch
+turned off and on (hardware observation, 2026-10-05). If that happens: plug in a USB-C charger, switch
 off, wait 5 s, switch on.
 
 ### Updates over USB (optional, Windows; no card swap)
@@ -87,25 +86,20 @@ Rename `CHOMPI_TAPEv2_0_bin.old` back to `CHOMPI_TAPEv2_0.bin`, rename or remove
 ## 3. Power and battery
 
 - **On/off: the power switch.** Charging still works with it off.
-- **Charging:** plug USB into a wall charger or computer. A wall charger is faster.
+- **Charging:** plug USB into a wall charger or computer. A wall charger is faster. Power-bank charging while on remains unresolved; charge switched off for now. Only white means full: green/yellow readings are a rough 3.3 V comparator checked about every 30 s, affected by charging and playing.
 - **Battery over USB (0.15.2):** `python host/forge_host.py battery` (from
   `firmware/chompi-forge`, CHOMPI on USB) prints the level, its SW6 colour, USB power,
   charging and whether a firmware install is allowed; the bridge's Connect CHOMPI
   shows it too. Stock TAPE does not report it: use SW6.
 - **Battery level:** hold the **SW6** knob down for 2 s — its light shows
-  **white** = charged (on the charger), **green** = good, **yellow** = low
-  (below about 3.3 V). Release to hide it.
+  **white** = full (charge done, on the charger), **green/yellow** = rough voltage flags around 3.3 V. Release to hide it.
 - **Low battery:** the knob and CHOMPI lights flash amber for 15 s, then CHOMPI
   shuts itself down. Plugging in during the flashing cancels it. After this shutdown the switch
   alone won't wake it — **plug in USB**.
 - **Storage mode** (as stock): hold **CHOMPI + PLAY + LOOP** while switching on.
   The battery is disconnected for long storage; plugging in USB should bring it
   back (expected from the charger chip; not yet tried on Forge).
-- On a weak USB port (a computer, or a USB-A cable) with a low battery, CHOMPI's
-  stock protection switches the lights off and stops it **at once**, without the
-  amber warning; after an install or a restart it stays dark until the power switch
-  is turned off and on (the owner, 2026-10-05). Use a USB-C to USB-C charger (2 A or more):
-  plug it in, switch off, wait 5 s, switch on.
+- **Weak USB and shut-off:** in 0.19.2 normal operation, lockout must persist for about **3 s** before stock shutdown protection takes over. Sustained low readings still triggered shutdown in the recorded hardware test; intermittent shut-off is not confirmed resolved. Startup and fault loops retain stock checks. If dark after an install/restart, use a strong USB-C charger, switch off, wait 5 s, then switch on.
 - **Warning (0.12):** while the battery is yellow and CHOMPI is not on a strong
   charger, the **SW6 light blinks yellow twice every 4 s**; when a reading drops
   below the shut-off mark it **blinks fast** — charge now. Nothing blinks on a
@@ -121,7 +115,7 @@ Forge keeps TAPE's panel workflow (firmware 0.10). The toggle has two positions:
 
 | Control | Normal play | In the menu (toggle down + hold CHOMPI) |
 | --- | --- | --- |
-| 25 keys (C3–C5) | Play notes (full velocity, as TAPE) | The menu opens on the page you left it on, at first **TAPE's page** (section 7: sample slots, KEY_21 / KEY_22 taps place the effects). Hold KEY_22 1 s: Forge's **presets page** (white keys pick slots, black keys are save / copy / erase / bank). Hold KEY_21 1 s: the **harmony page**, then KEY_21: the **parts page** (sections 8a, 8b). KEY_22 goes back to TAPE's page |
+| 25 keys (C3–C5) | Play notes (full velocity, as TAPE) | The menu opens on the page you left it on, at first **TAPE's page** (section 7: sample slots, KEY_21 / KEY_22 taps place the effects). Hold KEY_22 1 s: Forge's **presets page** (white keys pick slots, black keys are save / copy / erase / bank). Hold KEY_21 1 s: the **harmony page**, then tap KEY_21 to cycle **harmony → parts → synth → harmony**. KEY_22 goes back to TAPE's page |
 | CHOMPI key | Toggle **up** + hold = record (after a 1.5 s count-in). Toggle **down**, a quick tap: the event recorder's record / stop / play (section 8c) | Toggle **down** + hold = open the menu; press = confirm |
 | SW4, SW1, SW2, SW3 | Turn: the knob's current page. Press and release: next page. Hold 1.5 s: reset that control | SW4 turns the bank |
 | SW4 + SW3 held 1 s | **Panic** (stops all sound) | — |
@@ -256,8 +250,8 @@ dim, the last recalled one white, the bank keys show the bank's colour.
 | **Recall** | Hold CHOMPI, press a white key, release CHOMPI |
 | **Change bank** | KEY_16 / KEY_17 (down / up; they wrap round 8 → 1), or turn SW4 (stops at 1 and 8) |
 | **Save** the current sound | KEY_25, release CHOMPI, press a white key (turns blue), press CHOMPI → green flash |
-| **Copy** | KEY_24, source white key (green), change bank if you like, destination key (blue), CHOMPI |
-| **Erase** | KEY_23, white key (red), CHOMPI |
+| **Copy** | KEY_24, release CHOMPI, source white key (green), change bank if you like, destination key (blue), CHOMPI |
+| **Erase** | KEY_23, release CHOMPI, white key (red), CHOMPI |
 | Cancel a save/copy/erase | Press the same function key again |
 | Close the menu | Release CHOMPI with nothing pending, or move the toggle up |
 
@@ -491,7 +485,7 @@ chords. The Inspector shows the last chord by name and number
 
 ### Secret modes (0.19.2)
 
-Three small tricks for harmony, the owner's ideas. They need harmony on. Bloom and
+Three small tricks for harmony. **Software-tested only; hardware behavior not yet verified.** They need harmony on. Bloom and
 Conversations are picked on the harmony page by **turning SW3** (three clicks per step); the
 ring shows the choice in the step colours, then keeps glowing in it while a mode is on. They
 are not saved in presets and start off at power-on: secret.
@@ -689,33 +683,18 @@ Your browser opens the bridge; keep the black window open.
 
 Close other MIDI programs first; only one program can use CHOMPI's MIDI port.
 
-### Choowi's sound workshop (webapp, 0.19.2)
-Run `python3 host/forge_web.py` (from `firmware/chompi-forge`) and open
-**http://127.0.0.1:8765/**. It makes sounds; it does not connect to CHOMPI, and it never
-asks for an API key.
+### Choowi’s forge page (0.19.2)
 
-1. **Say it:** choose *a playable instrument* (or *an echo for outside audio*), describe
-   the sound, press **Copy the prompt**.
-2. **Let a chatbot forge it:** paste the prompt into any chatbot (ChatGPT, Claude,
-   Gemini…), copy its whole reply, paste it back and press **Use this reply**. The
-   workshop checks it; a reply that isn't a valid patch is refused with the reason (paste
-   that back to the chatbot).
-3. **Tweak & keep:** or *start from a preset*; edit every module (each group folds open on a
-   click; *open all* shows everything); **Save JSON** / **Open JSON** keeps sounds on the
-   computer. Every sound opens as a v7 instrument: older presets and files are converted as
-   they open, so there is no convert step.
+Open [the forge page](https://myth-world.github.io/Forge/workshop/) in **Chrome or Edge on a computer**. No local server or API key is needed for this hosted page.
 
-Until 0.19.2 the page also sent sounds to CHOMPI and managed the card's presets and
-samples, and could call OpenAI or Gemini with your own key; those parts were removed (the
-owner's call: simpler and safer).
+1. Connect CHOMPI over USB and press **Connect**. Allow MIDI access including SysEx.
+2. Describe a sound, press **Copy the prompt**, paste it into any chatbot, then paste its whole reply back and press **Use this reply**. Invalid patches are rejected with an explanation.
+3. Enable live audition to hear the sound on CHOMPI while tweaking. This changes the current sound; it does not yet save it to the card.
+4. Choose a preset bank and slot, then **Save to CHOMPI**. Confirm replacement if the slot is used; wait for the saved message and recall the slot on the panel to check it. **Save JSON** downloads to the computer instead.
 
-**Take it to CHOMPI** (`/send`, the link under the editor): a separate page that sends a
-sound over **Web MIDI** (Chrome or Edge; Safari has none). Plug CHOMPI in, **Connect** (the
-browser asks once for MIDI permission, including SysEx), pick **The workshop's sound** or
-**Open JSON**, **Send to CHOMPI**. It replaces the sound CHOMPI is playing; save it to a
-slot on the panel to keep it. **Check CHOMPI** shows the firmware and battery, **Stop
-sound** is the panic. The page lets the local Forge server encode the sound and check
-CHOMPI's reply (the same code as the bridge), and only the browser talks to the device.
+Without CHOMPI, choose **make sounds anyway** to create, edit and save JSON for later. The local `host/forge_web.py` workshop and its separate `/send` page remain a distinct workflow; the hosted forge page connects directly.
+
+**Claim level:** the hosted browser workflow has software/browser tests using a stand-in for Web MIDI; it has not yet been verified with a real CHOMPI in Chrome. Any arriving MIDI stops dream mode and restarts its idle timer.
 
 ### Built-in sounds
 Dry, Slap, Long Echo (delay effects for line in); Glass Keys, Soft Pad, Saw Bass,
@@ -759,7 +738,7 @@ so one card sets both firmwares:
 | --- | --- |
 | No sound from the keys | Load a sound first (section 1); turn SW6 up; cable in the headphone or main out |
 | Howling / feedback | The built-in mic is live when nothing is in line in; use headphones or lower the volume |
-| **CHOMPI switches off (or restarts) by itself while you play fast** | **Fixed in 0.19.2 (being confirmed on CHOMPI).** The battery's voltage dipped under load and the stock low-battery protection took the dip for a flat battery (it does this only on a weak supply such as a computer's USB port). If it still happens, or on older firmware: power CHOMPI from a USB-C charger (2 A or more) or a charged battery rather than a computer port, save sounds you like to a preset, and switch it back on if it goes off (the remembered preset comes back) |
+| **CHOMPI switches off (or restarts) by itself while you play fast** | **Software mitigation; hardware resolution not confirmed.** The battery's voltage dipped under load and the stock low-battery protection took the dip for a flat battery (it does this only on a weak supply such as a computer's USB port). If it still happens, or on older firmware: power CHOMPI from a USB-C charger (2 A or more) or a charged battery rather than a computer port, save sounds you like to a preset, and switch it back on if it goes off (the remembered preset comes back) |
 | Stuck notes or runaway echo | Hold **SW4 + SW3** for a second (panic; a loop is paused, not lost), or the bridge's Panic |
 | A knob seems to do nothing | Check its light: you may be on another page (press and release to step); hold it 1.5 s to reset it. Some pages need another control (e.g. LFO speed needs an LFO depth) |
 | CHOMPI switched itself off or restarted | *Check setup* shows **Last start** (power-on, brown-out = the supply dipped, or a crash); the card keeps a line per start in `FORGE/RESTARTS.TXT`. Send both with your report. A low battery switches CHOMPI off as stock TAPE does: with no USB after 15 s of amber flashes; on a weak USB supply (computer port) at once, lights off. From 0.11 these leave a "battery low" line in `RESTARTS.TXT`; charge it, or play on a USB-C charger |

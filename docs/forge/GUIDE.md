@@ -3,7 +3,7 @@
 *A hands-on guide to Forge · Choowi (firmware 0.19.1) on CHOMPI. Hold CHOMPI, find what you
 want to do, follow the steps. The full reference is the [manual](MANUAL.md).*
 
-Experimental community firmware. What has been checked on real hardware is in
+Experimental community firmware. Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club. What has been checked on real hardware is in
 [TEST_RESULTS.md](TEST_RESULTS.md); some features below are software-tested only, and the
 manual says which. Keep a backup of your SD card.
 
@@ -333,7 +333,7 @@ red **Conversations**. Let go of CHOMPI and play.
 - **Mischief:** hold a chord, then hold **SW1 + SW3** for a second: the chord bends (sus,
   borrowed, inversion, a semitone up), the knobs flash purple. Let go of the knobs: back home.
 
-They're not saved in presets and switch off at power-on.
+They're not saved in presets and switch off at power-on. **Software-tested only; hardware behavior not yet verified.**
 
 ## how do I use arps, bass and tempo?
 
@@ -485,10 +485,7 @@ sound stops; a loop is paused, not lost.
 **A knob seems to do nothing:** you may be on another page of that knob. Press and release it
 to step pages; hold it 1.5 s to put it back to the preset's value.
 
-**CHOMPI switches off (or restarts) while you play fast.** Fixed in 0.19.2 (being confirmed on
-CHOMPI): the battery's voltage dipped while you played, and on a weak supply such as a computer's
-USB port the stock low-battery protection took the dip for a flat battery. If it still happens, or
-on older firmware:
+**CHOMPI switches off (or restarts) while you play fast.** The 0.19.2 software mitigation waits for about 3 s of continuous lockout during normal operation. Sustained low readings still triggered shutdown in the recorded hardware test. The intermittent issue is not confirmed resolved; bootloader/fault-loop checks are unchanged.
 
 1. Power CHOMPI from a **USB-C charger** (2 A or more) or a **charged battery**, not a computer
    port.
@@ -543,3 +540,18 @@ More: [manual, section 12](MANUAL.md#12-troubleshooting) and
 | SW5 turn / push and turn / click | filter / loop speed or scrub / speed back to normal |
 | SW6 turn / short press / hold 2 s | volume / switch to input gain and back / battery light |
 | Knob press and release / hold 1.5 s | next knob page / reset that control |
+
+## how do I install the release candidate?
+
+Download `choowi-0.19.2-card.zip` from the [release candidate](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc1), back up the card and read **README-FIRST**. Copy the kit contents to the top folder, with no other filename containing `.bin` left for the bootloader to find. The kit supplies firmware, bank purple samples and `MANUAL.html`. Use a strong USB-C charger for installation. See [the full install instructions](MANUAL.md#2-installing-and-updating).
+
+## how do I make a sound on the forge page?
+
+1. Open [Choowi’s forge page](https://myth-world.github.io/Forge/workshop/) in Chrome or Edge on a computer. Connect CHOMPI and allow MIDI including SysEx.
+2. Describe your sound → **Copy the prompt** → any chatbot → paste its whole reply → **Use this reply**.
+3. Enable live audition, play, and tweak. Choose a preset bank and slot → **Save to CHOMPI**; confirm an occupied-slot replacement only if intended. Wait for the saved message, then recall the slot on the panel.
+4. **Save JSON** keeps a file on the computer. Without a device, **make sounds anyway** lets you edit and keep JSON for later.
+
+The browser/MIDI flow is software-tested with a stand-in, not hardware-verified in Chrome. Any arriving MIDI stops dream mode. No API key is needed on the forge page.
+
+**Power reminder:** power-bank charging while on remains unresolved; charge switched off for now. SW6 green/yellow are rough readings; only white means full.

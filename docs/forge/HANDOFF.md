@@ -147,3 +147,7 @@ builds, release byte-identity and pending physical tests. No hardware was tested
   looper; open the owner decisions are listed in CONTINUE.md. QA for the owner later:
   [LIVE_AI_TEST.md](LIVE_AI_TEST.md), then [TEST_SESSION.md](TEST_SESSION.md);
   record results in TEST_RESULTS.md only after running them.
+
+## 2026-10-12: RC tutorial and manual refresh
+
+Local documentation refresh against main b2ef030: Choowi-led storybook tutorial plus bank purple, secret modes, hosted forge-page flow, card-zip install and dream/MIDI conditions. Known power-bank charging and rough SW6 colour retained. Secret modes and browser stand-in flow labelled software-tested. No hardware claim upgrade, firmware edit, flashing or push. JS syntax checked; all 14 figures rendered, reference links and mobile width checked.
