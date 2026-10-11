@@ -66,17 +66,22 @@ recorder, presets, the AI webapp) is Choowi's foundation. The full story is in t
 
 ## put it on your CHOMPI
 
-The lazy way, on Windows:
+No apps, no accounts. Just the SD card.
 
-1. Grab **Forge Bridge.exe** from the latest green *Forge Bridge (Windows exe)* run in this
-   repository's **Actions** tab (it comes with `FORGE.bin`).
-2. The very first time, `FORGE.bin` goes on CHOMPI's SD card;
-   [HOME_CHECKLIST.md](docs/forge/HOME_CHECKLIST.md) walks you through it (charge first).
-3. After that, updates come over USB: Forge Bridge sends them, CHOMPI's key blinks white,
-   you press it. That's the whole ritual.
+1. **Download `FORGE.bin`** from this repository's **Releases** page (the newest Choowi).
+2. **Charge CHOMPI** until the battery light is green or white (hold SW6 for 2 seconds).
+3. **Back up the SD card**, then rename every file in its top folder whose name has `.bin`
+   in it (CHOMPI installs the first one it finds): `CHOMPI_TAPEv2_0.bin` becomes
+   `CHOMPI_TAPEv2_0_bin.old`.
+4. **Copy `FORGE.bin`** to the card's top folder, card back in, switch on.
+5. Rainbow lights while it installs, then Choowi says hi. Done.
 
-Want stock TAPE back? Rename TAPE's file on the card back to `.bin`, remove `FORGE.bin` and
-switch on ([manual](docs/forge/MANUAL.md), section 2). Nothing in Forge touches the bootloader.
+**Updates** work the same way: drop the new `FORGE.bin` on the card (replacing the old
+one) and switch on. Tinkerers on Windows can also update over USB with Forge Bridge
+([manual](docs/forge/MANUAL.md), section 2).
+
+**Want stock TAPE back?** Rename TAPE's file back to `.bin`, remove `FORGE.bin`, switch on.
+Nothing in Forge touches the bootloader.
 
 ## how real is it?
 

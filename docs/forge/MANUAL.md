@@ -33,15 +33,22 @@ only. Keep a backup of your SD card.
 
 ## 2. Installing and updating
 
-### First install (SD card, once)
+### Install and update from the SD card (the easy way)
+Download **`FORGE.bin`** from the Forge repository's **Releases** page (the newest Choowi).
+Nothing to install on the computer.
+
 1. Back up the card (copy everything to the computer).
 2. In the card's top folder, rename or remove **every file whose name contains
    `.bin`** — the bootloader installs the first one it finds, even
    `something.bin.old`. Example: `CHOMPI_TAPEv2_0.bin` → `CHOMPI_TAPEv2_0_bin.old`.
-3. Copy `FORGE.bin` (from the Forge Bridge download, section 10) to the card's top
-   folder. Also copy your TAPE samples (`jammi_…`, `cubbi_…`) there if you want them.
+3. Copy `FORGE.bin` to the card's top folder (replacing an older one). Also copy your
+   TAPE samples (`jammi_…`, `cubbi_…`) there if you want them.
 4. Card into CHOMPI, plugged into a **USB-C charger**, power on: rainbow lights
    while the bootloader installs, then Forge starts.
+
+**Updating** is the same: put the new `FORGE.bin` on the card in place of the old one and
+switch on (steps 3 and 4). CHOMPI's bootloader installs it because it differs from what is
+installed, and skips it when it is the same.
 
 **Power before any install (SD card or USB):** charge first. The battery light (hold
 SW6 for 2 s) must be **green or white**, or CHOMPI must be on a USB-C to USB-C charger
@@ -54,7 +61,9 @@ waits with every light off after the restart and stays dark until the power swit
 turned off and on (the owner, 2026-10-05). If that happens: plug in a USB-C charger, switch
 off, wait 5 s, switch on.
 
-### Updates (over USB — no card swap; firmware 0.7 or newer)
+### Updates over USB (optional, Windows; no card swap)
+For tinkerers who keep CHOMPI plugged into a Windows computer.
+
 1. Open **Forge Bridge.exe** (it contains the matching firmware), **Connect CHOMPI**.
 2. **Card & firmware → Install this kit's firmware.** From 0.11 CHOMPI refuses
    (before anything is copied) unless the battery reads green or white, or the USB

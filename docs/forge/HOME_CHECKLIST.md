@@ -16,6 +16,10 @@ Forge 0.11 and newer refuse a USB install in that state and the bridge says why.
 
 ## 1. Get the files
 
+`FORGE.bin` for the card install comes from the repository's **Releases** page (the
+newest Choowi). The test tools below (setup check, panel walk, automatic checks) live
+in Forge Bridge:
+
 GitHub → the Forge repository → **Actions** → **Forge Bridge (Windows exe)** →
 the newest green run → **Artifacts** → **Forge-Bridge-exe**. Unzip it. You get:
 
