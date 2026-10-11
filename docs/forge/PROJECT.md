@@ -144,6 +144,13 @@ unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
      on the virtual CHOMPI screen.
   Constraints: bounded randomness (no harsh or silent results; a test renders many rolls),
   no audio-callback allocation, a gesture that does not collide with panic / harmony combos.
+- **Brand: direction A "Spark" (DC, 2026-10-11).** CHOMPI's nine panel colours are the brand,
+  in the panel's order (white, green, yellow, orange, red, pink, purple, blue, teal); lowercase
+  "forge" wordmark in Fredoka with the nine-dot light row; ink #1B1B22 on paper #FBFAF7, accent
+  spark pink #FF5EA0; Fredoka for words, Space Mono for settings; short, playful copy ("CHOMPI
+  woke up singing."). Board: https://claude.ai/artifact/DdDCg63EzsSjYQBomaU2JY (private to DC).
+  Applies to the webapp redesign, the manual, the virtual screen and the Tab5 view. Community
+  firmware: never use CHOMPI's or its maker's logo; "for CHOMPI", not "by".
 - Candidates raised the same day: upgrade starter presets 01–06 (v1/v2) to v3+ with the
   same sound so every knob page works; add starter presets that show harmony, arp / bass
   and the event recorder (useful for DC's listening session).
