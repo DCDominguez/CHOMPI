@@ -45,8 +45,10 @@ work for you:
 - **everything TAPE does stays.** the sampler, recording, the looper and TAPE's menu all
   work the way your hands already know.
 
-The whole tour, with pictures: the [illustrated manual](docs/forge/ILLUSTRATED_MANUAL.html)
-(open it in a browser) or the [user manual](docs/forge/MANUAL.md).
+New here? Start with the [guide](docs/forge/GUIDE.md): "how do I save a sound", "how do I play
+chords" and friends, step by step. The whole tour, with pictures: the
+[illustrated manual](docs/forge/ILLUSTRATED_MANUAL.html) (open it in a browser), and every detail
+in the [user manual](docs/forge/MANUAL.md).
 
 ## Choowi's toolbox
 

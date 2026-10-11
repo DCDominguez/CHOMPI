@@ -697,6 +697,8 @@ FORGE_COLD void RunPanelActions() {
                     const forge::Error e = forge::seq::SaveFile(card, *sequence_mailbox, a.bank, a.slot, sequence_file, error == forge::Error::None);
                     if(error == forge::Error::None && e == forge::Error::Storage) error = e;
                 }
+                // 0.19.2: a saved preset is also the one CHOMPI wakes up with (FORGE/LAST.TXT), as recalls are.
+                if(error == forge::Error::None) { last_bank = a.bank; last_slot = a.slot; }
                 break;
             case forge::MenuAction::Kind::Erase:
                 error = store.Erase(a.bank, a.slot);

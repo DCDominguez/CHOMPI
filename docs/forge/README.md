@@ -6,7 +6,7 @@ Everything about **Forge**, the workshop of custom CHOMPI firmware, and **Choowi
 firmware line, written down. Latest: **Choowi 0.19** (the Tinker Wrench: a synth page on the
 panel); 0.19 is built and tested on the computer, 0.17 is the one checked on CHOMPI so far.
 
-- **Playing it:** the [user manual](MANUAL.md) or the [illustrated manual](ILLUSTRATED_MANUAL.html) (open in a browser).
+- **Playing it:** start with the [guide](GUIDE.md) ("how do I…?"), then the [user manual](MANUAL.md) or the [illustrated manual](ILLUSTRATED_MANUAL.html) (open in a browser).
 - **The family rules** (names, mascots, tools, colours, voice): [FORGE_FAMILY.md](FORGE_FAMILY.md).
 - **Where the work is right now:** [CONTINUE.md](CONTINUE.md). What changed: [CHANGELOG.md](CHANGELOG.md).
 - **What's been checked on a real CHOMPI:** [TEST_RESULTS.md](TEST_RESULTS.md); the next

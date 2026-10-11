@@ -1,4 +1,4 @@
-# Forge 0.19.1 — the one consolidated hardware test
+# Forge 0.19.2 — the one consolidated hardware test
 
 Status of the candidate: **software-tested, hardware-unverified.** This is the
 single planned physical session. Work top to bottom. If a stage fails, record

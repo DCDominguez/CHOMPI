@@ -2,6 +2,15 @@
 
 Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)); the heading names it.
 
+## 0.19.2 What you save is what wakes up (small tool: to be named) — 2026-10-11 (software-tested; not installed yet)
+
+- **A preset saved on the panel is now also the one CHOMPI loads at power-on** (`FORGE/LAST.TXT`),
+  as recalls already were. Before, only a recall counted, so a freshly saved sound could wake
+  up as the previously recalled one. Found by the new guide's cross-check against the code.
+- New task-based guide: [GUIDE.md](GUIDE.md) ("how do I…?"), with saving a sound step by step.
+- MANUAL corrections from that cross-check: the menu reopens on the page you left it on; the
+  bank knob is SW4 (stops at 1 and 8; KEY_16 / KEY_17 wrap round); pink (synth) in the page colours.
+
 ## 0.19.1 The DJ filter never goes silent (small tool: to be named) — 2026-10-11 (software-tested; not installed yet)
 
 The owner's open bug "SW3's DJ filter silences the sound". Measured (white noise through the real

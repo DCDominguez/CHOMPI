@@ -3,7 +3,7 @@
 *Choowi is the first firmware of the Forge, a little workshop of custom CHOMPI firmware.
 The family and its rules: [FORGE_FAMILY.md](FORGE_FAMILY.md).*
 
-Firmware **0.19.1** (development builds; experimental community firmware). Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club. Forge turns CHOMPI into a playable synthesizer,
+Firmware **0.19.2** (development builds; experimental community firmware). Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club. Forge turns CHOMPI into a playable synthesizer,
 TAPE-compatible sampler and looper whose sounds you can design on a computer —
 by hand or by describing them to an AI — and send over USB.
 
@@ -121,7 +121,7 @@ Forge keeps TAPE's panel workflow (firmware 0.10). The toggle has two positions:
 
 | Control | Normal play | In the menu (toggle down + hold CHOMPI) |
 | --- | --- | --- |
-| 25 keys (C3–C5) | Play notes (full velocity, as TAPE) | The menu opens on **TAPE's page** (section 7: sample slots, KEY_21 / KEY_22 taps place the effects). Hold KEY_22 1 s: Forge's **presets page** (white keys pick slots, black keys are save / copy / erase / bank). Hold KEY_21 1 s: the **harmony page**, then KEY_21: the **parts page** (sections 8a, 8b). KEY_22 goes back to TAPE's page |
+| 25 keys (C3–C5) | Play notes (full velocity, as TAPE) | The menu opens on the page you left it on, at first **TAPE's page** (section 7: sample slots, KEY_21 / KEY_22 taps place the effects). Hold KEY_22 1 s: Forge's **presets page** (white keys pick slots, black keys are save / copy / erase / bank). Hold KEY_21 1 s: the **harmony page**, then KEY_21: the **parts page** (sections 8a, 8b). KEY_22 goes back to TAPE's page |
 | CHOMPI key | Toggle **up** + hold = record (after a 1.5 s count-in). Toggle **down**, a quick tap: the event recorder's record / stop / play (section 8c) | Toggle **down** + hold = open the menu; press = confirm |
 | SW4, SW1, SW2, SW3 | Turn: the knob's current page. Press and release: next page. Hold 1.5 s: reset that control | SW4 turns the bank |
 | SW4 + SW3 held 1 s | **Panic** (stops all sound) | — |
@@ -141,7 +141,7 @@ TAPE's colours (section 5). In the **record position** the knob lights are off,
 PLAY/LOOP are dimmed and the CHOMPI light is the **input level meter** (dim white
 at silence, green → yellow → pink with level); in the menu position, while the menu is
 open, the CHOMPI light shows **which page** you are on (0.16): **teal** TAPE's page,
-**blue** presets, **purple** harmony, **orange** parts. Otherwise it shows the event recorder (section 8c:
+**blue** presets, **purple** harmony, **orange** parts, **pink** synth (0.19). Otherwise it shows the event recorder (section 8c:
 orange blinking on the beat when armed, orange recording, dim green playing, yellow
 overdubbing; off when it is empty or stopped). The CHOMPI light also shows recording
 (red), the count-in (red blinks), saving (pink blink), install (white blink) and
@@ -215,7 +215,7 @@ middle key.
 
 8 banks × 15 slots on the SD card. They start empty — save sounds into them first.
 
-Open the menu: **toggle down, hold CHOMPI.** It opens on TAPE's page (section 7);
+Open the menu: **toggle down, hold CHOMPI.** It opens on the page you left it on, at first TAPE's page (section 7);
 **hold KEY_22 for 1 s** to reach Forge's presets page (a tap on the presets page goes
 back; the menu remembers the last page). On the presets page occupied slots are lit
 dim, the last recalled one white, the bank keys show the bank's colour.
@@ -223,7 +223,7 @@ dim, the last recalled one white, the bank keys show the bank's colour.
 | To | Do |
 | --- | --- |
 | **Recall** | Hold CHOMPI, press a white key, release CHOMPI |
-| **Change bank** | KEY_16 / KEY_17 (down / up), or turn knob 1 |
+| **Change bank** | KEY_16 / KEY_17 (down / up; they wrap round 8 → 1), or turn SW4 (stops at 1 and 8) |
 | **Save** the current sound | KEY_25, release CHOMPI, press a white key (turns blue), press CHOMPI → green flash |
 | **Copy** | KEY_24, source white key (green), change bank if you like, destination key (blue), CHOMPI |
 | **Erase** | KEY_23, white key (red), CHOMPI |
@@ -243,7 +243,7 @@ Pad (one key = a 7th chord), 14 Arp Bells (latched 1/16 arp with a root bass), 1
 never overwritten. No firmware update needed (it uses the normal store request).
 
 **CHOMPI wakes up singing (0.17):** it remembers the last preset you recalled or saved and
-loads it when switched on (its recorded loop stays quiet until you recall the slot), then plays
+loads it when switched on (a save counts from 0.19.2) (its recorded loop stays quiet until you recall the slot), then plays
 a little chime through it while a rainbow runs across the keys. Before any preset has been
 used it starts in the pass-through mode, as before.
 TAPE's own presets are not used by Forge.
