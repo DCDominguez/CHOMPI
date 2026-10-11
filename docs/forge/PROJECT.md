@@ -151,6 +151,13 @@ unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
   woke up singing."). Board: https://claude.ai/artifact/DdDCg63EzsSjYQBomaU2JY (private to the owner).
   Applies to the webapp redesign, the manual, the virtual screen and the Tab5 view. Community
   firmware: never use CHOMPI's or its maker's logo; "for CHOMPI", not "by".
+- **Mascot: Chewy the magic blacksmith (owner, 2026-10-11).** Forge's own character (never the
+  CHOMPI character): round, goggles up, moustache, leather apron with the nine panel colours on
+  the pocket, a hammer throwing sparks in those colours. **Every release gets a spark friend
+  Chewy forges**, in the next colour of the panel row (0.16 Glim green, 0.17 Chime yellow, 0.18
+  Doze orange, 0.19 Tinker red; then pink, purple, blue, teal, and round again), holding something
+  from that release; small updates get a tiny sidekick (0.17.1 Swoop). Name the character in each
+  CHANGELOG heading; later on the start-up / virtual screen. Board: the brand canvas, "Chewy" artboard.
 - Candidates raised the same day: upgrade starter presets 01–06 (v1/v2) to v3+ with the
   same sound so every knob page works; add starter presets that show harmony, arp / bass
   and the event recorder (useful for the owner's listening session).
