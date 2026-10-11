@@ -1256,3 +1256,9 @@ Roadmap items 1–5 are built (PROJECT.md); bundles before 0.7 are stale.
 ## 2026-10-12: RC tutorial and manual refresh
 
 Local documentation refresh against main b2ef030: Choowi-led storybook tutorial plus bank purple, secret modes, hosted forge-page flow, card-zip install and dream/MIDI conditions. Known power-bank charging and rough SW6 colour retained. Secret modes and browser stand-in flow labelled software-tested. No hardware claim upgrade, firmware edit, flashing or push. JS syntax checked; all 14 figures rendered, reference links and mobile width checked.
+
+## 2026-10-12: player manual copy pass
+
+- Removed development/testing commentary and explicit hidden harmony walkthroughs from MANUAL, GUIDE and ILLUSTRATED_MANUAL at the owner’s request. Kept backups, installation steps, practical power-bank charging guidance and the independent-community disclaimer. No firmware changes or new hardware verification claims. Developer test records remain the source for exact claim levels.
+- Updated the illustrated tutorial to ten chapters; removed the spoiler chapter and its navigation entry. JavaScript remains unchanged with strings on one line. Documentation checks recorded after validation.
+- Validation: ten tutorial chapters, unique HTML IDs and valid internal anchors; Node syntax check passed; rendered tutorial and reference figures checked in browser. No firmware or hardware tests needed for this copy-only change.

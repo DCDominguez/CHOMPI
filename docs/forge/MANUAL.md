@@ -3,13 +3,11 @@
 *Choowi is the first firmware of the Forge, a little workshop of custom CHOMPI firmware.
 The family and its rules: [FORGE_FAMILY.md](FORGE_FAMILY.md).*
 
-Firmware **0.19.2** (development builds; experimental community firmware). Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club. Forge turns CHOMPI into a playable synthesizer,
+Firmware **0.19.2**. Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club. Forge turns CHOMPI into a playable synthesizer,
 TAPE-compatible sampler and looper whose sounds you can design on a computer —
 by hand or by describing them to an AI — and send over USB.
 
-What has been checked on real hardware is listed in
-[TEST_RESULTS.md](TEST_RESULTS.md); anything not listed there is software-tested
-only. Keep a backup of your SD card.
+Keep a backup of your SD card.
 
 ---
 
@@ -57,7 +55,7 @@ green or white, then connect a **computer USB-C port with a USB-C to USB-C cable
 USB-A port or a C-to-A cable is a weak "legacy" supply). Forge refuses an install
 otherwise (section 3). With a low battery on a computer's USB port, CHOMPI's bootloader
 waits with every light off after the restart and stays dark until the power switch is
-turned off and on (hardware observation, 2026-10-05). If that happens: plug in a USB-C charger, switch
+turned off and on. If that happens: plug in a USB-C charger, switch
 off, wait 5 s, switch on.
 
 ### Updates over USB (optional, Windows; no card swap)
@@ -86,7 +84,7 @@ Rename `CHOMPI_TAPEv2_0_bin.old` back to `CHOMPI_TAPEv2_0.bin`, rename or remove
 ## 3. Power and battery
 
 - **On/off: the power switch.** Charging still works with it off.
-- **Charging:** plug USB into a wall charger or computer. A wall charger is faster. Power-bank charging while on remains unresolved; charge switched off for now. Only white means full: green/yellow readings are a rough 3.3 V comparator checked about every 30 s, affected by charging and playing.
+- **Charging:** plug USB into a wall charger or computer. A wall charger is faster. When using a power bank, charge with CHOMPI switched off. Only white means full: green and yellow are approximate battery indications, affected by charging and playing.
 - **Battery over USB (0.15.2):** `python host/forge_host.py battery` (from
   `firmware/chompi-forge`, CHOMPI on USB) prints the level, its SW6 colour, USB power,
   charging and whether a firmware install is allowed; the bridge's Connect CHOMPI
@@ -99,7 +97,7 @@ Rename `CHOMPI_TAPEv2_0_bin.old` back to `CHOMPI_TAPEv2_0.bin`, rename or remove
 - **Storage mode** (as stock): hold **CHOMPI + PLAY + LOOP** while switching on.
   The battery is disconnected for long storage; plugging in USB should bring it
   back (expected from the charger chip; not yet tried on Forge).
-- **Weak USB and shut-off:** in 0.19.2 normal operation, lockout must persist for about **3 s** before stock shutdown protection takes over. Sustained low readings still triggered shutdown in the recorded hardware test; intermittent shut-off is not confirmed resolved. Startup and fault loops retain stock checks. If dark after an install/restart, use a strong USB-C charger, switch off, wait 5 s, then switch on.
+- **Reliable power:** use a USB-C charger or a charged battery. If CHOMPI stays dark after an install or restart, plug in a strong USB-C charger, switch off, wait 5 s, then switch on.
 - **Warning (0.12):** while the battery is yellow and CHOMPI is not on a strong
   charger, the **SW6 light blinks yellow twice every 4 s**; when a reading drops
   below the shut-off mark it **blinks fast** — charge now. Nothing blinks on a
@@ -428,8 +426,7 @@ With harmony on, each key plays a whole chord in a key you choose, through the
 instrument's own sound and to MIDI out (the chord's notes, not the key you
 pressed). It works with synth patches and the chromatic sampler; kit mode and
 the stereo-delay (v1) patches play keys as usual. Chords have up to 5 notes and
-never more than the patch's voices. *Software-tested only; not yet heard on
-CHOMPI (TEST_SESSION 3.65–3.67).*
+never more than the patch's voices.
 
 **Quick on / off (0.16):** hold **SW1 + SW2** for 1 s with the menu closed; all knob
 lights flash green (on) or red (off).
@@ -450,7 +447,7 @@ harmony is off).
 | SW4 | Mode: major, natural minor, harmonic minor, melodic minor, dorian, phrygian, lydian, mixolydian, locrian | Harmony on / off | green on, red off |
 | SW1 | Chord size: fifth (power chord), triad, 7th, 9th, 11th, 13th | Layout Static / Real | white Static, orange Real |
 | SW2 | Inversion 0–3 (used when voice leading is off) | Voice leading on / off | white on, purple off |
-| SW3 | **Secret modes** (0.19.2, below) | Open spread on / off | white on, dim off; a secret mode glows in its colour |
+| SW3 | — | Open spread on / off | white on, dim off |
 
 While you turn SW4, SW1 or SW2 (and 1.5 s after) its light shows the value instead, in the
 one colour rule (0.16): **mode** major white, natural minor green, harmonic minor yellow,
@@ -483,35 +480,6 @@ The settings are part of a **v6 patch** (the webapp's *Harmony* group, the AI, o
 chords. The Inspector shows the last chord by name and number
 (e.g. *Am7 · I · tonic*).
 
-### Secret modes (0.19.2)
-
-Three small tricks for harmony. **Software-tested only; hardware behavior not yet verified.** They need harmony on. Bloom and
-Conversations are picked on the harmony page by **turning SW3** (three clicks per step); the
-ring shows the choice in the step colours, then keeps glowing in it while a mode is on. They
-are not saved in presets and start off at power-on: secret.
-
-| SW3 step | Colour | Mode |
-| --- | --- | --- |
-| 1 | white | off |
-| 2 | green | **Chord Bloom, up**: the chord grows from the lowest note upward |
-| 3 | yellow | **Chord Bloom, down**: from the top note down |
-| 4 | orange | **Chord Bloom, random**: in a new order each time |
-| 5 | red | **Chord Conversations** |
-
-- **Chord Bloom:** press a key and its chord arrives one note at a time, one every 1/16 at
-  the tempo, and every note stays (unlike the arp, which plays one at a time). Let go before
-  it has grown and the rest never comes. With the arp on, the arp plays the chord instead.
-- **Chord Conversations:** play a chord and let go. After one bar of silence (at the tempo),
-  Choowi answers with a short phrase made from that chord's notes and the key: rising, falling
-  or a little rhythm, one note at a time, quietly. Any key cuts it off.
-- **Harmony Mischief** (no switch): **while you hold a chord, hold SW1 + SW3** (the
-  surprise-me gesture) for a second. Instead of rolling a new sound, Choowi bends that chord:
-  a sus4, a sus2, the borrowed third (major ↔ minor), the next inversion, or the whole chord a
-  semitone up (a passing chord). The knob lights flash purple. Keep holding for another bend
-  every 1.5 s; **let go of the knobs and the chord comes home.** With no chord held, SW1 + SW3
-  rolls a new sound as before.
-
-Tempo: the parts page (tap tempo on C5, or MIDI clock); 120 BPM when nothing set it.
 
 ---
 
@@ -521,7 +489,7 @@ An arpeggiator plays the held keys (or, with harmony on, the chord) one note at 
 on CHOMPI's clock; a bass part plays the chord's root under it. Both use the instrument's
 own sound and also go to MIDI out: the arp (and the keys) on the MIDI out channel, the
 bass on the next channel up (channel 2 by default). Synth patches and the chromatic
-sampler; kit patches play as before. *Software-tested only (TEST_SESSION 3.68–3.72).*
+sampler; kit patches play as before.
 
 **Open the parts page:** open the harmony page (section 8a: toggle down, hold CHOMPI,
 hold KEY_21 1 s), then **tap KEY_21**. KEY_21 switches between the harmony and parts
@@ -594,8 +562,7 @@ sounds (Dry, Slap, Long echoes) have no oscillators: the keys light dim red.
 The event recorder records what you play — keys, MIDI notes coming in and knob moves —
 as notes and control changes on CHOMPI's clock (not audio), and loops it over whole bars
 (1–8). It plays back like a second player: through harmony, the arp and the bass, and out
-of MIDI. The audio looper (PLAY / LOOP) is separate and works as before. *Software-tested
-only (TEST_SESSION 3.73–3.76).*
+of MIDI. The audio looper (PLAY / LOOP) is separate and works as before.
 
 On the parts page (section 8b):
 
@@ -694,7 +661,7 @@ Open [the forge page](https://myth-world.github.io/Forge/workshop/) in **Chrome 
 
 Without CHOMPI, choose **make sounds anyway** to create, edit and save JSON for later. The local `host/forge_web.py` workshop and its separate `/send` page remain a distinct workflow; the hosted forge page connects directly.
 
-**Claim level:** the hosted browser workflow has software/browser tests using a stand-in for Web MIDI; it has not yet been verified with a real CHOMPI in Chrome. Any arriving MIDI stops dream mode and restarts its idle timer.
+Any arriving MIDI stops dream mode and restarts its idle timer.
 
 ### Built-in sounds
 Dry, Slap, Long Echo (delay effects for line in); Glass Keys, Soft Pad, Saw Bass,
@@ -738,7 +705,7 @@ so one card sets both firmwares:
 | --- | --- |
 | No sound from the keys | Load a sound first (section 1); turn SW6 up; cable in the headphone or main out |
 | Howling / feedback | The built-in mic is live when nothing is in line in; use headphones or lower the volume |
-| **CHOMPI switches off (or restarts) by itself while you play fast** | **Software mitigation; hardware resolution not confirmed.** The battery's voltage dipped under load and the stock low-battery protection took the dip for a flat battery (it does this only on a weak supply such as a computer's USB port). If it still happens, or on older firmware: power CHOMPI from a USB-C charger (2 A or more) or a charged battery rather than a computer port, save sounds you like to a preset, and switch it back on if it goes off (the remembered preset comes back) |
+| **CHOMPI loses power** | Use a USB-C charger (2 A or more) or a charged battery. Switch it back on; the last saved or recalled preset returns. Save sounds you like as you go. |
 | Stuck notes or runaway echo | Hold **SW4 + SW3** for a second (panic; a loop is paused, not lost), or the bridge's Panic |
 | A knob seems to do nothing | Check its light: you may be on another page (press and release to step); hold it 1.5 s to reset it. Some pages need another control (e.g. LFO speed needs an LFO depth) |
 | CHOMPI switched itself off or restarted | *Check setup* shows **Last start** (power-on, brown-out = the supply dipped, or a crash); the card keeps a line per start in `FORGE/RESTARTS.TXT`. Send both with your report. A low battery switches CHOMPI off as stock TAPE does: with no USB after 15 s of amber flashes; on a weak USB supply (computer port) at once, lights off. From 0.11 these leave a "battery low" line in `RESTARTS.TXT`; charge it, or play on a USB-C charger |
@@ -758,7 +725,6 @@ so one card sets both firmwares:
 
 ## More
 
-- What's been verified on hardware: [TEST_RESULTS.md](TEST_RESULTS.md)
 - Knob pages in detail: [KNOBS.md](KNOBS.md) · Sampler: [SAMPLING.md](SAMPLING.md) ·
   Looper: [LOOPING.md](LOOPING.md)
 - Differences from stock TAPE/WAVE/TEMPO: [COMPATIBILITY.md](COMPATIBILITY.md)
