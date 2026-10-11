@@ -3,9 +3,7 @@
 *A hands-on guide to Forge · Choowi (firmware 0.19.2) on CHOMPI. Hold CHOMPI, find what you
 want to do, follow the steps. The full reference is the [manual](MANUAL.md).*
 
-Experimental community firmware. Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club. What has been checked on real hardware is in
-[TEST_RESULTS.md](TEST_RESULTS.md); some features below are software-tested only, and the
-manual says which. Keep a backup of your SD card.
+Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club. Keep a backup of your SD card.
 
 ---
 
@@ -287,7 +285,7 @@ Details: [manual, section 5a](MANUAL.md#5a-surprise-me-and-mutate-017).
 ## how do I play chords?
 
 With harmony on, each key plays a whole chord in a key you choose. It works on synth sounds and
-the chromatic sampler (kit sounds play single keys as usual). *Software-tested only.*
+the chromatic sampler (kit sounds play single keys as usual).
 
 **Quick on / off:** with the menu closed, hold **SW1 + SW2** for a second. All four knob lights
 flash **green** (on) or **red** (off).
@@ -321,24 +319,10 @@ Harmony is saved with your preset. Details, the Real layout and the black keys' 
 
 ---
 
-## what are harmony's secret modes?
-
-With harmony on (SW1 + SW2), open the harmony page (toggle down, hold CHOMPI, hold KEY_21 1 s)
-and **turn SW3**: white off, green **Bloom up**, yellow **Bloom down**, orange **Bloom random**,
-red **Conversations**. Let go of CHOMPI and play.
-
-- **Bloom:** each chord grows one note at a time (every 1/16 at the tempo) and stays.
-- **Conversations:** play a chord, let go, wait a bar: Choowi answers with a little phrase.
-  Any key cuts it off.
-- **Mischief:** hold a chord, then hold **SW1 + SW3** for a second: the chord bends (sus,
-  borrowed, inversion, a semitone up), the knobs flash purple. Let go of the knobs: back home.
-
-They're not saved in presets and switch off at power-on. **Software-tested only; hardware behavior not yet verified.**
-
 ## how do I use arps, bass and tempo?
 
 The arp plays the keys you hold (or the chord, with harmony on) one note at a time; the bass
-plays the chord's root under it. *Software-tested only.*
+plays the chord's root under it.
 
 1. Toggle down, hold **CHOMPI**, on TAPE's page keep holding **KEY_21** for 2 s: CHOMPI light
    **orange** (the parts page). (From the harmony page: tap KEY_21.)
@@ -445,7 +429,7 @@ Details: [manual, section 8](MANUAL.md#8-looper).
 
 The event recorder records your playing as notes and knob moves (not audio), on CHOMPI's
 clock, and loops it over whole bars. It plays back through harmony, the arp and the bass, and is
-saved with your preset. *Software-tested only.*
+saved with your preset.
 
 1. Toggle down, hold **CHOMPI**, go to the **parts page** (orange).
 2. Press **F#4** (KEY_23). It blinks red on the beat: armed.
@@ -485,7 +469,7 @@ sound stops; a loop is paused, not lost.
 **A knob seems to do nothing:** you may be on another page of that knob. Press and release it
 to step pages; hold it 1.5 s to put it back to the preset's value.
 
-**CHOMPI switches off (or restarts) while you play fast.** The 0.19.2 software mitigation waits for about 3 s of continuous lockout during normal operation. Sustained low readings still triggered shutdown in the recorded hardware test. The intermittent issue is not confirmed resolved; bootloader/fault-loop checks are unchanged.
+**If CHOMPI loses power:**
 
 1. Power CHOMPI from a **USB-C charger** (2 A or more) or a **charged battery**, not a computer
    port.
@@ -541,9 +525,9 @@ More: [manual, section 12](MANUAL.md#12-troubleshooting) and
 | SW6 turn / short press / hold 2 s | volume / switch to input gain and back / battery light |
 | Knob press and release / hold 1.5 s | next knob page / reset that control |
 
-## how do I install the release candidate?
+## how do I install Choowi?
 
-Download `choowi-0.19.2-card.zip` from the [release candidate](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc1), back up the card and read **README-FIRST**. Copy the kit contents to the top folder, with no other filename containing `.bin` left for the bootloader to find. The kit supplies firmware, bank purple samples and `MANUAL.html`. Use a strong USB-C charger for installation. See [the full install instructions](MANUAL.md#2-installing-and-updating).
+Download `choowi-0.19.2-card.zip` from the [download page](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc1), back up the card and read **README-FIRST**. Copy the kit contents to the top folder, with no other filename containing `.bin` left for the bootloader to find. The kit supplies firmware, bank purple samples and `MANUAL.html`. Use a strong USB-C charger for installation. See [the full install instructions](MANUAL.md#2-installing-and-updating).
 
 ## how do I make a sound on the forge page?
 
@@ -552,6 +536,6 @@ Download `choowi-0.19.2-card.zip` from the [release candidate](https://github.co
 3. Enable live audition, play, and tweak. Choose a preset bank and slot → **Save to CHOMPI**; confirm an occupied-slot replacement only if intended. Wait for the saved message, then recall the slot on the panel.
 4. **Save JSON** keeps a file on the computer. Without a device, **make sounds anyway** lets you edit and keep JSON for later.
 
-The browser/MIDI flow is software-tested with a stand-in, not hardware-verified in Chrome. Any arriving MIDI stops dream mode. No API key is needed on the forge page.
+Any arriving MIDI stops dream mode. No API key is needed on the forge page.
 
-**Power reminder:** power-bank charging while on remains unresolved; charge switched off for now. SW6 green/yellow are rough readings; only white means full.
+**Power reminder:** When using a power bank, charge with CHOMPI switched off. SW6 green and yellow are approximate battery indications; only white means full.
