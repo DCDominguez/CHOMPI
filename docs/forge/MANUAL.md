@@ -266,6 +266,12 @@ Forge plays TAPE's sample files from the card's top folder:
 8/16/24-bit or float, mono or stereo, 8–96 kHz. Copy files with the card in a
 computer, or over USB with Forge Bridge (*Card & firmware*, section 10).
 
+**Choowi's sample pack (0.19.2):** two banks of our own, free (CC0): chromatic bank **d** (14
+instruments: plucks, keys, bells, pads, bass, choir…) and kit bank **d** (14 drums and hits,
+ending with Choowi's anvil). It's `choowi-samples.zip` on the release page; copy the WAVs to the
+card's top folder next to TAPE's. Banks a-c stay TAPE's. The list is in
+`firmware/chompi-forge/samples/choowi-pack/README.md`.
+
 ### Playing samples
 - **Chromatic:** one sample across the keys; the middle C key plays it at its own
   pitch.

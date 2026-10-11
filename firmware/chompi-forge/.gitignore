@@ -3,3 +3,5 @@
 /src/build-dev/
 __pycache__/
 /reports/
+# release asset, rebuilt by host/make_sample_pack.py
+samples/choowi-samples.zip

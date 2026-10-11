@@ -112,6 +112,9 @@ python3 -m pip install -r firmware/chompi-forge/host/requirements.txt
 python3 firmware/chompi-forge/host/forge_web.py
 ```
 
+There's also **Choowi's sample pack**: two free banks (chromatic d, kit d) for the card, in
+[firmware/chompi-forge/samples/choowi-pack](firmware/chompi-forge/samples/choowi-pack/).
+
 Open **http://127.0.0.1:8765**, describe a sound and copy the prompt into any chatbot (ChatGPT,
 Claude, Gemini…). Paste its reply back, tweak the sound, save it as a JSON file. No API key, no
 account. Then **take it to CHOMPI** (the link under the editor, `/send`): connect over Web MIDI
