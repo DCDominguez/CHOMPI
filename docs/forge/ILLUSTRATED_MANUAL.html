@@ -1,37 +1,39 @@
-<title>Forge for CHOMPI</title>
+<title>forge for CHOMPI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Space+Mono:wght@400;700&display=swap">
 <style>
-/* Layout: a field manual. Narrow reading column, illustrations break wider; each chapter opens with the panel part it covers. */
+/* Forge "Spark" (DC, 2026-10-11): CHOMPI's nine panel colours are the brand. Ink on warm paper, Fredoka for words, Space Mono for settings. */
 :root{
-  --bg:#eef0f1; --paper:#f8f9f9; --ink:#15181c; --muted:#5b6470; --rule:#d5dadf;
+  --bg:#f4f2ec; --paper:#fbfaf7; --ink:#1b1b22; --muted:#5a5a66; --rule:#e3e1da;
   --body:#2a2f36; --panel:#dfe3e6; --panel-edge:#c4cad0;
   --key-white:#fbfbfa; --key-black:#23272d; --key-edge:#9aa3ad; --key-label:#1d2126; --key-label-dark:#eef1f4;
   --teal:#0e9c95; --pink:#d9417e; --orange:#e07a1f; --blue:#2f6fd6; --green:#2e9a4c; --purple:#8455d0; --red:#d23b3b; --yellow:#c99a06; --magenta:#c43fd1;
-  --accent:var(--teal);
-  --f-display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --accent:#c2185b; --spark:#ff5ea0;
+  --f-display:"Fredoka", "Avenir Next", "Segoe UI", sans-serif;
   --f-body:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
-  --f-mono:"JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --f-mono:"Space Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#101316; --paper:#161a1e; --ink:#eef1f4; --muted:#9aa4af; --rule:#2a3036;
-  --body:#d4dae0; --panel:#1d2227; --panel-edge:#323940;
+  --bg:#14141a; --paper:#1b1b22; --ink:#f4f2ec; --muted:#a9a9b4; --rule:#2c2c36;
+  --body:#dcdbe2; --panel:#22222b; --panel-edge:#34343f;
   --key-white:#e9ecee; --key-black:#0b0d0f; --key-edge:#4a525b; --key-label:#14171b; --key-label-dark:#e4e8ec;
   --teal:#29c2ba; --pink:#f0679d; --orange:#f39a47; --blue:#6f9dfa; --green:#4fc06f; --purple:#a786f0; --red:#f06161; --yellow:#e8bd2c; --magenta:#de6be9;
-  color-scheme:dark}}
+  --accent:#ff7db3; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#101316; --paper:#161a1e; --ink:#eef1f4; --muted:#9aa4af; --rule:#2a3036;
-  --body:#d4dae0; --panel:#1d2227; --panel-edge:#323940;
+  --bg:#14141a; --paper:#1b1b22; --ink:#f4f2ec; --muted:#a9a9b4; --rule:#2c2c36;
+  --body:#dcdbe2; --panel:#22222b; --panel-edge:#34343f;
   --key-white:#e9ecee; --key-black:#0b0d0f; --key-edge:#4a525b; --key-label:#14171b; --key-label-dark:#e4e8ec;
   --teal:#29c2ba; --pink:#f0679d; --orange:#f39a47; --blue:#6f9dfa; --green:#4fc06f; --purple:#a786f0; --red:#f06161; --yellow:#e8bd2c; --magenta:#de6be9;
-  color-scheme:dark}
+  --accent:#ff7db3; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--body);font-family:var(--f-body);font-size:16px;line-height:1.6;margin:0;padding-inline:16px;padding-block:0 64px}
 .wrap{max-width:1040px;margin:0 auto}
 .col{max-width:68ch}
 h1,h2,h3{font-family:var(--f-display);color:var(--ink);text-wrap:balance;line-height:1.1;margin:0}
-h1{font-size:clamp(2.6rem,7vw,4.6rem);font-weight:800;letter-spacing:-.02em}
-h2{font-size:clamp(1.6rem,3.4vw,2.2rem);font-weight:700;letter-spacing:-.01em}
+h1{font-size:clamp(3rem,8vw,5.4rem);font-weight:700;letter-spacing:-.02em}
+h2{font-size:clamp(1.7rem,3.6vw,2.4rem);font-weight:700;letter-spacing:-.01em}
+.dots{display:flex;gap:9px;margin-top:-4px}
+.dots i{width:16px;height:16px;border-radius:50%;display:inline-block;border:1px solid var(--key-edge)}
 h3{font-size:1.15rem;font-weight:700;margin-top:28px}
 p{margin:12px 0}
 a{color:var(--accent)}
@@ -41,7 +43,7 @@ code,.k{font-family:var(--f-mono);font-size:.86em}
 header.hero{padding-block:48px 28px;display:grid;gap:18px}
 .hero .sub{font-size:1.2rem;max-width:58ch;color:var(--body)}
 .status{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
-.pill{font-family:var(--f-mono);font-size:.74rem;padding:4px 10px;border-radius:999px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);display:inline-flex;align-items:center;gap:7px}
+.pill{font-family:var(--f-mono);font-size:.72rem;padding:4px 12px;border-radius:999px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);display:inline-flex;align-items:center;gap:7px}
 .pill i{width:8px;height:8px;border-radius:50%;display:inline-block}
 .dot-hw{background:var(--green)} .dot-sw{background:var(--yellow)} .dot-person{background:var(--blue)}
 nav.toc{display:flex;flex-wrap:wrap;gap:6px 14px;padding-block:14px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);font-size:.92rem}
@@ -60,7 +62,7 @@ th{font-family:var(--f-mono);font-size:.74rem;letter-spacing:.06em;text-transfor
 td:first-child{color:var(--ink);font-weight:700;white-space:nowrap}
 ol.steps{padding-left:0;list-style:none;counter-reset:s;display:grid;gap:10px;margin:14px 0}
 ol.steps li{counter-increment:s;display:grid;grid-template-columns:32px 1fr;gap:12px;align-items:start}
-ol.steps li::before{content:counter(s);font-family:var(--f-display);font-weight:800;font-size:1.2rem;color:var(--accent);line-height:1.4}
+ol.steps li::before{content:counter(s);font-family:var(--f-display);font-weight:700;font-size:1.2rem;color:var(--accent);line-height:1.4}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;align-items:start}
 .grid2 > *{min-width:0}
 .note{border-left:3px solid var(--accent);padding:6px 0 6px 14px;margin:14px 0;color:var(--body)}
@@ -76,12 +78,13 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
 
 <div class="wrap">
 <header class="hero">
-  <div class="eyebrow">Firmware 0.17.0 · community firmware for CHOMPI</div>
-  <h1>Forge for CHOMPI</h1>
+  <div class="eyebrow">Firmware 0.19.0 · community firmware for CHOMPI</div>
+  <h1>forge</h1>
+  <div class="dots" aria-hidden="true"><i style="background:var(--key-white)"></i><i style="background:var(--green)"></i><i style="background:var(--yellow)"></i><i style="background:var(--orange)"></i><i style="background:var(--red)"></i><i style="background:var(--pink)"></i><i style="background:var(--purple)"></i><i style="background:var(--blue)"></i><i style="background:var(--teal)"></i></div>
   <p class="sub">A playable synth, a TAPE-compatible sampler and looper, harmony, an arpeggiator and bass, an event recorder, and a little magic, all inside stock TAPE's workflow. Design sounds on the computer, by hand or with an AI, and send them over USB.</p>
   <div class="status">
     <span class="pill"><i class="dot-hw"></i>Checked on CHOMPI, 10–11 Oct 2026: 34 automatic checks, harmony, arp &amp; bass, event recorder, page and chord colours, surprise me, mutate, wake-up chime</span>
-    <span class="pill"><i class="dot-sw"></i>Software-tested only: knob ring colours, SW5's lights</span>
+    <span class="pill"><i class="dot-sw"></i>Software-tested only: knob ring colours, SW5's lights and sweep, dream mode, chomp rolls, the synth page</span>
     <span class="pill"><i class="dot-person"></i>Still to judge by ear and hand: sound, feel, how fun the magic is</span>
   </div>
 </header>
@@ -89,7 +92,7 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
 <nav class="toc" aria-label="Contents">
   <a href="#start">Quick start</a><a href="#panel">The panel</a><a href="#knobs">Knobs &amp; pages</a><a href="#menu">Menu map</a>
   <a href="#tape">TAPE's page</a><a href="#presets">Presets</a><a href="#record">Recording</a><a href="#looper">Looper</a>
-  <a href="#harmony">Harmony</a><a href="#parts">Arp, bass, tempo</a><a href="#recorder">Event recorder</a><a href="#sound">The sound</a>
+  <a href="#harmony">Harmony</a><a href="#parts">Arp, bass, tempo</a><a href="#recorder">Event recorder</a><a href="#synth">Synth page</a><a href="#sound">The sound</a>
   <a href="#magic">Magic</a><a href="#lights">Lights</a><a href="#power">Power</a><a href="#install">Install</a><a href="#help">Troubleshooting</a>
 </nav>
 
@@ -122,7 +125,7 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
       <tr><td>SW1 + SW2, 1 s</td><td><b>Harmony on / off</b> (knob lights flash green / red)</td><td>—</td></tr>
       <tr><td>SW1 + SW3, 1 s</td><td><b>Surprise me</b>: a new sound; keep holding for another every 1.5 s</td><td>—</td></tr>
       <tr><td>SW2 + SW3, 1 s</td><td><b>Mutate</b>: the sound drifts a little; keep holding to drift further</td><td>—</td></tr>
-      <tr><td>SW5</td><td>Turn: filter cutoff, and the loop's tone with it. Push and turn (with a loop): loop speed, scrub when paused. Click: speed back to 1×</td><td>Loop speed</td></tr>
+      <tr><td>SW5</td><td>Turn: filter cutoff (about 80 Hz–8 kHz, resonance rising as it closes), and the loop's tone with it. Push and turn (with a loop): loop speed, scrub when paused. Click: speed back to 1×</td><td>Loop speed</td></tr>
       <tr><td>SW6</td><td>Turn: volume. Short press: input gain (light blue → red) and back. Hold 2 s: battery light</td><td>Output compressor; press: monitor position</td></tr>
       <tr><td>PLAY · LOOP</td><td>The looper</td><td>Overdub feedback − / +</td></tr>
       <tr><td>Line in jack</td><td>Plugged in: records from line in. Unplugged: the mic</td><td>—</td></tr>
@@ -145,7 +148,7 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
 <!-- 4 -->
 <section id="menu">
   <div class="head"><h2>Menu map</h2><span class="pill"><i class="dot-hw"></i>Menu pages checked on CHOMPI</span></div>
-  <p class="col">Toggle <b>down</b> and hold <span class="k">CHOMPI</span>. The menu opens on TAPE's page; two black keys lead to Forge's pages. <b>The CHOMPI light shows where you are</b>, in the colour of each page's outline below: teal TAPE's page, blue presets, purple harmony, orange parts. Keep holding <span class="k">KEY_21</span> for 2 s to go straight to the parts page. Release CHOMPI (with nothing pending) to close the menu.</p>
+  <p class="col">Toggle <b>down</b> and hold <span class="k">CHOMPI</span>. The menu opens on TAPE's page; two black keys lead to Forge's pages. <b>The CHOMPI light shows where you are</b>, in the colour of each page's outline below: teal TAPE's page, blue presets, purple harmony, orange parts, pink synth. Keep holding <span class="k">KEY_21</span>: harmony at 1 s, parts at 2 s, the <b style="color:var(--pink)">pink</b> synth page at 3 s. Release CHOMPI (with nothing pending) to close the menu.</p>
   <div class="figure" id="fig-menu"></div>
 </section>
 
@@ -273,6 +276,22 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
   <p class="col">Arm on the parts page, release CHOMPI and play; to close the loop just <b>tap CHOMPI</b> (toggle down). The same tap stops it and plays it again. Opening the menu and pressing F#4 still works. Up to 1,024 events; a take closes by itself after 8 bars. Saving a preset saves the loop beside it.</p>
 </section>
 
+<!-- 11b -->
+<section id="synth">
+  <div class="head"><h2>The synth page</h2><span class="pill"><i class="dot-sw"></i>Software-tested only</span></div>
+  <p class="col">Design a sound on CHOMPI itself. <b>Open:</b> on TAPE's page keep holding <span class="k">KEY_21</span> until CHOMPI turns <b style="color:var(--pink)">pink</b> (3 s), or tap KEY_21 on the harmony or parts page. Hold <span class="k">C5</span> to hear your changes. Save as a preset to keep them.</p>
+  <div class="figure" id="fig-synth"></div>
+  <div class="tablebox"><table>
+    <thead><tr><th>Knob</th><th>Page 1 (pink)</th><th>Page 2 (teal, press to switch)</th></tr></thead>
+    <tbody>
+      <tr><td>SW4</td><td>Oscillator 2 level</td><td>Vibrato depth</td></tr>
+      <tr><td>SW1</td><td>Oscillator 2 detune</td><td>Tremolo depth</td></tr>
+      <tr><td>SW2</td><td>Noise</td><td>LFO speed</td></tr>
+      <tr><td>SW3</td><td>Glide</td><td>Delay time</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
 <!-- 12 -->
 <section id="sound">
   <div class="head"><h2>The sound</h2></div>
@@ -291,7 +310,7 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
 
 <!-- 12b -->
 <section id="magic">
-  <div class="head"><h2>Magic</h2><span class="pill"><i class="dot-hw"></i>Checked on CHOMPI, 11 Oct 2026</span></div>
+  <div class="head"><h2>Magic</h2><span class="pill"><i class="dot-hw"></i>Wake-up, surprise me, mutate checked on CHOMPI</span><span class="pill"><i class="dot-sw"></i>Chomp, dream, ripple: software-tested</span></div>
   <div class="grid2">
     <div class="col">
       <h3 style="margin-top:6px">Wakes up singing</h3>
@@ -300,7 +319,11 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
       <p>Out of ideas? Hold <span class="k">SW1</span> + <span class="k">SW3</span> for a second: a brand-new sound, sometimes with chords in your key, sometimes with an arp, sometimes a gliding solo voice. Keep holding and it rolls another every 1.5 s; let go on one you like. Your volume, key and tempo stay put. The knob lights flash new colours each roll.</p>
       <h3>Mutate</h3>
       <p>Hold <span class="k">SW2</span> + <span class="k">SW3</span>: the sound you have shifts a little, brighter or darker, longer or shorter, a different echo, so it drifts instead of starting over. Keep holding to drift further. The knob lights flash teal.</p>
-      <p>Like it? Save it to a preset slot. Neither gesture changes a knob page.</p>
+      <h3>Chomp to instrument</h3>
+      <p>Record anything, your voice, a door, a cup, then hold <span class="k">SW1</span> + <span class="k">SW3</span>: the roll keeps your recording and builds an instrument around it, often with chords in your key and an arpeggio. The keys sparkle with every roll.</p>
+      <h3>Dream mode</h3>
+      <p>Leave CHOMPI alone for two minutes and it starts dreaming: a quiet, slow line in your key, its notes breathing purple on the keys. Touch anything and it stops; after three minutes it goes to sleep until you come back.</p>
+      <p>Like it? Save it to a preset slot. Neither gesture changes a knob page. When a loop closes, a green ripple runs out from the middle key.</p>
     </div>
     <div class="figure" id="fig-magic" style="margin-top:0"></div>
   </div>
@@ -354,7 +377,7 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
       <ol class="steps">
         <li><div>Forge Bridge → Connect CHOMPI → Card &amp; firmware → Install this kit's firmware.</div></li>
         <li><div>When the CHOMPI key blinks white, press it within 15 s.</div></li>
-        <li><div>CHOMPI restarts and installs. Connect CHOMPI shows the new version and build, e.g. <code>Forge 0.17.0 (build e7b5e12)</code>. If it stays all white after the install, switch it off and on.</div></li>
+        <li><div>CHOMPI restarts and installs. Connect CHOMPI shows the new version and build, e.g. <code>Forge 0.19.0 (build 7efb87e)</code>. If it stays all white after the install, switch it off and on.</div></li>
       </ol>
       <p>Back to stock TAPE: rename <code>CHOMPI_TAPEv2_0_bin.old</code> back to <code>.bin</code>, remove <code>FORGE.bin</code>, power on.</p>
     </div>
@@ -379,7 +402,7 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
   </table></div>
 </section>
 
-<footer>Forge 0.17.0 · From the Forge MANUAL.md, KNOBS.md and TEST_RESULTS.md in the CHOMPI repository (branch forge/foundation). Community firmware, not an official Chase Bliss release. Keep a backup of your SD card.</footer>
+<footer>forge 0.19.0 · Spark · From the Forge MANUAL.md, KNOBS.md and TEST_RESULTS.md in the CHOMPI repository (branch forge/foundation). Community firmware, not an official Chase Bliss release. Keep a backup of your SD card.</footer>
 </div>
 
 <script>
@@ -486,6 +509,8 @@ down menu");
   box(560,12,170,"Presets","8 banks × 15 slots","var(--blue)");
   box(560,174,150,"Harmony","tonic · mode · chords","var(--purple)");
   box(760,174,126,"Parts","arp · bass · tempo","var(--orange)");
+  box(760,12,126,"Synth","waves · LFO · voices","var(--pink)");
+  arrow("M823 174 V82","KEY_21",848,130);
   arrow("M166 125 H244","hold CHOMPI",205,116);
   arrow("M420 112 C480 80 500 44 554 44","hold KEY_22 1 s",478,62);
   arrow("M420 140 C480 170 500 206 554 206","hold KEY_21 1 s",478,198);
@@ -556,6 +581,15 @@ place("fig-parts",keyboard({
   "C#4":{t:"harmony",c:"purple"},"D#4":{t:"TAPE page",c:"teal"},"F#4":{t:"rec / play",c:"red"},"G#4":{t:"overdub",c:"yellow"},"A#4":{t:"clear ×2",c:"white"}
 },{label:"Parts page: arp, bass, tempo and the event recorder"}));
 
+// Synth page.
+place("fig-synth",keyboard({
+  "C3":{t:"osc 1\nsine",c:"pink"},"D3":{t:"tri",c:"pink"},"E3":{t:"saw",c:"pink"},"F3":{t:"square",c:"pink"},
+  "G3":{t:"osc 2\nsine",c:"teal"},"A3":{t:"tri",c:"teal"},"B3":{t:"saw",c:"teal"},"C4":{t:"square",c:"teal"},
+  "D4":{t:"uni-\nson",c:"yellow"},"E4":{t:"+5th",c:"yellow"},"F4":{t:"+oct",c:"yellow"},"G4":{t:"−oct",c:"yellow"},"A4":{t:"+4th",c:"yellow"},"B4":{t:"+12th",c:"yellow"},"C5":{t:"hear\nit",c:"white"},
+  "C#3":{t:"LFO sine",c:"purple"},"D#3":{t:"LFO tri",c:"purple"},"F#3":{t:"LFO sq",c:"purple"},"G#3":{t:"LFO rnd",c:"purple"},"A#3":{t:"mod wheel",c:"white"},
+  "C#4":{t:"harmony",c:"purple"},"D#4":{t:"TAPE page",c:"teal"},"F#4":{t:"4 voices",c:"green"},"G#4":{t:"7 voices",c:"green"},"A#4":{t:"mono",c:"green"}
+},{label:"Synth page"}));
+
 // Event recorder states.
 (function(){
   const svg=el("svg",{viewBox:"0 0 900 150",role:"img","aria-label":"Event recorder states"});
@@ -609,7 +643,7 @@ function legend(id,items){const box=document.getElementById(id);items.forEach(([
   const p=document.createElement("span");p.innerHTML=t;d.appendChild(p);box.appendChild(d);});}
 legend("lg-steps",[["var(--key-white)","<b>1st</b> white"],["var(--green)","<b>2nd</b> green"],["var(--yellow)","<b>3rd</b> yellow"],["var(--orange)","<b>4th</b> orange"],["var(--red)","<b>5th</b> red"],
   ["var(--pink)","<b>6th</b> pink"],["var(--purple)","<b>7th</b> purple"],["var(--blue)","<b>8th</b> blue"],["var(--teal)","<b>9th</b> teal"]]);
-legend("lg-chompi",[["var(--teal)","<b>Teal</b>: menu open on TAPE's page"],["var(--blue)","<b>Blue</b>: presets page"],["var(--purple)","<b>Purple</b>: harmony page"],["var(--orange)","<b>Orange</b> (menu open): parts page"],["var(--red)","<b>Red</b>: recording"],["var(--red)","<b>Red blinks</b>: count-in",1],
+legend("lg-chompi",[["var(--teal)","<b>Teal</b>: menu open on TAPE's page"],["var(--blue)","<b>Blue</b>: presets page"],["var(--purple)","<b>Purple</b>: harmony page"],["var(--orange)","<b>Orange</b> (menu open): parts page"],["var(--pink)","<b>Pink</b>: synth page"],["var(--red)","<b>Red</b>: recording"],["var(--red)","<b>Red blinks</b>: count-in",1],
   ["linear-gradient(90deg,var(--key-white),var(--green),var(--yellow),var(--pink))","<b>Input meter</b> in the record position: dim white → green → yellow → pink"],
   ["var(--orange)","<b>Orange blinking</b>: event recorder armed",1],["var(--orange)","<b>Orange</b>: event recorder recording"],["var(--green)","<b>Dim green</b>: event loop playing"],
   ["var(--yellow)","<b>Yellow</b>: event loop overdubbing"],["var(--pink)","<b>Pink blink</b>: saving",1],["var(--key-white)","<b>White blink</b>: press to confirm an install",1],["linear-gradient(90deg,var(--green) 50%,var(--red) 50%)","<b>Green / red flash</b>: done / failed"]]);
