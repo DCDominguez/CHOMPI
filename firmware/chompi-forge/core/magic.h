@@ -4,7 +4,7 @@
 #include "parameters.h"
 #include "parts.h"
 
-// The magic batch (0.17, DC 2026-10-11): "surprise me" (a new sound rolled within musical
+// The magic batch (0.17, the owner 2026-10-11): "surprise me" (a new sound rolled within musical
 // bounds), "mutate" (the current sound nudged a little) and the start-up chime. Pure and
 // allocation-free: the panel runs them in the audio callback, between blocks, and the
 // patch they make goes through Engine::ApplyPatch like any other.

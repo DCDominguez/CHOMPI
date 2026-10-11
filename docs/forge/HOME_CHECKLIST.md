@@ -10,13 +10,13 @@ until the battery light is **green or white** (hold the SW6 knob down for 2 s;
 yellow = low). Only then install, by card or over USB.
 
 With a low battery on a weak supply (a computer's USB-A port or a C-to-A cable),
-CHOMPI's bootloader can wait with every light off after the restart (DC,
+CHOMPI's bootloader can wait with every light off after the restart (the owner,
 2026-10-05). Recovery: plug in the USB-C charger, switch off, wait 5 s, switch on.
 Forge 0.11 and newer refuse a USB install in that state and the bridge says why.
 
 ## 1. Get the files
 
-GitHub → DCDominguez/CHOMPI → **Actions** → **Forge Bridge (Windows exe)** →
+GitHub → the Forge repository → **Actions** → **Forge Bridge (Windows exe)** →
 the newest green run → **Artifacts** → **Forge-Bridge-exe**. Unzip it. You get:
 
 - `Forge Bridge.exe`: the bridge (setup check, panel walk, automatic checks,

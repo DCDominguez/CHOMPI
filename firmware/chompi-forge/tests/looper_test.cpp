@@ -207,7 +207,7 @@ void LimiterKeepsOverdubsBounded() {
     Rig rig;
     Record(rig, 4800, [](uint64_t t) { return Sine(t, 300.f, 0.9f); }, false);
     rig.Run(20 * 4800, [](uint64_t t) { return Sine(t, 300.f, 0.9f); });   // 20 loud passes on top
-    rig.Run(10 * 4800, [](uint64_t) { return 0.6f; });                  // DC stacks up on every pass
+    rig.Run(10 * 4800, [](uint64_t) { return 0.6f; });                  // the owner stacks up on every pass
     // Soft limiting: close to, but never pinned at, full scale (a hard clip would sit at 32767).
     int16_t top = 0; unsigned pinned = 0;
     for(uint32_t i = 0; i < 2 * rig.looper.Length(); ++i) {
@@ -245,7 +245,7 @@ void RandomUse() {
         assert(rig.looper.Length() <= 9600 && rig.looper.Position() >= 0.f && rig.looper.Position() <= 1.f);
     }
 }
-// 0.16 (DC): a new first take starts at 1x whatever the speed was left at; SW5's tone filters
+// 0.16 (the owner): a new first take starts at 1x whatever the speed was left at; SW5's tone filters
 // the loop's playback only (a 10 kHz loop is much quieter closed, unchanged open); a clear
 // opens it again.
 void NewTakeAtUnitySpeedAndLoopTone() {

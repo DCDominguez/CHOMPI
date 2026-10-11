@@ -4,7 +4,7 @@ Status of the candidate: **software-tested, hardware-unverified.** This is the
 single planned physical session. Work top to bottom. If a stage fails, record
 it, stop that stage, and continue only where later stages do not depend on it.
 Never mark a stage passed that you did not run. Expect roughly 2 hours.
-Features were developed first and QA was deferred (DC, 2026-10-02); each
+Features were developed first and QA was deferred (the owner, 2026-10-02); each
 feature has its own steps below so results can be recorded per feature.
 
 ## 0. Before you start (no CHOMPI needed)
@@ -39,7 +39,7 @@ when recording from it (3D); keep headphones on so the speaker cannot feed back.
 **Power first (every install, SD card or USB):** charge CHOMPI on a USB-C to USB-C
 charger (2 A or more) until the battery light (hold SW6 for 2 s) is **green or white**.
 With a low battery on a weak supply the bootloader can wait with every light off after
-the restart (DC, 2026-10-05); recovery: plug in the USB-C charger, switch off, wait 5 s,
+the restart (the owner, 2026-10-05); recovery: plug in the USB-C charger, switch off, wait 5 s,
 switch on.
 
 | # | Do | Pass when |
@@ -143,7 +143,7 @@ injections or simulated file loading as a physical pass.
 ## 3C. Device presets on the SD card (TAPE-style keys + encoder)
 
 Use the test card from 1.1 (it may be otherwise empty). "Menu position" means the
-toggle position in which TAPE's CHOMPI key opens its menu (down on DC's unit; up is the record position).
+toggle position in which TAPE's CHOMPI key opens its menu (down on the owner's unit; up is the record position).
 
 | # | Do | Pass when |
 | --- | --- | --- |
@@ -269,9 +269,9 @@ MANUAL section 8c. Software-tested only. 120 BPM unless a step says otherwise.
 | 3.76f | **Host store (0.15):** with a loop playing, `H store 2 3`; switch off and on; `H recall 2 3`. On the computer look in `FORGE/` | The recalled sound plays with its loop; `FORGE/B2S03.FSQ` is there beside `B2S03.FPR` |
 | 3.76g | **Patch change keeps the loop (0.15.1):** with a loop playing, send another synth preset (webapp or `H send`), then a kit preset | The loop keeps playing with the new sound (only the notes sounding at the switch are cut) |
 
-## 3J. Panel feedback and shortcuts (firmware 0.16, DC's UX review)
+## 3J. Panel feedback and shortcuts (firmware 0.16, the owner's UX review)
 
-MANUAL sections 4, 5, 8, 8a-8c. Software-tested only. DC judges whether each is easy to read
+MANUAL sections 4, 5, 8, 8a-8c. Software-tested only. The owner judges whether each is easy to read
 and to use (UX_REVIEW.md: 4/5 or better).
 
 | # | Do | Pass when |
@@ -288,7 +288,7 @@ and to use (UX_REVIEW.md: 4/5 or better).
 
 ## 3K. Magic (firmware 0.17)
 
-MANUAL sections 5a and 6. Software-tested only. DC judges the fun.
+MANUAL sections 5a and 6. Software-tested only. The owner judges the fun.
 
 | # | Do | Pass when |
 | --- | --- | --- |

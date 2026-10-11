@@ -1,6 +1,6 @@
 # Forge looping (roadmap item 5): design
 
-Status: design agreed with DC on 2026-10-03 (section 3). **Implemented and
+Status: design agreed with the owner on 2026-10-03 (section 3). **Implemented and
 software-tested** (steps 1–4 of section 5); nothing is hardware-verified.
 TEST_SESSION 3E (3.42–3.51) and 6.2d cover it.
 
@@ -94,7 +94,7 @@ loop, check it repeats at the loop period without seam clicks, overdub,
 pause/resume, clear, panic. TEST_SESSION steps 3.42–3.5x. `make bench` adds a
 "7 sampler voices + looper overdubbing" scenario.
 
-## 3. Decisions (DC, 2026-10-03)
+## 3. Decisions (the owner, 2026-10-03)
 
 - **D1 Loop length:** the sample pool shrinks 40 → 32 MiB; the loop gets
   4,000,000 stereo 16-bit frames (16 MB, **~83 s**), leaving ~390 KB of SDRAM

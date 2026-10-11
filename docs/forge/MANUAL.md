@@ -48,7 +48,7 @@ green or white, then connect a **computer USB-C port with a USB-C to USB-C cable
 USB-A port or a C-to-A cable is a weak "legacy" supply). Forge refuses an install
 otherwise (section 3). With a low battery on a computer's USB port, CHOMPI's bootloader
 waits with every light off after the restart and stays dark until the power switch is
-turned off and on (DC, 2026-10-05). If that happens: plug in a USB-C charger, switch
+turned off and on (the owner, 2026-10-05). If that happens: plug in a USB-C charger, switch
 off, wait 5 s, switch on.
 
 ### Updates (over USB — no card swap; firmware 0.7 or newer)
@@ -92,7 +92,7 @@ Rename `CHOMPI_TAPEv2_0_bin.old` back to `CHOMPI_TAPEv2_0.bin`, rename or remove
 - On a weak USB port (a computer, or a USB-A cable) with a low battery, CHOMPI's
   stock protection switches the lights off and stops it **at once**, without the
   amber warning; after an install or a restart it stays dark until the power switch
-  is turned off and on (DC, 2026-10-05). Use a USB-C to USB-C charger (2 A or more):
+  is turned off and on (the owner, 2026-10-05). Use a USB-C to USB-C charger (2 A or more):
   plug it in, switch off, wait 5 s, switch on.
 - **Warning (0.12):** while the battery is yellow and CHOMPI is not on a strong
   charger, the **SW6 light blinks yellow twice every 4 s**; when a reading drops
@@ -568,7 +568,7 @@ the out channel, the bass on the next channel, and MIDI clock while CHOMPI keeps
 ## 10. On the computer
 
 ### Forge Bridge (Windows)
-Download: GitHub → *DCDominguez/CHOMPI* → **Actions** → *Forge Bridge (Windows
+Download: GitHub → the Forge repository → **Actions** → *Forge Bridge (Windows
 exe)* → newest green run → **Forge-Bridge-exe**. Unzip into its own folder and
 double-click **Forge Bridge.exe** (if Windows warns: *More info → Run anyway*).
 Your browser opens the bridge; keep the black window open.

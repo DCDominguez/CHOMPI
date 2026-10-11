@@ -1,4 +1,4 @@
-"""Panel walk and setup check: a scripted hand on a fake CHOMPI, the setup check against DC's
+"""Panel walk and setup check: a scripted hand on a fake CHOMPI, the setup check against the owner's
 2026-10-04 rig faults, and the bridge's walk/setup/re-run operations in the simulation."""
 import contextlib
 import io
@@ -130,7 +130,7 @@ class WalkTests(unittest.TestCase):
 
 
     def test_bumped_neighbour_and_reversed_knob(self):
-        """DC's 2026-10-04 walk: a neighbour that also moves must not be blamed, and a left turn that
+        """the owner's 2026-10-04 walk: a neighbour that also moves must not be blamed, and a left turn that
         counts like a right turn fails even when that knob's right turn did not pass."""
         def hand(device, prompt, answers):
             ident = prompt["id"]

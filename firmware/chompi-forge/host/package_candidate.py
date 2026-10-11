@@ -95,7 +95,7 @@ def main():
                 "simulation_platform": sys.platform if args.include_probe else None,
                 "windows_runtime": runtime,
                 "source_commit": commit, "source_tree": source_tree,
-                "source_url": f"https://github.com/DCDominguez/CHOMPI/tree/{commit}",
+                "source_url": repository_url(commit),
                 "compiler": compiler,
                 "pinned_compiler": "GNU Arm Embedded 10.3-2021.10 (Arm archive)",
                 "built_with_pinned_compiler": "GNU Arm Embedded Toolchain 10.3-2021.10" in compiler,
@@ -112,6 +112,17 @@ def main():
             archive.writestr(info, data)
     print(json.dumps({"file": str(Path(args.output).resolve()), "source_tree": source_tree,
                       "firmware_sha256": manifest["files"]["firmware/FORGE.bin"]["sha256"]}))
+
+
+def repository_url(commit):
+    """The source tree on GitHub, from the checkout's own remote (no address is written into Forge)."""
+    try:
+        url = subprocess.run(["git", "remote", "get-url", "origin"], cwd=ROOT, capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    if url.startswith("git@github.com:"): url = "https://github.com/" + url[len("git@github.com:"):]
+    url = url[:-4] if url.endswith(".git") else url
+    return f"{url}/tree/{commit}" if url.startswith("https://") else None
 
 
 def windows_runtime(cache, files):

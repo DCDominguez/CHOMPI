@@ -669,7 +669,7 @@ private:
         if(changed) engine.PartsChanged();
     }
     int parts_detents_[4] = {};
-    // ---- Synth page (0.19, DC's synth edit page) ----
+    // ---- Synth page (0.19, the owner's synth edit page) ----
     // Keys: C3-F3 osc 1 wave (sine, triangle, saw, square); G3-C4 osc 2 wave; D4-B4 osc 2 interval
     // (unison, +5th, +octave, -octave, +4th, +12th); C5 audition (C major while held);
     // C#3 D#3 F#3 G#3 LFO shape (sine, triangle, square, random); A#3 mod wheel gates the LFO;

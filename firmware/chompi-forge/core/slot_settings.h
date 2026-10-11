@@ -6,7 +6,7 @@
 #include "parameters.h"
 
 // TAPE's per-slot sample settings (TAPE PresetManager.h, presets.json), shared with
-// TAPE on the same card (DC, 2026-10-05: share the file, keep a backup; save as TAPE
+// TAPE on the same card (the owner, 2026-10-05: share the file, keep a backup; save as TAPE
 // does, the moment a knob turns; kit pads each keep their own; the slot's settings
 // win over a Forge preset's). Per sample slot (chromatic/kit x banks a-e x slots
 // 1-14): pitch, start, end, attack, decay (Forge: release), auto-loop, sustain

@@ -5,7 +5,7 @@ hardware-verified. TEST_SESSION 3F (3.51–3.57) covers it; the bridge runs 3.52
 3.53, 3.55 and the audio checks 3.57a–f automatically. Earlier layout (0.6–0.9):
 see git history of this file.
 
-DC's decisions (2026-10-05, the TAPE parity checklist): keep TAPE's workflow;
+The owner's decisions (2026-10-05, the TAPE parity checklist): keep TAPE's workflow;
 TAPE's knob layout, step sizes and gestures, but keep Forge's synth controls on
 extra pages; SW5 stays filter cutoff with the loop speed on push-and-turn; panic
 moves to SW4 + SW3; a long press resets a knob. TAPE's controls are listed with
@@ -54,7 +54,7 @@ Gestures:
 - **Step size (TAPE):** SW4 and SW5 count one step per click, the others three;
   coarse controls move 0.01 per step, sample start/end and pitch 0.003. So SW1–SW3
   and SW6 move 3 % per click (33 clicks end to end), start/end 0.9 %, pitch 0.3 %.
-  Forge 0.6–0.9 moved 1/127 per click, which made single clicks inaudible (DC).
+  Forge 0.6–0.9 moved 1/127 per click, which made single clicks inaudible (the owner).
 - **Page:** changes when the knob is **released** (TAPE). Pages are per knob,
   survive preset changes (a patch with fewer pages sends that knob back to page 1)
   and reset at power-up.

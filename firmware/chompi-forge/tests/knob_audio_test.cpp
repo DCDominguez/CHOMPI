@@ -1,4 +1,4 @@
-// Every knob page on every starter preset must change what you hear (DC, 2026-10-05:
+// Every knob page on every starter preset must change what you hear (the owner, 2026-10-05:
 // "check the audio, not just the values"). For each preset (as CHOMPI stores it: v5),
 // knob and page, two fresh panels play the same phrase (C4 held 1.2 s from the keybed,
 // or a line-in tone on effects-only patches); one first turns that page 10 clicks.

@@ -1,6 +1,6 @@
 # Storage virtualization / SDRAM reclamation — feasibility and design
 
-Status: **parked for Forge v2 (DC, 2026-10-05).** Design only; nothing
+Status: **parked for Forge v2 (the owner, 2026-10-05).** Design only; nothing
 implemented; no production memory allocation changed. Every SDRAM, buffer and
 latency figure below is an estimate until the Phase 0 hardware measurements exist.
 
@@ -280,7 +280,7 @@ benchmark* job that writes the report like the automatic checks.
 | Reads while MIDI floods (bridge sends notes/CCs) | main-loop blocking vs MIDI RX (lost or late messages) |
 | Fragmented file (written interleaved with another) | fragmentation penalty |
 | Pull the card mid-workload, reinsert | error paths, remount time |
-| DC's cards (at least the card in use + one other) | card-to-card spread |
+| The owner's cards (at least the card in use + one other) | card-to-card spread |
 
 Report worst case first (max, p99.9), then averages. Also log main-loop
 iteration time max, which bounds MIDI latency.
@@ -289,7 +289,7 @@ iteration time max, which bounds MIDI latency.
 
 | Phase | Content | Memory change | Gate to continue |
 | --- | --- | --- | --- |
-| 0 | Benchmark opcode + bridge job (development only); this document | none | DC runs it once (part of the next consolidated hardware session) |
+| 0 | Benchmark opcode + bridge job (development only); this document | none | The owner runs it once (part of the next consolidated hardware session) |
 | 1 | `PageCache` + scheduler as a native library with a simulated slow card (latency/stall injection), then one chromatic voice streaming in development builds behind `FORGE_STREAMING`, pool untouched | none (cache carved from the existing pool) | bit-exact vs resident playback when no stall; underrun semantics tested; bench ≤ gate |
 | 2 | 7 chromatic voices, loop crossfade, reverse, live start/end, glide/bend | none | stress + stall tests, hardware playback test |
 | 3 | Kit (14 files, FIL per file, fast seek), bandwidth classes, USB-upload detach | none | kit stress on hardware, card pull |

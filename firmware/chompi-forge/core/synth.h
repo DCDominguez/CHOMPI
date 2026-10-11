@@ -322,7 +322,7 @@ public:
         else left = right = Process();
         left *= out_l_; right *= out_r_;
     }
-    // SW5's sweep (0.17.1, DC: "cutoff feels like it lowers the volume"): extra resonance while
+    // SW5's sweep (0.17.1, owner request): extra resonance while
     // SW5 has the cutoff down, so a sweep is heard as movement. 0 = the patch's own; reset by a patch.
     void SetSweepBoost(float boost) { sweep_boost_ = Clamp(boost, 0.f, .4f); Resonate(); }
     float SweepBoost() const { return sweep_boost_; }

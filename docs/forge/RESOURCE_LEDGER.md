@@ -124,7 +124,7 @@ unknown, particularly with seven sampler voices and background SD/MIDI traffic.
 
 ## First optimization decisions to investigate
 
-0. **Second pass, 2026-10-05 (DC: keep the audio buffers, "look at other things"):**
+0. **Second pass, 2026-10-05 (the owner: keep the audio buffers, look elsewhere):**
    (a) every control-rate / main-loop function compiled for size (`FORGE_COLD` =
    noinline + `-Os`): request/response codecs, `ExecuteRequest`, file transfer,
    preset store, sample-loader control (not `Stream`), LEDs, options/restart
@@ -140,8 +140,8 @@ unknown, particularly with seven sampler voices and background SD/MIDI traffic.
    callback; CPU peaks in TEST_SESSION 6.2 confirm. Left alone: libDaisy (upstream,
    already `-O2`; USB-host IRQ code 1.9 KB is linked by its vector table), whole-
    firmware `-O2/-Os` (would change DSP timing: needs hardware numbers), audio
-   buffers (DC).
-1. **Done 2026-10-05 (0.13 in progress, DC: "implement our memory savings plan"):**
+   buffers (the owner).
+1. **Done 2026-10-05 (0.13 in progress, owner request):**
    `SpscQueue` now keeps raw zeroed storage copied with `memcpy` (entries must be
    trivially copyable, checked at compile time), so every queue is in `.bss`.
    Measured: release 267,876 → **240,948 B (−26,928)**, development 283,856 →
@@ -202,7 +202,7 @@ docs, recheck `forge/foundation`; never overwrite a concurrent implementation.
 | Identity | Commit after `77fb5a7` (parent, previous measured); firmware 0.13, patch v6, Inspector page 8; clean tree at commit |
 | Build | xPack GCC 10.3.1, unchanged flags. Release 217,104 B (SHA-256 prefix `3c57221613456934`), development 229,768 B (`4bfe08a3d9b825bf`); layout OK both |
 | Memory | SRAM_EXEC headroom 71,664 / 59,000 B (release/dev). Release `.text` 214,408, `.data` 1,732, `.bss` 129,700, DTCM 35,480, SRAM1 23,800 B. SDRAM unchanged (393,200 B free). Delta over `77fb5a7`: +1,944 / +2,648 B |
-| CPU | Emulator gate unchanged: worst 2,677.9 vs WAVE 2,694.9; informational pitch-below-1× 2,800.8 (6.2f, DC accepted). Harmony resolves at note on/off on the main loop |
+| CPU | Emulator gate unchanged: worst 2,677.9 vs WAVE 2,694.9; informational pitch-below-1× 2,800.8 (6.2f, the owner accepted). Harmony resolves at note on/off on the main loop |
 | QA | 14 native + 121 Python PASS; 13 ASan/UBSan PASS (`detect_leaks=0`); browser 11 + 7 PASS. No hardware |
 | Value | Harmony menu page (keys = tonic), Inspector chord page, patch v6 (presets, webapp, AI) for ~2 KB |
 | Decision | Hardware evidence still needed: TEST_SESSION 3.65–3.67 and the 6.2 CPU peaks with the `-Os` control paths |
@@ -265,4 +265,4 @@ docs, recheck `forge/foundation`; never overwrite a concurrent implementation.
 | CPU | Emulator gate PASS: pitch .75 2,676.2 (+7.0, the fourth note source's bend smoothing), 1x worst 2,610.5 vs WAVE 2,694.9. Recorder playback runs in `Engine::Block`, once per block |
 | QA | 16 native (new `sequencer_test`) + 124 Python PASS; 15 ASan/UBSan PASS; browser 11 + 7 PASS |
 | Value | Loops of played notes and controls, overdub, projects on the card |
-| Decision | Hardware evidence needed: TEST_SESSION 3.73–3.76 (feel of the bar start/close, FatFS writes of the loop files on DC's card) |
+| Decision | Hardware evidence needed: TEST_SESSION 3.73–3.76 (feel of the bar start/close, FatFS writes of the loop files on the owner's card) |

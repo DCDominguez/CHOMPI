@@ -2,7 +2,7 @@
 
 ## 0.19.0 The synth edit page — 2026-10-11 (software-tested; not installed yet)
 
-DC's backlog item: design a sound on CHOMPI itself. A fifth menu page, **Synth** (CHOMPI light
+The owner's backlog item: design a sound on CHOMPI itself. A fifth menu page, **Synth** (CHOMPI light
 pink), after parts: on TAPE's page keep holding KEY_21 (harmony at 1 s, parts at 2 s, synth at
 3 s), or tap KEY_21 on the harmony / parts pages (harmony -> parts -> synth -> harmony).
 - Keys: C3-F3 oscillator 1 wave (sine, triangle, saw, square); G3-C4 oscillator 2 wave; D4-B4
@@ -20,7 +20,7 @@ pink), after parts: on TAPE's page keep holding KEY_21 (harmony at 1 s, parts at
 
 ## 0.18.0 Magic: chomp to instrument, dream mode, lights with character — 2026-10-11 (software-tested; not installed yet)
 
-PROJECT.md magic batch items 4-6 (DC: "work on magic and spark branding").
+PROJECT.md magic batch items 4-6 (owner request).
 - **Chomp to instrument:** record anything (toggle up, hold CHOMPI), then **surprise me**
   (SW1 + SW3): the roll keeps your recording (or the card sample a sampler patch plays, with its
   window and pitch) and rolls the instrument around it: filter, envelopes, LFO, delay, reverb,
@@ -40,7 +40,7 @@ PROJECT.md magic batch items 4-6 (DC: "work on magic and spark branding").
 
 ## 0.17.1 SW5 sweeps like a filter — 2026-10-11 (software-tested; not installed yet)
 
-DC: "why does cutoff just feel like it's lowering the volume". Measured on CHOMPI (C-E-G, the
+Owner request. Measured on CHOMPI (C-E-G, the
 loaded pad): the level held within 1 dB from 16 kHz down to 165 Hz while brightness fell from
 5.5 kHz to 0.9 kHz, so the filter worked, but with no resonance and the top 15 % of the travel
 (16 to 7 kHz) changing nothing, it read as "quieter".
@@ -53,7 +53,7 @@ loaded pad): the level held within 1 dB from 16 kHz down to 165 Hz while brightn
 
 ## 0.17.0 Magic: wakes up singing, surprise me, mutate — 2026-10-11 (software-tested; not installed yet)
 
-DC: "we still have the magic stuff" (PROJECT.md, magic batch items 1-3).
+Owner request (PROJECT.md, magic batch items 1-3).
 - **Wakes up singing:** CHOMPI remembers the last preset recalled or saved (`FORGE/LAST.TXT`,
   written 2 s after the last change) and loads it at power-on, without its recorded loop, so
   nothing plays by itself. Then a four-note chime (C E G C) plays through that sound while a
@@ -76,9 +76,9 @@ engine with delay and reverb: RMS -41 .. -22 dB, none above full scale; 1,000 ch
 mutations bounded; chime notes), panel `Magic017` (gestures, repeat, panic untouched, chime
 voices and light wave). Not on CHOMPI yet.
 
-## 0.16.0 Panel feedback and shortcuts (DC's UX review) — 2026-10-11 (software-tested; not installed yet)
+## 0.16.0 Panel feedback and shortcuts (the owner's UX review) — 2026-10-11 (software-tested; not installed yet)
 
-DC's decisions and ratings: [UX_REVIEW.md](UX_REVIEW.md). Bar: every function 4/5 for ease of use.
+The owner's decisions and ratings: [UX_REVIEW.md](UX_REVIEW.md). Bar: every function 4/5 for ease of use.
 
 **Batch 1: lights and the looper**
 - **One colour rule for lists:** the n-th choice or page is always the same colour, white
@@ -134,7 +134,7 @@ CHOMPI yet: every light and gesture above is software-tested only.
   another version, an unknown or uncommitted build, and fails in safe mode. Automatic
   check 1.3 expects 0.15.2.
 
-**Start-up safe mode (HANDOFF item 3, DC's choice over "stop restarting")**
+**Start-up safe mode (HANDOFF item 3, the owner's choice over "stop restarting")**
 - Crashes before CHOMPI has run 10 s are counted in backup SRAM (`core/restart.h`
   `StartupGuard`); after three, it starts in safe mode: the card's settings view stays
   closed (no `options.json`, `presets.json`, preset index, loops or samples are read, and no
@@ -144,17 +144,17 @@ CHOMPI yet: every light and gesture above is software-tested only.
   reply / Inspector carry flag 4. A power cycle, a start without a crash or a 10 s stable
   run clears it. Check setup fails in safe mode and says what to do (MANUAL 12).
 
-**Harmony Shift (found on DC's CHOMPI, 2026-10-11)**
+**Harmony Shift (found on the owner's CHOMPI, 2026-10-11)**
 - Releasing Shift (C5, Static layout) now clears it. Before, its release never reached the
   harmony player (C5 holds no chord), so every later chord stayed shifted (ii played as
   V/V) until a panic or patch change.
 
-**Arp / bass phrase start (found on DC's CHOMPI, 2026-10-11)**
+**Arp / bass phrase start (found on the owner's CHOMPI, 2026-10-11)**
 - A new phrase waits 15 ms after its first key before the first arp step and the chord-rate
   bass, so the steps see the whole chord: a chord's keys land a few ms apart and "down"
   started on a repeated note of the half-built chord. MIDI Start still begins at once.
 
-**SD card at start-up (found on DC's CHOMPI, 2026-10-10)**
+**SD card at start-up (found on the owner's CHOMPI, 2026-10-10)**
 - Start-up hung 30–60 s on the dim blue light and every small card write failed: the six
   main-loop FatFs file objects (`FIL`, which holds a 512-byte DMA sector buffer with
   `_FS_TINY 0`) were locals on the stack, and the stack is DTCM, out of the SD DMA's reach.
@@ -207,7 +207,7 @@ CHOMPI yet: every light and gesture above is software-tested only.
 
 ## 0.15.1 Review fixes — 2026-10-06 (software-tested; not installed yet)
 
-DC asked for a full project review and then "go for the fixes". Every verified finding is
+The owner asked for a full project review and then the fixes. Every verified finding is
 fixed with a regression test; nothing here is hardware-verified. The firmware still reports
 minor version 15 (the wire has no patch number); the bundle and docs say 0.15.1.
 
@@ -265,7 +265,7 @@ minor version 15 (the wire has no patch number); the bundle and docs say 0.15.1.
 
 ## 0.15 Event recorder and projects — 2026-10-05 (software-tested; not installed yet)
 
-DC's item 4. DC's choices: record notes and knob moves as a loop with overdub; controls
+The owner's item 4. The owner's choices: record notes and knob moves as a loop with overdub; controls
 on the parts page; a project = preset + parts + loop; MIDI-in notes recorded too. Nothing
 here is hardware-verified.
 - **Event recorder** (`core/sequencer.h`): keys, MIDI notes (with velocity) and knob / CC
@@ -291,7 +291,7 @@ here is hardware-verified.
 
 ## 0.14 Arp, bass and tempo — 2026-10-05 (software-tested; not installed yet)
 
-Harmony Phase 2 (DC's item 3). DC's choices: CHOMPI's own tempo plus following MIDI
+Harmony Phase 2 (the owner's item 3). The owner's choices: CHOMPI's own tempo plus following MIDI
 clock (and sending it), set on CHOMPI too ("can we also set the tempo on the chompi":
 yes, SW4 and tap tempo); a parts page next to the harmony page with an arp latch; the bass
 on the internal sound and MIDI channel 2; the brief's four bass modes on the clock.
@@ -322,8 +322,8 @@ Nothing here is hardware-verified.
 
 ## 0.13 Harmony — 2026-10-05 (software-tested; not installed yet)
 
-Harmony Phase 1 from DC's brief (HARMONY_BRIEF.md; clean-room, no code from other
-projects). DC's choices: a menu toggle stored in presets, the Static map, Real =
+Harmony Phase 1 from the owner's brief (HARMONY_BRIEF.md; clean-room, no code from other
+projects). The owner's choices: a menu toggle stored in presets, the Static map, Real =
 the key is the root, output to the internal sound and MIDI out. Nothing here is
 hardware-verified.
 - **One key plays a chord** (`core/harmony.h`): 9 modes, chord size fifth to 13th,
@@ -341,12 +341,12 @@ hardware-verified.
   live settings. Fixed while testing: the host decoder refused v6 status replies.
 - **Inspector page 8:** the harmony state and the last chord, named on the host
   (e.g. *Am7 · I · tonic*); a HARMONY line in the text Inspector.
-- **Memory (DC: "implement our memory savings plan", keep the audio buffers):**
+- **Memory (owner request, keep the audio buffers):**
   queues in `.bss`, control code `-Os`, start-up construction: release 267,876 →
   215,160 B before the menu/v6 work; 0.13 release **221,712 B**, development
   234,376 B (headroom 67,056 / 54,392 B; 0.12: 27,544 / 11,500 B), including the
   4 KB cubic table.
-- **CPU fix A (DC's item 2):** the pitched-down sample read (every voice below 1×:
+- **CPU fix A (the owner's item 2):** the pitched-down sample read (every voice below 1×:
   SW4 pitch down, kit pads below 1×) is now a 4 KB table of Q14 Hermite weights read
   with the M7's dual 16-bit multiply-accumulate, two taps per instruction; within
   61–89 dB of the exact Hermite (sampler_test). Profiling the emulator also found:
@@ -364,7 +364,7 @@ hardware-verified.
 
 ## 0.12 Per-slot sample settings — 2026-10-05 (software-tested; not installed yet)
 
-TAPE parity A4. DC's choices: save as TAPE does (the moment a control moves), kit
+TAPE parity A4. The owner's choices: save as TAPE does (the moment a control moves), kit
 pads keep their own settings, the slot's settings win over a Forge preset's, and
 share TAPE's own `presets.json` with a backup. Nothing here is hardware-verified.
 - **Per slot (TAPE's nine):** pitch, start, end, attack, release (TAPE: decay),
@@ -387,8 +387,8 @@ share TAPE's own `presets.json` with a backup. Nothing here is hardware-verified
   2,677.9 vs WAVE 2,694.9). Found while testing: every voice pitched below 1× (SW4
   pitch down, or kit pads below 1×) costs 2,800.8 / 2,755.8, about 4 % over WAVE;
   true since 0.10's TAPE pitch. Added as informational scenarios and hardware step
-  6.2f. DC (2026-10-05): keep the cubic read; accepted if 6.2f stays below 70 % on CHOMPI.
-- **Safety extras (DC: "include the extras"):** SW6 blinks yellow twice every 4 s
+  6.2f. The owner (2026-10-05): keep the cubic read; accepted if 6.2f stays below 70 % on CHOMPI.
+- **Safety extras (owner request):** SW6 blinks yellow twice every 4 s
   while the battery is yellow off a strong charger, fast when a reading is below the
   3.0 V shut-off mark (the stock protection gives no warning on a weak supply);
   Inspector power flags 8 weak supply, 16 low reading, 32 install refused; Check
@@ -397,7 +397,7 @@ share TAPE's own `presets.json` with a backup. Nothing here is hardware-verified
 
 ## 0.11 Install safety — 2026-10-05 (software-tested; not installed yet)
 
-After DC's 0.10 install left CHOMPI dark (flat battery on a computer's USB port:
+After the owner's 0.10 install left CHOMPI dark (flat battery on a computer's USB port:
 the stock bootloader's low-battery wait, not 0.10). Nothing here is
 hardware-verified.
 - **Install power check:** CHOMPI refuses a firmware install (new error 10,
@@ -420,7 +420,7 @@ hardware-verified.
 
 ## 0.10 TAPE parity — 2026-10-05 (ready to install; per-slot settings moved to 0.12)
 
-Software-tested only. DC chose the recommended answer for every row of the TAPE
+Software-tested only. The owner chose the recommended answer for every row of the TAPE
 parity checklist ([TAPE_CONTROLS.md](TAPE_CONTROLS.md), [KNOBS.md](KNOBS.md)).
 - **Knobs as TAPE:** TAPE's pages first (SW4 pitch/gain, SW1 start/attack, SW2
   end/release, SW3 reverb+delay / saturation / DJ filter), Forge's synth controls
@@ -437,7 +437,7 @@ parity checklist ([TAPE_CONTROLS.md](TAPE_CONTROLS.md), [KNOBS.md](KNOBS.md)).
 - **Lights as TAPE:** knob value colours (off in the record position), CHOMPI input
   meter / purple when held, PLAY/LOOP/SW5 dimmed in the record position, SW5 speed
   lights, SW6 page colours; white balance trimmed (green .85, blue .6) for the
-  light-blue whites DC saw.
+  light-blue whites the owner saw.
 - **Restart record:** reset cause and crash location (backup SRAM + Forge's own
   fault handler, which restarts instead of freezing) in Inspector page 2 (98 bytes),
   Check setup's *Last start* line and `FORGE/RESTARTS.TXT`.
@@ -476,7 +476,7 @@ playing back afterwards. Test patches (CPU/sampler stress) are left out.
 
 ## 0.9 Key lights while playing — 2026-10-05
 
-Software-tested only. DC: "we dont have indicator lights on key presses". As
+Software-tested only. Owner request. As
 TAPE's NormalPage, with the menu closed:
 - A held note key lights white.
 - Sampler kit mode: the keys that hold a sample glow dim in the bank's colour
@@ -488,7 +488,7 @@ TAPE's NormalPage, with the menu closed:
 
 ## 0.8 Power as stock — 2026-10-05
 
-Software-tested only. After DC's battery ran flat on 0.7, a review against
+Software-tested only. After the owner's battery ran flat on 0.7, a review against
 TAPE/WAVE/TEMPO (COMPATIBILITY §7). CHOMPI's hardware switch S1 always switched it
 off; what Forge lacked is listed here.
 - Start-up storage gesture as all stock firmwares: hold CHOMPI + PLAY + LOOP
@@ -589,7 +589,7 @@ TAPE's looper on KEY_28 LOOP / KEY_27 PLAY (design: LOOPING.md). Software-tested
 
 ## 0.5 plug-and-play bridge — 2026-10-03
 
-DC: "more plug and play". Host only; firmware unchanged. Software-tested only.
+Owner request. Host only; firmware unchanged. Software-tested only.
 - Connect CHOMPI: automatic port discovery (CHOMPI/Daisy-named ports only,
   confirmed by a Forge reply).
 - Automatic checks: finds the audio interface, then runs 19 measurable
@@ -616,7 +616,7 @@ DC: "more plug and play". Host only; firmware unchanged. Software-tested only.
 
 ## 0.5 sampler (roadmap item 4) — 2026-10-03
 
-Following TAPE's sampling (DC's request), with cheap extras. Design and
+Following TAPE's sampling (the owner's request), with cheap extras. Design and
 differences: SAMPLING.md. Software-tested only; nothing on hardware.
 - Patch v4: sampler module (chromatic/kit, banks a–e, slots 1–14 + the
   recording, pitch, start/end, loop with crossfade, hold/trigger, reverse),
@@ -640,7 +640,7 @@ differences: SAMPLING.md. Software-tested only; nothing on hardware.
 
 ## 0.4 MIDI CCs match stock — 2026-10-03
 
-- DC's decision: CC20+n sets encoder n (SW1–SW6) as on TAPE/TEMPO/WAVE:
+- The owner's decision: CC20+n sets encoder n (SW1–SW6) as on TAPE/TEMPO/WAVE:
   CC24 = cutoff (SW5), CC25 = output level (SW6). Forge-only controls moved
   to General MIDI numbers stock leaves free: CC71 resonance, CC74 cutoff,
   CC85 wet bypass, CC91 reverb mix. Stock virtual-key CCs (14, 15, 26–33)

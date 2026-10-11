@@ -221,7 +221,7 @@ def clicks(x, rate=RATE):
 
 
 def without_steady_tone(s, rate=RATE):
-    """Level once the strongest narrow spectral peak (a whine or hum from the rig, e.g. DC's 2 kHz
+    """Level once the strongest narrow spectral peak (a whine or hum from the rig, e.g. The owner's 2 kHz
     USB whine, 2026-10-11) is notched out: (rms dB of the rest, the tone's Hz or None). A tone only
     counts when it holds most of the energy in a band under 60 Hz wide and is quieter than -45 dB,
     so a held note or a chord is never set aside."""

@@ -514,7 +514,7 @@ void BatteryHold() {
     rig.hw.keys = 0; rig.Block(); assert(!rig.panel.VolumePage());          // after the battery view: no switch
 }
 
-// 0.16 (DC): the open menu page on the CHOMPI light, colour per stepped setting and per page,
+// 0.16 (the owner): the open menu page on the CHOMPI light, colour per stepped setting and per page,
 // SW5's cutoff on the loop, harmony on/off with SW1 + SW2, the event recorder by a CHOMPI tap,
 // KEY_21 held 2 s to the parts page, chord colours on the keys.
 void PanelFeedback016() {

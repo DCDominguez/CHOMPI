@@ -117,7 +117,7 @@ void ArpPatterns() {
     Rig t(Arp(Pattern::Up, Rate::EighthTriplet)); t.Keys({60}); t.Run(1.01f); assert(t.Ons().size() == 7);
 }
 
-// A chord's keys land a few ms apart (DC's CHOMPI, 2026-10-11): the phrase waits ~15 ms, so the
+// A chord's keys land a few ms apart (the owner's CHOMPI, 2026-10-11): the phrase waits ~15 ms, so the
 // first step sees the whole chord and nothing repeats at the start.
 void ChordGathering() {
     Rig r(Arp(Pattern::Down)); r.Keys({60}); r.Run(0.003f); r.Keys({64}); r.Run(0.003f); r.Keys({67});

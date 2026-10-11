@@ -122,7 +122,7 @@ never reaches the output.
 | Note/CC output | Keys sent as MIDI | None (SysEx replies only) |
 | Also in Forge | — | CC1, 64, 71 resonance, 74 cutoff, 85 bypass, 91 reverb, 120, 121, 123, pitch bend, SysEx patches |
 
-Aligned with stock on DC's decision (2026-10-03): CC20+n turns logical knob n
+Aligned with stock on the owner's decision (2026-10-03): CC20+n turns logical knob n
 (stock `encoder_map = {1, 2, 3, 0, 4, 5}` remaps hardware SW1–SW4), as an
 absolute position, exactly as the stock `OnEncoderTurned` CC path does.
 Forge-only controls moved to General MIDI numbers that stock never uses.
@@ -243,7 +243,7 @@ Files: `firmware/chompi-forge/bench/` (`run_bench.py`, `*_bench.cpp`,
 ## 7. Power and system behaviour (firmware 0.8 review, 2026-10-05)
 
 Reviewed against `chompi_main.cpp` of TAPE, WAVE and TEMPO and TAPE's
-`NormalPage.h` after DC's battery ran flat on 0.7. The charger IC (MP2722) charges
+`NormalPage.h` after the owner's battery ran flat on 0.7. The charger IC (MP2722) charges
 by itself; firmware only configures it, warns and enters shipping mode.
 
 Hardware (Rev 4 schematic): the **on/off switch S1** (SPDT) connects the charger's
@@ -251,7 +251,7 @@ system output (`VSYS_SW`, from `VSYS_BMC` through SW7) to `VSYS`, which feeds th
 system regulator (U11). Off = everything after the charger unpowered; the charger
 itself still charges from USB. Shipping mode is a deeper off (battery disconnected
 inside the charger, for storage); the low-battery shutdown uses it too, and USB
-power is the usual way out of it (DC to confirm on hardware).
+power is the usual way out of it (the owner to confirm on hardware).
 
 | Behaviour | TAPE | WAVE | TEMPO | Forge 0.7 | Forge 0.8 |
 | --- | --- | --- | --- | --- | --- |
@@ -273,7 +273,7 @@ colours), the recording slot dim pink; chromatic mode C3/C4/C5 dim markers. Forg
 0.1–0.8 left the keys dark outside the menu. WAVE and TEMPO light keys
 differently (their own pages); Forge follows TAPE.
 
-TAPE parity (Forge 0.10, DC's choices): see [TAPE_CONTROLS.md](TAPE_CONTROLS.md)
+TAPE parity (Forge 0.10, the owner's choices): see [TAPE_CONTROLS.md](TAPE_CONTROLS.md)
 for every stock control and [KNOBS.md](KNOBS.md) for Forge's knobs. Same as TAPE
 since 0.10: knob layout and steps, page on release, SW5 press (speed 1×), SW6 input
 gain page, DJ filter / saturation / warble / compressor, pitch with reverse, voice

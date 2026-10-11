@@ -116,7 +116,7 @@ inline const char* LockoutText(Lockout l) {
          : "";
 }
 // A firmware install restarts CHOMPI into the bootloader. Allow it only when that
-// lockout cannot follow (DC, 2026-10-05: a flat battery on a computer's USB port left
+// lockout cannot follow (the owner, 2026-10-05: a flat battery on a computer's USB port left
 // CHOMPI dark after an install): the battery reads green or white with no recent low
 // reading, or USB power is present on a supply that never hit its limit and is not a
 // legacy source. Stricter than the lockout itself (any recent flag counts).

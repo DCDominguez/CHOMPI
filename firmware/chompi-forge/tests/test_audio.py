@@ -32,7 +32,7 @@ def sine(hz, seconds=1.0, amplitude=0.25, channels=2, rate=RATE):
 @unittest.skipIf(np is None, "numpy not installed (pip install -r host/bridge-requirements.txt)")
 class AnalysisTests(unittest.TestCase):
     def test_silence_ignores_one_steady_rig_tone(self):
-        # DC's rig (2026-10-11): a steady 2 kHz USB whine around -48 dB peak failed every
+        # the owner's rig (2026-10-11): a steady 2 kHz USB whine around -48 dB peak failed every
         # "silent" check (noise floor 0.n, panic 4.1) although nothing was playing.
         rng = np.random.default_rng(1)
         whine = sine(2000.96, amplitude=10 ** (-48 / 20)) + rng.normal(0, 10 ** (-80 / 20), (RATE, 2)).astype(np.float32)
@@ -186,7 +186,7 @@ class FakeChompi:
 @unittest.skipIf(np is None, "numpy not installed")
 class DetectionTests(unittest.TestCase):
     def test_prefers_the_stereo_pair_over_a_louder_single_input(self):
-        # DC's UMC204HD (2026-10-10): "IN 2" alone was 1 dB louder than "IN 1-2", was picked,
+        # the owner's UMC204HD (2026-10-10): "IN 2" alone was 1 dB louder than "IN 1-2", was picked,
         # and the both-channels check (2.1) then saw one channel.
         world = FakeChompi(); interface = world.audio()
         interface.devices = lambda: [{"index": 2, "name": "IN 1-2 (UMC204HD)", "api": "WASAPI", "inputs": 2, "outputs": 0},
@@ -338,7 +338,7 @@ class BridgeAutomaticTests(unittest.TestCase):
 
     @unittest.skipIf(np is None, "numpy not installed")
     def test_autorun_sets_its_own_starting_state(self):
-        # As on DC's unit (2026-10-04): knob pages, the menu page and a loop left from hand testing.
+        # As on the owner's unit (2026-10-04): knob pages, the menu page and a loop left from hand testing.
         self.make(); self.connect(); self.call("arm", enabled=True)
         for button in (3, 2, 2):                              # Dry (effects only): SW4 to page 2, SW3 to page 3
             for value in (1, 0): self.call("action", action="panel", kind=0, id=button, value=value)

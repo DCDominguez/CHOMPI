@@ -3,9 +3,9 @@
 Updated 2026-10-09 (UTC). **Read [CONTINUE.md](CONTINUE.md) first**; it is the
 live checkpoint with claim levels, what changed and prioritized next actions.
 
-## Handoff: cloud session → DC's local PC (2026-10-09)
+## Handoff: cloud session → the owner's local PC (2026-10-09)
 
-DC is moving work from a Claude Code cloud session to a session on DC's own PC
+The owner is moving work from a Claude Code cloud session to a session on the owner's own PC
 (`claude remote-control` in the repository folder, or the Claude Desktop app). The
 conversation does not carry over; this section and CONTINUE do.
 
@@ -14,16 +14,16 @@ conversation does not carry over; this section and CONTINUE do.
   tree clean. Draft PR #1 untouched; the designated `claude/forge-foundation-review-*`
   branch is unused. GitHub Actions "Forge Bridge (Windows exe)" passed on `7d1af64`.
 - Firmware 0.15.1 = 0.15 event recorder and projects + fixes for every verified
-  finding of DC's full review (CHANGELOG 0.15.1). Software-tested: `make test`
+  finding of the owner's full review (CHANGELOG 0.15.1). Software-tested: `make test`
   16 native + 128 Python, `make sanitize` 15, `make browser-test` 11 + 7, `make bench`
   PASS (pitch .75 2,676.2 vs WAVE 2,694.9); ARM release 235,380 B / development
   249,188 B, layout OK.
 - Hardware: nothing from 0.11 on has run on a CHOMPI; whether 0.10 ever booted is
-  unknown (CONTINUE, "RESOLVED: CHOMPI dark after the 0.10 install"). DC was last on
+  unknown (CONTINUE, "RESOLVED: CHOMPI dark after the 0.10 install"). The owner was last on
   stock TAPE 2.0 with a full battery.
 
 **Release-candidate assessment (2026-10-09): not an RC yet.** Blockers and to-dos,
-in the order recommended to DC:
+in the order recommended to the owner:
 1. *(Fix done 2026-10-10, see CONTINUE; the independent review is still to do.)* *Bug in 0.15.1's own fix (unreviewed code):* `core/parts.h` `keys_[128]` (held-key
    count) is shared across note sources, so holding C4 on the panel while the recorded
    loop or MIDI plays C4 through the arp lets the other source's note-off release the
@@ -35,24 +35,24 @@ in the order recommended to DC:
 2. *(Done in 0.15.2, 2026-10-10: patch + commit + flags on the wire; CHANGELOG.)* *Build identity:* the device reports only minor 15; 0.15.1 cannot be told from 0.15
    on CHOMPI. Report a build id (commit hash or patch number) in status / Inspector and
    show it in Connect CHOMPI / Check setup.
-3. *(Done in 0.15.2 as safe mode, DC's choice; CHANGELOG, MANUAL 12.)* *Start-up crash guard:* "stop restarting after repeated start-up crashes" (0.10.1
+3. *(Done in 0.15.2 as safe mode, the owner's choice; CHANGELOG, MANUAL 12.)* *Start-up crash guard:* "stop restarting after repeated start-up crashes" (0.10.1
    hardening list) is still not implemented.
 4. *(Done 2026-10-10: full gate + release build; the first run on GitHub is still to be checked.)* *CI:* the workflow runs 4 of 16 native suites, no Python tests, sanitizers or bench,
    and ships only the development build (test hooks). Add the full gate and a release
    build. (CI already used the pinned Arm 10.3-2021.10; only the cloud session's local
-   builds used xPack 10.3.1. DC's PC now has the pinned archive in D:	ools.)
-5. *DC's hardware session* (HOME_CHECKLIST → TEST_SESSION), on charged power. Critical:
+   builds used xPack 10.3.1. The owner's PC now has the pinned archive in D:	ools.)
+5. *the owner's hardware session* (HOME_CHECKLIST → TEST_SESSION), on charged power. Critical:
    1.x (boots, right version), 4 (panic), 6.2b–g (CPU), 7–8 (install / power), and
    reproducing or ruling out the 0.9 "random shut-off while playing" (still open).
 6. Then tag `forge-0.15.x-rc1` from the exact commit tested. No tags or releases exist.
 
-Items 1–4 are software work an agent can do now; 5 is DC's.
+Items 1–4 are software work an agent can do now; 5 is the owner's.
 
-**Standing rules (DC)**
+**Standing rules (the owner)**
 - Work on `forge/foundation`; never force-push; never touch `main`; no PRs unless asked.
-- No real API keys in chat, source or logs; DC runs `host/forge_ai_check.py` with
-  DC's own key.
-- Agents never flash hardware or claim hardware results DC did not report. One
+- No real API keys in chat, source or logs; the owner runs `host/forge_ai_check.py` with
+  the owner's own key.
+- Agents never flash hardware or claim hardware results the owner did not report. One
   consolidated hardware session, no per-feature flashing requests.
 - Keep upstream firmware (chompi-tape / wave / tempo, bootloader, vendored libDaisy)
   untouched.
@@ -64,7 +64,7 @@ Items 1–4 are software work an agent can do now; 5 is DC's.
   callback; update CONTINUE, RESOURCE_LEDGER and STORAGE_STREAMING figures as needed.
 
 **Local setup** (all commands from `firmware/chompi-forge/`)
-- Get the code: `git clone -b forge/foundation https://github.com/DCDominguez/CHOMPI.git`
+- Get the code: `git clone -b forge/foundation <repository URL>`
   (or `git fetch origin && git checkout forge/foundation && git pull`).
 - Native and Python tests: a C++14 compiler, `make`, Python 3 with
   `pip install -r host/requirements.txt` (bridge: also `host/bridge-requirements.txt`).
@@ -77,20 +77,20 @@ Items 1–4 are software work an agent can do now; 5 is DC's.
 - On Windows: use WSL (or Git Bash with make) for the Makefile; the hardware session
   itself only needs the Forge Bridge exe from the Actions artifact.
 - A local session can reach CHOMPI over USB (bridge, `host/forge_host.py`); installing
-  firmware stays DC's action.
+  firmware stays the owner's action.
 
 **First prompt for the local session:** "Read AGENTS.md, docs/forge/CONTINUE.md and
-the 'Handoff: cloud session → DC's local PC' section of docs/forge/HANDOFF.md, then
+the 'Handoff: cloud session → the owner's local PC' section of docs/forge/HANDOFF.md, then
 start on item 1."
 
 ---
 
-Latest: 0.15.1 fixes every verified finding of DC's full project review (recorder
+Latest: 0.15.1 fixes every verified finding of the owner's full project review (recorder
 stuck notes, MIDI stop/start, full loop files, project hand-over, KEY_22 side effect,
 presets.json retries, host routes / validation / CLI / AI schema, install-power and
 test-session docs). Before it: 0.15 event recorder and projects, 0.14 clock / arp /
 bass, 0.13 harmony, 0.12 per-slot sample settings, 0.11 install power check, 0.10
-TAPE parity, 0.7–0.9 USB loader / power / key lights. Software-tested only; DC has
+TAPE parity, 0.7–0.9 USB loader / power / key lights. Software-tested only; the owner has
 not installed anything after the review (see CONTINUE). Paragraphs below are older
 milestones kept as history.
 
@@ -137,10 +137,10 @@ builds, release byte-identity and pending physical tests. No hardware was tested
 - Stock comparison and CPU benchmark: [COMPATIBILITY.md](COMPATIBILITY.md)
   (`make bench`).
 - QA bundle: `Forge-0.5-test-b7a504a` (with the sampler); checksums in CONTINUE.md;
-  older ZIPs are stale. DC keeps bundles on his Google Drive.
+  older ZIPs are stale. The owner keeps bundles in cloud storage.
 - Not verified: anything on hardware; any live OpenAI/Gemini request; device CPU.
 - Current state and remaining work: CONTINUE.md "Checkpoint summary".
 - Next for the agent: roadmap item 5 (looping), design first from TAPE's
-  looper; open DC decisions are listed in CONTINUE.md. QA for DC later:
+  looper; open the owner decisions are listed in CONTINUE.md. QA for the owner later:
   [LIVE_AI_TEST.md](LIVE_AI_TEST.md), then [TEST_SESSION.md](TEST_SESSION.md);
   record results in TEST_RESULTS.md only after running them.

@@ -137,7 +137,7 @@ FORGE_COLD void LogRestart() {
     if(!install_card.Ready()) return;
     char line[160];
     unsigned n = forge::restart::Describe(boot_count.boots, reset_flags, &last_fault, line, sizeof(line));
-    if(n < sizeof(line)) {                         // start-up card timing (DC's 60 s stall, 2026-10-10)
+    if(n < sizeof(line)) {                         // start-up card timing (the owner's 60 s stall, 2026-10-10)
         char text[48] = "card mount ";
         unsigned k = 11; uint32_t v = mount_ms; char digits[11]; int d = 0;
         do { digits[d++] = static_cast<char>('0' + v % 10); v /= 10; } while(v && d < 10);
@@ -743,7 +743,7 @@ FORGE_COLD void RunSampler() {
 // Key LEDs (~30 Hz), the knob page LEDs (1-4), PLAY/LOOP (7/8) and panel LED 0 (the CHOMPI key, as in TAPE): red while
 // recording, a flash after an action, pink blink while saving/copying. The
 // composed colours are kept for the development probe.
-// White balance: CHOMPI's LEDs show full white as light blue (DC, 2026-10-05; TAPE drives
+// White balance: CHOMPI's LEDs show full white as light blue (the owner, 2026-10-05; TAPE drives
 // them the same way), so green and blue are trimmed. Applied only at the LED driver;
 // the composed colours (tests, development probe) stay TAPE's.
 constexpr float kBalanceG = .85f, kBalanceB = .6f;
@@ -1044,7 +1044,7 @@ FORGE_COLD int main() {
         System::Delay(10);
     }
     // SD card first, exactly where TAPE mounts it (before USB, MIDI and the engine). Mounted
-    // after them it hung ~60 s at start-up (two of libDaisy's 30 s SD timeouts, DC's unit,
+    // after them it hung ~60 s at start-up (two of libDaisy's 30 s SD timeouts, the owner's unit,
     // 2026-10-10). Missing card: presets are unavailable (menu keys red), the rest works.
     {
         SdmmcHandler::Config sd_config;
@@ -1066,7 +1066,7 @@ FORGE_COLD int main() {
     ++boot_count.boots;
     LedSetup();
     // The start-up card work right after the mount, before USB / MIDI / the engine (TAPE reads
-    // its options here too). DC's unit stalled ~30-60 s when these ran after USB came up.
+    // its options here too). The owner's unit stalled ~30-60 s when these ran after USB came up.
     uint32_t step = System::GetNow();
     store.Rescan();      BootStep(3, step);
     LogRestart();        BootStep(4, step);

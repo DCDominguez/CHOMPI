@@ -3,12 +3,12 @@
 ## Get the development branch
 
 ```sh
-git clone --branch forge/foundation https://github.com/DCDominguez/CHOMPI.git
+git clone --branch forge/foundation <repository URL>
 cd CHOMPI
 ```
 
 For an existing clone, first preserve any local work, then fetch and switch to
-`forge/foundation`. The active work is in [draft PR #1](https://github.com/DCDominguez/CHOMPI/pull/1).
+`forge/foundation`. The active work is in draft PR #1 (on the Forge repository's GitHub page).
 This guide does not require merging the branch or flashing a unit.
 
 ## Requirements
@@ -150,7 +150,7 @@ ownership. Add tests for changed behavior and failure paths, rather than merely
 mirroring code. Update the protocol and both host/device implementations together
 when changing wire semantics. Record results and limitations in the handoff.
 
-Follow DC's one-session hardware-test plan. New software work can be validated
+Follow the owner's one-session hardware-test plan. New software work can be validated
 offline; physical claims remain pending until recorded in the consolidated
 session. Do not change the bootloader as a routine Forge development step.
 

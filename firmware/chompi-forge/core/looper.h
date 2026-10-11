@@ -10,7 +10,7 @@ namespace forge {
 // varispeed -2..+2 (negative = reverse) with linear interpolation, overdub
 // with feedback ("dub gain") through a soft limiter, 5 ms fades written into
 // the first take (seamless seam), 5 ms output fades for pause/clear/panic.
-// SW5's cutoff also filters the loop's playback (0.16, DC): a 12 dB/oct low-pass on the
+// SW5's cutoff also filters the loop's playback (0.16, the owner): a 12 dB/oct low-pass on the
 // loop only, never on what is recorded, open (bypassed, no work) until SW5 turns it down.
 // Work per sample is bounded: one interpolated read, at most two writes, one filter.
 //
@@ -187,7 +187,7 @@ private:
     void StartTake() {
         if(!memory_ || capacity_ < 2 * fade_) return;
         take_ = 0; length_ = 0; overdub_ = false; clearing_ = false; state_ = State::FirstTake;
-        speed_target_ = 1.f; SetTone(1.f);              // a new loop starts at 1x, unfiltered (0.16, DC)
+        speed_target_ = 1.f; SetTone(1.f);              // a new loop starts at 1x, unfiltered (0.16, the owner)
     }
     void CloseTake(bool overdub) {
         if(take_ < 2 * fade_) { Reset(); return; }      // shorter than its fades: discard

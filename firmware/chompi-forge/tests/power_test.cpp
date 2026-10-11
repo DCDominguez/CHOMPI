@@ -112,7 +112,7 @@ void OptionsFile() {
     assert(forge::options::Parse(tape, 40).midi_in == 0);                     // truncated read
 }
 
-// The stock protection as the histories show it, and the install check (DC, 2026-10-05: a flat
+// The stock protection as the histories show it, and the install check (the owner, 2026-10-05: a flat
 // battery on a computer port left CHOMPI dark after an install).
 void InstallPower() {
     Readings flat_pc; flat_pc.battery_low = 0xff; flat_pc.input_limit = 0xff;               // flat, at a 0.5 A port's limit

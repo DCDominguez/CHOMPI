@@ -3,7 +3,7 @@
 Status: **not yet run.** Request formats were checked against the providers'
 public docs on 2026-10-03 (OpenAI Responses `text.format` json_schema strict;
 Gemini `generationConfig.responseFormat.text`) and are covered by mocked tests.
-No real request has been made by any agent. Only DC runs this, with his own keys.
+No real request has been made by any agent. Only the owner runs this, with his own keys.
 
 ## Rules
 

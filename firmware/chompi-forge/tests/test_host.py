@@ -135,7 +135,7 @@ class PatchTests(unittest.TestCase):
         self.assertEqual(host.knob_pages(sampler, 3), 4); self.assertEqual(host.knob_pages(sampler, 4), 3)
 
     def test_v2_upgrade_keeps_brightness_by_waveform(self):
-        # 0.16 (DC): the v3 filter is 12 dB/oct, so a v2 cutoff rises with the waveform's harmonics.
+        # 0.16 (the owner): the v3 filter is 12 dB/oct, so a v2 cutoff rises with the waveform's harmonics.
         expected = {"04-glass-keys.json": 12000, "05-soft-pad.json": 2400 * 1.6, "06-saw-bass.json": 900 * 2.5}
         for name, cutoff in expected.items():
             upgraded = host.upgrade_patch(host.load_patch(ROOT / "presets" / name), 7)

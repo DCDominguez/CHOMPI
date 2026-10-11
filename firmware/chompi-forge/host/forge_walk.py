@@ -78,7 +78,7 @@ class Walk:
             else: self.record(f"{ident}.{i + 1}", label, "fail", f"expected switch {want} ({name}), got {got} ({NAMES.get(got, '?')})")
 
     def toggle(self):
-        # The firmware's "toggle_up" flag is the menu position, which is physically DOWN (DC's unit, 2026-10-05).
+        # The firmware's "toggle_up" flag is the menu position, which is physically DOWN (the owner's unit, 2026-10-05).
         for want, word, place in ((True, "DOWN", "menu"), (False, "UP", "record"), (True, "DOWN", "menu")):
             self.prompt("toggle", "Toggle switch", f"Flip the toggle (far left of the top row) {word} (the {place} position).",
                         hint="Leave it DOWN at the end: CHOMPI then opens the menu instead of recording.")

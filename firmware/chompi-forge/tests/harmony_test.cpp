@@ -222,7 +222,7 @@ void EngineAndPanel() {
     forge::Parameters kit = synth; kit.source = 1; kit.sample_mode = 1; kit.voices = 7;
     assert(e.ApplyPatch(kit) && !e.HarmonyOn() && e.Note(48, 100, 1) == 1); e.Note(48, 0, 1);
     assert(e.ApplyPatch(synth) && e.HarmonyOn());
-    // Shift through the engine (DC's CHOMPI, 2026-10-11): releasing C5 clears Shift, so the
+    // Shift through the engine (the owner's CHOMPI, 2026-10-11): releasing C5 clears Shift, so the
     // next ii is minor again. Before the fix the release never reached the player (C5 has no
     // held chord) and every later chord stayed shifted.
     {

@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "parameters.h"
 
-// Event recorder (firmware 0.15, DC's item 4): what is played (keys, MIDI notes, knob and
+// Event recorder (firmware 0.15, the owner's item 4): what is played (keys, MIDI notes, knob and
 // parameter moves) recorded as events on the parts clock (core/parts.h, 24 PPQN), looped
 // over whole bars (1-8) and overdubbed; not audio. It plays back through the engine like a
 // player (its own note source), so harmony, the arp and the bass treat it like the keys.

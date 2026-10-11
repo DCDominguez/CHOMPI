@@ -4,7 +4,7 @@ Date: Sat, 3 Oct 2026 16:36:06 +0000
 Subject: [PATCH 2/2] WIP (local only): audio bridge docs, dev packaging, panel
  release safety
 
-Not pushed: origin/forge/foundation gained DC's Inspector/browser bridge
+Not pushed: origin/forge/foundation gained the owner's Inspector/browser bridge
 commits (e1723a5..7fa8624) that overlap these files; to be reconciled
 before publishing.
 
@@ -36,14 +36,14 @@ index 0000000..d4a379c
 +
 +Status: **implemented and software-tested against the simulated CHOMPI; never
 +run on hardware.** Real audio devices, the development firmware on CHOMPI and
-+Windows MIDI behaviour are unverified until DC's session.
++Windows MIDI behaviour are unverified until the owner's session.
 +
 +The bridge lets a test session hear and operate CHOMPI from a computer, so an
-+agent can check what it can measure and DC only judges what needs ears:
++agent can check what it can measure and the owner only judges what needs ears:
 +
 +| Part | What it does |
 +| --- | --- |
-+| Ears | Records CHOMPI's outputs through an audio interface and measures level, pitch, onset/end, clicks, DC, clipping, noise floor and stereo correlation; draws a spectrogram PNG |
++| Ears | Records CHOMPI's outputs through an audio interface and measures level, pitch, onset/end, clicks, the owner, clipping, noise floor and stereo correlation; draws a spectrogram PNG |
 +| Voice | Plays test tones (−18 dBFS in the plans; hard limit −6 dBFS) into CHOMPI's line in, recorded at the same time |
 +| Hands | With the **development firmware**: presses keys, holds CHOMPI, turns knobs, overrides the toggle and jack detect, and reads the menu state and all 26 key LED colours back |
 +| Plans | JSON test plans (`tests/hardware/*.json`) run step by step into a report folder: `summary.md`, `report.json`, and a WAV + PNG per capture |
@@ -213,7 +213,7 @@ index 73ce450..1bcdbb8 100644
  
 +## 0.5 hardware test bridge (development only) — 2026-10-03
 +
-+DC: "a testing bridge so I can hook up the chompi and you can test as well".
++owner request.
 +Software-tested against the simulated CHOMPI only. Design and use: BRIDGE.md.
 +- Development firmware (`make firmware-dev`, `FORGE_TEST_HOOKS`): SysEx
 +  opcode 0A injects panel events (keys, CHOMPI, knobs, SW5 press, toggle and
@@ -237,7 +237,7 @@ index 73ce450..1bcdbb8 100644
 +
  ## 0.5 sampler (roadmap item 4) — 2026-10-03
  
- Following TAPE's sampling (DC's request), with cheap extras. Design and
+ Following TAPE's sampling (the owner's request), with cheap extras. Design and
 diff --git a/docs/forge/DEVELOPMENT.md b/docs/forge/DEVELOPMENT.md
 index 7ab27a1..53ceb89 100644
 --- a/docs/forge/DEVELOPMENT.md

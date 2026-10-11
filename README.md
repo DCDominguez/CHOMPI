@@ -17,13 +17,13 @@ loader and live AI provider requests. This is experimental community firmware, n
 an official or hardware-approved release.
 
 **Try it:** download *Forge Bridge.exe* (Windows) from the latest green
-[Forge Bridge (Windows exe)](https://github.com/DCDominguez/CHOMPI/actions/workflows/forge-bridge-exe.yml)
+Forge Bridge (Windows exe) (on the Forge repository's GitHub page)
 run → *Artifacts*; it includes `FORGE.bin` and
 [HOME_CHECKLIST.md](docs/forge/HOME_CHECKLIST.md).
 
 **[User manual](docs/forge/MANUAL.md)** · [Developer resume checkpoint](docs/forge/CONTINUE.md) · [Documentation](docs/forge/README.md)
-· [Project scope](docs/forge/PROJECT.md) · [Draft PR #1](https://github.com/DCDominguez/CHOMPI/pull/1)
-· [Development branch](https://github.com/DCDominguez/CHOMPI/tree/forge/foundation)
+· [Project scope](docs/forge/PROJECT.md) · Draft PR #1 (on the Forge repository's GitHub page)
+· Development branch (on the Forge repository's GitHub page)
 
 ## Project and implemented features
 
@@ -140,7 +140,7 @@ verified archive hash. No upstream sources or bootloader were changed.
 | Native suites | Ten C++ suites pass (DSP/queue, protocol, synth, v3, presets/menu, sampler, panel, Inspector, looper, USB file transfer incl. 200,000 fuzzed requests), and again under ASan/UBSan |
 | Python / web | 111 Python tests; 11 + 6 real-Chromium tests (webapp, bridge) |
 | ARM | Release 235,980 B / development 251,684 B of 282 KB executable SRAM, layout checks OK (xPack GCC 10.3.1); GitHub Actions builds the development firmware and the Windows exe on every change |
-| Hardware | Two sessions by DC on 2026-10-04: panel walk all pass; automatic checks 21 of 22 on 0.7 (the miss: no kit file on the card); line-in steps not yet run |
+| Hardware | Two sessions by the owner on 2026-10-04: panel walk all pass; automatic checks 21 of 22 on 0.7 (the miss: no kit file on the card); line-in steps not yet run |
 | AI providers | No live provider request performed yet |
 
 Firmware SHA-256 depends on the compiler; use the value printed by the test
@@ -162,7 +162,7 @@ v3, v4 and v5 instrument), fourteen presets, simulated references, docs, license
 hashes/source identity. Binaries and ZIPs are generated artifacts, not tracked
 source. Earlier 0.2 and 0.3 ZIPs are obsolete and have not been silently updated.
 
-DC's workflow is **one consolidated hardware session**; follow
+The owner's workflow is **one consolidated hardware session**; follow
 [TEST_SESSION.md](docs/forge/TEST_SESSION.md). A defect may require a focused
 retest. Do not substitute software passes for actual device acceptance.
 

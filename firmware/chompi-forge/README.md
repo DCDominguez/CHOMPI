@@ -115,7 +115,7 @@ corners; saw/square use 2-point polyBLEP, so some high-note aliasing remains.
 No claim of click-free sound or hardware CPU headroom before the listening session;
 TEST_SESSION 6.2b measures the v3 worst case (`presets/10-cpu-stress.json`).
 
-Startup remains dry aux v1 for compatibility (DC, 2026-10-03). Send an
+Startup remains dry aux v1 for compatibility (the owner, 2026-10-03). Send an
 instrument preset, recall a device preset, pick a sample or record to play.
 Knobs 1–4 control delay/output; on a sampler patch they follow TAPE's first
 page instead: pitch, start, end, delay mix.
@@ -193,12 +193,12 @@ CPU headroom, USB enumeration, routing, electrical levels, or device recovery.
 
 ## First hardware session
 
-Per DC's 2026-10-01 preference, defer this to one consolidated acceptance
+Per the owner's 2026-10-01 preference, defer this to one consolidated acceptance
 session for the assembled first candidate. M0 does not require a separate
 user test now. Keep building and testing software in the meantime, and extend
 the checklist below with patch/host integration checks as those are implemented.
 
-This build has not been flashed or tested on DC's CHOMPI. Before first boot,
+This build has not been flashed or tested on the owner's CHOMPI. Before first boot,
 back up the working card and confirm the existing stock firmware/restore path;
 use a separate test card and the installed CHOMPI bootloader. Do not install
 the repository's beta bootloader as part of Forge bring-up.

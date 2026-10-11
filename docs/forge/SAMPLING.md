@@ -1,6 +1,6 @@
 # Forge sampling (roadmap item 4): design
 
-Status: design agreed in scope with DC on 2026-10-03 ("follow TAPE's sampling,
+Status: design agreed in scope with the owner on 2026-10-03 ("follow TAPE's sampling,
 which works; add cool things that don't overload"). **Implemented and
 software-tested in firmware 0.5** (sampler steps 1–7, see CHANGELOG). Nothing
 here is hardware-verified; TEST_SESSION 3D and 6.2c cover it.

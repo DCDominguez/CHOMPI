@@ -1,33 +1,33 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-11, checkpoint: 0.16.0 (Batch 1 + 2) built and software-tested; next: install on CHOMPI (DC's key press), 3J checks, stress test to failure. Read this first; DC's next session is
+Updated 2026-10-11, checkpoint: 0.16.0 (Batch 1 + 2) built and software-tested; next: install on CHOMPI (the owner's key press), 3J checks, stress test to failure. Read this first; the owner's next session is
 [HOME_CHECKLIST.md](HOME_CHECKLIST.md), then [TEST_SESSION.md](TEST_SESSION.md).
 
 ## 2026-10-11 (late night): 0.19.0 synth page built (resume here)
 
 - Built, not installed: 0.17.1 (SW5 sweep), 0.18.0 (magic 4-6), 0.19.0 (synth edit page, menu
-  page 5, pink). One install covers all three (DC's press). Webapp: Spark mockup v2 published
+  page 5, pink). One install covers all three (the owner's press). Webapp: Spark mockup v2 published
   (virtual screen, dice, characters). Next: install + TEST_SESSION 3J-3M + the filter "after"
   video; then the stress test; then the virtual screen protocol and the Spark webapp build.
 - Development headroom 22,876 B (RESOURCE_LEDGER): plan a code move before effects.
 
 ## 2026-10-11 (night): 0.17.1 + 0.18.0 built, Spark chosen
 
-- On CHOMPI: 0.17.0 (e7b5e12), magic 1-3 checked (TEST_RESULTS). Built, NOT installed (DC out;
-  Claude Code's permission check refused a virtual CHOMPI press twice, even with DC's chat OK, so
-  installs wait for DC's physical press): 0.17.1 SW5 sweep (80 Hz..8 kHz + resonance) and 0.18.0
+- On CHOMPI: 0.17.0 (e7b5e12), magic 1-3 checked (TEST_RESULTS). Built, NOT installed (the owner out;
+  Claude Code's permission check refused a virtual CHOMPI press twice, even with the owner's chat OK, so
+  installs wait for the owner's physical press): 0.17.1 SW5 sweep (80 Hz..8 kHz + resonance) and 0.18.0
   (chomp rolls, dream mode, roll sparkle, loop ripple). Before / after video of SW5: the before is
   `reports/cam/filter_before_0170.mp4`; record the after once installed.
-- Brand: Spark (PROJECT.md). Next per DC: magic + Spark branding (webapp mockup in Spark with the
+- Brand: Spark (PROJECT.md). Next per the owner: magic + Spark branding (webapp mockup in Spark with the
   virtual screen, dice, characters), then the synth edit page; then the stress test.
 - Development build headroom 26,580 B (RESOURCE_LEDGER): plan before big additions.
 
 ## 2026-10-11 (latest): 0.17.0 magic items 1-3 built
 
-- 0.16.0 is on CHOMPI (e7e3f0a; TEST_RESULTS: 12/13, the fail is plan timing). DC: magic batch
+- 0.16.0 is on CHOMPI (e7e3f0a; TEST_RESULTS: 12/13, the fail is plan timing). The owner: magic batch
   before the stress test. Built (CHANGELOG 0.17.0): last preset + start-up chime, surprise me
   (SW1 + SW3), mutate (SW2 + SW3); `core/magic.h`, `tests/magic_test.cpp`, panel `Magic017`.
-- Next: install 0.17.0 (DC's press), TEST_SESSION 3K + DC's ear; then the stress test to failure
+- Next: install 0.17.0 (the owner's press), TEST_SESSION 3K + the owner's ear; then the stress test to failure
   (bank 8 allowed); then magic items 4-7, virtual screen, webapp.
 
 ## 2026-10-11 (later): 0.16.0 Batch 1 + 2 built
@@ -39,9 +39,9 @@ Updated 2026-10-11, checkpoint: 0.16.0 (Batch 1 + 2) built and software-tested; 
 - Checks: 16 native suites + 135 Python pass (MinGW 16.2; `parts_test` built as
   `parts_suite.exe`, AVG blocks the old name); release 235,628 B / development 249,352 B,
   layout OK. Not run locally: sanitizers, browser tests, bench (CI).
-- Not on CHOMPI: TEST_SESSION 3J (3.77-3.85). DC approved install + stress test to failure
-  (2026-10-11): installs need DC's physical CHOMPI press; no card writes outside an agreed
-  bank (DC, 2026-10-11: bank 8 may be used for save / load stress; the rest of the card stays untouched).
+- Not on CHOMPI: TEST_SESSION 3J (3.77-3.85). The owner approved install + stress test to failure
+  (2026-10-11): installs need the owner's physical CHOMPI press; no card writes outside an agreed
+  bank (the owner, 2026-10-11: bank 8 may be used for save / load stress; the rest of the card stays untouched).
 
 ## 2026-10-11: agent hardware checks, soak, UX review
 
@@ -52,14 +52,14 @@ Updated 2026-10-11, checkpoint: 0.16.0 (Batch 1 + 2) built and software-tested; 
   (`core/harmony.h`); arp / bass phrase start sees a half-built chord (15 ms gathering,
   `core/parts.h`); starter-preset loader restores a neutral v7 first; demo presets 15-17;
   test-plan robustness (3.42 SW5 first, steady-tone silence rule).
-- DC's decisions and the per-function ease-of-use ratings (bar: 4/5 each):
+- The owner's decisions and the per-function ease-of-use ratings (bar: 4/5 each):
   [UX_REVIEW.md](UX_REVIEW.md), PROJECT.md backlog.
-- **Next (DC approved 2026-10-11): Batch 1** = new first loop take at 1×; SW5 lights during
+- **Next (the owner approved 2026-10-11): Batch 1** = new first loop take at 1×; SW5 lights during
   scrub and cutoff turns; SW5 cutoff filters the loop; CHOMPI key colour per menu page;
   knob colour per menu-item value while turning + page flash; waveform-aware v2 → v3 cutoff
   upgrade (host). **Batch 2** = harmony keys lit by chord quality, Shift lit, quick harmony
   on/off; event recorder close / play / stop without the menu; direct parts-page entry.
-  Then DC allows install + stress test to failure (safety rules in the 2026-10-11
+  Then the owner allows install + stress test to failure (safety rules in the 2026-10-11
   conversation: physical CHOMPI press for installs, no card writes outside an agreed test
   bank, stop on crash / safe mode / power fault).
 - Still open: SW3 DJ filter silencing, sound loss while modulating, unexplained looper
@@ -69,7 +69,7 @@ Updated 2026-10-11, checkpoint: 0.16.0 (Batch 1 + 2) built and software-tested; 
 ## Late session 2026-10-10: start-up stall fixed, guided pass started (resume here)
 
 - Fixed and verified on CHOMPI: the 30–60 s start-up stall and failing card writes (FatFs
-  `FIL` objects on the DTCM stack; CHANGELOG 0.15.2). DC's card repaired (chkdsk, empty
+  `FIL` objects on the DTCM stack; CHANGELOG 0.15.2). The owner's card repaired (chkdsk, empty
   leftovers deleted; byte-identical to the afternoon backup otherwise). Boot: 3 s.
 - Installed on CHOMPI: the development build from the current tree (still reports build
   c93357b, "uncommitted changes": nothing committed since c93357b).
@@ -81,18 +81,18 @@ Updated 2026-10-11, checkpoint: 0.16.0 (Batch 1 + 2) built and software-tested; 
 
 ## Hardware: 0.15.2 on CHOMPI, unattended run (2026-10-10 evening)
 
-DC installed the development build (c93357b, dirty) from the SD card. It boots and
+The owner installed the development build (c93357b, dirty) from the SD card. It boots and
 reports itself; over USB the agent ran the whole automatic plan: 34 of 34 pass after a
 host fix and reruns (TEST_RESULTS 2026-10-10 has every figure). First device CPU: synth
 stress peak ~44 %, sampler 55 %, sampler + TAPE effects 61 %. Open: start-up USB settling
 (descriptor failure, late replies for ~1 min), one-off clicks in 6.2b (not reproduced),
 brown-out among the start flags. Host fix: `forge_audio.detect` prefers a stereo input.
-Next: DC's listening session (sound and feel; DC does not hunt failures), then the
+Next: the owner's listening session (sound and feel; the owner does not hunt failures), then the
 person-only TEST_SESSION steps; re-run 6.2b at each session; a clean committed build.
 
 ## Checkpoint: firmware 0.15.2, HANDOFF items 2-4 (2026-10-10, local PC)
 
-DC: "fix the blockers first"; for the crash guard DC chose safe mode over "stop restarting".
+Owner request; for the crash guard the owner chose safe mode over "stop restarting".
 - Implemented (CHANGELOG 0.15.2): build identity (status reply and Inspector page 2 end in
   patch, flags, 28-bit commit; `src/Makefile` writes `forge_build_id.h` from git; host
   `decode_identity` / `describe_build` read both layouts; Connect CHOMPI, webapp, Inspector
@@ -102,16 +102,16 @@ DC: "fix the blockers first"; for the crash guard DC chose safe mode over "stop 
 - Checks (Windows, MinGW GCC 16.2 for host code, pinned Arm GCC 10.3-2021.10 for firmware):
   16 native + 130 Python PASS (card tests ran against this development build); release
   232,580 B / development 246,256 B, layout OK; `startup_guard` in backup SRAM (0x3880002c).
-- Battery checker (DC): power bytes in every status reply; `forge_host.py battery`; the
+- Battery checker (the owner): power bytes in every status reply; `forge_host.py battery`; the
   automatic run reads the battery first and stops if an install would be refused. Tried on
-  DC's CHOMPI (stock TAPE): ports found, no Forge reply, SW6 advice printed. TEST_SESSION
-  "Unattended over USB" is DC's no-one-at-CHOMPI method (after the one install).
+  the owner's CHOMPI (stock TAPE): ports found, no Forge reply, SW6 advice printed. TEST_SESSION
+  "Unattended over USB" is the owner's no-one-at-CHOMPI method (after the one install).
 - Not run locally: sanitizers, browser tests, bench (CI runs them; first run unchecked).
   Not verified: anything on hardware; safe mode cannot be triggered on purpose.
 - The MinGW `-O2` `forge_probe --render` crash came and went during these runs (passed in
   the last full run); still open, see the item 1 checkpoint below.
-- Next: check the first CI run; the independent review (item 1's second half); then DC's
-  hardware session (charge first; TEST_SESSION 1.3 now checks the build). DC tests sound
+- Next: check the first CI run; the independent review (item 1's second half); then the owner's
+  hardware session (charge first; TEST_SESSION 1.3 now checks the build). The owner tests sound
   and feel; agents run the failure testing over USB. After it: PROJECT.md "Backlog" (synth
   edit page on CHOMPI, starter preset upgrades / demos).
 
@@ -138,16 +138,16 @@ DC: "fix the blockers first"; for the crash guard DC chose safe mode over "stop 
 - Next: an independent review of the 0.15.1 diff (`1cd73ae..7d1af64`) plus this change,
   then HANDOFF items 2-4; the `-O2` probe crash needs its own look (Linux / sanitizers).
 
-## Moving to DC's local PC (2026-10-09)
+## Moving to the owner's local PC (2026-10-09)
 
-Work continues in a session on DC's own PC. The release-candidate assessment (not an
+Work continues in a session on the owner's own PC. The release-candidate assessment (not an
 RC yet), the ordered next tasks, standing rules and local setup are in
-[HANDOFF.md](HANDOFF.md), section "Handoff: cloud session → DC's local PC". First task:
+[HANDOFF.md](HANDOFF.md), section "Handoff: cloud session → the owner's local PC". First task:
 the shared held-key count in `core/parts.h` (a bug in 0.15.1's own fix).
 
 ## Current checkpoint: firmware 0.15.1 review fixes (2026-10-06)
 
-DC: "Battery is already full but I want to do a full review of the project for now",
+Owner request,
 then "read the review. go for the fixes dude". The review (four parallel reviewers, each
 finding verified against the code) found defects in 0.13–0.15 code, the host and the
 docs. All verified findings are fixed; each code fix has a regression test.
@@ -175,11 +175,11 @@ docs. All verified findings are fixed; each code fix has a regression test.
   `ASAN_OPTIONS=detect_leaks=0 make sanitize` 15 PASS; `make browser-test` 11 + 7 PASS;
   `make bench` PASS (unchanged: pitch .75 2,676.2, 1× worst 2,610.5 vs WAVE 2,694.9);
   ARM release 235,380 B / development 249,188 B, layout OK (headroom 53,388 / 39,580 B).
-- Not verified: everything on hardware (DC has not installed 0.11 or later); the
+- Not verified: everything on hardware (the owner has not installed 0.11 or later); the
   `presets_old.json` step-aside and `.FSQ` writes on real FatFS; a live AI request with
-  the reduced schema (`host/forge_ai_check.py` is DC's to run, with DC's own key).
+  the reduced schema (`host/forge_ai_check.py` is the owner's to run, with the owner's own key).
 - Firmware still reports minor 15 on the wire (no patch number); docs and bundle say
-  0.15.1. Next: DC's hardware session, or DC's next request.
+  0.15.1. Next: the owner's hardware session, or the owner's next request.
 
 ## Resource/QA review, 2026-10-04 (UTC)
 
@@ -202,9 +202,9 @@ use the latest implementation checkpoint and ledger for present capabilities/bud
 
 ## Checkpoint: firmware 0.15 event recorder (2026-10-05; 0.14 parts and 0.13 harmony below)
 
-DC: "Yeah 1 to 4 let's go" = (1) finish harmony 0.13, (2) CPU fix A (table-based
+Owner request = (1) finish harmony 0.13, (2) CPU fix A (table-based
 cubic read), (3) clock + arp + bass, (4) event recorder + projects on SD. Item 1 is
-this checkpoint. DC is still on stock TAPE (battery charging); 0.11–0.13 are not
+this checkpoint. The owner is still on stock TAPE (battery charging); 0.11–0.13 are not
 installed. One consolidated hardware session covers them all (TEST_SESSION).
 - Implemented and software-tested: `core/harmony.h` (`6b4d1b8`) and engine/panel
   wiring; memory savings (queues `.bss`, `-Os` control code, start-up construction,
@@ -227,7 +227,7 @@ installed. One consolidated hardware session covers them all (TEST_SESSION).
   kit below 1× 2,564.2, 1× worst 2,603.5 vs WAVE 2,694.9 (pitched-down rows now
   gated). Checks: make test 14 native + 121 Python, sanitize 13, browser 11 + 7 PASS;
   release 221,712 / development 234,376 B layout OK. Not verified on hardware (6.2f).
-- Item 3, clock + arp + bass = firmware 0.14 (after `dd06649`). DC's answers (2026-10-05):
+- Item 3, clock + arp + bass = firmware 0.14 (after `dd06649`). The owner's answers (2026-10-05):
   internal tempo + follow MIDI clock + send it, tempo settable on CHOMPI (SW4, tap C5); parts
   page with latch; bass internal + MIDI ch 2; ROOT/FIFTH/ALTERNATE/OCTAVE on the clock.
   Implemented and software-tested: `core/parts.h`, engine wiring, parts page (KEY_21 from
@@ -237,24 +237,24 @@ installed. One consolidated hardware session covers them all (TEST_SESSION).
   Checks: make test 15 native + 123 Python, sanitize 14, browser 11 + 7 PASS; bench
   unchanged PASS; release 229,168 / development 242,896 B layout OK.
   Not verified: everything on hardware (3.65–3.72), arp timing feel, MIDI clock with a DAW.
-- Item 4, event recorder + projects = firmware 0.15 (after `0b09d45`). DC's answers
+- Item 4, event recorder + projects = firmware 0.15 (after `0b09d45`). The owner's answers
   (2026-10-05): notes + knobs looped with overdub; parts-page keys; project = preset +
   parts + loop; MIDI-in notes recorded. Implemented and software-tested: `core/sequencer.h`,
   `core/sequence_store.h`, engine / panel / firmware / probe wiring, Inspector page 10.
   Checks: make test 16 native + 124 Python, sanitize 15, browser 11 + 7 PASS; bench PASS
   (pitch .75 2,676.2); release 234,448 / development 248,256 B layout OK.
-  Not verified: everything on hardware (3.65–3.76), FatFS writes of `.FSQ` on DC's card.
-- DC's items 1-4 are all done in software. Next: DC's hardware session (install 0.15 once
-  the battery is full, then TEST_SESSION), or DC's next request.
+  Not verified: everything on hardware (3.65–3.76), FatFS writes of `.FSQ` on the owner's card.
+- The owner's items 1-4 are all done in software. Next: the owner's hardware session (install 0.15 once
+  the battery is full, then TEST_SESSION), or the owner's next request.
 
 ## Checkpoint: firmware 0.12 per-slot sample settings (2026-10-05)
 
-**Queued next (DC, 2026-10-05):** the Harmony / Intent Engine brief,
+**Queued next (the owner, 2026-10-05):** the Harmony / Intent Engine brief,
 [HARMONY_BRIEF.md](HARMONY_BRIEF.md), to start after the safety additions are done.
 Begin with its Phase 0 / first deliverable (architecture and proposal) before code.
 
-A4 built on top of 0.11, per DC's four answers (save as TAPE, per-pad kit settings,
-slot wins over a Forge preset, share TAPE's presets.json with a backup). DC is still
+A4 built on top of 0.11, per the owner's four answers (save as TAPE, per-pad kit settings,
+slot wins over a Forge preset, share TAPE's presets.json with a backup). The owner is still
 on stock TAPE while the battery charges; neither 0.11 nor 0.12 is installed.
 - Implemented and software-tested: `core/slot_settings.h` (TAPE layout/units, v1
   read, 8 KB bound, menu save/copy/erase); Synth per-voice settings (window, loop,
@@ -265,15 +265,15 @@ on stock TAPE while the battery charges; neither 0.11 nor 0.12 is installed.
 - Checks: `make test` 13 native (new slot_settings_test) + 119 Python PASS;
   `make sanitize` 12 PASS; ARM release 261,072 B / development 277,028 B layout OK;
   `make bench` PASS (worst 2,677.9 vs WAVE 2,694.9); browser 11 + 7 PASS.
-- Decided (DC, 2026-10-05: "keep it"): every voice below 1× (SW4 pitch down, or kit
+- Decided (owner request): every voice below 1× (SW4 pitch down, or kit
   pads) is ~4 % over WAVE in the emulator (2,800.8), since 0.10; the cubic read stays,
   accepted if hardware 6.2f stays < 70 %. Revisit only if 6.2f fails.
-- Safety extras (DC: "include the extras"): SW6 low-battery warning blink, Inspector
+- Safety extras (owner request): SW6 low-battery warning blink, Inspector
   power flags 8/16/32 and Check setup warning, TEST_SESSION 8.5/8.6. Checks: make
   test 13 native + 119 Python, sanitize 12, browser 11 + 7 PASS; release 261,224 B /
   development 277,268 B layout OK; no DSP change (bench as above).
 - Not verified: everything on hardware; TAPE reading Forge's file (3.64); FatFS
-  rename/unlink of presets.json on DC's card; the warning blink's readings on a real
+  rename/unlink of presets.json on the owner's card; the warning blink's readings on a real
   weak supply (8.5).
 - Next: Harmony Phase 1 (0.13), decisions and plan in HARMONY_BRIEF.md "Phase 0 decisions".
 - Correction to the 0.11 entry below: its `make test` claim was premature; the
@@ -282,8 +282,8 @@ on stock TAPE while the battery charges; neither 0.11 nor 0.12 is installed.
 
 ## Checkpoint: firmware 0.11 install safety (2026-10-05)
 
-DC chose "both, safety first": 0.11 install safety, then A4 (per-slot sample
-settings, now 0.12). DC is on stock TAPE 2.0 while the battery charges (yellow at
+The owner chose both, safety first: 0.11 install safety, then A4 (per-slot sample
+settings, now 0.12). The owner is on stock TAPE 2.0 while the battery charges (yellow at
 last report); no Forge firmware is installed now.
 - Implemented and software-tested: install power check (`core/power.h`
   `InstallPowerOk`, error 10, file-reply flag 16, re-check at the press; host
@@ -294,15 +294,15 @@ last report); no Forge firmware is installed now.
   254,756 B / development 269,808 B layout OK (xPack 10.3.1); `make bench` PASS
   (worst 2,670.9 vs WAVE 2,694.9; unchanged, no DSP change); browser 11 + 7 PASS.
 - Not verified: anything on hardware; the real charger flag behaviour (legacy,
-  IINDPM) on DC's supplies; whether the units' v6.2 bootloader waits like the
+  IINDPM) on the owner's supplies; whether the units' v6.2 bootloader waits like the
   v6.4-beta source. Next hardware step: install 0.11 from the card (TAPE → Forge
   needs the SD route) on a USB-C charger with the battery green/white, then Check
   setup; TEST_SESSION 7.3p optional.
 - Next: A4 (0.12).
 
-## RESOLVED: CHOMPI dark after the 0.10 install (DC, 2026-10-05)
+## RESOLVED: CHOMPI dark after the 0.10 install (the owner, 2026-10-05)
 
-DC installed 0.10 through the bridge (USB install), then could not connect; later
+The owner installed 0.10 through the bridge (USB install), then could not connect; later
 CHOMPI "won't turn on". The red charging LED is on with USB plugged in. Nothing
 here is hardware-verified; causes are not established.
 - Not a brick: the SD/USB install writes QSPI only; the bootloader lives in internal
@@ -315,15 +315,15 @@ here is hardware-verified; causes are not established.
 - Alternative, 0.10 at boot: rainbow lights followed by dark or repeating rainbow
   would point at 0.10 (new fault handler resets instead of hanging; VTOR copy;
   boot-time SD reads for options/restart log; USB MIDI out).
-- Sent DC: charge from a wall charger with the switch on; if still dark, put only
+- Sent the owner: charge from a wall charger with the switch on; if still dark, put only
   one `.bin` on the card root, either Forge 0.9 (dev build of `1e0e35a`, xPack
   10.3.1, 253,696 B, sha256 8a9b4785…ac9100) or `card-profiles/tape-2.0`. Waiting
-  for DC's light description and `FORGE/RESTARTS.TXT`.
-- DC, later: the bridge lost CHOMPI during the install (expected: the install
+  for the owner's light description and `FORGE/RESTARTS.TXT`.
+- The owner, later: the bridge lost CHOMPI during the install (expected: the install
   restarts it); with the switch on there are no lights at all at power-on, red
   charge light only. The bootloader's battery check runs before its first light and
   before it reads the card, so no light at all means no firmware (0.9 or 0.10) has
-  run yet. That supports the battery hypothesis; DC is charging from a wall charger.
+  run yet. That supports the battery hypothesis; the owner is charging from a wall charger.
 - Hardware (Rev4 schematic sheets 1-2, BOM): both red LEDs (LED_STAT1 charge,
   LED_PG1 input power good) are driven by the MP2722 charger itself, so they say
   nothing about the Daisy. Power: USB-C -> SW7 (battery bypass) -> MP2722 SYS ->
@@ -336,14 +336,14 @@ here is hardware-verified; causes are not established.
 - Bootloader detail (v6.4-beta source, `boot_hardware.h` LowBatteryLockoutCheck): the
   wait `while(batt_low && (legacy_cable || iindpm_stat)) {}` never re-reads the
   charger, so once entered it lasts until power is cycled, however long it charges.
-  DC's power bank showed 2.5 W (0.5 A default USB) on USB-A, 9.4 W on USB-C. Told DC
+  The owner's power bank showed 2.5 W (0.5 A default USB) on USB-A, 9.4 W on USB-C. Told the owner
   to switch off and on with USB-C attached. (Assumes units' v6.2 does the same;
   only its binary is in the repo.)
-- Outcome (DC, photos): after switching off and on with USB-C (9.4 W), the bootloader
+- Outcome (the owner, photos): after switching off and on with USB-C (9.4 W), the bootloader
   ran (gradient lights across the keys) and CHOMPI started; the knob lights then
   match 0.10's sampler-page colours (SW4 green, SW1 yellow, SW2 red, SW3 teal).
-  Correction: DC then said they loaded TAPE, so those lights may be TAPE's own
-  (0.10 copies TAPE's colours); whether 0.10 ever ran on hardware is unknown. DC is
+  Correction: the owner then said they loaded TAPE, so those lights may be TAPE's own
+  (0.10 copies TAPE's colours); whether 0.10 ever ran on hardware is unknown. The owner is
   on stock TAPE 2.0 for now. Cause of the dark unit: the bootloader's low-battery
   wait (flat battery + 0.5 A USB-A supply), not established to be 0.10. Still unconfirmed: firmware version and Last start via the bridge (Check
   setup). For hardware sessions: power CHOMPI from USB-C to USB-C. Pending, low
@@ -351,10 +351,10 @@ here is hardware-verified; causes are not established.
   in DTCM; 32-byte-align the options.json buffer; stop restarting after repeated
   start-up crashes).
 
-## Checkpoint: firmware 0.10 TAPE parity, ready for DC's install (2026-10-05)
+## Checkpoint: firmware 0.10 TAPE parity, ready for the owner's install (2026-10-05)
 
-Everything DC chose in the parity checklist is built and software-tested except A4
-(TAPE presets.json per-slot settings), which DC moved after 0.10 (now 0.12, after 0.11 install safety).
+Everything the owner chose in the parity checklist is built and software-tested except A4
+(TAPE presets.json per-slot settings), which the owner moved after 0.10 (now 0.12, after 0.11 install safety).
 See CHANGELOG 0.10 (stage 1, 2a, 2b), KNOBS.md, MANUAL sections 4–11, TAPE_CONTROLS.md.
 Checks at afc64be: make test (12 native + 116 Python), make sanitize, browser tests
 (11 + 7), make bench PASS (2,670.9 ≤ WAVE 2,694.9; all TAPE effects 3,077.9
@@ -367,11 +367,11 @@ Saw Bass v5 conversion sounds ~20 % different in spectrum; Acid Bass/Bell Keys L
 is on the mod wheel (panel can't reach it); MIDI out on USB unverified; FORGE_COLD
 (-Os) panel code — check no audio glitches when turning knobs.
 Next (0.11): A4 per-slot settings (read/write TAPE presets.json, back it up first);
-DC's hardware findings from 0.10.
+The owner's hardware findings from 0.10.
 
 ## Previous checkpoint: firmware 0.9, key lights while playing, 2026-10-05
 
-DC reported no lights on key presses. Added TAPE's NormalPage key lights with
+The owner reported no lights on key presses. Added TAPE's NormalPage key lights with
 the menu closed (`RenderPlayLeds` in core/panel_controller.h): held keys white,
 sampler kit slots dim in the bank colour (recording slot pink), chromatic C3/C4/C5
 markers. Held keys reach the main loop as a 32-bit atomic (`KeysDown()`; note keys
@@ -380,21 +380,21 @@ are switches 0–31; a 64-bit atomic does not link on the M7). Checks: `make tes
 238,092 B / development 253,696 B, layout OK. Not on hardware. Storage-streaming
 figures unaffected (no SDRAM, sampler path or loader change; code +1 KB).
 
-**Hardware feedback on 0.9 (DC, 2026-10-05):** recording works. Open: random
+**Hardware feedback on 0.9 (the owner, 2026-10-05):** recording works. Open: random
 shut-off while playing keys (not reproduced; details to capture and candidates in
 TEST_RESULTS 2026-10-05); toggle labels backwards everywhere (menu = toggle
 DOWN, record = UP; firmware matches TAPE, naming only); requested record
-count-in (~1.5 s, CHOMPI + white keys blink red 3×, release cancels). DC asked
+count-in (~1.5 s, CHOMPI + white keys blink red 3×, release cancels). The owner asked
 to wait for the rest of the hardware findings before any firmware change, then
-one install. **Parity checklist (2026-10-05):** DC asked to keep TAPE's workflow. TAPE's controls
+one install. **Parity checklist (2026-10-05):** the owner asked to keep TAPE's workflow. TAPE's controls
 are catalogued in [TAPE_CONTROLS.md](TAPE_CONTROLS.md); every difference is a row in
 the checklist artifact (claude.ai/artifact/ErLnHhu2KkYKJ2qBm4K8SG) with a recommended
-answer. Waiting for DC's answers; then one firmware update. Biggest finding: TAPE
-knobs move .03 per click (Forge 1/127), which explains "SW4 does nothing". DC's
+answer. Waiting for the owner's answers; then one firmware update. Biggest finding: TAPE
+knobs move .03 per click (Forge 1/127), which explains why SW4 seemed to do nothing. The owner's
 answers so far: SW5 push-and-turn for loop speed with panic moved elsewhere; count-in
 1.5 s; convert old presets.
 
-**DC's parity answers (2026-10-05):** A1 TAPE steps; A2 page on release; A3 hold a
+**The owner's parity answers (2026-10-05):** A1 TAPE steps; A2 page on release; A3 hold a
 knob **1.5 s** to reset; A4 open (question sent); B0 recommended (TAPE layout,
 synth equivalents); B1 TAPE pitch/gain; B2–B4 TAPE layout **but keep Forge's synth
 controls** (LFO, filter env, detune…) on extra pages, audibility via A1 (layout
@@ -405,7 +405,7 @@ CHOMPI light; E5 record latch; E6 TAPE after-recording; F1 TAPE menu first, Forg
 presets on a second page; G1 TAPE's saturation/warble/DJ filter/compressor **plus**
 Forge's filter; H1/H2 TAPE; I1 panic = SW4 + SW3 held 1 s; J1 read options.json;
 K1 keep Forge (no lockout); L1–L5 recommended. Also: "only one key plays" — Acid
-Bass is 1 voice by design (others 4, samplers 7). Shut-off: DC saw it only while
+Bass is 1 voice by design (others 4, samplers 7). Shut-off: the owner saw it only while
 playing keys rapidly (not with many keys held, knobs, looper or recording).
 Native ASan/UBSan stress (14 presets × ~37k random fast presses, chords, knob
 turns, LED composition): no fault — points away from a core memory bug; restart
@@ -419,7 +419,7 @@ fault marker in backup SRAM, show them in Check setup.
 
 ## Previous checkpoint: firmware 0.8, power as stock, 2026-10-05
 
-DC's battery ran flat on 0.7 and DC asked for power/charging "and any other thing
+The owner's battery ran flat on 0.7 and the owner asked for power/charging "and any other thing
 we missed". Review: COMPATIBILITY §7 (stock TAPE/WAVE/TEMPO main loops and
 TAPE's NormalPage). Found and fixed (software-tested, not on hardware): no
 shipping/storage mode (stock: hold CHOMPI + PLAY + LOOP at start-up; CHOMPI's
@@ -430,24 +430,24 @@ headphone-out advice. Not ported: the factory test page (SW6 at start-up) — us
 stock firmware for it. Checks: 11 native suites (new `power_test`, SW6 hold in
 `panel_test`) + sanitizers, Python and browser suites, ARM release 237,068 B /
 development 252,760 B, layout OK. Open: how CHOMPI is switched back on after
-shipping mode (DC to confirm), TEST_SESSION 8.1–8.4.
+shipping mode (the owner to confirm), TEST_SESSION 8.1–8.4.
 
 ## Design checkpoint: storage streaming / SDRAM reclamation, 2026-10-04 (parked for v2)
 
-DC asked for a feasibility study and design only, stopping for architecture
+The owner asked for a feasibility study and design only, stopping for architecture
 review before any memory allocation changes: [STORAGE_STREAMING.md](STORAGE_STREAMING.md).
 Verified baseline (head `753078b`): SDRAM 66,715,664 B used, 393,200 B free
 (32 MiB pool, 16 MiB recorder, 16,000,000 B looper, 384,016 B delay). Key
 finding: stock TAPE already streams all 7 voices from SD with ~85 ms FIFOs and
 `_double.wav` for pitch-up. Estimates: ~36 MiB reclaimable (conservative) to
-~42 MiB (balanced) for ~7–12 KiB of code. DC (2026-10-05): **move to Forge v2**;
+~42 MiB (balanced) for ~7–12 KiB of code. The owner (2026-10-05): **move to Forge v2**;
 keep it as the reference for limits and possibilities. When v1 touches SDRAM,
 the sampler read path, loader/recorder/looper, USB file replacement, FatFS or
 code headroom, update the study (its "Revalidate" list). No code changed.
 
 ## Current checkpoint: loader stress review, per-step CPU, home checklist, 2026-10-04
 
-DC (away from the hardware): "do 1 2 and 3": stress-test the USB loader,
+The owner (away from the hardware) asked for items 1-3: stress-test the USB loader,
 per-step CPU, tidy up for the first session home. Software-tested only;
 0.7 has still never run on CHOMPI.
 - **Bug found and fixed:** the CHOMPI bootloader (v6.4 `SearchBin`) flashes the
@@ -476,17 +476,16 @@ per-step CPU, tidy up for the first session home. Software-tested only;
   251,684 B (87.2 %); SRAM 108,196 / 112,260 B; layout checks OK.
 - Kit `Forge-Bridge-dev-b36ba99.zip` (26,910,887 B, sha256 `4b8277f0…565647`,
   FORGE.bin sha256 `7953ab0c…6890c9b39`; `verify_bundle.py`: 1301 files OK)
-  sent to DC. CI run 37195690217 on `b36ba99` green (firmware, native tests,
+  sent to the owner. CI run 37195690217 on `b36ba99` green (firmware, native tests,
   exe build and smoke test; artifact = exe + FORGE.bin + checklist).
 
 ## Previous checkpoint: firmware 0.7 USB loader and Forge Bridge.exe, 2026-10-04
 
-DC: "setup an executable and also firmware loader so I don't need to keep
-removing the card". Built (software-tested; nothing hardware-verified):
+Owner request. Built (software-tested; nothing hardware-verified):
 - Firmware 0.7 (`0454ae8`): opcode 0C file transfer (FORGE.bin and TAPE
   samples, staged + CRC-32, resume), install with a CHOMPI key press and a
   restart into the bootloader. PROTOCOL "USB file transfer", TEST_SESSION 7.
-  Release 233,748 B, development 249,580 B. DC needs one last SD-card flash
+  Release 233,748 B, development 249,580 B. The owner needs one last SD-card flash
   to get 0.7 onto CHOMPI; after that, updates go over USB.
 - Host: `forge_card.py`; bridge *Card & firmware* section; kit `card` folder.
 - `Forge Bridge.exe` (`d3c8531`): GitHub Actions builds the development
@@ -498,13 +497,13 @@ removing the card". Built (software-tested; nothing hardware-verified):
   `Forge Bridge.exe` and its smoke test passed (server, pages, presets,
   firmware inside, card tool). Artifact `Forge-Bridge-exe` (23.6 MB zip,
   expires 2027-01-02): Actions → Forge Bridge (Windows exe) → latest run.
-  Not yet run on DC's PC.
+  Not yet run on the owner's PC.
 Untested on hardware: USB throughput, FatFS on the real card, the bootloader
-taking the new FORGE.bin after the restart, the exe on DC's PC.
+taking the new FORGE.bin after the restart, the exe on the owner's PC.
 
 ## Previous checkpoint: first hardware session and bridge test tooling, 2026-10-04
 
-DC flashed the `131776b` development kit and ran automatic checks four times
+The owner flashed the `131776b` development kit and ran automatic checks four times
 (results: [TEST_RESULTS.md](TEST_RESULTS.md)). Firmware behaved as designed
 wherever measured (pitch, keybed, looper states, knob pages, v5 knobs, CPU peak
 ≤ 37.6 % since boot in the third run); most audio failures were the rig (left
@@ -514,9 +513,9 @@ Bridge work since (host only, firmware unchanged; commits `7f04996`, `fbd98c1`,
 aware detection, setup check, guided panel walk with light questions and camera
 evidence, re-run failed steps, `CLAUDE.md` for an agent on the test PC. 103
 Python + 16 Chromium tests pass; the walk's physical part is untested on hardware.
-DC also got the TAPE bank-a sample zips and the Panel Map / QA sheet artifacts.
+The owner also got the TAPE bank-a sample zips and the Panel Map / QA sheet artifacts.
 
-Next: DC fixes the rig (right output to IN 2, IN 1 gain −10 dB, a USB port or
+Next: the owner fixes the rig (right output to IN 2, IN 1 gain −10 dB, a USB port or
 hub without the hum, interface OUT 1/2 → CHOMPI line in, samples at the card
 root), runs Check setup, the panel walk and the automatic checks, then the
 QA-sheet hand checks. Open: per-step CPU (firmware: reset peak), raise the
@@ -524,11 +523,11 @@ looper voice cap to 7 if 6.2d agrees.
 
 ## Previous checkpoint: knob pages and patch knobs (firmware 0.6), 2026-10-04
 
-DC: "We haven't maximized the usage of the hardware knobs and buttons."
+Owner request
 Decisions (AskUserQuestion): **both** fixed pages and patch/AI-assigned knobs,
 press a knob to change its page and its light shows the page; SW6 press does
 nothing for now; build **now**, before the hardware test, and send a new kit.
-Design, map and costs: [KNOBS.md](KNOBS.md). Not run past DC as a separate
+Design, map and costs: [KNOBS.md](KNOBS.md). Not run past the owner as a separate
 design doc (they answered the design questions directly).
 
 Built and software-tested (nothing hardware-verified):
@@ -560,7 +559,7 @@ status over USB/UART (two USB packets, as v3/v4).
 
 ## Previous checkpoint: looper (roadmap item 5), 2026-10-03
 
-DC: "proceed with the looper build but run the design doc with me first".
+Owner request.
 Design and decisions: [LOOPING.md](LOOPING.md) (D1 ~83 s stereo with the sample
 pool at 32 MiB, D2 SW5 context, D3 TAPE parity + save loop to a slot, D4 LOOP
 ends the first take into overdub). Built in four steps, each tested:
@@ -595,7 +594,7 @@ overdub stacking.
 
 ## Earlier checkpoint: boot fix and cleanup, 2026-10-03
 
-DC asked to review the new community CHOMPI firmware forks (sfaber02,
+The owner asked to review the new community CHOMPI firmware forks (sfaber02,
 lnetzel, ugrossek, xNeoclox, sthompsonjr; upstream CHOMPI-Club unchanged) and
 then to apply the boot fix and cleanup. Findings and the feature ideas list are
 in the chat summary; ideas not yet built are listed under "What's left".
@@ -634,13 +633,13 @@ both FORGE.bin images pass the layout check:
   26,341,616 B, sha256 `513f797b…85266d`, FORGE.bin `627c8039…f16fd`, 1,290 files.
 - `Forge-0.5-test-1d1618e.zip` (release QA bundle), 3,515,836 B, sha256
   `41f9af6b…6544ae3`, FORGE.bin `a7997e4c…ef793`, 65 files.
-Sent to DC in chat; DC keeps them on Google Drive. Older kits
+Sent to the owner in chat; the owner keeps them on Google Drive. Older kits
 (`Forge-Bridge-dev-50cdc4b`, `Forge-0.5-test-b7a504a`) lack the boot fix: do
 not flash them.
 
 
-DC reviewed the bridge and asked for it to be "more plug and play". Built on
-DC's (ChatGPT session's) browser bridge at `7fa8624`, which an agent reviewed
+The owner reviewed the bridge and asked for it to be simpler to set up. Built on
+The owner's (ChatGPT session's) browser bridge at `7fa8624`, which an agent reviewed
 first: all firmware changes are `FORGE_TEST_HOOKS`-only; release FORGE.bin is
 byte-identical (`f0a18b13…`, reproduced on Linux), development `c2a4fb3d…`
 reproduced; 8 native, sanitizer (all 8, first Linux run) and browser suites pass.
@@ -660,7 +659,7 @@ What is new (host only; firmware unchanged):
   spectrograms on demand, results in the session export and `reports/<time>/`.
   Without numpy/sounddevice or an interface, audio steps are skipped.
 - `python host/forge_audio.py run`: the same session from a terminal (for an
-  agent on DC's PC).
+  agent on the owner's PC).
 - **Development kit ships Python** (NuGet `python` 3.12.10, PSF-signed binaries,
   plus mido/python-rtmidi/numpy/sounddevice and Microsoft-signed msvcp140.dll,
   all pinned by SHA-256 in `host/windows-runtime.json`; fetched by
@@ -679,7 +678,7 @@ against the kit (found and fixed: msvcp140.dll for rtmidi).
 
 Development kit: `Forge-Bridge-dev-50cdc4b.zip` built from `50cdc4b` (26,340,768
 bytes, sha256 `be7eed92…c17ec997`; FORGE.bin = development `c2a4fb3d…`, xPack
-GCC 10.3.1; `verify_bundle.py`: 1,290 files OK). Sent to DC in chat; DC keeps it
+GCC 10.3.1; `verify_bundle.py`: 1,290 files OK). Sent to the owner in chat; the owner keeps it
 on Google Drive. Unpacked on Linux, its own host code ran the simulated session
 from the kit layout and still verified OK afterwards.
 
@@ -769,7 +768,7 @@ None of the hardware risks in the earlier checkpoint have been retired.
 
 ## Scope (unchanged, authoritative)
 
-DC wants an **AI-programmable playable instrument**, not effects-only: describe a
+The owner wants an **AI-programmable playable instrument**, not effects-only: describe a
 sound → AI configures installed modules → play keys/MIDI → adjust → save/recall.
 Patch changes need no recompile; new DSP algorithms need firmware work; AI never
 generates executable effects. Looping, sequencing, more engines/effects,
@@ -793,15 +792,15 @@ No main merge, flashing or real-key API calls by agents.
 - QA bundle `Forge-0.5-test-b7a504a` is current (see Next actions).
 
 **What's left.**
-- DC decisions made 2026-10-03: CCs match stock (done: CC20+n = encoder n);
-  start-up stays dry aux; QA bundles go to DC's Google Drive (DC uploads;
+- The owner decisions made 2026-10-03: CCs match stock (done: CC20+n = encoder n);
+  start-up stays dry aux; QA bundles go to the owner's Google Drive (the owner uploads;
   agents have no Drive access). Still open: configurable MIDI channel.
 - Features (PROJECT.md roadmap): 5 looping (TAPE's looper; ~7.6 MB SDRAM
   and ~73 KB code left in release, ~57 KB in the development build), 6 Tab5 controllers (optional).
   Smaller candidates: TAPE per-slot settings, threshold-armed recording, kit
   MIDI note range, preset/sample names, mono note stack, octave shift, bend
   range, cheaper sine for Bell Keys.
-- QA (DC, later, per feature): LIVE_AI_TEST.md (own key, own terminal), then
+- QA (the owner, later, per feature): LIVE_AI_TEST.md (own key, own terminal), then
   TEST_SESSION.md in one hardware session; record in TEST_RESULTS.md.
 - Hardware-unverified risks: device CPU (above all 7 sampler voices reading
   SDRAM, TEST_SESSION 6.2c), SD load/save speed and main-loop stalls, card
@@ -811,12 +810,12 @@ No main merge, flashing or real-key API calls by agents.
 
 ## Branch and publishing
 
-Repo DCDominguez/CHOMPI, branch `forge/foundation`, draft PR #1 (still draft;
+Repo the Forge repository, branch `forge/foundation`, draft PR #1 (still draft;
 `main` untouched). The integration checkpoint is on the remote as commit
 `15681b8cc10dd76bdff4a6d39e62cc96bc75c7b2` ("Integration review, real browser
 tests, live-AI prep, 0.3 bundle tooling"), parent `2b30b1c`, tree
 `cf807ad0bcfd0d107cc853294d6eec6ad060fe02`. The SHA differs from the
-locally made `558810e` because DC's connector re-created the commit; the tree
+locally made `558810e` because the owner's connector re-created the commit; the tree
 SHA is identical, so the content is exactly that checkpoint. Verified by an
 agent on 2026-10-02 (UTC). Later commits on top: `716c6bc` (SHA record),
 `e24015c` (mitigation proposal), `0a605f6` (sound fixes, the bundle source),
@@ -899,7 +898,7 @@ that section for current figures). Only vendored-libDaisy warnings.
 
 ## Sound fixes (implemented 2026-10-02 UTC; software-tested only)
 
-DC chose to implement the measured mitigations. Figures are from simulation
+The owner chose to implement the measured mitigations. Figures are from simulation
 (48 kHz, Blackman-Harris 4096-point DFT, alias = non-harmonic / harmonic
 energy below 12 kHz; sine floor < -80 dB). Not listening or hardware results.
 
@@ -935,7 +934,7 @@ Added per-sample cost: one multiply-add per active voice plus two branches
 per triangle voice. Real CPU cost is unmeasured; session step 6.2 records it.
 Any 0.3 bundle made before this commit is stale.
 
-## Development plan (DC, 2026-10-02): features first, QA per feature later
+## Development plan (the owner, 2026-10-02): features first, QA per feature later
 
 Roadmap order is in PROJECT.md. Hardware and live-AI QA are deferred until
 features are developed; each feature gets its own commit, tests and
@@ -1023,7 +1022,7 @@ AI, webapp, presets), then docs.
   revisit after listening (TEST_SESSION 3.10–3.13), e.g. partial compensation
   or higher preset levels.
 
-## Stock firmware comparison and CPU benchmark (2026-10-03, DC's request)
+## Stock firmware comparison and CPU benchmark (2026-10-03, the owner's request)
 
 Full write-up: [COMPATIBILITY.md](COMPATIBILITY.md). Key facts for agents:
 - Bootloader (TAPE's Chompi_Bootloader source) loads the first non-hidden
@@ -1033,7 +1032,7 @@ Full write-up: [COMPATIBILITY.md](COMPATIBILITY.md). Key facts for agents:
 - Keybed note table identical to stock in all three apps (checked by script).
 - MIDI: stock maps CC20+n → encoder n (CC24 ignored, CC25 → SW6), channel
   from options.json, CC input optional, notes/CCs sent out. Forge: CC24
-  bypass, CC25 cutoff, fixed channel 1, no MIDI out. Open decision for DC.
+  bypass, CC25 cutoff, fixed channel 1, no MIDI out. Open decision for the owner.
 - Upstream rebuilds (scratch copy, xPack): TAPE needs a `Limiter.h` symlink
   on Linux and then overflows SRAM_EXEC by 3,524 B; TEMPO (built with 10.3, superseded below) builds 4,660 B
   smaller than factory. Repo sources + xPack ≠ factory builds.
@@ -1043,7 +1042,7 @@ Full write-up: [COMPATIBILITY.md](COMPATIBILITY.md). Key facts for agents:
   A-profile "max" core (Unicorn M-profile lacks FPU enable), flush the TB
   cache after adding the counting hook, peripheral range mapped as scratch
   for TEMPO's timer init, link with `-u` roots or gc-sections drops entry points.
-- Refresh after device presets (2026-10-03, `4fec6ac`, DC's request):
+- Refresh after device presets (2026-10-03, `4fec6ac`, the owner's request):
   - Toolchains: factory TAPE/WAVE and all shipped libdaisy.a/libdaisysp.a
     are Arm 10.3-2021.10; factory TEMPO is Arm 13.x (README: 13.3.rel1).
     The earlier TEMPO rebuild/bench used 10.3 — wrong; now 13.3 via
@@ -1063,7 +1062,7 @@ Full write-up: [COMPATIBILITY.md](COMPATIBILITY.md). Key facts for agents:
 
 ### Roadmap item 3: device presets on the SD card (implemented; software-tested)
 
-DC chose "key and encoder combo similar to TAPE" (2026-10-03). TAPE's menu
+The owner chose a key and encoder combination like TAPE's (2026-10-03). TAPE's menu
 was read from chompi-tape NormalPage.h / MenuPage.h / ui.h: toggle + CHOMPI key
 opens it; white keys = slots (KeyToSlot); KEY_23/24/25 erase/copy/save;
 KEY_16/17 banks; CHOMPI confirms; SMT LED 25 − slot# under white keys,
@@ -1100,8 +1099,7 @@ KEY_16/17 banks; CHOMPI confirms; SMT LED 25 − slot# under white keys,
 
 ### Roadmap item 4: sampler (implemented; software-tested; firmware 0.5)
 
-DC: "follow the existing sample functionality on TAPE … if there's anything
-cool we can add without overloading". Design and differences: SAMPLING.md.
+Owner request. Design and differences: SAMPLING.md.
 Commits: `c19522d` design, `c7ffc78` WAV, `054bfab` v4 + voices, `698cda1`
 recorder/loader, `89bdfde` menu page, `ed80acf` firmware, `107b8ea` host/AI/
 webapp + bench optimisation, then docs.
@@ -1141,8 +1139,8 @@ webapp + bench optimisation, then docs.
 
 0. Done 2026-10-05: 0.8 installed over USB on hardware (first card-free update);
    every automatic check passes on 0.8; power 8.1–8.3 pass (8.4 optional, not run).
-   Next for DC: 6.2d (sampler + looper CPU → looper voice cap), QA-sheet listening.
-1. DC, at home: [HOME_CHECKLIST.md](HOME_CHECKLIST.md): one last card flash of
+   Next for the owner: 6.2d (sampler + looper CPU → looper voice cap), QA-sheet listening.
+1. The owner, at home: [HOME_CHECKLIST.md](HOME_CHECKLIST.md): one last card flash of
    0.7 (only FORGE.bin may contain ".bin" in the card root), rig fixes, Check
    setup, panel walk, automatic checks, one USB install and one sample upload;
    send the reports folder.
@@ -1151,10 +1149,10 @@ webapp + bench optimisation, then docs.
    the per-step CPU figures.
 3. Storage streaming: parked for Forge v2 (STORAGE_STREAMING.md); keep its
    "Revalidate" list in sync with v1 changes.
-4. Open, needs DC's choice: next instrument features (arpeggiator/sequencer,
+4. Open, needs the owner's choice: next instrument features (arpeggiator/sequencer,
    more effects, configurable MIDI input channel, Tab5 controller).
 5. Unverified on hardware: everything in 0.7 (USB throughput, FatFS writes and
    read-back on the real card, the restart into the bootloader, the exe on
-   DC's PC), the knob lights and encoder presses, zipper noise.
+   the owner's PC), the knob lights and encoder presses, zipper noise.
 
 Roadmap items 1–5 are built (PROJECT.md); bundles before 0.7 are stale.

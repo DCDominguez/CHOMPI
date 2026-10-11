@@ -2,9 +2,9 @@
 
 Read from `firmware/chompi-tape/code/src` (2026-10-05, read-only). NP = NormalPage.h,
 MP = MenuPage.h, DSP = DSPEngine.h, LE = LooperEngine.h, HW = hardware.h,
-MAIN = chompi_main.cpp. Decisions on what Forge copies: DC's answers to the parity
+MAIN = chompi_main.cpp. Decisions on what Forge copies: the owner's answers to the parity
 checklist (TEST_RESULTS / CONTINUE). "TRUE" toggle = the position where CHOMPI opens
-the menu (physically **down** on DC's unit).
+the menu (physically **down** on the owner's unit).
 
 ## Framework
 - Events go to the top page first; a page passes them down by returning false.
@@ -89,7 +89,7 @@ SW4 p2 gain not applied; moving to FALSE closes the menu unless an action runs.
   CHOMPI blinks red while a target is selected, white while executing.
 
 ## Effects and looper
-Chain: voices → monitor → [FX if pre] → looper → [FX if post] → main gain (HP/line) → compressor. FX block: DC
+Chain: voices → monitor → [FX if pre] → looper → [FX if post] → main gain (HP/line) → compressor. FX block: the owner
 block, DJ filter (LP/HP + resonance), saturation, warble, mono feedback delay (max 96,256 entries), reverb.
 No bitcrush, no dedicated reverse/half-speed button. Looper buffers in SDRAM, not persisted unless saved.
 

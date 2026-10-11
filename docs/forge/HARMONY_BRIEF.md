@@ -4,7 +4,7 @@ Status (2026-10-05): **Phase 1 (0.13) and Phase 2 (0.14: clock, arp, bass) imple
 software-tested** (not yet on hardware: TEST_SESSION 3.65–3.72). See "Phase 2 as built".
 The paragraph below is the original filing note.
 
-Original status: **queued, not started.** DC brought this brief over from a ChatGPT
+Original status: **queued, not started.** the owner brought this brief over from a ChatGPT
 brainstorm on 2026-10-05, to run **after the safety additions are finished**. Nothing
 below is implemented. When it starts, Phase 0 (architecture and the first deliverable
 at the end) comes before any large code change.
@@ -38,14 +38,14 @@ Review of the brief against the code (2026-10-05; details in Phase 0):
   the menu in Phase 1, with the full mapping in Phase 5.
 - **Presets:** storing harmony settings means patch v6 (wire, host, webapp, AI, starter
   presets); v1–v5 stay valid. **Inspector:** one new compact page (≤ 100 bytes).
-- **Real mode** needs one definition from DC: the key pressed is the chord root and the
+- **Real mode** needs one definition from the owner: the key pressed is the chord root and the
   scale decides the chord quality (a key outside the scale → a chromatic function).
 - **Size:** at 11,740 B of development headroom, Phases 1–3 should fit (a few KB of
   integer code, tables tiny); bass/arp/clock and protocol may need another round of
   `FORGE_COLD` trimming. Measure after each phase.
 - Avoid "Nopia" in user-facing text (trademark); "harmony mode" instead.
 
-## Phase 0 decisions (DC, 2026-10-05)
+## Phase 0 decisions (the owner, 2026-10-05)
 
 Status: Phase 1 started after the 0.12 safety extras (`715b1e3`); done in 0.13
 (see "Phase 1 as built" after the plan).
@@ -93,7 +93,7 @@ Phase 1 as built (0.13, software-tested only):
   random ownership events, engine/panel/MIDI, the harmony page), v6 protocol and
   host round trips, Inspector page 8, webapp controls; sanitizers.
 
-Phase 2 decisions (DC, 2026-10-05): tempo internal + follow MIDI clock + send it, and set
+Phase 2 decisions (the owner, 2026-10-05): tempo internal + follow MIDI clock + send it, and set
 on CHOMPI ("can we also set the tempo on the chompi"); a parts page next to the harmony page
 with an arp latch; bass on the internal sound and MIDI channel 2; ROOT, FIFTH, ALTERNATE,
 OCTAVE on the clock.
@@ -114,7 +114,7 @@ Phase 2 as built (0.14, software-tested only):
   CPU gate unchanged. Tests: `parts_test` (packing, clock/tap/MIDI, every pattern, seeded
   random, gate, latch, ownership, bass, MIDI/clock out, engine with harmony, panel page),
   v7 protocol and host round trips, Inspector page 9, webapp controls; sanitizers.
-- Event-first (0.15, DC's item 4): the event recorder (`core/sequencer.h`) records what
+- Event-first (0.15, the owner's item 4): the event recorder (`core/sequencer.h`) records what
   is played (keys, MIDI notes, controls) as ticks on the shared clock and replays it as a
   player, so harmony, arp and bass derive from it; saved with presets as projects.
 - Not yet: per-part sounds, recording the arp's own output (it is regenerated from the
@@ -122,13 +122,13 @@ Phase 2 as built (0.14, software-tested only):
 
 ---
 
-DC's brief, as given:
+The owner's brief, as given:
 
 You are implementing the next major musical-capability upgrade for CHOMPI Forge.
 
 Repository:
 
-* DCDominguez/CHOMPI
+* the Forge repository
 * Active branch: forge/foundation
 * Do not touch main
 * Verify the current remote branch head before making changes.

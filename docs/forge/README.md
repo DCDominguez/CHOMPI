@@ -2,7 +2,7 @@
 
 Latest: firmware **0.15.1** (review fixes over 0.15's event recorder and projects; see
 [CHANGELOG.md](CHANGELOG.md)). Current validation and limits are in
-[CONTINUE.md](CONTINUE.md); DC's next session is [HOME_CHECKLIST.md](HOME_CHECKLIST.md)
+[CONTINUE.md](CONTINUE.md); the owner's next session is [HOME_CHECKLIST.md](HOME_CHECKLIST.md)
 then [TEST_SESSION.md](TEST_SESSION.md).
 
 Forge is a community firmware project for CHOMPI, built on its Daisy Seed audio
@@ -15,7 +15,7 @@ author presets through a local OpenAI/Gemini webapp with a user-supplied API
 key, or through the optional Ollama CLI.
 
 **Software-tested; not yet hardware-verified.** The candidate has not been
-flashed or auditioned on DC's CHOMPI. Actual model use also remains unverified;
+flashed or auditioned on the owner's CHOMPI. Actual model use also remains unverified;
 the adapters have been tested using mock responses. The next acceptance step is
 one consolidated hardware session.
 

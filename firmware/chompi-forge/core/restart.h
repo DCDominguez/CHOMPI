@@ -2,7 +2,7 @@
 #include <cstdint>
 #include "parameters.h"
 
-// Why CHOMPI last started (DC's "random shut-off", 2026-10-05): the STM32H7 reset
+// Why CHOMPI last started (a reported random shut-off, 2026-10-05): the STM32H7 reset
 // flags (RCC_RSR) read once at start-up, and a crash record that Forge's fault handler
 // leaves in backup SRAM before it restarts the chip. Backup SRAM survives a reset but
 // not a power loss, so a crash shows up only if power stayed on. Pure decoding here;
@@ -29,7 +29,7 @@ struct FaultRecord {
     bool Valid() const { return magic == kMagic; }
 };
 
-// Start-up safe mode (0.15.2, DC): crashes before CHOMPI has run kStableMs in a row are
+// Start-up safe mode (0.15.2, the owner): crashes before CHOMPI has run kStableMs in a row are
 // counted in backup SRAM; after kSafeModeCrashes of them it starts without the card's
 // settings (options.json, presets.json, the preset index), the likely triggers, and says
 // so. The card stays mounted: USB install and the bootloader's card install still work.

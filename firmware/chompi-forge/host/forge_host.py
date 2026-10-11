@@ -388,7 +388,7 @@ def encode_word(value, codec):
     return word14(unit_word(value, codec))
 
 
-# v2 -> v3 cutoff by waveform (DC approved 2026-10-11): a sine has no harmonics to lose.
+# v2 -> v3 cutoff by waveform (the owner approved 2026-10-11): a sine has no harmonics to lose.
 V2_CUTOFF_FACTOR = {"sine": 1.0, "triangle": 1.6, "saw": 2.5, "square": 2.5}
 
 

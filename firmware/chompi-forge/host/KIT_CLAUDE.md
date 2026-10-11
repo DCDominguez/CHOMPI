@@ -1,8 +1,8 @@
 # Forge hardware test kit — instructions for an agent on the test PC
 
-You are helping DC test Forge, development firmware for a CHOMPI (Daisy Seed)
-synth, on DC's Windows PC. This folder is the unzipped development kit. The
-source and the full docs live in the GitHub repo DCDominguez/CHOMPI, branch
+You are helping the owner test Forge, development firmware for a CHOMPI (Daisy Seed)
+synth, on the owner's Windows PC. This folder is the unzipped development kit. The
+source and the full docs live in the GitHub repo the Forge repository, branch
 `forge/foundation` (see `manifest.json` for the exact commit).
 
 ## What you can do here
@@ -19,10 +19,10 @@ source and the full docs live in the GitHub repo DCDominguez/CHOMPI, branch
 - Put files on CHOMPI's SD card over USB (firmware 0.7+; the card stays in):
   `python\python.exe host\forge_card.py sync card` (TAPE sample names only),
   `... upload jammi_b1.wav`. Installing firmware (`... install firmware\FORGE.bin`)
-  needs DC to press the CHOMPI key and restarts CHOMPI: only when DC asks.
+  needs the owner to press the CHOMPI key and restarts CHOMPI: only when the owner asks.
 - Look at a recording: `python\python.exe host\forge_audio.py analyze reports\<time>\3.4-steal.wav`
   (prints levels, pitch, clicks, clipping per channel).
-- The browser bridge with the guided panel walk (DC's hands needed):
+- The browser bridge with the guided panel walk (the owner's hands needed):
   `Start Forge bridge.cmd` (or `python\python.exe host\forge_web.py --open`);
   it takes port 8765, or the next free one if another program holds it, and
   prints the address. Only one program may own CHOMPI's MIDI ports: stop any
@@ -33,11 +33,11 @@ source and the full docs live in the GitHub repo DCDominguez/CHOMPI, branch
 - Never claim a hardware result you did not measure; "the bridge measured X"
   is evidence only for what that step measures. Audio failures are often the
   rig (cables, interface gain, ground hum): read the setup findings first.
-- Never install firmware or write `FORGE.bin` unless DC asks in this session;
+- Never install firmware or write `FORGE.bin` unless the owner asks in this session;
   never delete card files or edit kit files. Never ask for or handle API keys.
 - Keep monitoring volume low; the checks play quiet tones and notes.
 - Report back: counts, each failure with its measured values, the setup
-  findings, and what you think is CHOMPI versus the rig. DC sends the
+  findings, and what you think is CHOMPI versus the rig. The owner sends the
   `reports\<time>` folder and `session.json` to the Forge development session.
 
 ## Reference

@@ -1,8 +1,8 @@
 # Forge for other agents (Muse / Cosmo on the Tab5)
 
-Written 2026-10-10 for DC's Muse agent ("Cosmo", the Tab5 Muse gadget) so it can act as a
+Written 2026-10-10 for the owner's Muse agent ("Cosmo", the Tab5 Muse gadget) so it can act as a
 CHOMPI assistant: understand Forge, draw its menus and patches, design effects and edit
-the firmware. The integration itself is DC's separate design. This page is the map;
+the firmware. The integration itself is the owner's separate design. This page is the map;
 the linked documents hold the exact details. Firmware here is **0.15.2**, software-tested,
 **not yet hardware-verified** (CONTINUE.md is the live state; trust it over this page).
 
@@ -53,7 +53,7 @@ Three ways in, from easiest to most direct:
 2. **The local webapp** (`host/forge_web.py`): HTTP JSON API (`/api/status`, `/api/send`,
    `/api/generate`, `/api/preset`, `/api/samples`, `/api/bridge/*`). **Loopback only by
    design** (origin check + per-session token): a Tab5 on Wi-Fi cannot call it as-is.
-   Opening it to the network is a security decision for DC, not a config change.
+   Opening it to the network is a security decision for the owner, not a config change.
 3. **USB MIDI from the Tab5 directly** (its USB host to CHOMPI's USB port): speak the
    SysEx protocol yourself; port `forge_host.py`'s `message`, `encode_patch`,
    `decode_response`, `decode_identity`, `decode_power`. CHOMPI has one USB port, so
@@ -165,15 +165,15 @@ and reverb) are in PROJECT.md "Backlog".
 
 - **Build:** from `firmware/chompi-forge/`: `make test` (native + Python), `make
   sanitize`, `make firmware` (release) and `make firmware-dev` (development, with test
-  hooks), `make bench`. Arm GCC **10.3-2021.10** (pinned; `GCC_PATH=…/bin`). On DC's PC:
+  hooks), `make bench`. Arm GCC **10.3-2021.10** (pinned; `GCC_PATH=…/bin`). On the owner's PC:
   `D:\tools\arm-gcc-10.3`, MinGW in `D:\tools\mingw-16.2.0`, Python venv
   `D:\tools\forge-venv` (keep everything off C:). CI runs the whole gate on every push.
-- **Rules** (AGENTS.md, DC's): work on `forge/foundation`, never touch `main`, never
+- **Rules** (AGENTS.md, the owner's): work on `forge/foundation`, never touch `main`, never
   force-push; leave upstream firmware (TAPE / WAVE / TEMPO, bootloader, vendored
   libDaisy) untouched; no allocation or blocking I/O in the audio callback; old presets
   keep working; update CONTINUE at each checkpoint; commit messages separate implemented
-  / software-tested / hardware-verified; never claim a hardware result DC did not see.
-- **Installing:** agents do not install firmware. DC installs: first time by SD card
+  / software-tested / hardware-verified; never claim a hardware result the owner did not see.
+- **Installing:** agents do not install firmware. The owner installs: first time by SD card
   (`FORGE.bin` on the card root, every other `.bin` renamed), then over USB (Forge Bridge
   or `forge_card.py install`, confirmed with the CHOMPI key). Battery green or white
   first (`forge_host.py battery`, or hold SW6 2 s).

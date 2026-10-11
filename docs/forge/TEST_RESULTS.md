@@ -2,27 +2,27 @@
 
 ## 2026-10-11 (evening) — 0.17.0 magic on CHOMPI
 
-- **Install:** development build `e7b5e12` over USB (DC pressed CHOMPI); this time it came back
+- **Install:** development build `e7b5e12` over USB (the owner pressed CHOMPI); this time it came back
   by itself (start flags: reset pin, software; no all-white hang).
 - **Plan `D:\tools\chompi-session\magic017_plan.json` (agent, video `reports/cam/magic017_check.mp4`,
   report `reports/magic017`): 4 / 4.** Three surprise-me rolls (SW1 + SW3), each a different
   playable sound (not silent; roll 2 audibly differs from roll 1); two mutates (SW2 + SW3), the
-  same chord audibly changed. Fun: DC's judgement.
-- **Wakes up singing (3.86): pass.** The card had no presets at all (all 8 banks empty), so DC's
-  first try had nothing to recall. Agent stored the 15 starter presets in bank 8 (DC allowed
-  bank 8) and recalled 8/7 over USB; after DC's power cycle CHOMPI played that v5 instrument
-  patch instead of pass-through, DC heard the chime, and on a further power cycle saw the rainbow across the keys. Lesson for agents: the rig check
+  same chord audibly changed. Fun: the owner's judgement.
+- **Wakes up singing (3.86): pass.** The card had no presets at all (all 8 banks empty), so the owner's
+  first try had nothing to recall. Agent stored the 15 starter presets in bank 8 (the owner allowed
+  bank 8) and recalled 8/7 over USB; after the owner's power cycle CHOMPI played that v5 instrument
+  patch instead of pass-through, the owner heard the chime, and on a further power cycle saw the rainbow across the keys. Lesson for agents: the rig check
   (`forge_audio run --setup-only`) sends its own test patches; read the patch before running it.
 - **Open (found in the start-up video, `reports/cam/wake_chime2.mp4`):** each power cycle has a loud
   burst on the UMC about 10 s before the chime (peaks -2 to -3 dB, ~2 s, energy near 288 / 432 Hz),
   then the chime (262 / 331 / 525 Hz, -29 dB peak). Source not identified yet (power-on pop, the
-  bootloader, or handling); also in the first recording. Ask DC whether it is heard in the room.
+  bootloader, or handling); also in the first recording. Ask the owner whether it is heard in the room.
 
 ## 2026-10-11 (later) — 0.16.0 installed; panel feedback checks on CHOMPI
 
-- **Install:** USB install of the development build `e7e3f0a` (DC pressed CHOMPI). CHOMPI did
+- **Install:** USB install of the development build `e7e3f0a` (the owner pressed CHOMPI). CHOMPI did
   not come back on USB; the webcam showed every key light on white (as after the first SD
-  install, 2026-10-10). DC power-cycled: Forge 0.16.0 (build e7e3f0a, development) started.
+  install, 2026-10-10). The owner power-cycled: Forge 0.16.0 (build e7e3f0a, development) started.
   **Open:** the restart after a USB install needed a power cycle; watch whether it repeats.
 - **Plan `D:\tools\chompi-session\ux016_plan.json` (agent, LED readback + UMC audio, video
   `reports/cam/ux016_check.mp4`, report `reports/ux016`): 12 / 13.** Pass: CHOMPI page colours
@@ -34,23 +34,23 @@
   0.5 s before the probe; the flow after it passed.
 - Not checked on hardware yet: knob ring page flash and setting colours (rings are not in the
   LED readback; camera), SW5's lights, a new take at 1× after a changed speed, Saw Bass
-  brightness (DC's ear). Battery read medium then high (USB, charging, weak PC supply);
-  the stress test waits (DC: magic batch first).
+  brightness (the owner's ear). Battery read medium then high (USB, charging, weak PC supply);
+  the stress test waits (the owner: magic batch first).
 
-## 2026-10-11 — automatic run on the SD-fix build (DC away, webcam + UMC)
+## 2026-10-11 — automatic run on the SD-fix build (the owner away, webcam + UMC)
 
 - Rig trouble first: UMC MIX at "IN" closed a feedback loop (392 / 175 Hz howl through the
   dry patch and CHOMPI's delay); MIX fully to playback fixed it. Then PHONES (line-in feed)
-  and the MIDAS gains were ~25 / ~9 dB hotter than on 2026-10-10 and clipped; after DC
+  and the MIDAS gains were ~25 / ~9 dB hotter than on 2026-10-10 and clipped; after the owner
   turned them down captures sat near -8 dB again.
 - Result: 28/34 on the first pass, then 2.1, 3.4, 3.34 pass at proper levels. 4.1 panic
-  works (-3 → -58 dB) but trips its silence threshold on the 2 kHz whine (DC: ignore the
+  works (-3 → -58 dB) but trips its silence threshold on the 2 kHz whine (the owner: ignore the
   whine; it is inaudible). 0.n fails on the same whine. 3.42: the loop played back at
   2 kHz from a 1 kHz tone because the looper speed was left at -2.0 (reverse, 2×) from
-  DC's playing; recording and playback themselves are fine.
+  the owner's playing; recording and playback themselves are fine.
 - Done the same night (host only): 3.42 clicks SW5 (speed 1×) first; "silent" sets aside one
   steady narrow tone quieter than -45 dB (`forge_audio.without_steady_tone`, test added).
-  Rerun on CHOMPI: 0.n, 3.42, 4.1 pass, so **all 34 automatic steps pass on the hardware**. DC questions: should a new first take start at 1×? Should SW5's
+  Rerun on CHOMPI: 0.n, 3.42, 4.1 pass, so **all 34 automatic steps pass on the hardware**. The owner questions: should a new first take start at 1×? Should SW5's
   cutoff also filter the loop (loop only, or a master filter after the looper)?
 - Webcam framing fixed (whole panel visible, right way up).
 - **Harmony (agent, USB MIDI + UMC audio + video `reports/cam/harmony_check.mp4`):** v7 patch,
@@ -64,17 +64,17 @@
   video `reports/cam/recorder_check.mp4`): 5/5.** Harmony page (KEY_21 held 1 s) → parts page
   (KEY_21) → F#4 armed; recording started on the next bar while C-E-G-C played over MIDI;
   F#4 closed the loop on the bar → playing; it played back alone (-15.7 dB peak); A#4 twice
-  → empty. Covers TEST_SESSION 3.73's flow; the physical keys and lights are still DC's.
+  → empty. Covers TEST_SESSION 3.73's flow; the physical keys and lights are still the owner's.
 - **Demo presets (agent):** new 15 Harmony Pad, 16 Arp Bells, 17 Chord Arp (v7), starter
   slots 13-15; recorded on CHOMPI (`reports/cam/demo_*.mp4`, levels about -20 dB mean, -9 dB
-  peak). Musical judgement is DC's.
+  peak). Musical judgement is the owner's.
 - **Old presets A/B (agent, `reports/cam/ab_*.mp4`):** the bridge stores 04-06 upgraded v2 → v5
   (v3 per-voice filter). Measured B against A: Glass Keys +13 % brightness / +0.5 dB, Soft Pad
   -4 % / +0.9 dB, **Saw Bass -48 % brightness / +2.1 dB** (the upgraded filter is much darker).
-  DC to listen; then retune the v2 → v3 cutoff mapping or Saw Bass itself.
+  The owner to listen; then retune the v2 → v3 cutoff mapping or Saw Bass itself.
   Measured on CHOMPI (spectral centroid against the v2 original, same notes): Saw Bass needs
   the v3 cutoff ×2.5 (×2 -14 %, ×3 +11 %); Soft Pad ×1.6 (×1 -10 %, ×2.5 +13 %); a sine has
-  nothing to compensate. Proposal for `upgrade_patch` (not applied, DC's ear decides): v2 →
+  nothing to compensate. Proposal for `upgrade_patch` (not applied, the owner's ear decides): v2 →
   v3 cutoff ×1 sine, ×1.6 triangle, ×2.5 saw / square (the one-pole 6 dB/oct becomes a
   12 dB/oct SVF).
 - **Bridge (found while adding the demos):** after "Load starter presets" the bridge sent back
@@ -94,23 +94,23 @@
   never lost, no restart or safe mode, 0 dropped / 0 rejected messages, CPU peak 62.6 %,
   battery high and charging throughout (weak PC USB supply flagged, as before). The 0.9
   "random shut-off while playing rapidly" did not reproduce on this build. Not covered: the
-  physical key matrix and the battery-only case (CHOMPI was on USB power), so DC's 0.9 report
+  physical key matrix and the battery-only case (CHOMPI was on USB power), so the owner's 0.9 report
   stays open until it is played unplugged.
 
 ## 2026-10-10 (late) — start-up stall found and fixed on CHOMPI
 
-- DC: dim blue light for about a minute at every start; once the card did not mount;
+- The owner: dim blue light for about a minute at every start; once the card did not mount;
   sound "gone" because a menu-selected sample slot never loaded (storage error 8).
 - Agent, development builds with start-up step timing (Inspector "card" events): card
   mount 11 ms, preset scan 53 ms, `options.json` read **30,003 ms** (libDaisy's SD timeout).
   Cause: FatFs `FIL` objects on the DTCM stack (see CHANGELOG 0.15.2). With them static
-  the next build hung at start with DC's card: the earlier failed writes had left 352 KB of
+  the next build hung at start with the owner's card: the earlier failed writes had left 352 KB of
   lost clusters and three empty files; without the card it started in 2 s. After
   `chkdsk /F` and deleting the empty files (card otherwise byte-identical to the
   afternoon backup): **Forge answers 3 s after power-on, card mounted, no storage errors.**
-- Five development builds were installed over USB tonight (DC pressing CHOMPI each time);
+- Five development builds were installed over USB tonight (the owner pressing CHOMPI each time);
   `forge_card.py install` prints a harmless traceback when CHOMPI restarts under it.
-- Still open from DC: no visible colour feedback while turning knobs; SW3's page 3 (DJ
+- Still open from the owner: no visible colour feedback while turning knobs; SW3's page 3 (DJ
   filter) can silence the sound ("kind of" restored by the long-press reset).
 - Guided pass with a webcam (Logitech BRIO over the panel, frames in `reports/cam/`):
   at rest the knob rings show the predicted page-1 colours for Warm Pad (SW4 green, SW1
@@ -118,7 +118,7 @@
   per click, USB log) but in the frames its ring stayed yellow; not conclusive yet (the
   USB log hung during the capture). Next session: repeat in sync ("go"), camera + log.
 - During that capture the looper recorded an 18.4 s take and played it (LOOP and PLAY
-  lit red / teal). Not yet known whether DC pressed LOOP / PLAY; if not, a phantom press.
+  lit red / teal). Not yet known whether the owner pressed LOOP / PLAY; if not, a phantom press.
 - Earlier the menu opened and loaded a sampler slot during the knob test (menu left open
   until CHOMPI was pressed?); keys then picked slots instead of playing. Unexplained.
 - Tools: `scratchpad` watchers (USB health, UMC audio) and `gp.py` snapshots worked;
@@ -127,14 +127,14 @@
 ## 2026-10-10 — 0.15.2 on CHOMPI: first install since 0.9, unattended automatic run
 
 Build: development firmware, "Forge 0.15.2 (build c93357b, development, uncommitted
-changes)", SHA-256 2b8e2b0d…, installed by DC from the SD card (card backed up first to
+changes)", SHA-256 2b8e2b0d…, installed by the owner from the SD card (card backed up first to
 `D:\CHOMPI-card-backup\2026-10-10`; the card had never run Forge: no `FORGE/` folder).
 Rig: UMC204HD, CHOMPI main out → IN 1-2, UMC headphone out → CHOMPI line in; USB-C to
 the PC. Evidence below is **agent-measured over USB** (reports in
-`firmware/chompi-forge/reports/`, not committed) unless marked DC.
+`firmware/chompi-forge/reports/`, not committed) unless marked the owner.
 
 - **Boots, right version (1.3):** yes. Status reports 0.15.2, build c93357b, development,
-  dirty. DC: all lights white at first, other lights after pressing keys.
+  dirty. The owner: all lights white at first, other lights after pressing keys.
 - **USB at start-up:** for the first minute or so Windows showed "Unknown USB Device
   (Device Descriptor Request Failed)" and the first status replies came out only when
   key presses pushed them; afterwards replies arrive in ~10 ms every time. Open: possibly
@@ -156,38 +156,38 @@ the PC. Evidence below is **agent-measured over USB** (reports in
     up to 0.8 of full scale, not dropouts, all at the same offset in a 24-sample block,
     which also fits the PC's 1 ms USB audio frames). Two reruns: no clicks. **Open:**
     not reproduced; could be CHOMPI or the PC's USB audio. Repeat 6.2b at later sessions.
-- **Setup check:** after DC lowered the input gains ~10 dB: noise -60.5 dB, loud chord
+- **Setup check:** after the owner lowered the input gains ~10 dB: noise -60.5 dB, loud chord
   -6.4 dB, line in OK (first check: gain clipped, input 1 noise -53.9 dB at 2 kHz).
 - **Not covered (needs a person):** physical keys, knobs, toggle, how the lights look,
   speaker, headphones, mic, SD swap, power-off and battery shut-off, and everything judged
   by ear. These automatic results are evidence for their steps, not a TEST_SESSION pass.
 
-## 2026-10-05 — DC's panel-map walk-through on 0.9 (verbal)
+## 2026-10-05 — the owner's panel-map walk-through on 0.9 (verbal)
 
 - **Works:** SW5 filter cutoff (clearly audible on Acid Bass); SW6 volume; webapp
   preset loading; saving to device presets (bank 1 slots 1, 2, 5); preset recall.
 - **SW6 press does nothing.** TAPE: a short press switches SW6 between output
   volume and **input gain** (mic/line, light blue → red; 75 % at power-on); holding
   2 s still shows the battery. Forge has no input gain control. To add (TAPE).
-- **SW5 while a loop exists:** DC wants SW5 to stay on filter cutoff and get loop
+- **SW5 while a loop exists:** the owner wants SW5 to stay on filter cutoff and get loop
   speed/scrub with a modifier (CHOMPI held or SW5 held were suggested; SW5 press
   is panic now). Note: in TAPE SW5 is only the looper transport (speed/scrub, press
   resets speed); TAPE's filter is a knob page. Decision pending.
-- **Direction from DC:** keep TAPE's workflow wherever possible (familiar to DC and
+- **Direction from the owner:** keep TAPE's workflow wherever possible (familiar to the owner and
   to CHOMPI owners).
-- Not tested yet: the AI patch author; device samples on the SD card (DC did not
+- Not tested yet: the AI patch author; device samples on the SD card (the owner did not
   find how; the manual needs a clearer how-to). Webapp text still says "toggle
   down + hold CHOMPI" for recording and its footer says candidate 0.5 (stale).
 - Automated tests: add audio-based knob checks (planned below).
 
-## 2026-10-05 — 0.9 on CHOMPI (DC, verbal): open issue, random shut-off
+## 2026-10-05 — 0.9 on CHOMPI (the owner, verbal): open issue, random shut-off
 
 - **Recording works** on hardware (toggle + hold CHOMPI, play back).
 - **Preset recall works** on hardware (toggle down, hold CHOMPI, white key, release).
-- **Toggle labels are backwards in the docs and bridge:** on DC's unit the menu
+- **Toggle labels are backwards in the docs and bridge:** on the owner's unit the menu
   position is toggle **down** and recording is **up**. Firmware behaviour equals
   TAPE (`GetToggleState()` true = menu); only Forge's naming ("up = menu") was
-  wrong. Fix pending DC's findings (docs, panel map, walk prompts, check titles).
+  wrong. Fix pending the owner's findings (docs, panel map, walk prompts, check titles).
 - **OPEN: random shut-off while playing keys** (firmware 0.9). Not reproduced
   yet; not understood. To capture next time: on battery or USB; did it restart
   by itself (lights come back) or stay off until the switch; amber flashing
@@ -197,7 +197,7 @@ the PC. Evidence below is **agent-measured over USB** (reports in
   flat once on 0.7; 0.9's key lights draw more LED current, so a weak battery
   could dip lower), a brown-out reset, or a firmware fault (Forge does not yet
   record the reset cause, so a crash and a power loss look the same).
-- **Knob/LED feedback (DC):** "white" knob lights look light blue. TAPE drives
+- **Knob/LED feedback (the owner):** "white" knob lights look light blue. TAPE drives
   white the same way (full R, G, B, no correction), so it is the LEDs; a white
   balance trim is a candidate for the next firmware. **SW4 on Glass Keys: no
   audible change.** In the simulation SW4 (page 1, dim white) does change delay mix,
@@ -219,7 +219,7 @@ the PC. Evidence below is **agent-measured over USB** (reports in
     Pad): none dead.
   Options for later: upgrade the starter presets to v3+ (same sound, all pages
   live), or on v1/v2 patches skip dead pages; plus encoder acceleration.
-  **Tests to add with those fixes (DC: check the audio, not just the values):**
+  **Tests to add with those fixes (the owner: check the audio, not just the values):**
   (1) a native test that renders each starter preset through the engine, turns
   every knob/page a fixed number of clicks and fails unless the output changes by
   a measurable amount (level, spectrum or echo energy) — runs in CI, catches dead
@@ -227,10 +227,10 @@ the PC. Evidence below is **agent-measured over USB** (reports in
   capture, turn N clicks, capture, compare (same measures), so CHOMPI's real knob
   path and audio are covered. Today's checks only confirm the parameter value
   changed.
-- Requested (to build after DC's findings, one install): 1–2 s record count-in
+- Requested (to build after the owner's findings, one install): 1–2 s record count-in
   with blinking lights after pressing CHOMPI.
 
-## 2026-10-05 — power on 0.8 (DC, verbal): TEST_SESSION 8
+## 2026-10-05 — power on 0.8 (the owner, verbal): TEST_SESSION 8
 
 - 8.1 pass: unplugged, Forge runs normally on the battery.
 - 8.2 pass: SW6 held 2 s shows the battery light, **green** (battery above the
@@ -243,11 +243,11 @@ the PC. Evidence below is **agent-measured over USB** (reports in
 
 ## 2026-10-05 — firmware 0.8 installed over USB: all automatic checks pass
 
-- **USB firmware install verified on hardware:** DC installed 0.8 with the bridge's
+- **USB firmware install verified on hardware:** the owner installed 0.8 with the bridge's
   *Card & firmware → Install* (CHOMPI-key confirmation, restart, bootloader flash);
   1.3 then reported firmware 0.8 (report `20261005-113455`). First card-free update.
 - Report `20261005-113455`: 25 pass, 2 fail (0.n, 4.1 noise floor: a loose cable,
-  DC fixed it); re-run of those two (`20261005-113653`): both pass. With
+  the owner fixed it); re-run of those two (`20261005-113653`): both pass. With
   `20261005-113009` (everything else on the same rig), **every automatic check passes
   on 0.8**. CPU per step on 0.8: synth 38.9 %, seven sampler voices 54.8 %, no drops.
 - Still open on hardware: TEST_SESSION 8 (battery, SW6 light, plug-in hand-over,
@@ -255,7 +255,7 @@ the PC. Evidence below is **agent-measured over USB** (reports in
 
 ## 2026-10-05 — line in wired, 0.7 on CHOMPI, 0.8 bridge
 
-DC rewired: CHOMPI main out → interface inputs 1/2, interface output → CHOMPI
+The owner rewired: CHOMPI main out → interface inputs 1/2, interface output → CHOMPI
 line in. Report `20261005-113009`: **26 pass, 1 fail, 0 skipped**; the failure is
 1.3 (the 0.8 bridge expects firmware 0.8; CHOMPI still ran 0.7).
 - First hardware passes of the line-in steps: 2.1 dry tone 1,000 Hz both channels
@@ -269,9 +269,9 @@ line in. Report `20261005-113009`: **26 pass, 1 fail, 0 skipped**; the failure i
 - Not run: 6.2d (sampler + looper), so the looper voice cap stays at 6.
 Next: install 0.8 over USB (first real USB install), re-run 1.3, TEST_SESSION 8.
 
-## 2026-10-04 evening — first 0.7 session (DC), development firmware (`b36ba99`)
+## 2026-10-04 evening — first 0.7 session (the owner), development firmware (`b36ba99`)
 
-Source: DC's reports `20261004-195501` (still 0.6: 1.3 failed, "CPU peak since
+Source: the owner's reports `20261004-195501` (still 0.6: 1.3 failed, "CPU peak since
 boot" marked), `20261004-195751` (0.7, no audio interface: 13 pass, 0 fail,
 14 skipped) and `20261004-195913` (0.7 with audio: 18 pass, 4 fail, 5 skipped).
 Not received yet: Check setup, panel walk, USB install/upload.
@@ -299,7 +299,7 @@ Rig (all four failures):
 - Line in unplugged: 2.1, 2.2, 2.4, 3.34, 3.42 skipped.
 
 Later the same evening, after the rig fixes (reports `20261004-202421` …
-`20261004-203526`, ten runs while DC adjusted gain and cables): the last two
+`20261004-203526`, ten runs while the owner adjusted gain and cables): the last two
 full runs are **21 pass, 1 fail, 5 skipped**.
 - Rig fixed: right output now on IN 2 (L/R within 1 dB, pad correlation
   0.78), no clipping (3.4 chord peak −9.4 dB), floor −67 dB RMS (0.n, 4.1 pass;
@@ -308,10 +308,10 @@ full runs are **21 pass, 1 fail, 5 skipped**.
   6.2c still silent (no recording; that exe predates the 6.2c sound check), so
   its 36 % is not a sampler figure.
 - Only failure: 3.29, no kit-a file on the card. Line in still unplugged.
-- Check setup (DC's paste): noise IN 1 −68.4 / IN 2 −71.2 dB RMS, outputs
+- Check setup (the owner's paste): noise IN 1 −68.4 / IN 2 −71.2 dB RMS, outputs
   L −20.4 / R −21.4 dB, loud chord −7.7 dB: all OK; line input FAIL (no plug).
 
-Panel walk on 0.7 (DC's paste), first time on hardware:
+Panel walk on 0.7 (the owner's paste), first time on hardware:
 - **Every key passes:** toggle up/down, white keys 1–15 (switches 15, 8–11,
   16–20, 24–28), black keys 16–25 (7, 12–14, 21–23, 29–31), CHOMPI 5, PLAY 33,
   LOOP 34, knob presses SW4 3, SW1 0, SW2 1, SW3 2, SW6 32. SW5 press = panic.
@@ -332,15 +332,15 @@ Panel walk on 0.7 (DC's paste), first time on hardware:
   accepted). PLAY answered **red** during a first take (expected teal; Forge
   drives through-hole LED 7 as TAPE's `led_map` for KEY_27): unexplained,
   re-check with *Light questions only* and a photo.
-- Re-check (DC, verbal, no paste): knobs and lights all passed; DC thinks the
+- Re-check (the owner, verbal, no paste): knobs and lights all passed; the owner thinks the
   earlier knob failures were extra clicks carried into the next question. So
-  all six knobs turn both ways and the lights match, by DC's report; SW3's
+  all six knobs turn both ways and the lights match, by the owner's report; SW3's
   dim white still reads teal (cosmetic).
 
-## 2026-10-04 — first hardware session (DC), firmware 0.6 development (`131776b`)
+## 2026-10-04 — first hardware session (the owner), firmware 0.6 development (`131776b`)
 
 Setup: CHOMPI over USB, Forge bridge (port 8766), Behringer UMC204HD. Source:
-DC's session export and reports `20261004-161209`, `20261004-161342`.
+The owner's session export and reports `20261004-161209`, `20261004-161342`.
 
 Measured by the bridge on the hardware (automatic checks):
 - Identity: firmware 0.6 (1.3). Flash via SD worked.
@@ -375,7 +375,7 @@ Not valid yet (setup):
 - 3.29: no audible kit sample (−40 dB, the floor); likely no kit-a files on
   the card. The check now needs the file and a −30 dB level.
 
-Hardware observations by DC (not automatic): none recorded yet.
+Hardware observations by the owner (not automatic): none recorded yet.
 
 ### Third run (`20261004-163535`, bridge update `fbd98c1`)
 

@@ -226,7 +226,7 @@ public:
         if(!Active()) { restart_ = false; return; }
         if(!clock_.Running()) { StopArp(); return; }
         // A new phrase starts kGatherFrames after its first key (a chord's keys land a few ms apart:
-        // DC's CHOMPI played the first steps of a half-built chord, 2026-10-11); then on the grid.
+        // the owner's CHOMPI played the first steps of a half-built chord, 2026-10-11); then on the grid.
         if(restart_) {
             if(gather_ > frames) gather_ -= frames;
             else { gather_ = 0; restart_ = false; if(ArpOn() && order_count_) ArpStep(tick); if(BassOn()) BassStep(tick); }
