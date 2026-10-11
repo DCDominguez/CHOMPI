@@ -151,15 +151,16 @@ unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
   woke up singing."). Board: https://claude.ai/artifact/DdDCg63EzsSjYQBomaU2JY (private to the owner).
   Applies to the webapp redesign, the manual, the virtual screen and the Tab5 view. Community
   firmware: never use CHOMPI's or its maker's logo; "for CHOMPI", not "by".
-- **Mascot: Choowi (or "Choowee", owner to pick) the magic blacksmith (owner's sketch,
-  2026-10-11):** a square with spiral, slightly crazy eyes, a big chewy grin and a hammer throwing
-  sparks in the nine panel colours. Keep it clearly Forge's own next to the CHOMPI character
-  (TRADEMARKS.md): not CHOMPI's salmon pink, no headphones, nothing from their logo; a "same
-  species" look only with CHOMPI Club's written OK. **Every release gets a spark friend
-  the mascot forges**, in the next colour of the panel row (0.16 Glim green, 0.17 Chime yellow, 0.18
-  Doze orange, 0.19 Tinker red; then pink, purple, blue, teal, and round again), holding something
-  from that release; small updates get a tiny sidekick (0.17.1 Swoop). Name the character in each
-  CHANGELOG heading; later on the start-up / virtual screen. Board: the brand canvas, "Chewy" artboard.
+- **Mascot and release tools (owner, 2026-10-11).** Forge is the main tree; its mascot is
+  **Choowi** (or "Choowee", owner to pick), the magic blacksmith, from the owner's sketch: a square
+  with spiral, slightly crazy eyes, a big chewy grin, a crooked starry wizard hat and a hammer with
+  a glowing rune, throwing sparks in the nine panel colours. **Every Forge release is a magic tool
+  Choowi forges** (not a new character), in the next colour of the panel row: 0.16 Colour Lantern
+  (green), 0.17 Wake-up Bell + lucky die (yellow), 0.17.1 Sweep Brush (small, yellow), 0.18 Dream
+  Bellows (orange), 0.19 Tinker Wrench (red); then pink, purple, blue, teal, round again. A future
+  separate firmware line gets its own mascot. Name the tool in each CHANGELOG heading. Keep Choowi
+  clearly Forge's own next to the CHOMPI character (TRADEMARKS.md): not CHOMPI's salmon pink, no
+  headphones, nothing from their logo; a "same species" look only with CHOMPI Club's written OK.
 - Candidates raised the same day: upgrade starter presets 01–06 (v1/v2) to v3+ with the
   same sound so every knob page works; add starter presets that show harmony, arp / bass
   and the event recorder (useful for the owner's listening session).

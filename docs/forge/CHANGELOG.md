@@ -1,6 +1,6 @@
 # Forge changelog
 
-## 0.19.0 The synth edit page (spark: Tinker) — 2026-10-11 (software-tested; not installed yet)
+## 0.19.0 The synth edit page (tool: Tinker Wrench) — 2026-10-11 (software-tested; not installed yet)
 
 The owner's backlog item: design a sound on CHOMPI itself. A fifth menu page, **Synth** (CHOMPI light
 pink), after parts: on TAPE's page keep holding KEY_21 (harmony at 1 s, parts at 2 s, synth at
@@ -18,7 +18,7 @@ pink), after parts: on TAPE's page keep holding KEY_21 (harmony at 1 s, parts at
   change nothing.
 - Panel test `SynthPage019`; the Inspector names the page "synth". Not on CHOMPI yet.
 
-## 0.18.0 Magic: chomp to instrument, dream mode, lights with character (spark: Doze) — 2026-10-11 (software-tested; not installed yet)
+## 0.18.0 Magic: chomp to instrument, dream mode, lights with character (tool: Dream Bellows) — 2026-10-11 (software-tested; not installed yet)
 
 PROJECT.md magic batch items 4-6 (owner request).
 - **Chomp to instrument:** record anything (toggle up, hold CHOMPI), then **surprise me**
@@ -38,7 +38,7 @@ PROJECT.md magic batch items 4-6 (owner request).
 - `core/magic.h` (`Roll` sampler-aware, `Dream`), panel `Dream018`, magic `ChompRollsKeepTheSample`
   / `DreamPlaysInTheKeyAndStops`. Not on CHOMPI yet.
 
-## 0.17.1 SW5 sweeps like a filter (sidekick: Swoop) — 2026-10-11 (software-tested; not installed yet)
+## 0.17.1 SW5 sweeps like a filter (tool: Sweep Brush) — 2026-10-11 (software-tested; not installed yet)
 
 Owner request. Measured on CHOMPI (C-E-G, the
 loaded pad): the level held within 1 dB from 16 kHz down to 165 Hz while brightness fell from
@@ -51,7 +51,7 @@ loaded pad): the level held within 1 dB from 16 kHz down to 165 Hz while brightn
   is heard as movement. Fully open: the patch's resonance. A new patch starts without it.
 - Panel test `Sweep0171`. Not on CHOMPI yet.
 
-## 0.17.0 Magic: wakes up singing, surprise me, mutate (spark: Chime) — 2026-10-11 (software-tested; not installed yet)
+## 0.17.0 Magic: wakes up singing, surprise me, mutate (tool: Wake-up Bell) — 2026-10-11 (software-tested; not installed yet)
 
 Owner request (PROJECT.md, magic batch items 1-3).
 - **Wakes up singing:** CHOMPI remembers the last preset recalled or saved (`FORGE/LAST.TXT`,
@@ -76,7 +76,7 @@ engine with delay and reverb: RMS -41 .. -22 dB, none above full scale; 1,000 ch
 mutations bounded; chime notes), panel `Magic017` (gestures, repeat, panic untouched, chime
 voices and light wave). Not on CHOMPI yet.
 
-## 0.16.0 Panel feedback and shortcuts (the owner's UX review; spark: Glim) — 2026-10-11 (software-tested; not installed yet)
+## 0.16.0 Panel feedback and shortcuts (the owner's UX review; tool: Colour Lantern) — 2026-10-11 (software-tested; not installed yet)
 
 The owner's decisions and ratings: [UX_REVIEW.md](UX_REVIEW.md). Bar: every function 4/5 for ease of use.
 
