@@ -3,7 +3,19 @@
 Updated 2026-10-11 (late night), checkpoint: **0.19.2 (build 8b51764) on CHOMPI**; guided hands-on test done except the TAPE functions (recording, sampler, looper); open: charging from a power bank while on. Read this first; the owner's next session is
 [HOME_CHECKLIST.md](HOME_CHECKLIST.md), then [TEST_SESSION.md](TEST_SESSION.md).
 
-## 2026-10-11 (late night): guided test nearly done, repo refreshed (resume here)
+## 2026-10-12: battery readings under investigation (resume here)
+
+- The owner suspects the battery *readings*, not only the battery. Analysis in
+  [BATTERY_READINGS.md](BATTERY_READINGS.md): the stock reader starts at "medium" for 30 s after
+  every power-on, mixes 3.3 V and 3.0 V comparator readings in one history, likely reads the
+  wrong sample for green / yellow, and ignores I2C write errors (threshold could stick at 3.3 V).
+  Nothing changed yet; the owner is getting a second opinion. Next: an instrumented development
+  build (raw registers, 0x0C read-back, write results), then a Forge-owned reader if confirmed.
+- Also since the last checkpoint: the webapp is Choowi's sound workshop (no keys, no hardware,
+  chatbot copy and paste, always v7, settings in folds), the Web MIDI page `/send`, and Choowi's
+  sample pack (chromatic d, kit d; not yet copied to CHOMPI, waiting for the owner's OK).
+
+## 2026-10-11 (late night): guided test nearly done, repo refreshed
 
 - On CHOMPI: **0.19.2 build 8b51764** (both power changes). Guided test by the owner's hand: parts
   1-3 passed earlier; save and recall pass; sample start / end on SW1 / SW2 (toggle down) work
