@@ -1,5 +1,25 @@
 # Forge test results
 
+## 2026-10-11 (night) — shut-off caught by a power log; 0.19.2 installed and retested
+
+Power log `D:	ools\chompi-session\power_log.py` (status 10 times a second, `reports/power_log.csv`);
+CHOMPI on the PC port (weak supply, charging), the owner playing fast on a sample-based sound.
+- **0.19.1, 21:46:13:** battery "high", then one reading (0.1 s) later the charger's below-3.0 V
+  flag, CHOMPI silent 0.6 s later. Matches the stock weak-supply lockout (8 low readings, 160 ms:
+  lights off, processor stopped until a power cycle).
+- **0.19.2 (build b7f2eec) installed** over USB (the owner's press). Fix: the stock protection only
+  after 3 s of low readings (`LockoutGuard`).
+- **0.19.2, first run (21:58-22:02, about 2,600 readings):** no low reading, no shut-off; the fix
+  was not exercised.
+- **0.19.2, 22:03:51:** the below-3.0 V flag set and stayed set for about 3.4 s of continuous
+  fast playing, the owner saw a yellow blink (Forge's SW6 critical warning), then CHOMPI went off
+  at 22:03:54, about 3 s after the first low reading, as the fix intends for a sustained low.
+  The 30 s level check still read "high" (above 3.3 V) shortly before: the battery sags by more
+  than 0.3 V under load. Next: charge to white on a USB-C charger, then retest on battery only
+  and on the charger; if a full battery still sags below 3.0 V, the battery or its connection
+  is suspect (hardware). Not caused by the logger: the shut-off predates it (0.9) and the status
+  request is a few bytes ten times a second.
+
 ## 2026-10-11 (evening) — guided test on 0.19.1: the random shut-off reproduced
 
 - 0.19.1 (build e1bd640) installed over USB (the owner's press; the first 15 s window was missed).
