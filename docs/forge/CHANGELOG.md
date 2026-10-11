@@ -2,7 +2,7 @@
 
 Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)); the heading names it.
 
-## 0.19.2 What you save is what wakes up (small tool: to be named) — 2026-10-11 (on CHOMPI since 0.19.2 build 8b51764; checks in TEST_RESULTS)
+## 0.19.2 Secret modes, the forge site, bank purple (small tool: Whatzit) — 2026-10-12 (release candidate; on CHOMPI as build b462bea; checks in TEST_RESULTS)
 
 - **Battery reading instrumentation (development builds only; software-tested, not
   hardware-verified).** `make firmware-dev` now answers Inspector page 11: the raw charger
@@ -72,7 +72,7 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
 - MANUAL corrections from that cross-check: the menu reopens on the page you left it on; the
   bank knob is SW4 (stops at 1 and 8; KEY_16 / KEY_17 wrap round); pink (synth) in the page colours.
 
-## 0.19.1 The DJ filter never goes silent (small tool: to be named) — 2026-10-11 (on CHOMPI since 0.19.2 build 8b51764; checks in TEST_RESULTS)
+## 0.19.1 The DJ filter never goes silent (small tool: Thingamabob) — 2026-10-11 (on CHOMPI since 0.19.2 build 8b51764; checks in TEST_RESULTS)
 
 The owner's open bug "SW3's DJ filter silences the sound". Measured (white noise through the real
 filter): no runaway or NaN at any setting, resonance or sweep, and full level back at the centre;

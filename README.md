@@ -61,6 +61,8 @@ Every Choowi release is a magic tool he forges, in the next colour of CHOMPI's p
 | <img src="docs/forge/assets/tool-sweep-brush.svg" width="40" alt=""> | 0.17.1 | Sweep Brush | the filter knob actually sweeps now |
 | <img src="docs/forge/assets/tool-dream-bellows.svg" width="48" alt=""> | 0.18 | Dream Bellows | dream mode, chomp to instrument, sparkles and ripples |
 | <img src="docs/forge/assets/tool-tinker-wrench.svg" width="48" alt=""> | 0.19 | Tinker Wrench | the synth page: build a sound on the panel |
+| | 0.19.1 | Thingamabob | the DJ filter never goes silent |
+| | 0.19.2 | Whatzit | harmony's secret modes, the forge site, bank purple sounds |
 
 Everything before 0.16 (the synth, the TAPE sampler and looper, harmony, the arp, the event
 recorder, presets, the sound workshop) is Choowi's foundation. The full story is in the
