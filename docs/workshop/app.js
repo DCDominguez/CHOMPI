@@ -80,20 +80,31 @@ $("live").addEventListener("change", () => audition(true));
 $("stop").addEventListener("click", async () => {
   try { await exchange(W.stopMessage(sequence())); notice("Stopped. Play a key to start again."); } catch (error) { notice(error.message, true); }
 });
-// The on-screen keys: C3-C5 on MIDI channel 1, as CHOMPI's own keys.
+// The on-screen keys: two octaves on MIDI channel 1, C3-C5 to start; octave - / + moves them C1-C7.
+const NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+let base = 48;                                              // the lowest key (C3)
 function note(n, on) { const out = access && access.outputs.get($("output").value); if (out) out.send(on ? [0x90, n, 100] : [0x80, n, 0]); }
+function labelKeys() {
+  [...$("keys").children].forEach((key, i) => {
+    const n = base + i, name = NAMES[n % 12] + (Math.floor(n / 12) - 1);
+    key.textContent = n % 12 === 0 ? name : ""; key.setAttribute("aria-label", `play ${name}`);
+  });
+  $("oct-label").textContent = `C${base / 12 - 1}–C${base / 12 + 1}`;
+  $("oct-down").disabled = base <= 24; $("oct-up").disabled = base >= 84;
+}
 (function buildKeys() {
-  const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-  for (let n = 48; n <= 72; n++) {
-    const key = document.createElement("button"), name = names[n % 12] + (Math.floor(n / 12) - 1);
-    key.type = "button"; key.className = name.includes("#") ? "key black" : "key"; key.setAttribute("aria-label", `play ${name}`);
-    if (n % 12 === 0) key.textContent = name;
-    const off = () => { if (key.dataset.down) { delete key.dataset.down; note(n, false); } };
-    key.addEventListener("pointerdown", e => { e.preventDefault(); key.dataset.down = "1"; note(n, true); });
+  for (let i = 0; i <= 24; i++) {
+    const key = document.createElement("button");
+    key.type = "button"; key.className = [1, 3, 6, 8, 10].includes(i % 12) ? "key black" : "key";
+    const off = () => { if (key.dataset.down) { note(Number(key.dataset.down), false); delete key.dataset.down; } };
+    key.addEventListener("pointerdown", e => { e.preventDefault(); off(); key.dataset.down = String(base + i); note(base + i, true); });
     for (const ev of ["pointerup", "pointerleave", "pointercancel"]) key.addEventListener(ev, off);
     $("keys").append(key);
   }
+  labelKeys();
 })();
+$("oct-down").addEventListener("click", () => { base = Math.max(24, base - 12); labelKeys(); });
+$("oct-up").addEventListener("click", () => { base = Math.min(84, base + 12); labelKeys(); });
 
 // ---- easy: idea -> prompt -> chatbot -> reply ------------------------------------------------------
 $("make-prompt").addEventListener("click", async () => {
