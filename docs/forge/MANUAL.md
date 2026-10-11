@@ -1,7 +1,6 @@
 # Forge for CHOMPI — user manual
 
-Firmware **0.19.0** (development builds; experimental community firmware, not an
-official CHOMPI release). Forge turns CHOMPI into a playable synthesizer,
+Firmware **0.19.0** (development builds; experimental community firmware). Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club. Forge turns CHOMPI into a playable synthesizer,
 TAPE-compatible sampler and looper whose sounds you can design on a computer —
 by hand or by describing them to an AI — and send over USB.
 

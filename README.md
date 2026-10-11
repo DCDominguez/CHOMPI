@@ -1,5 +1,7 @@
 # Forge for CHOMPI
 
+*Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club. See [TRADEMARKS.md](TRADEMARKS.md).*
+
 **An AI-programmable instrument: describe a sound, play it, shape it, save it.**
 Forge runs audio on CHOMPI's Daisy Seed and uses a computer webapp for AI patch
 authoring, editing and MIDI control. OpenAI and Gemini use your own API key.
