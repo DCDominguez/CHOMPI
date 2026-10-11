@@ -3,9 +3,9 @@
 Written 2026-10-10 for the owner's Muse agent ("Cosmo", the Tab5 Muse gadget) so it can act as a
 CHOMPI assistant: understand Forge, draw its menus and patches, design effects and edit
 the firmware. The integration itself is the owner's separate design. This page is the map;
-the linked documents hold the exact details. Written for 0.15.2; the firmware is now
-**Choowi 0.19.2**, on the owner's CHOMPI (CONTINUE.md is the live state; trust it over this page;
-CHANGELOG lists what 0.16-0.19 added: page colours, magic, the synth page).
+the linked documents hold the exact details. Current release: **Choowi 0.19.2, release
+candidate** (CONTINUE.md is the live state; trust it over this page; CHANGELOG lists what 0.16-0.19
+added: page colours, magic, dream mode, the synth page, harmony's secret modes, bank purple).
 
 ## 1. What Forge is
 
@@ -22,8 +22,10 @@ keeps stock TAPE's workflow and adds a playable instrument:
 - **Music:** harmony mode (a key plays a chord, 9 modes), arpeggiator + bass on a clock
   (internal, tap, or MIDI clock in / out), an event recorder (notes and knob moves loop
   with overdub), projects (preset + parts + loop) on the SD card.
-- **Computer side:** a JSON patch format (versions 1–7), a local webapp and AI authoring
-  (OpenAI / Gemini with the user's key, or Ollama), the Forge Bridge (tests over USB).
+- **Computer side:** a JSON patch format (versions 1–7); **Choowi's forge**, a static web page
+  (myth-world.github.io/Forge/workshop) that builds a prompt for any chatbot, reads the reply and
+  talks to CHOMPI over Web MIDI with `docs/workshop/forge-wire.js` (the wire format in JavaScript);
+  a local workshop (`forge_web.py`, no API keys since 0.19.2); the CLI; the Forge Bridge (tests).
 
 The computer never uploads DSP code: a patch only sets parameters of modules already
 in the firmware. **A new effect is firmware work** (section 6).
@@ -51,10 +53,12 @@ Three ways in, from easiest to most direct:
 1. **Python host** (`firmware/chompi-forge/host/forge_host.py`): `status`, `send
    <patch.json>`, `capture`, `store`, `recall`, `battery`, `schema` … The reference
    implementation of every message (encode / decode / validate).
-2. **The local webapp** (`host/forge_web.py`): HTTP JSON API (`/api/status`, `/api/send`,
-   `/api/generate`, `/api/preset`, `/api/samples`, `/api/bridge/*`). **Loopback only by
-   design** (origin check + per-session token): a Tab5 on Wi-Fi cannot call it as-is.
-   Opening it to the network is a security decision for the owner, not a config change.
+2. **The local workshop server** (`host/forge_web.py`): HTTP JSON API (`/api/status`, `/api/send`,
+   `/api/preset`, `/api/samples`, `/api/chat-prompt`, `/api/chat-reply`, `/api/midi/*`,
+   `/api/bridge/*`; no `/api/generate` since 0.19.2). **Loopback only by design** (origin check +
+   per-session token): a Tab5 on Wi-Fi cannot call it as-is. Opening it to the network is a
+   security decision for the owner, not a config change. In a browser, `docs/workshop/forge-wire.js`
+   speaks the protocol directly (encode a v7 patch, status, store / list presets, decode replies).
 3. **USB MIDI from the Tab5 directly** (its USB host to CHOMPI's USB port): speak the
    SysEx protocol yourself; port `forge_host.py`'s `message`, `encode_patch`,
    `decode_response`, `decode_identity`, `decode_power`. CHOMPI has one USB port, so

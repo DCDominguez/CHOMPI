@@ -20,7 +20,7 @@ compilation; a new algorithm or routing graph still requires firmware work.
 ```mermaid
 flowchart TD
     Preset["Host JSON preset"] --> Validate["Strict validation"]
-    Model["OpenAI / Gemini / Ollama"] --> Validate
+    Model["Any chatbot (copy & paste) / Ollama CLI"] --> Validate
     Validate --> MIDI["MIDI patch request"]
     MIDI --> Queue["Validated request queue"]
     Queue --> Audio["Audio owner"]

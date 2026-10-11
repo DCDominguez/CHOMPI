@@ -1,5 +1,8 @@
 # Forge hardware test bridge
 
+> **A development tool.** Players install from the card zip and make sounds on the forge page;
+> the bridge stays for hardware tests and the Inspector.
+
 The bridge is the local browser interface for a consolidated physical test:
 live SYSTEM/PANEL/ENGINE/STORAGE, keys and LED shadow, indexed voices, retained
 events, test controls, 82 guided checks, observations and downloadable evidence.

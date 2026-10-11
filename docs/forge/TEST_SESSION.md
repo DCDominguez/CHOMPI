@@ -1,5 +1,9 @@
 # Forge 0.19.2 — the one consolidated hardware test
 
+> **Kept for the record.** This is the 0.15-era consolidated session plan; most of it has since been
+> run by hand. The current evidence, including the 0.19 guided hands-on test, is in
+> [TEST_RESULTS.md](TEST_RESULTS.md); what is still open is in [CONTINUE.md](CONTINUE.md).
+
 Status of the candidate: **software-tested, hardware-unverified.** This is the
 single planned physical session. Work top to bottom. If a stage fails, record
 it, stop that stage, and continue only where later stages do not depend on it.

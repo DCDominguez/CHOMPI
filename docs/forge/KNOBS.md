@@ -85,7 +85,7 @@ Each entry is `"default"` or one of 26 `module.key` controls
 (`forge_host.KNOB_TARGETS`). `"default"` adds no page; CC 20–23 then move the
 source's default (delay mix/time/feedback/level, or the sampler's pitch, start,
 end, delay mix). Performance controls (pitch, gain, saturation…) are not knob
-targets. The AI authoring mode writes v5 and chooses the knobs; the webapp's
+targets. A chatbot's patch (through the forge page's prompt) chooses the knobs; the forge page's
 *Panel knobs* group edits them; `14-knob-pad.json` shows it.
 
 Wire: unchanged from 0.6 (request 88 bytes, index 83–86 = Parameter id + 1,

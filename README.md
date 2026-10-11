@@ -40,8 +40,11 @@ work for you:
   and the sound you have drifts a little. record anything, then roll, and it becomes an
   instrument.
 - **leave it alone** for a couple of minutes and it starts dreaming quietly in your key.
-- **design sounds right on the panel** (the synth page), or describe one to an AI on your
-  computer and send it over.
+- **design sounds right on the panel** (the synth page), or describe one to any chatbot on
+  [Choowi's forge](https://myth-world.github.io/Forge/workshop/) and hear it on CHOMPI straight away.
+- **harmony has secrets.** chords that bloom one note at a time, a CHOMPI that answers your chords,
+  and a little mischief that bends the chord you're holding.
+- **its own sounds:** 14 instruments and 14 drums in bank purple, free.
 - **everything TAPE does stays.** the sampler, recording, the looper and TAPE's menu all
   work the way your hands already know.
 
@@ -72,19 +75,20 @@ recorder, presets, the sound workshop) is Choowi's foundation. The full story is
 
 No apps, no accounts. Just the SD card.
 
-1. **Download `FORGE.bin`** from this repository's **Releases** page (the newest Choowi).
+1. **Download [`choowi-0.19.2-card.zip`](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc1)**
+   (release candidate): the firmware, Choowi's sounds and the illustrated manual.
 2. **Charge CHOMPI** until the battery light is green or white (hold SW6 for 2 seconds).
-3. **Back up the SD card**, then rename every file in its top folder whose name has `.bin`
-   in it (CHOMPI installs the first one it finds): `CHOMPI_TAPEv2_0.bin` becomes
-   `CHOMPI_TAPEv2_0_bin.old`.
-4. **Copy `FORGE.bin`** to the card's top folder, card back in, switch on.
-5. Rainbow lights while it installs, then Choowi says hi. Done.
+3. **Back up the SD card** (copy everything to your computer), then delete its sample files
+   (`jammi_*.wav`, `cubbi_*.wav`) and every file whose name has `.bin` in it (CHOMPI installs
+   the first one it finds).
+4. **Copy everything from the zip** to the card's top folder, card back in, switch on.
+5. Rainbow lights while it installs, then Choowi says hi. Done. (The zip's README-FIRST has the
+   same steps.)
 
-**Updates** work the same way: drop the new `FORGE.bin` on the card (replacing the old
-one) and switch on. Tinkerers on Windows can also update over USB with Forge Bridge
+**Updates:** drop the new `FORGE.bin` on the card (replacing the old one) and switch on. Tinkerers on Windows can also update over USB with Forge Bridge
 ([manual](docs/forge/MANUAL.md), section 2).
 
-**Want stock TAPE back?** Rename TAPE's file back to `.bin`, remove `FORGE.bin`, switch on.
+**Want stock TAPE back?** Put your card backup back on the card and switch on.
 Nothing in Forge touches the bootloader.
 
 ## how real is it?
@@ -97,8 +101,9 @@ pair of ears.
   colours; the wake-up chime, surprise me and mutate; a stress test (CPU peaks around 67 %,
   a 5,600-messages-a-second MIDI flood with nothing dropped, 40/40 preset save and load).
 - **checked by hand on 0.19.2:** the synth page, page and setting colours, harmony, saving
-  and recalling a sound, sample start / end; the owner tried most of the rest. The TAPE
-  functions (recording, sampler, looper) get their final check before the release.
+  and recalling a sound, sample start / end; the owner tried most of the rest.
+- **in the release candidate, being checked now:** the TAPE functions' final run, harmony's
+  secret modes, dream mode unplugged, the forge page with a real CHOMPI.
 - **known issues:** on some power banks CHOMPI stops charging while it's switched on (charge it
   switched off); the battery colour on SW6 is a rough voltage check, only white means full.
 - **still up to you:** how it sounds, how it feels, how fun the magic is.
@@ -107,20 +112,14 @@ Every check and result is written down in [TEST_RESULTS.md](docs/forge/TEST_RESU
 
 ## make sounds with any chatbot
 
-Choowi's sound workshop, on any computer (Python 3.10+):
+Open **[Choowi's forge](https://myth-world.github.io/Forge/workshop/)** in Chrome or Edge, plug in
+CHOMPI and press Connect. Describe a sound, copy the prompt into any chatbot (ChatGPT, Claude,
+Gemini…), paste its reply back: CHOMPI plays it. Tweak it live, play it from the on-screen keys,
+**Save to CHOMPI** (a preset slot) or **Save JSON**. No install, no API key, no account. No
+CHOMPI handy? "make sounds anyway" and send them later.
 
-```sh
-python3 -m pip install -r firmware/chompi-forge/host/requirements.txt
-python3 firmware/chompi-forge/host/forge_web.py
-```
-
-Choowi's own sounds are **bank purple** (14 instruments, 14 drums, free) for the card, in
+Choowi's own sounds are **bank purple** (14 instruments, 14 drums, free) in the card zip, or in
 [firmware/chompi-forge/samples/choowi-pack](firmware/chompi-forge/samples/choowi-pack/).
-
-Open **http://127.0.0.1:8765**, describe a sound and copy the prompt into any chatbot (ChatGPT,
-Claude, Gemini…). Paste its reply back, tweak the sound, save it as a JSON file. No API key, no
-account. Then **take it to CHOMPI** (the link under the editor, `/send`): connect over Web MIDI
-in Chrome or Edge, send, play. Save it to a slot on the panel to keep it.
 
 ## for tinkerers
 

@@ -168,7 +168,7 @@ light flashes white).
   drive. **DJ filter**: left of centre low-pass, right of centre high-pass.
 - One click moves 3 % on SW1–SW3 (TAPE's step), so single clicks are audible.
 - A patch can add its own control as each knob's **last page** (dim white light;
-  the webapp's *Panel knobs*, or the AI). Effects-only sounds (Dry, Slap, Long
+  the forge page's *Panel knobs* group, or a chatbot through it). Effects-only sounds (Dry, Slap, Long
   echoes) put the delay on the knobs instead: SW4 delay mix / level, SW1 delay
   time, SW2 feedback, SW3 TAPE's effects on the line input.
 - Pitch, gain, saturation and the DJ filter are performance settings, as on TAPE:
@@ -478,7 +478,7 @@ little as possible from the last one. Turn it off to choose the inversion with S
 order when the voices run out: the 5th first, then the middle extensions; the
 root, 3rd, 7th and top extension stay.
 
-The settings are part of a **v6 patch** (the webapp's *Harmony* group, the AI, or
+The settings are part of a **v6 patch** (the forge page's *Harmony* group, a chatbot through it, or
 `forge_host.py`) and are saved with presets stored on CHOMPI. Panic ends held
 chords. The Inspector shows the last chord by name and number
 (e.g. *Am7 · I · tonic*).
@@ -548,7 +548,7 @@ TAPE's page keep holding KEY_21 for 2 s: harmony page at 1 s (purple), parts at 
 **Playing:** with the arp on, hold keys (or a chord key with harmony on): the notes cycle
 from the first one at once, then on the clock. Adding keys while holding adds notes; after
 letting go of all keys, the next key starts a new set. Random uses a fixed seed, so the
-same keys play the same "random" line every time (the webapp can choose the seed). With
+same keys play the same "random" line every time (the forge page can choose the seed). With
 the arp off, the keys play as usual and the bass (if on) plays under them. Panic (SW4 + SW3
 held 1 s with the menu closed) stops the arp, the bass and any latched notes.
 
@@ -557,7 +557,7 @@ stored on CHOMPI. When MIDI clock arrives (USB or the MIDI jack, any channel), t
 follow it, with MIDI start / stop / continue; the SW4 light blinks blue then. Half a second
 without clock and CHOMPI's own tempo takes over again. While the parts play on CHOMPI's
 own tempo it sends MIDI clock (start, 24 ticks per beat, stop) so other gear can follow
-(the webapp can turn that off).
+(the forge page can turn that off).
 
 ---
 
@@ -692,7 +692,7 @@ Open [the forge page](https://myth-world.github.io/Forge/workshop/) in **Chrome 
 3. Enable live audition to hear the sound on CHOMPI while tweaking. This changes the current sound; it does not yet save it to the card.
 4. Choose a preset bank and slot, then **Save to CHOMPI**. Confirm replacement if the slot is used; wait for the saved message and recall the slot on the panel to check it. **Save JSON** downloads to the computer instead.
 
-Without CHOMPI, choose **make sounds anyway** to create, edit and save JSON for later. The local `host/forge_web.py` workshop and its separate `/send` page remain a distinct workflow; the hosted forge page connects directly.
+Without CHOMPI, choose **make sounds anyway** to create, edit and save JSON for later. The local workshop (`host/forge_web.py`, host guide) does the same on a computer without the website; its `/send` page leads to the same send flow.
 
 **Claim level:** the hosted browser workflow has software/browser tests using a stand-in for Web MIDI; it has not yet been verified with a real CHOMPI in Chrome. Any arriving MIDI stops dream mode and restarts its idle timer.
 
@@ -744,7 +744,7 @@ so one card sets both firmwares:
 | CHOMPI switched itself off or restarted | *Check setup* shows **Last start** (power-on, brown-out = the supply dipped, or a crash); the card keeps a line per start in `FORGE/RESTARTS.TXT`. Send both with your report. A low battery switches CHOMPI off as stock TAPE does: with no USB after 15 s of amber flashes; on a weak USB supply (computer port) at once, lights off. From 0.11 these leave a "battery low" line in `RESTARTS.TXT`; charge it, or play on a USB-C charger |
 | Knob lights flash magenta three times at start, then the CHOMPI light blinks magenta every 2 s; menu keys red | **Safe mode** (0.15.2): Forge crashed three times within 10 s of starting, so it started without the card's settings, presets and samples. Playing works; your card is untouched. Copy `FORGE/RESTARTS.TXT` off the card and report it; switch off and on to leave safe mode. A firmware install over USB or from the card still works |
 | Dim blue light for 30 s or more at start, or it hangs there | A card written by Forge before the 0.15.2 card fix: put the card in a computer, run a disk check (Windows: `chkdsk X: /F`), delete empty files named `RESTARTS.TXT`, `presets_backup.json` (in `FORGE/`) and `presets_temp.json`; until then CHOMPI starts without the card |
-| Which build is on CHOMPI? | Connect CHOMPI (bridge) or `python host/forge_host.py battery`: e.g. "Forge 0.15.2 (build 0f5bb18)" — the build is the commit it was made from |
+| Which build is on CHOMPI? | Connect CHOMPI (bridge) or `python host/forge_host.py battery`: e.g. "Forge · Choowi 0.19.2 (build b462bea)" — the build is the commit it was made from |
 | Dark after an install or a restart; only the red charge light | The bootloader is waiting on a low battery with a weak USB supply. Plug in a USB-C to USB-C charger, switch off, wait 5 s, switch on |
 | White keys all red in the menu | SD card missing or unreadable; reinsert it |
 | A sample doesn't play | Exact name in the card's top folder (`cubbi_a1.wav`), not inside a folder |

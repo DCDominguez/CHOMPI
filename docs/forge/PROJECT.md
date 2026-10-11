@@ -11,7 +11,8 @@ MIDI, adjust knobs, save and recall. Effects are one capability, not the whole
 project. The owner explicitly clarified this on 2026-10-02 after the initial prototype
 had been narrowed to stereo delay. Do not repeat that scope mistake.
 
-AI runs on a computer using OpenAI/Gemini with the user's key. CHOMPI runs the
+AI runs on the computer: since 0.19.2 any chatbot, by copy and paste on the forge page (no API
+key; the CLI can also use a local Ollama model). CHOMPI runs the
 real-time audio. New settings and supported routing do not require recompiling;
 new algorithms/drivers still need firmware work. AI does not upload executable
 DSP code. Tab5 is optional future hardware, not a prerequisite.
@@ -21,12 +22,14 @@ validation without per-feature flash requests. A real defect may require retest.
 The owner also requested continuously updated documentation for other development agents;
 read and maintain [CONTINUE.md](CONTINUE.md) at each checkpoint.
 
-## Current milestone: Choowi 0.19 release (2026-10-11)
+## Current milestone: Choowi 0.19.2 → final release (2026-10-12)
 
-0.16-0.19.2 (page colours, magic, dream, the synth page, power fixes) are on the owner's CHOMPI;
-the guided hands-on test has passed everything but the TAPE functions. Left before the release:
-those checks, the power-bank charging issue (CONTINUE), naming the 0.19.1 / 0.19.2 tools, then
-the owner publishes the draft GitHub Release. The paragraph below is the 0.15.1 history.
+**Released as a candidate:** [choowi-0.19.2-rc1](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc1)
+(the card zip: firmware, bank purple sounds, the manual), with the forge page live at
+myth-world.github.io/Forge/workshop. Before the final release: the owner's TAPE checks, dream mode
+unplugged, the secret modes by ear, the first real-CHOMPI run of the forge page, then fixes from
+those. Open, not blocking: power-bank charging while on, catching a shut-off with the battery
+log (CONTINUE). The paragraph below is the 0.15.1 history.
 
 ### Instrument candidate 0.15.1 (history)
 
@@ -113,7 +116,8 @@ unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
   WAVE), so each effect needs a bypass that costs nothing and a cheap mode; SDRAM is full,
   so short delay lines (chorus, flanger) go in internal RAM and long ones need memory found
   first (or SD streaming, v2). Order after the owner's hardware session and a real CPU figure.
-- **Webapp redesign** (owner request). The sound
+- **Webapp redesign** (owner request; **done in 0.19.2** as Choowi's forge, the static site page, and
+  the key-free local workshop; kept below as written). The sound
   designer (`host/web/index.html`, `app.js`) and possibly the bridge pages: friendlier
   layout and flow for describe → generate → tweak → send → save. Host-only, so it does not
   wait for the hardware session; keep the existing API, validation and browser tests.

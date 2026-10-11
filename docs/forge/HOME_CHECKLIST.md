@@ -1,5 +1,10 @@
 # First time home with Forge 0.19.2
 
+> **Superseded by the release.** To install Choowi now, download `choowi-0.19.2-card.zip` from the
+> [release page](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc1) and follow its
+> README-FIRST (back up the card, empty the samples, copy, power on). The steps below are the older
+> Forge Bridge route, kept for the record.
+
 One page, in order. About 45 minutes. Once Forge 0.7 or newer is on CHOMPI you
 should never need to take the SD card out for firmware or samples again.
 

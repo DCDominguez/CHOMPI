@@ -152,7 +152,8 @@ shift menu):
 - AI instrument mode gets the sampler module and the device's sample list in
   its prompt. It may only select existing slots and set the documented
   fields; it cannot create audio.
-- Webapp: sampler controls and a slot picker.
+- Webapp: sampler controls and a slot picker (0.19.2: the forge page keeps the sampler controls; card
+  samples are managed on the panel or by copying files to the card).
 
 ## 8. Verification plan
 

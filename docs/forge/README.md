@@ -3,75 +3,60 @@
 # the forge docs
 
 Everything about **Forge**, the workshop of custom CHOMPI firmware, and **Choowi**, its first
-firmware line, written down. Latest: **Choowi 0.19** (the Tinker Wrench: a synth page on the
-panel); 0.19 is built and tested on the computer, 0.17 is the one checked on CHOMPI so far.
+firmware line, written down. Current release: **Choowi 0.19.2, release candidate**
+([download](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc1): the card zip has
+the firmware, Choowi's own sounds and the illustrated manual).
 
-- **Playing it:** start with the [guide](GUIDE.md) ("how do I…?"), then the [user manual](MANUAL.md) or the [illustrated manual](ILLUSTRATED_MANUAL.html) (open in a browser).
-- **The family rules** (names, mascots, tools, colours, voice): [FORGE_FAMILY.md](FORGE_FAMILY.md).
-- **Where the work is right now:** [CONTINUE.md](CONTINUE.md). What changed: [CHANGELOG.md](CHANGELOG.md).
-- **What's been checked on a real CHOMPI:** [TEST_RESULTS.md](TEST_RESULTS.md); the next
-  session's steps: [HOME_CHECKLIST.md](HOME_CHECKLIST.md), then [TEST_SESSION.md](TEST_SESSION.md).
+- **Playing it:** the [guide](GUIDE.md) ("how do I…?"), the [illustrated manual](ILLUSTRATED_MANUAL.html)
+  (open in a browser; also `MANUAL.html` in the card zip) and the full [user manual](MANUAL.md).
+- **Making sounds:** [Choowi's forge](https://myth-world.github.io/Forge/workshop/): describe a sound,
+  any chatbot writes it, hear it live on CHOMPI, save it to CHOMPI.
+- **Installing:** the card zip's README-FIRST, or [MANUAL section 2](MANUAL.md#2-installing-and-updating).
+- **What's checked on a real CHOMPI and what's software-tested only:** [TEST_RESULTS.md](TEST_RESULTS.md).
+- **What changed:** [CHANGELOG.md](CHANGELOG.md). **Where the work is now:** [CONTINUE.md](CONTINUE.md).
+- **The family** (names, mascots, tools, colours, voice): [FORGE_FAMILY.md](FORGE_FAMILY.md).
 
 ## Documentation map
 
 | Document | Purpose |
 | --- | --- |
-| [Guide for other agents](AGENT_GUIDE.md) | Muse / Cosmo (Tab5) and any outside agent: what Forge is, how to talk to CHOMPI, patches, panel visualizations, adding effects, editing firmware |
-| [Agent resume checkpoint](CONTINUE.md) | Current implementation, evidence, known limits and exact next tasks |
-| [Project brief](PROJECT.md) | Goals, scope, decisions and milestones |
-| [Firmware guide](../../firmware/chompi-forge/README.md) | Build commands, audio routing, parameter/CC mapping and defaults |
-| [Host guide](../../firmware/chompi-forge/host/README.md) | Launch the webapp, configure providers, edit/save presets and control MIDI |
-| [Architecture](ARCHITECTURE.md) | Processing boundaries, ownership, queues, patch lifecycle and source map |
-| [Developer guide](DEVELOPMENT.md) | Checkout, dependencies, software validation, packaging and troubleshooting |
-| [Resource ledger](RESOURCE_LEDGER.md) | Current measured sizes, memory reservations, QA/CPU evidence and per-change update procedure |
-| [Protocol](PROTOCOL.md) | Exact SysEx framing, requests, replies, errors and overload semantics |
-| [Compatibility](COMPATIBILITY.md) | Comparison with stock TAPE/TEMPO/WAVE: bootloader, memory, MIDI, keybed, CPU benchmark |
-| [TAPE controls](TAPE_CONTROLS.md) | What every stock TAPE control does, with source lines (parity reference) |
-| [Looping](LOOPING.md) | Looper (roadmap item 5): TAPE behaviour, keys, memory, CPU budget, saving a loop |
-| [Knobs](KNOBS.md) | Knob pages (press a knob; its light shows the page) and v5 patch/AI knob choices |
-| [User manual](MANUAL.md) | **Start here as a player:** install/update, power, panel, knob pages, presets, samples, recording, looper, MIDI, bridge and webapp, troubleshooting |
-| [Sampling](SAMPLING.md) | Sampler design (roadmap item 4): TAPE behaviour kept, what Forge changes, memory, v4 patch, panel |
-| [Storage streaming](STORAGE_STREAMING.md) | Forge v2 candidate (parked): SD streaming of samples and recordings to reclaim SDRAM; estimates, benchmark plan, phases (nothing implemented) |
-| [Test session](TEST_SESSION.md) | One physical acceptance checklist and results template |
-| [Handoff](HANDOFF.md) | Latest implementation, evidence, limitations and next action |
-| [Changelog](CHANGELOG.md) | Changes by candidate version |
+| [Guide](GUIDE.md) | Task by task: play, save, presets, samples, harmony and its secret modes, arp, looper, recorder, trouble |
+| [User manual](MANUAL.md) | The reference: install, power, panel, knob pages, presets, samples (banks by colour), harmony, parts, looper, recorder, MIDI, the forge page, troubleshooting |
+| [Illustrated manual](ILLUSTRATED_MANUAL.html) | The storybook tutorial and panel diagrams |
+| [Knobs](KNOBS.md) | Every knob page and the v5 patch knob choices |
+| [TAPE controls](TAPE_CONTROLS.md) | What every stock TAPE control does (parity reference, with source lines) |
+| [Sampling](SAMPLING.md) · [Looping](LOOPING.md) · [Harmony brief](HARMONY_BRIEF.md) | Design notes for the sampler, the looper and harmony |
+| [Battery readings](BATTERY_READINGS.md) | How CHOMPI reads its battery, why it can mislead, the instrumented build and its log |
+| [Protocol](PROTOCOL.md) | USB / MIDI SysEx: framing, requests, replies, patch formats v1-v7, errors |
+| [Architecture](ARCHITECTURE.md) · [Developer guide](DEVELOPMENT.md) | How the code is organised; setting up, building, testing, packaging |
+| [Firmware README](../../firmware/chompi-forge/README.md) · [Host guide](../../firmware/chompi-forge/host/README.md) | Build targets and the release steps; the computer-side tools |
+| [Resource ledger](RESOURCE_LEDGER.md) | Firmware sizes, memory and CPU, per release |
+| [Compatibility](COMPATIBILITY.md) | Compared with stock TAPE / TEMPO / WAVE: bootloader, memory, MIDI, CPU |
+| [Inspector](INSPECTOR.md) · [Bridge](BRIDGE.md) | Development tools: the live device viewer and the Windows test bridge |
+| [Guide for other agents](AGENT_GUIDE.md) | Outside agents (Muse / Cosmo on the Tab5): what Forge is and how to talk to it |
+| [Project brief](PROJECT.md) · [UX review](UX_REVIEW.md) | Goals, decisions, backlog; ease-of-use ratings |
+| [Storage streaming](STORAGE_STREAMING.md) | Forge v2 study (parked): streaming samples from the SD card |
+| [Changelog](CHANGELOG.md) · [Test results](TEST_RESULTS.md) · [CONTINUE](CONTINUE.md) · [Handoff](HANDOFF.md) | History, evidence, the live checkpoint |
 
-## Choose a starting point
+Older, kept for the record: [TEST_SESSION.md](TEST_SESSION.md) and [HOME_CHECKLIST.md](HOME_CHECKLIST.md)
+(the 0.15-era hardware session; the 0.19 hands-on checks are in TEST_RESULTS), and
+[LIVE_AI_TEST.md](LIVE_AI_TEST.md) (API-key provider checks; the workshop no longer uses keys).
 
-**To try the candidate:** start with the test-session checklist. Prepare the
-computer with the host guide before scheduling the single physical session.
+## Where Choowi stands (0.19.2 release candidate)
 
-**To contribute code:** read the architecture and developer guide, then consult
-the handoff for unfinished work. Keep the first candidate bounded until physical
-results justify expansion.
-
-**To author a patch:** use a preset in
-[`firmware/chompi-forge/presets/`](../../firmware/chompi-forge/presets/) as an
-example, and run the host's `validate` command. JSON describes settings for the
-installed synth/delay modules; it does not contain executable DSP.
-
-## What is implemented and what is pending
-
-| Area | Implemented | Remaining evidence or scope |
+| Area | On the owner's CHOMPI | Software-tested only / open |
 | --- | --- | --- |
-| Audio | v3 synth (oscillators, noise, resonant filter, LFO, voices/glide), two source routes, stereo delay and reverb | Physical routing, listening and CPU headroom (worst case: TEST_SESSION 6.2b) |
-| Controls | Keybed/MIDI notes, encoders, MIDI CC, panic, USB/TRS patch and status protocol | Actual encoder mapping, USB enumeration and TRS I/O |
-| Presets | Host JSON save/capture and atomic recall | Audible transitions and capture/recall on the unit |
-| Diagnostics | Callback CPU average/peak, drop/reject counters | Measured device performance under normal use |
-| AI authoring | OpenAI/Gemini webapp and Ollama CLI; strict validation and saved JSON | Live model availability, latency and musical interpretation |
-| Persistence | JSON files on the computer; device presets on the SD card (panel menu, program change, host) | SD timing, card swap and LED feedback on the unit |
-| Expansion | Versioned patch formats (v1–v3) and roadmap in PROJECT.md | Sampler/looper, more effects, general graphs, Tab5 and Wi-Fi are not implemented |
-
-The repository contains source and documentation. Generated test bundles remain
-separate; their manifests identify the exact source commit/tree and file hashes.
-Later documentation changes do not silently update an already-generated bundle.
+| Playing | Synth, sampler, recording, looper, presets, harmony, arp / bass, recorder, page colours, wake-up chime, surprise me, mutate, the synth page, save and recall, sample start / end | The TAPE functions' final check; SW5 sweep, chomp, ripples by hand |
+| Harmony's secret modes | Installed (build b462bea) | Bloom, Conversations, Mischief not yet judged by ear |
+| Dream mode | | Not seen on a computer-connected CHOMPI (any MIDI keeps it awake): test unplugged |
+| Choowi's sounds | On the card (bank purple from the card zip) | Judged by ear |
+| The forge page | Live on GitHub Pages | Tested against the firmware's decoder with a Web MIDI stand-in; first real-CHOMPI run pending |
+| Power | Battery-dip guard installed; diagnostics log works | A shut-off not yet caught by the log; power-bank charging while on; SW6 colour is rough |
 
 ## Maintaining these docs
 
-When behavior changes, update the firmware/host guide and changelog. When wire
-formats change, update the protocol and its version rules alongside both ends
-and their tests. Put new verification results and the next task in the handoff.
-Use the results template after the hardware session; never turn an unrun test
-into a pass. Avoid duplicating exact parameter mappings across multiple guides.
-
-Live provider procedure: [LIVE_AI_TEST.md](LIVE_AI_TEST.md).
+When behaviour changes, update the manual, the guide (and the illustrated manual when it shows
+it) and the changelog. When the wire format changes, update the protocol, both ends and their
+tests together (and `docs/workshop/forge-wire.js`). Hardware results go in TEST_RESULTS only after
+they were run; never turn an unrun check into a pass. In the repo the user is "the owner"; public
+credit is DeeCee.
