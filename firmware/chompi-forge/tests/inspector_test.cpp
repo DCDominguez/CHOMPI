@@ -39,6 +39,19 @@ void WireBoundsAndLog() {
         for(size_t i=0;i<n;++i) assert(out[i]<128);
         for(size_t i=n;i<sizeof(out);++i) assert(out[i]==0xa5);
     }
+    // Page 11 (battery diagnostics): full 8-bit registers and counters, the largest Inspector page.
+    s.battery.reg[0]=0xff; s.battery.reg[5]=0x10; s.battery.battery_low=0xff; s.battery.level=1; s.battery.check_state=2;
+    s.battery.read_ready=true; s.battery.expect_33=true; s.battery.readback_valid=5; s.battery.after_33=0x5d; s.battery.periodic=0x51;
+    s.battery.uptime_ms=0xffffffffu; s.battery.level_checks=0xffffffffu; s.battery.low_30=7;
+    std::fill(out,out+sizeof(out),0xa5);
+    size_t n=EncodeInspector(16383,11,s,log,0,out);
+    assert(n==116 && n<=kMaxReply && Checksum(out,n)==0 && out[8]==11 && out[15]==1);
+    for(size_t i=0;i<n;++i) assert(out[i]<128);
+    for(size_t i=n;i<sizeof(out);++i) assert(out[i]==0xa5);
+    assert(out[21]==0x7f && out[22]==1 && out[31]==0x10 && out[32]==0);          // 0x11 = ff, 0x16 = 10
+    assert(out[33]==0x7f && out[34]==1 && out[41]==1 && out[42]==2);            // BATT_LOW history ff; level, state
+    assert(out[43]==(1|2|(5<<2)) && out[44]==0x5d && out[45]==0 && out[48]==0x51); // flags; 0x0C read-backs
+    assert(out[50+5*7]==7 && out[50+5*12+4]==15);                                 // low_30; level_checks (32-bit)
     uint8_t request[14]; Header(request,0x0b,1); request[7]=6;
     InspectorWord(request+8,0xffffffffu); request[13]=Checksum(request,13);
     Request r; assert(DecodeRequest(request,14,r)==Error::None && r.inspector_cursor==0xffffffffu);

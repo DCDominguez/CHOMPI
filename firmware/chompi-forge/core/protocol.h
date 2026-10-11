@@ -241,7 +241,7 @@ FORGE_COLD inline Error DecodeRequest(const uint8_t* bytes, size_t size, Request
         candidate.panel_value = static_cast<int8_t>(value);
     } else if(bytes[4] == 0x0b) {                    // probe: page 1 LEDs, 2-8 versioned Inspector pages
         if(size != 9 && !(size == 14 && bytes[7] == 6)) return Error::Length;
-        if(bytes[7] == 0 || bytes[7] > 10) return Error::Patch;   // 8: harmony (0.13), 9: parts (0.14), 10: event recorder (0.15)   // page 0 (old state page) retired: Inspector covers it
+        if(bytes[7] == 0 || bytes[7] > 11) return Error::Patch;   // 8: harmony (0.13), 9: parts (0.14), 10: event recorder (0.15), 11: battery diagnostics (0.19.2)   // page 0 (old state page) retired: Inspector covers it
         if(size == 14) {
             if(bytes[12] > 15) return Error::Patch;
             for(unsigned i=0;i<5;++i) candidate.inspector_cursor |= uint32_t(bytes[8+i]) << (7*i);

@@ -6,7 +6,8 @@ battery is read? This page lays out exactly how the readings are made (stock CHO
 Forge reuses), what we measured, and the hypotheses with what would prove each. It is written so
 a second opinion (a person or another AI) can check it without the rest of the repo.
 
-Status: analysis only. Nothing below is fixed yet. Claims are marked **code** (read in the
+Status: analysis; an instrumented development build exists (section "Instrumented build",
+not yet run on CHOMPI). Nothing below is fixed yet. Claims are marked **code** (read in the
 source), **measured** (logged on the owner's CHOMPI) or **hypothesis**.
 
 ## The hardware
@@ -99,7 +100,7 @@ drained, SW6 showed yellow at power-on (see problem 1) and green a minute later.
 
 ## Proposed next steps (not done)
 
-1. **Instrument first:** a development build that reports the raw registers 0x11-0x16, a read-back
+1. **Instrument first** (built 2026-10-12, see "Instrumented build"; not yet run on CHOMPI): a development build that reports the raw registers 0x11-0x16, a read-back
    of 0x0C, the level-check state and each I2C write result; log at 10 Hz through the shut-off
    tests (computer port vs. USB-C charger, synth vs. sampler, idle vs. fast playing).
 2. **Then a Forge-owned battery reader** (only if B / C / D are confirmed): one state machine that
@@ -109,6 +110,93 @@ drained, SW6 showed yellow at power-on (see problem 1) and green a minute later.
 3. **Hardware check for A:** a multimeter on the battery while playing, and the cell's age and
    rating. The MP2722 datasheet's register map (0x0C fields, BATT_LOW deglitch and hysteresis)
    should be checked before changing any write.
+
+## Instrumented build (development only, 2026-10-12; software-tested, not run on CHOMPI yet)
+
+Step 1 of the next steps is built: a development firmware (`make firmware-dev`, never a
+release) that reports what the stock reader sees, without changing what it does. The release
+build is unchanged (same size, 252,416 B; the instrumentation is compiled only with
+`FORGE_TEST_HOOKS`).
+
+**What the firmware does** (`core/battery_diag.h` `BatteryMonitor`, `forge_main.cpp`):
+
+- Every 20 ms check, before the stock read starts, it counts the latest completed reading's
+  BATT_LOW bit under the threshold that applied **when that read started**, tracking the stock
+  level check from Forge's side (state 0 → 1 = the 3.3 V write, 1 → 2 = the 3.0 V write). So the
+  1-3 readings taken in the 3.3 V window (problem 2) are counted apart from the real 3.0 V ones.
+  Reads started by the charger hand-over are attributed the same way.
+- Right after each stock 0x0C write it reads register 0x0C back (blocking, main loop): the stock
+  write's own blocking transmit has already waited for the DMA read started before it, so no
+  read is in flight; libDaisy's blocking calls wait for the peripheral to be idle and then time
+  out after 5 ms each. It also reads 0x0C back once a second, only when `read_ready` shows the
+  last stock read completed. The stock reads re-send the register pointer (0x11) every time, so
+  the read-back does not disturb them. Forge does not write 0x0C itself (instrumentation only):
+  a failed stock write shows up as a read-back that does not match.
+- No audio-callback work, no allocation; the stock lockout and `LockoutGuard` are untouched.
+
+**How to log.** Install the development `FORGE.bin` (`firmware/chompi-forge/src/build-dev/`),
+connect CHOMPI by USB data cable, then from `firmware/chompi-forge/host`:
+
+```
+D:\tools\forge-venv\Scripts\python.exe forge_battery_log.py --csv battery_log.csv
+```
+
+It finds CHOMPI's MIDI ports itself (or pass `--input` / `--output` exact names), asks for
+Inspector page 11 ten times a second (`--interval 0.1`) with the ports held open, appends every
+answer to the CSV (one row per answer, "no answer" rows when CHOMPI is silent) and prints a line
+whenever anything other than the clock and the per-check counters changes. Stop with Ctrl+C
+(or `--duration` seconds). Older or release firmware answers with an error, and the tool says so.
+Run it through the shut-off tests: computer port vs. USB-C charger, synth vs. sampler, idle vs.
+fast playing, and from power-on (problem 1).
+
+**CSV columns** (page 11; wire layout in PROTOCOL.md):
+
+| Column | Meaning |
+| --- | --- |
+| `time` | the computer's clock when the answer arrived |
+| `uptime_ms` | CHOMPI's milliseconds since power-on (restarts = a shut-off or reset) |
+| `reg_11` … `reg_16` | registers 0x11-0x16 in hex, as last read by the stock 20 ms read (`mp_buff_`) |
+| `dpdm_stat` | 0x11 bits 7-4: USB source type; 0 = not identified yet (the hand-over then runs) |
+| `iindpm` | 0x11 bit 0: input at its current limit (weak supply) |
+| `vin_gd` | 0x12 bit 6: USB power present |
+| `legacy` | 0x12 bit 4: legacy (non USB-C) source |
+| `chg_stat` | 0x13 bits 7-5: 0 not charging, 1-4 charging, 5 charge done (as Forge reads it) |
+| `fault` | 0x14, the fault byte (0 = none) |
+| `batt_low` | 0x16 bit 4: below the threshold currently set in 0x0C |
+| `hist_battery_low`, `hist_usb_good`, `hist_legacy`, `hist_input_limit` | the stock 8-reading histories (newest bit on the right); the stock lockout needs `hist_battery_low` = 11111111 |
+| `level` | `batt_level`: full / high / medium (SW6 white / green / yellow) |
+| `check_state` | the stock level check: 0 idle (3.0 V), 1 3.3 V set, 2 back to 3.0 V, decision due |
+| `expect` | the threshold Forge believes is set (3.0V or 3.3V) |
+| `read_ready` | 1 = the last stock read completed without an I2C error |
+| `r0c_after_33`, `r0c_after_30`, `r0c_periodic` | 0x0C read back right after the 3.3 V write, right after the 3.0 V write, and once a second: `3.0V` (0x51), `3.3V` (0x5d), another value as hex with `?`, `-` = not read yet |
+| `checks` | 20 ms checks since power-on |
+| `not_ready` | checks with no completed read to count (an I2C error, or a hand-over read just started) |
+| `samples_30`, `low_30` | readings taken at 3.0 V, and how many were low |
+| `samples_33`, `low_33` | readings taken in the 3.3 V window, and how many were low |
+| `low_run_30`, `low_run_30_max` | consecutive low readings at 3.0 V now, and the longest so far (8 = the stock lockout's condition, 150 = Forge's guard) |
+| `level_checks` | completed green / yellow decisions (one every ~30 s) |
+| `mismatch_33`, `mismatch_30`, `mismatch_periodic` | read-backs that did not show the expected value |
+| `readback_errors` | read-backs that failed on I2C |
+
+**Reading the log against the hypotheses:**
+
+- **B (threshold stuck at 3.3 V):** `mismatch_30` or `mismatch_periodic` grows, `r0c_periodic`
+  shows `3.3V` while `expect` is 3.0V, and `low_30` climbs in a long run right after a level
+  check. Caveat: if 0x0C has read-only or self-clearing bits, every read-back differs from the
+  written byte by the same bits (a constant mismatch from power-on, never `3.0V`/`3.3V`): then
+  compare the threshold bits against the MP2722 datasheet before concluding.
+- **C (3.3 V window pollution):** `low_33` grows by 1-3 every ~30 s while `low_30` stays still;
+  the stock `hist_battery_low` shows short bursts aligned with `level_checks`.
+- **A (real sag under load):** `low_30` grows with correct read-backs (`3.0V`), in runs while
+  playing fast, and more on a weak supply; confirm with a multimeter at the cell.
+- **D (yellow at power-on):** `level` = medium with `level_checks` = 0 for the first ~30 s.
+- **E (weak supply):** compare `iindpm` / `legacy` / `low_30` between the computer port and a
+  2 A USB-C charger.
+
+One more code observation to watch (not yet seen): if the charger reports "charge done" during the
+30 ms state-1 window, `batt_level` becomes FULL and the stock check skips itself while FULL (up to
+20 min), so 0x0C would stay at 3.3 V that long; the log would show `check_state` 1, `expect`
+3.3V and `level` full together.
 
 Related: `docs/forge/TEST_RESULTS.md` (2026-10-11 night entries), `core/power.h`,
 `chompi-wave/code/src/hardware.h` (stock, untouched).

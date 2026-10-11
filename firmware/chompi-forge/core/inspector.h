@@ -1,6 +1,7 @@
 #pragma once
 // One development telemetry model. No wire formatting or IO in the audio owner.
 #ifdef FORGE_TEST_HOOKS
+#include "battery_diag.h"
 #include "command_queue.h"
 #include "protocol.h"
 
@@ -108,6 +109,7 @@ struct InspectorSnapshot {
     InspectorAudio audio;
     InspectorSystem system;
     InspectorStorage storage;
+    power::BatteryDiag battery;      // page 11 (0.19.2): filled by the main loop on each request
 };
 // Full unsigned 32-bit values in five 7-bit chunks (unlike saturated Write21).
 inline void InspectorWord(uint8_t* out, uint32_t value) { for(unsigned i = 0; i < 5; ++i) out[i] = (uint64_t(value) >> (7*i)) & 127; }
@@ -169,6 +171,18 @@ FORGE_NOINLINE inline size_t EncodeInspector(uint16_t sequence, uint8_t page, co
         byte(a.seq_state); byte(a.seq_overdub);
         for(uint16_t v : {a.seq_length, a.seq_position, a.seq_count}) { Write14(out+n, v); n+=2; }
         word(a.seq_drops);
+    }
+    else if(page == 11) {                                          // battery diagnostics (0.19.2): 116 bytes
+        const auto& b = s.battery;
+        auto raw = [&](uint8_t v) { Write14(out+n, v); n+=2; };   // full 8-bit register values
+        byte(1); word(b.uptime_ms);                                // page layout 1
+        for(uint8_t r : b.reg) raw(r);
+        for(uint8_t h : {b.battery_low, b.usb_good, b.legacy, b.input_limit}) raw(h);
+        byte(b.level); byte(b.check_state);
+        byte((b.read_ready?1:0)|(b.expect_33?2:0)|((b.readback_valid&7)<<2));
+        for(uint8_t r : {b.after_33, b.after_30, b.periodic}) raw(r);
+        for(uint32_t v : {b.mismatch_33, b.mismatch_30, b.mismatch_periodic, b.readback_errors, b.checks, b.not_ready,
+                          b.samples_30, b.low_30, b.samples_33, b.low_33, b.low_run_30, b.low_run_30_max, b.level_checks}) word(v);
     }
     else return EncodeError(sequence, Error::Patch, out);
     out[n] = Checksum(out,n); return n+1;

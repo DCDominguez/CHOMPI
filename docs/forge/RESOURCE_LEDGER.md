@@ -1,6 +1,10 @@
 # Forge Resource Ledger
 
-**Latest figures:** firmware 0.19.2 (build 8b51764, 2026-10-11): release **252,416 B** / development
+**Latest figures:** firmware 0.19.2 plus the battery instrumentation (2026-10-12, development
+only): release **252,416 B** (unchanged) / development **268,348 B** (+2,076 B: Inspector page
+11, `BatteryMonitor`, the 0x0C read-back), headroom **36,352 / 20,420 B**. No RAM reservation
+beyond ~100 B of monitor state in the development build; SDRAM unchanged.
+Before that, firmware 0.19.2 (build 8b51764, 2026-10-11): release **252,416 B** / development
 **266,272 B**, headroom **36,352 / 22,496 B** (+380 / +380 B over 0.19.0: the DJ filter floor,
 save as last preset, the battery-dip guard and the charger hand-over). SDRAM unchanged.
 Before that, firmware 0.19.0 (2026-10-11): release **252,036 B** / development

@@ -30,6 +30,25 @@ std::vector<uint8_t> SineWav(uint32_t frames, float hz) {
     }
     return f;
 }
+// Inspector page 11 (battery diagnostics), simulated: fixed registers and a short scripted run of
+// the same BatteryMonitor as the development firmware (a 3.0 V write that reads back as 3.3 V), so
+// host decoders are tested end to end. Never hardware evidence.
+forge::power::BatteryDiag SimulatedBattery(uint32_t uptime_ms) {
+    using forge::power::ReadBack;
+    forge::power::BatteryMonitor m;
+    m.ReadStarted(); m.Sample(true, 0x00);                                    // 3.0 V, not low
+    m.ReadBackDone(m.LevelCheck(0, 1), true, forge::power::kThreshold33);     // 3.3 V set and read back
+    m.ReadStarted(); m.Sample(true, 0x10);                                    // low against 3.3 V
+    m.ReadBackDone(m.LevelCheck(1, 2), true, forge::power::kThreshold33);     // "3.0 V" write still reads 3.3 V
+    m.ReadStarted(); m.Sample(true, 0x10); m.Sample(false, 0);                // low at 3.0 V, then no read
+    m.LevelCheck(2, 0); m.ReadBackDone(ReadBack::Periodic, false, 0);         // a level decision; a failed read-back
+    forge::power::BatteryDiag d = m.Diag();
+    const uint8_t reg[6] = {0x31, 0x50, 0x20, 0x00, 0xab, 0x10};
+    for(unsigned i = 0; i < 6; ++i) d.reg[i] = reg[i];
+    d.uptime_ms = uptime_ms; d.battery_low = 0xff; d.usb_good = 0xff; d.legacy = 0xff; d.input_limit = 0x0f;
+    d.level = 1; d.check_state = 0; d.read_ready = true;
+    return d;
+}
 // In-memory SD card for device-preset requests (lives as long as the probe).
 struct MemoryCard : forge::Storage {
     std::map<std::string, std::vector<uint8_t>> files;
@@ -267,6 +286,7 @@ int main(int argc, char** argv) {
                     inspection.storage.present=inspection.storage.mounted=true;
                     inspection.storage.record_capacity_frames=recorder.Capacity();
                 }
+                if(request.page==11) inspection.battery=SimulatedBattery(blocks/2);
                 size=forge::EncodeInspector(request.sequence,request.page,inspection,event_log,request.inspector_cursor,reply);
             } else {
             const uint32_t menu = panel.MenuPacked();

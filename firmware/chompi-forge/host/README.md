@@ -14,6 +14,10 @@ CHOMPI finds the ports; Automatic checks (`forge_audio.py`, needs
 The [bridge guide](../../../docs/forge/BRIDGE.md) covers live state, test controls,
 the 62 physical checks, session reports and optional C++ simulation.
 
+Battery readings (development firmware 0.19.2+): `python host/forge_battery_log.py --csv battery_log.csv`
+logs Inspector page 11 (raw charger registers, 0x0C read-backs, low readings per threshold) at
+10 Hz; fields in [BATTERY_READINGS.md](../../../docs/forge/BATTERY_READINGS.md) "Instrumented build".
+
 For the physical hardware test, build `firmware-dev` and run
 `python host/forge_inspector.py --input "IN" --output "OUT" --watch --record session.jsonl`.
 This read-only viewer shows SYSTEM, PANEL, ENGINE, STORAGE and a retained event

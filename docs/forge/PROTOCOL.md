@@ -447,7 +447,7 @@ request now returns error 4 like any unknown page.
 - Page 1, 88 bytes: byte 8 page, 9–86 LED RGB triples, 87 checksum. Indices
   0–24 are key LEDs in renderer order, 25 is CHOMPI. Each component 0–127.
 
-New `46` pages 2–10 (page 8 from 0.13, page 9 from 0.14, page 10 from 0.15): byte 7 zero, 8 page, 9 schema (1), 10–14 snapshot
+New `46` pages 2–11 (page 8 from 0.13, page 9 from 0.14, page 10 from 0.15, page 11 from 0.19.2): byte 7 zero, 8 page, 9 schema (1), 10–14 snapshot
 generation (unsigned 32-bit); body starts at 15, checksum is the last byte.
 The notation **U32** below means five 7-bit chunks, unsaturated, wrapping at
 32 bits. **N14** means 0–1 normalized in two 7-bit chunks. All fields are in
@@ -464,6 +464,7 @@ listed order, with no struct padding on the wire.
 | 8 HARMONY | 38 | harmony word U32 (the v6 bits above, plus 17 Shift held); last chord: root 0–11, degree 0–6, kind (0 none, 1 diatonic, 2 secondary dominant, 3 borrowed, 4 Shift key, 5 modal interchange), quality (0 scale, 1 major, 2 minor, 3 dominant, 4 sus4), Shift (0/1), note count 0–5 (6 bytes); five MIDI notes, unused 0 (5 bytes); notes sounding from the harmony player (byte); chords played since start U32 |
 | 9 PARTS | 50 | arp word, clock word (U32 each, the v7 words; live settings); tempo in use ×10 (14-bit: MIDI's measured tempo while following); flags (1 clock running, 2 following MIDI clock, 4 latched, 8 parts active for this patch); clock ticks U32 (24 per beat); notes in the set (byte, 0–16) and the first eight (8 bytes, unused 0); arp note sounding, bass note sounding (0 none); dropped part events U32 |
 | 10 SEQUENCE | 29 | event recorder: state (0 empty, 1 armed, 2 recording, 3 playing, 4 stopped), overdub (0/1) (2 bytes); loop length, position (ticks, 24 per beat; length a multiple of 96), events (three 14-bit words); dropped events U32 |
+| 11 BATTERY | 116 | development diagnostics of the stock MP2722 reads (`core/battery_diag.h`; answered from the main loop, even before audio runs; the generation is that of the last page-2 snapshot): page layout (1); uptime ms U32; registers 0x11–0x16 as last read (six 14-bit words, 0–255 each); the stock 8-reading histories BATT_LOW, VIN_GD, legacy, IINDPM (four 14-bit words); battery level (0–4 as page 2), level-check state 0–2 (2 bytes); flags (1 last read completed, 2 Forge expects the 3.3 V threshold, 4/8/16 the read-back after the 3.3 V write / after the 3.0 V write / periodic is valid); register 0x0C read back after the 3.3 V write, after the 3.0 V write, periodically (three 14-bit words); mismatches of those three, read-back I2C errors, 20 ms checks, checks with no completed read, readings at 3.0 V, low at 3.0 V, readings at 3.3 V, low at 3.3 V, current and longest run of low readings at 3.0 V, completed level decisions (13 U32). Docs: BATTERY_READINGS.md "Instrumented build" |
 
 Page 3 physical flags: toggle up 1, line jack 2, SW5 press edge 4. Merged flags
 add overridden 8. Masks include menu/control keys; the map in
