@@ -1,0 +1,76 @@
+/* Copy of firmware/chompi-forge/host/web/style.css (the workshop) for the static send page. */
+/* Choowi's sound workshop: the Spark look (docs/forge/FORGE_FAMILY.md). Ink on warm paper, spark pink,
+   CHOMPI's nine panel colours. Fonts stay local (the page only loads its own files): a rounded system
+   face for words, a monospace for numbers. */
+:root{--ink:#1b1b22;--paper:#fbfaf7;--card:#ffffff;--rule:#e3e1da;--muted:#5a5a66;--field:#f4f2ec;--spark:#ff5ea0;--accent:#c2185b;--error:#b3261e;
+  --c1:#ffffff;--c2:#2fbf55;--c3:#f5c400;--c4:#ff8a2a;--c5:#ec3b3b;--c6:#ff5ea0;--c7:#9150f0;--c8:#2f7cf6;--c9:#19c9b6;
+  --words:"Fredoka","Nunito","Varela Round","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;--mono:"Space Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  color-scheme:light;font-family:var(--words)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#f4f2ec;--paper:#16161c;--card:#1d1d25;--rule:#2c2c36;--muted:#a9a9b4;--field:#24242e;--accent:#ff7db3;--error:#ffb4a8;color-scheme:dark}}
+:root[data-theme="dark"]{--ink:#f4f2ec;--paper:#16161c;--card:#1d1d25;--rule:#2c2c36;--muted:#a9a9b4;--field:#24242e;--accent:#ff7db3;--error:#ffb4a8;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink)}
+header{max-width:1180px;margin:auto;padding:28px 32px 18px;display:flex;justify-content:space-between;align-items:center}
+.brand{font-size:34px;font-weight:700;letter-spacing:-.5px;color:var(--ink);text-decoration:none;line-height:1}
+.dots{display:flex;gap:6px;margin-top:8px}.dots i{width:12px;height:12px;border-radius:50%;border:1px solid #c9c7bf}
+.c1{background:var(--c1)}.c2{background:var(--c2)}.c3{background:var(--c3)}.c4{background:var(--c4)}.c5{background:var(--c5)}.c6{background:var(--c6)}.c7{background:var(--c7)}.c8{background:var(--c8)}.c9{background:var(--c9)}
+.badge{font-family:var(--mono);font-size:12px;background:var(--ink);color:var(--paper);border-radius:99px;padding:4px 12px}
+main{max-width:1180px;margin:auto;padding:8px 32px 28px}
+.intro{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center;margin-bottom:22px}
+.intro img{width:200px;height:auto}
+h1{font-size:clamp(34px,5.5vw,62px);line-height:1;letter-spacing:-1px;font-weight:700;margin:0 0 14px}
+.intro p{color:var(--muted);font-size:18px;line-height:1.45;max-width:46ch;margin:0}
+h2{font-size:26px;letter-spacing:-.3px;margin:0 0 6px;font-weight:600}
+.eyebrow{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;color:var(--muted);margin:0 0 10px}
+.eyebrow.later{margin-top:28px}
+.step{width:28px;height:28px;border-radius:50%;display:inline-grid;place-items:center;font-family:var(--mono);font-style:normal;font-size:13px;font-weight:700;color:#1b1b22}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+.card{padding:26px;background:var(--card);border:2px solid var(--rule);border-radius:22px}
+label{display:block;font-size:14px;font-weight:600;margin:18px 0 7px}
+input,select,textarea,button,.file-button{font:inherit;font-size:15px;border:2px solid var(--rule);border-radius:12px;color:var(--ink);background:var(--field);min-height:44px}
+input,select,textarea{width:100%;padding:10px 12px}
+textarea{resize:vertical;min-height:100px;line-height:1.5}
+#reply,#chat-prompt-text,pre,input[type=number]{font-family:var(--mono);font-size:13px}
+#chat-prompt-text{margin-top:12px}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,summary:focus-visible,.file-button:focus-within{outline:3px solid var(--spark);outline-offset:2px}
+button,.file-button{padding:10px 20px;cursor:pointer;font-weight:600;text-align:center;border-radius:99px;background:transparent;border-color:var(--ink)}
+button:hover,.file-button:hover{border-color:var(--spark)}
+button:disabled{opacity:.4;cursor:default}
+.primary{color:#1b1b22;background:var(--spark);border-color:var(--spark)}
+.primary:hover:not(:disabled){filter:brightness(1.06)}
+#generate,#use-reply{width:100%;display:flex;justify-content:space-between;align-items:center;margin-top:18px}
+.hint,.footnote{font-size:13px;line-height:1.55;color:var(--muted);margin:8px 0}
+ol.hint{padding-left:1.3em}
+.footnote{border-top:2px dashed var(--rule);padding-top:16px;margin-top:24px}
+fieldset{border:0;padding:0;margin:0;min-width:0}
+.control{display:grid;grid-template-columns:1fr 100px;gap:5px 14px;align-items:center}
+.control label{grid-column:1/-1;display:flex;justify-content:space-between;margin-bottom:0}
+.unit{color:var(--muted);font-weight:400;font-family:var(--mono);font-size:12px}
+input[type=range]{padding:0;accent-color:var(--spark);border:none;background:transparent}
+.check{display:flex;align-items:center;gap:10px}.check input{width:18px;min-height:18px;accent-color:var(--spark)}
+.button-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+.file-button{margin:0;position:relative;overflow:hidden}.file-button input{position:absolute;inset:0;opacity:0;cursor:pointer}
+details{margin-top:20px;color:var(--muted);font-size:13px}summary{cursor:pointer}
+pre{overflow:auto;max-height:260px;line-height:1.6;background:var(--field);padding:14px;border-radius:12px;color:var(--ink)}
+#notice{position:sticky;top:0;z-index:2;background:var(--paper);padding:12px 16px;border:2px solid var(--rule);border-left:6px solid var(--c7);border-radius:14px;margin-bottom:18px;font-size:14px;line-height:1.5}
+#notice.error{border-color:var(--error);color:var(--error)}
+.group{display:block;width:100%;margin:26px 0 0;padding:0 0 6px;border-bottom:2px solid var(--rule);font-size:13px;font-weight:700;color:var(--muted)}
+.group-set{margin-top:28px}.group-set.unavailable{opacity:.45}.group-set legend{padding:0 0 6px;margin:0}
+footer{display:flex;justify-content:space-between;gap:16px;padding-top:28px;margin-top:28px;border-top:2px solid var(--rule);color:var(--muted);font-size:12px}
+@media(max-width:760px){header{padding:20px 16px 12px}main{padding:6px 16px 24px}.intro{grid-template-columns:1fr}.intro img{width:140px;order:-1}.grid{grid-template-columns:1fr}.card{padding:20px}.button-row button,.button-row .file-button{flex-grow:1}footer{flex-direction:column}}
+/* take it to CHOMPI (send.html) */
+.wide{width:100%;display:flex;justify-content:space-between;align-items:center;margin-top:16px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+a.badge{text-decoration:none}a.badge:hover{background:var(--spark);color:#1b1b22}
+.handoff{display:inline-block;margin-top:14px;font-weight:600;color:var(--accent)}
+@media(max-width:760px){.pair{grid-template-columns:1fr;gap:0}}
+/* editor folds (0.19.2): each settings group opens on demand */
+.fold-bar{display:flex;justify-content:space-between;align-items:end;gap:12px;margin-top:22px}
+.fold-bar .group{margin:0;border:0;padding:0}
+button.small{min-height:40px;padding:6px 14px;font-size:13px}
+details.group-set{margin-top:10px;border:2px solid var(--rule);border-radius:14px;padding:0 14px}
+details.group-set>summary.group{cursor:pointer;margin:0;padding:12px 0;border:0;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.group-set>summary.group::-webkit-details-marker{display:none}
+details.group-set>summary.group::after{content:"+";font-family:var(--mono);font-size:16px;color:var(--accent)}
+details.group-set[open]>summary.group::after{content:"–"}
+details.group-set[open]{padding-bottom:16px}
