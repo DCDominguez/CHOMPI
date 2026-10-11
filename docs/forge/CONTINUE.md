@@ -3,7 +3,18 @@
 Updated 2026-10-11, checkpoint: 0.16.0 (Batch 1 + 2) built and software-tested; next: install on CHOMPI (the owner's key press), 3J checks, stress test to failure. Read this first; the owner's next session is
 [HOME_CHECKLIST.md](HOME_CHECKLIST.md), then [TEST_SESSION.md](TEST_SESSION.md).
 
-## 2026-10-11 (late night): 0.19.0 synth page built (resume here)
+## 2026-10-11 (end of day): 0.19 staged on the card, stress test done (resume here)
+
+- CHOMPI runs 0.17.0; **0.19.0 (build 9f0ce1c) is written to the card** and installs at the owner's
+  next power cycle (bootloader). First thing next session: confirm the build over USB, then
+  TEST_SESSION 3J-3M, the SW5 "after" video (before: `reports/cam/filter_before_0170.mp4`), and the
+  heaviest stress steps again on 0.19 (`D:	ools\chompi-session\stress.py`).
+- Stress test (TEST_RESULTS): CPU peak 67 %, flood 5,594 msg/s with 0 dropped, bank 8 40/40.
+- Brand: Spark; mascot Choowi (or Choowee), releases are his tools (PROJECT.md); manual updated.
+- Repo no longer names the owner (memory `repo-anonymity`); history unchanged (force push only
+  with the owner's explicit OK).
+
+## 2026-10-11 (late night): 0.19.0 synth page built
 
 - Built, not installed: 0.17.1 (SW5 sweep), 0.18.0 (magic 4-6), 0.19.0 (synth edit page, menu
   page 5, pink). One install covers all three (the owner's press). Webapp: Spark mockup v2 published
