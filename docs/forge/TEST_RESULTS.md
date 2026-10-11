@@ -20,6 +20,20 @@ CHOMPI on the PC port (weak supply, charging), the owner playing fast on a sampl
   is suspect (hardware). Not caused by the logger: the shut-off predates it (0.9) and the status
   request is a few bytes ten times a second.
 
+## 2026-10-11 (late night) — 0.19.2 build 8b51764: the power bank still reads 0 W while CHOMPI is on
+
+Installed 8b51764 (the owner's press). On the PC port it charges (from about a minute after the
+restart). On the power bank (USB-C), by the owner: plugged in while on, 0 W for 30 s; switched off,
+9.4 W; switched on while plugged in, back to 0 W; re-plugged while on, 5.2 W briefly, then 0 W.
+So **the reads-based hand-over did not fix it**, and the problem is not only a missed plug-in
+pulse: while the firmware runs, CHOMPI draws next to nothing from this power bank (it may still
+draw below the bank's display threshold, or the bank or charger IC may stop). Off, the USB lines
+rest with the charger IC (`usb_sw` pulled down) and it charges at 9.4 W; on, they are with the Daisy.
+TAPE uses the same hand-over, so stock firmware may behave the same (not tested). Back on the PC
+the battery warning blinked yellow (drained on the bank). Next: log the raw charger registers
+(0x11-0x16, DPDM_STAT, input limit) to the card while on the bank, compare with CHOMPI off,
+and test stock TAPE on the same bank before changing input-limit registers.
+
 ## 2026-10-11 (night) — power bank: no charging after a re-plug while on
 
 The owner, on a power bank (USB-C) after the power-log run: CHOMPI off and plugged in 6.4 W; on,

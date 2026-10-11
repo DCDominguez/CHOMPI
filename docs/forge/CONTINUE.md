@@ -19,6 +19,10 @@ Updated 2026-10-11, checkpoint: 0.16.0 (Batch 1 + 2) built and software-tested; 
   (power bank 0 W until a restart). `ChargerUsb` now also starts the hand-over when USB power
   appears in the 20 ms reads. Tests pass, firmware builds (266,272 B). Not installed. Hardware
   check: CHOMPI on, unplug and re-plug the power bank, watts should rise within a few seconds.
+- **8b51764 installed; the power bank still reads 0 W whenever CHOMPI is on** (9.4 W off).
+  The hand-over change is not the fix. Next session: log raw charger registers to the card on
+  the bank (no PC there), compare off/on and stock TAPE, before touching input-limit registers.
+  Meanwhile: charge CHOMPI switched off.
 - Hardware note for the owner: a charged battery sagging under 3.0 V suggests a worn cell or a
   poor battery connection. A front case USB port left CHOMPI unseen by Windows (a white flash of
   every light, likely a brown-out restart); the usual port works.
