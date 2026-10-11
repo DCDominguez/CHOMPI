@@ -47,6 +47,15 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
   (`/api/midi/send|status|stop|reply`, forge_host's wire format, including the acknowledged-patch
   match); it opens no MIDI port. Tested in the browser end-to-end through the firmware's decoder
   (`forge_probe`) with a stand-in for Web MIDI; not yet with a real CHOMPI in Chrome.
+- **Harmony's secret modes** (the owner's ideas; `core/secret.h`, test `secret_test`): on the
+  harmony page SW3's turn picks off / Chord Bloom up, down, random / Chord Conversations (step
+  colours; not saved, off at power-on). **Bloom:** a chord's notes arrive one per 1/16 at the
+  tempo and accumulate; letting go cancels the rest. **Conversations:** a bar after the chord
+  ends, a short one-voice phrase from its tones and the key (rising, falling or rhythmic); any
+  key cuts it off. **Mischief:** holding a chord, SW1 + SW3 bends it (sus4, sus2, borrowed third,
+  next inversion, chromatic neighbour; purple flash), letting go brings it home; without a chord
+  the gesture still rolls a sound. Code size +3.6 KB in both builds (key-time code kept out of
+  line). Software-tested only.
 - **Choowi's sample pack, Forge's default samples:** 28 of our own (CC0), made with Web Audio in
   Chromium by `host/make_sample_pack.py` (`host/sample_pack/pack.js`, seeded): chromatic and kit
   bank **purple** (bank a; 14 instruments at C4, measured within 5 cents, and 14 hits). In

@@ -52,9 +52,12 @@ play nothing yet. Give them a sound one of these ways:
 - recall a preset ([recall, copy and erase](#how-do-i-recall-copy-and-erase-presets)),
 - or send one from a computer with Forge Bridge ([manual, section 10](MANUAL.md#10-on-the-computer)).
 
-**Dream mode:** leave CHOMPI alone for two minutes (toggle down, menu closed, a synth or
-chromatic sampler sound, nothing else playing) and it starts playing a quiet, slow line in
-your key, its notes glowing purple. Touch anything and it stops.
+**Dream mode:** leave CHOMPI alone for **two minutes** (toggle down, menu closed, a synth or
+chromatic sample sound, the looper and recorder idle) and it plays a quiet, slow line in your
+key by itself, its notes breathing purple on the keys. Touch anything and it stops. It dreams
+for 3 minutes, then sleeps until you come back. **Any MIDI arriving counts as a touch**, so on
+a computer (forge page connected, a DAW, the bridge) it may never start: try it unplugged.
+Details: [manual, section 5a](MANUAL.md#5a-surprise-me-and-mutate-017).
 
 ---
 
@@ -317,6 +320,20 @@ Harmony is saved with your preset. Details, the Real layout and the black keys' 
 [manual, section 8a](MANUAL.md#8a-harmony-one-key-plays-a-chord--firmware-013).
 
 ---
+
+## what are harmony's secret modes?
+
+With harmony on (SW1 + SW2), open the harmony page (toggle down, hold CHOMPI, hold KEY_21 1 s)
+and **turn SW3**: white off, green **Bloom up**, yellow **Bloom down**, orange **Bloom random**,
+red **Conversations**. Let go of CHOMPI and play.
+
+- **Bloom:** each chord grows one note at a time (every 1/16 at the tempo) and stays.
+- **Conversations:** play a chord, let go, wait a bar: Choowi answers with a little phrase.
+  Any key cuts it off.
+- **Mischief:** hold a chord, then hold **SW1 + SW3** for a second: the chord bends (sus,
+  borrowed, inversion, a semitone up), the knobs flash purple. Let go of the knobs: back home.
+
+They're not saved in presets and switch off at power-on.
 
 ## how do I use arps, bass and tempo?
 

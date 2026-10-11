@@ -3,7 +3,17 @@
 Updated 2026-10-12 (instrumented battery build, development only, not on CHOMPI); before that 2026-10-11 (late night), checkpoint: **0.19.2 (build 8b51764) on CHOMPI**; guided hands-on test done except the TAPE functions (recording, sampler, looper); open: charging from a power bank while on. Read this first; the owner's next session is
 [HOME_CHECKLIST.md](HOME_CHECKLIST.md), then [TEST_SESSION.md](TEST_SESSION.md).
 
-## 2026-10-12: instrumented battery build (development only; resume here)
+## 2026-10-12 (later): harmony secret modes built (resume here)
+
+- Built, not installed: Chord Bloom, Chord Conversations, Harmony Mischief (`core/secret.h`,
+  `tests/secret_test.cpp`; MANUAL 8a "Secret modes"). `make test` passes (147 host tests and every
+  C++ suite incl. secret_test); release 256,040 B, development 271,988 B (+3.6 KB each; key-time
+  code kept out of line after a first build came out +15 KB from inlining).
+- After the release: dream mode on hardware **unplugged** (no dream after ~3 min on the PC; any MIDI
+  arriving resets its timer, and the sound may have been a kit); the battery diagnostics through a
+  long or low-battery session.
+
+## 2026-10-12: instrumented battery build (development only)
 
 - Built, software-tested, **not run on CHOMPI**: Inspector page 11 in `make firmware-dev`
   (`core/battery_diag.h`, `forge_main.cpp` battery check) and `host/forge_battery_log.py`

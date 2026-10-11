@@ -326,10 +326,14 @@ public:
             // 0.17: SW1 + SW3 = surprise me, SW2 + SW3 = mutate (not with SW4: SW4 + SW3 is panic).
             const bool roll_combo = hold_[1].down && hold_[3].down && !hold_[0].down && !hold_[2].down;
             const bool mutate_combo = hold_[2].down && hold_[3].down && !hold_[0].down && !hold_[1].down;
+            // 0.19.2 Harmony Mischief: with a harmony chord held, the same gesture bends that chord (a sus,
+            // borrowed, inversion or chromatic neighbour, a new one each 1.5 s); letting go brings it home.
             MagicCombo(roll_combo, roll_frames_, hardware.frames, [&] {
-                engine.ApplyPatch(magic::Roll(engine.Snapshot(), rng_)); hold_[1].used = hold_[3].used = true;
-                magic_flash_ = panel::kMagicFlashFrames; magic_kind_ = 1; ++magic_count_;
+                hold_[1].used = hold_[3].used = true; magic_flash_ = panel::kMagicFlashFrames; ++magic_count_;
+                if(engine.CanBend() && engine.HarmonyBend(rng_.Pick(secret::kMischiefs))) { bending_ = true; magic_kind_ = 3; return; }   // no chord: the roll's random sequence is untouched
+                engine.ApplyPatch(magic::Roll(engine.Snapshot(), rng_)); magic_kind_ = 1;
             });
+            if(!roll_combo && bending_) { engine.HarmonyUnbend(); bending_ = false; }
             MagicCombo(mutate_combo, mutate_frames_, hardware.frames, [&] {
                 engine.ApplyPatch(magic::Mutate(engine.Snapshot(), rng_)); hold_[2].used = hold_[3].used = true;
                 magic_flash_ = panel::kMagicFlashFrames; magic_kind_ = 2; ++magic_count_;
@@ -460,6 +464,7 @@ private:
         flags |= static_cast<uint32_t>(Clamp(engine.Value(Parameter::Cutoff), 0.f, 1.f) * 255.f + .5f) << 9;
         if(harmony_flash_) flags |= 1u << 17;
         if(engine.Harmony() && engine.Harmony()->state.enabled) flags |= 1u << 18;
+        flags |= static_cast<uint32_t>(engine.Secret()) << 19;            // 0.19.2: the harmony page's secret mode (bits 19-21)
         knob_flags_.store(flags, std::memory_order_relaxed);
         const uint32_t chime = chime_.Active() ? 1u + static_cast<uint32_t>(chime_.Progress() * 254.f) : 0u;
         magic_lights_.store((magic_flash_ ? magic_kind_ & 3u : 0u) | (magic_count_ & 15u) << 2 | chime << 8, std::memory_order_relaxed);
@@ -587,7 +592,7 @@ private:
         }
         if(!player) return;
         harmony::State& s = player->state;
-        for(unsigned knob = 0; knob < 3; ++knob) {
+        for(unsigned knob = 0; knob < 4; ++knob) {
             if(turns[panel::kKnobEncoder[knob]]) turn_view_[knob] = panel::kTurnViewFrames;
             harmony_detents_[knob] += turns[panel::kKnobEncoder[knob]];
             while(harmony_detents_[knob] >= 3 || harmony_detents_[knob] <= -3) {
@@ -599,11 +604,13 @@ private:
                         harmony::Extension::Seventh, harmony::Extension::Ninth, harmony::Extension::Eleventh, harmony::Extension::Thirteenth};
                     unsigned at = 0; while(at < harmony::kExtensions && order[at] != s.extension) ++at;
                     s.extension = order[step(at % harmony::kExtensions, harmony::kExtensions)];
-                } else s.inversion = static_cast<uint8_t>(step(s.inversion, 4));
+                } else if(knob == 2) s.inversion = static_cast<uint8_t>(step(s.inversion, 4));
+                else engine.SetSecret(static_cast<secret::Mode>(step(static_cast<unsigned>(engine.Secret()), secret::kModes)));   // 0.19.2 secret modes
             }
         }
     }
-    int harmony_detents_[3] = {};
+    int harmony_detents_[4] = {};
+    bool bending_ = false;                        // Harmony Mischief is holding a bent chord (0.19.2)
     // Parts page (0.14), keys: C3 arp off, D3 up, E3 down, F3 up-down, G3 played order, A3 random,
     // B3 latch; C4 1/4, D4 1/8, E4 1/8 triplet, F4 1/16, G4 1/16 triplet, A4 1/32, B4 run / stop;
     // C#3 bass off, D#3 root, F#3 root + fifth, G#3 root / fifth, A#3 root / octave; C5 tap tempo.
@@ -1000,6 +1007,7 @@ inline void ComposeKnobLeds(uint32_t values, uint32_t state, bool record_positio
         // 0.17: surprise me flashes four different colours (new ones each roll), mutate teal.
         if((magic & 3u) == 1u) rings[k] = knobs::StepColour(k * 2u + ((magic >> 2) & 15u));
         else if((magic & 3u) == 2u) rings[k] = knobs::colour::teal;
+        else if((magic & 3u) == 3u) rings[k] = knobs::colour::purple;   // 0.19.2 Harmony Mischief: harmony's purple
         if(record_position && !((state >> (16 + k)) & 1u)) rings[k] = Rgb{};
     }
 }
@@ -1047,6 +1055,11 @@ inline void ComposeHarmonyKnobLeds(uint32_t packed, Rgb (&rings)[4], uint32_t fl
     if((flags >> 4) & 1u) rings[0] = knobs::StepColour(static_cast<unsigned>(s.mode));
     if((flags >> 5) & 1u) rings[1] = knobs::StepColour(ExtensionStep(s.extension));
     if((flags >> 6) & 1u) rings[2] = knobs::StepColour(s.inversion);
+    // 0.19.2: SW3 turned shows the secret mode (off white, Bloom up green, down yellow, random orange,
+    // Conversations red); while one is on, SW3 glows its colour dimly over the open / close light.
+    const unsigned secret_mode = (flags >> 19) & 7u;
+    if((flags >> 7) & 1u) rings[3] = knobs::StepColour(secret_mode);
+    else if(secret_mode) rings[3] = knobs::Scale(knobs::StepColour(secret_mode), s.open ? 1.f : .35f);
 }
 // Parts page (0.14): the chosen pattern (blue), rate (green), bass mode (orange) and bass
 // octave (yellow) keys lit; B3 white with latch; B4 green running / red stopped; C5 blinks

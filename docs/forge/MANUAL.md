@@ -208,10 +208,29 @@ chords in your key and an arpeggio (harmony about 6 rolls in 10, the arp about 1
 
 Like it? Save it to a preset slot (section 6). Neither gesture changes a knob page.
 
-**Dream mode (0.18):** leave CHOMPI alone for two minutes (toggle down, menu closed, a playable
-sound, nothing else playing) and it starts dreaming: a quiet, slow line in your key, its notes
-breathing purple on the keys. Touch anything, or send MIDI, and it stops at once; after three
-minutes of dreaming it goes to sleep until you come back. It never dreams in the record position.
+**Dream mode (0.18):** leave CHOMPI alone and it starts playing by itself, quietly.
+
+*When it starts:* after **2 minutes with nothing happening**, as long as all of these hold:
+- the toggle is **down** (never in the record position) and the **menu is closed**;
+- the sound is a **synth** or a **chromatic sample** (not a kit);
+- the **looper** isn't playing or recording its first take, the **event recorder** isn't
+  armed, recording or playing, and nothing is being **recorded**.
+
+*What counts as "something happening"* (each one restarts the 2 minutes): any key, a knob
+turned or pressed, SW5, and **any MIDI arriving**, over USB or the MIDI jack. That includes a
+computer talking to CHOMPI (the forge page connected, Forge Bridge, a DAW sending clock), so on
+a computer it may never start: test it unplugged or on a charger.
+
+*What it plays:* a slow line in **your key**, harmony's key and mode (they're used even with
+harmony off; C major if never set): a note every 0.6 s, now and then a rest, each note about a
+second long, wandering by small steps through the scale around middle C, with the key's root
+low under it every eighth note. At most three notes at once, quietly (velocity 45), through the
+sound you have. The keys it plays **breathe purple**.
+
+*When it stops:* touch anything (or MIDI arrives) and it stops at once, mid-note; the 2 minutes
+start again. After **3 minutes** of dreaming it goes to sleep: silent, and it won't dream again
+until you've touched something. Opening the menu, flipping the toggle up or starting the looper
+also stops it.
 
 **Lights:** when a loop closes (looper or event recorder) a green ripple runs out from the
 middle key.
@@ -437,7 +456,7 @@ harmony is off).
 | SW4 | Mode: major, natural minor, harmonic minor, melodic minor, dorian, phrygian, lydian, mixolydian, locrian | Harmony on / off | green on, red off |
 | SW1 | Chord size: fifth (power chord), triad, 7th, 9th, 11th, 13th | Layout Static / Real | white Static, orange Real |
 | SW2 | Inversion 0–3 (used when voice leading is off) | Voice leading on / off | white on, purple off |
-| SW3 | — | Open spread on / off | white on, dim off |
+| SW3 | **Secret modes** (0.19.2, below) | Open spread on / off | white on, dim off; a secret mode glows in its colour |
 
 While you turn SW4, SW1 or SW2 (and 1.5 s after) its light shows the value instead, in the
 one colour rule (0.16): **mode** major white, natural minor green, harmonic minor yellow,
@@ -469,6 +488,36 @@ The settings are part of a **v6 patch** (the webapp's *Harmony* group, the AI, o
 `forge_host.py`) and are saved with presets stored on CHOMPI. Panic ends held
 chords. The Inspector shows the last chord by name and number
 (e.g. *Am7 · I · tonic*).
+
+### Secret modes (0.19.2)
+
+Three small tricks for harmony, the owner's ideas. They need harmony on. Bloom and
+Conversations are picked on the harmony page by **turning SW3** (three clicks per step); the
+ring shows the choice in the step colours, then keeps glowing in it while a mode is on. They
+are not saved in presets and start off at power-on: secret.
+
+| SW3 step | Colour | Mode |
+| --- | --- | --- |
+| 1 | white | off |
+| 2 | green | **Chord Bloom, up**: the chord grows from the lowest note upward |
+| 3 | yellow | **Chord Bloom, down**: from the top note down |
+| 4 | orange | **Chord Bloom, random**: in a new order each time |
+| 5 | red | **Chord Conversations** |
+
+- **Chord Bloom:** press a key and its chord arrives one note at a time, one every 1/16 at
+  the tempo, and every note stays (unlike the arp, which plays one at a time). Let go before
+  it has grown and the rest never comes. With the arp on, the arp plays the chord instead.
+- **Chord Conversations:** play a chord and let go. After one bar of silence (at the tempo),
+  Choowi answers with a short phrase made from that chord's notes and the key: rising, falling
+  or a little rhythm, one note at a time, quietly. Any key cuts it off.
+- **Harmony Mischief** (no switch): **while you hold a chord, hold SW1 + SW3** (the
+  surprise-me gesture) for a second. Instead of rolling a new sound, Choowi bends that chord:
+  a sus4, a sus2, the borrowed third (major ↔ minor), the next inversion, or the whole chord a
+  semitone up (a passing chord). The knob lights flash purple. Keep holding for another bend
+  every 1.5 s; **let go of the knobs and the chord comes home.** With no chord held, SW1 + SW3
+  rolls a new sound as before.
+
+Tempo: the parts page (tap tempo on C5, or MIDI clock); 120 BPM when nothing set it.
 
 ---
 

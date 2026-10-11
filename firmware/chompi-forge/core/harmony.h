@@ -279,8 +279,35 @@ public:
         }
         for(unsigned i = 0; i < started; ++i) out[n + i] = out_on_[i];
         last_ = v; last_chord_ = c; ++changes_;
+        newest_ = static_cast<uint8_t>(h - held_);
         released_ = static_cast<uint8_t>(n);
         return n + started;
+    }
+    // Harmony Mischief (0.19.2): the newest held chord sounds `notes` (same count) instead of its own
+    // until Unbend. `out` gets the notes to stop first (Released() of them), then those to start; the
+    // per-pitch counts stay right, so releasing the key during a bend still stops everything.
+    FORGE_COLD unsigned Bend(const uint8_t* notes, uint8_t* out) {
+        if(bent_) { Held& b = held_[bent_index_]; if(b.used && b.key == bent_key_ && b.source == bent_source_ && bent_index_ != newest_) return released_ = 0; }
+        Held& h = held_[newest_];
+        if(!h.used) return released_ = 0;
+        if(!bent_ || bent_index_ != newest_) { for(unsigned i = 0; i < h.count; ++i) own_[i] = h.note[i]; bent_ = true; bent_index_ = newest_; bent_key_ = h.key; bent_source_ = h.source; }
+        return Swap(h, notes, out);
+    }
+    FORGE_COLD unsigned Unbend(uint8_t* out) {
+        Held& h = held_[bent_index_];
+        const bool same = bent_ && h.used && h.key == bent_key_ && h.source == bent_source_;
+        bent_ = false;
+        return same ? Swap(h, own_, out) : (released_ = 0);
+    }
+    bool Bent() const { return bent_; }
+    uint8_t BentSource() const { return bent_source_; }
+    // The newest held chord's notes and source (what Mischief bends); 0 when none is held.
+    FORGE_COLD unsigned Newest(uint8_t* notes, uint8_t* source) const {
+        const Held& h = held_[newest_];
+        if(!h.used) return 0;
+        const uint8_t* from = bent_ && bent_index_ == newest_ ? own_ : h.note;
+        for(unsigned i = 0; i < h.count; ++i) notes[i] = from[i];
+        *source = h.source; return h.count;
     }
     // After KeyDown: how many of `out`'s first notes were releases (a retrigger).
     unsigned Released() const { return released_; }
@@ -299,7 +326,7 @@ public:
         return const_cast<Player*>(this)->Find(key, source) != nullptr;
     }
     // Panic, a structural patch change: forget everything (the synth is silenced).
-    void Clear() { for(auto& h : held_) h = Held{}; for(auto& s : refs_) for(auto& r : s) r = 0; shift_ = false; last_ = Voiced{}; }
+    void Clear() { for(auto& h : held_) h = Held{}; for(auto& s : refs_) for(auto& r : s) r = 0; shift_ = false; last_ = Voiced{}; bent_ = false; }
     const Voiced& LastVoiced() const { return last_; }
     const Chord& LastChord() const { return last_chord_; }
     bool Shift() const { return shift_; }
@@ -309,6 +336,14 @@ private:
     struct Held { bool used = false; uint8_t key = 0, source = 0, count = 0, note[kMaxNotes] = {}; };
     Held* Find(uint8_t key, uint8_t source) { for(auto& h : held_) if(h.used && h.key == key && h.source == source) return &h; return nullptr; }
     Held* Free() { for(auto& h : held_) if(!h.used) return &h; return nullptr; }
+    FORGE_COLD unsigned Swap(Held& h, const uint8_t* notes, uint8_t* out) {
+        unsigned off = 0, on = 0;
+        for(unsigned i = 0; i < h.count; ++i) { uint8_t& r = refs_[h.source][h.note[i]]; if(r && --r == 0) out[off++] = h.note[i]; }
+        for(unsigned i = 0; i < h.count; ++i) { h.note[i] = notes[i]; if(refs_[h.source][notes[i]]++ == 0) out_on_[on++] = notes[i]; }
+        for(unsigned i = 0; i < on; ++i) out[off + i] = out_on_[i];
+        released_ = static_cast<uint8_t>(off);
+        return off + on;
+    }
     unsigned Release(Held& h, uint8_t* out) {
         unsigned n = 0;
         for(unsigned i = 0; i < h.count; ++i) {
@@ -326,6 +361,8 @@ private:
     bool shift_ = false;
     uint8_t released_ = 0;
     uint32_t changes_ = 0;
+    uint8_t newest_ = 0, bent_index_ = 0, own_[kMaxNotes] = {}, bent_key_ = 0, bent_source_ = 0;   // Mischief (0.19.2)
+    bool bent_ = false;
 };
 } // namespace harmony
 } // namespace forge

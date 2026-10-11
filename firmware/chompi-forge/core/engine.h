@@ -7,6 +7,7 @@
 #include "synth.h"
 #include "harmony.h"
 #include "parts.h"
+#include "secret.h"
 #include "sequencer.h"
 #include "tape_fx.h"
 
@@ -137,6 +138,7 @@ public:
         if(velocity && looper_) looper_->NoteStarted();      // an armed looper starts recording
         if(seq_ && source != seq::kSource && seq_->Capturing()) seq_->RecordNote(note, velocity);   // event recorder (0.15)
         if(velocity && SlotMode() && Kit()) { const int pad = Synth::KitSlot(note); if(pad >= 0) focus_ = static_cast<uint8_t>(pad); }
+        if(velocity && secret_ == secret::Mode::Conversation) StopTalk();   // a key cuts Choowi off
         if(harmony_ && (velocity ? HarmonyOn() && harmony_->Maps(note) : harmony_->Holds(note, source)))
             return HarmonyNote(note, velocity, source, played, released);
         if(parts_ && (PartsOn() || !velocity) && PartsKey(note, &note, 1, -1, 7, velocity, source)) {
@@ -148,6 +150,9 @@ public:
         if(played) played[0] = note;
         if(released) *released = velocity ? 0 : 1;
         return 1;
+    }
+    FORGE_COLD void PlaySwap(const uint8_t* out, unsigned n, unsigned off, uint8_t source) {
+        for(unsigned i = 0; i < n; ++i) SecretVoice(out[i], i < off ? 0 : 100, source);
     }
     FORGE_COLD unsigned HarmonyNote(uint8_t note, uint8_t velocity, uint8_t source, uint8_t* played, unsigned* released) {
         {
@@ -166,10 +171,17 @@ public:
                     return 0;
                 }
             }
-            for(unsigned i = 0; i < n; ++i) {
-                if(parameters_.synth) synth_.Note(out[i], i < off ? 0 : velocity, source);
-                if(played) played[i] = out[i];
+            if(secret::Blooms(secret_) && (velocity ? n > off : n)) bloom_.Cancel(out, off, source);   // a retrigger or a key up: unsounded notes never bloom
+            for(unsigned i = 0; i < n; ++i) if(played) played[i] = out[i];
+            if(velocity && secret::Blooms(secret_) && n > off) {   // 0.19.2 Chord Bloom: the chord grows one note at a time
+                for(unsigned i = 0; i < off; ++i) if(parameters_.synth) synth_.Note(out[i], 0, source);
+                uint8_t first;
+                if(bloom_.Schedule(out + off, n - off, velocity, source, secret_, Sixteenth(), rand_, &first) && parameters_.synth) synth_.Note(first, velocity, source);
+            } else {
+                for(unsigned i = 0; i < n; ++i) if(parameters_.synth) synth_.Note(out[i], i < off ? 0 : velocity, source);
             }
+            if(!velocity && secret_ == secret::Mode::Conversation && n && HarmonySilent())   // 0.19.2 Chord Conversations
+                talk_.ChordEnded(harmony_->LastVoiced(), harmony_->state, Sixteenth(), rand_);
             if(released) *released = off;
             return n;
         }
@@ -178,6 +190,42 @@ public:
     // On for synth and chromatic sampler patches; kit patches keep their pads.
     void SetHarmony(harmony::Player* player) { harmony_ = player; }
     harmony::Player* Harmony() const { return harmony_; }
+    // Secret modes (0.19.2): the harmony page's SW3 picks one.
+    // One out-of-line note for the secret modes (inlined, each caller grew by a copy of Synth::Note).
+    FORGE_COLD void SecretVoice(uint8_t n, uint8_t v, uint8_t source) { if(parameters_.synth) synth_.Note(n, v, source); }
+    FORGE_COLD void SecretBlock(unsigned frames) {
+        bloom_.Advance(frames, [&](uint8_t n, uint8_t v, uint8_t source) { SecretVoice(n, v, source); });
+        talk_.Advance(frames, [&](uint8_t n, uint8_t v) { SecretVoice(n, v, kTalkSource); });
+    }
+    FORGE_COLD void StopTalk() { talk_.Interrupt([&](uint8_t n) { SecretVoice(n, 0, kTalkSource); }); }
+    FORGE_COLD void SetSecret(secret::Mode m) { if(m != secret_) { bloom_.Clear(); StopTalk(); } secret_ = m; }
+    secret::Mode Secret() const { return secret_; }
+    secret::Conversation& Talk() { return talk_; }
+    const secret::Bloom& Blooming() const { return bloom_; }
+    // Harmony Mischief: bend the newest held chord (variant 0-4, secret::Bend) / bring it home.
+    // Returns false when there is no chord to bend (the panel then rolls a sound as usual).
+    FORGE_COLD bool CanBend() const { uint8_t notes[harmony::kMaxNotes], source; return HarmonyOn() && harmony_->Newest(notes, &source) > 0; }
+    FORGE_COLD bool HarmonyBend(unsigned variant) {
+        if(!HarmonyOn()) return false;
+        uint8_t own[harmony::kMaxNotes], bent[harmony::kMaxNotes], source = 0;
+        const unsigned count = harmony_->Newest(own, &source);
+        if(!count) return false;
+        secret::Bend(own, count, harmony_->LastChord().root, variant, bent);
+        bool same = true; for(unsigned i = 0; i < count; ++i) same = same && bent[i] == own[i];
+        if(same) secret::Bend(own, count, harmony_->LastChord().root, 4, bent);   // no third to bend: lean a semitone instead
+        uint8_t out[2 * harmony::kMaxNotes];
+        const unsigned n = harmony_->Bend(bent, out);
+        if(!n && !harmony_->Bent()) return false;
+        PlaySwap(out, n, harmony_->Released(), source);
+        return true;
+    }
+    FORGE_COLD void HarmonyUnbend() {
+        if(!harmony_ || !harmony_->Bent()) return;
+        uint8_t out[2 * harmony::kMaxNotes];
+        const uint8_t source = harmony_->BentSource();
+        const unsigned n = harmony_->Unbend(out);
+        PlaySwap(out, n, harmony_->Released(), source);
+    }
     bool HarmonyOn() const { return harmony_ && harmony_->state.enabled && parameters_.synth && !(parameters_.Sampler() && Kit()); }
     // Parts (core/parts.h, 0.14): the caller's clock, arp and bass; same patches as harmony.
     void SetParts(parts::Parts* p) { parts_ = p; }
@@ -186,6 +234,7 @@ public:
     bool ArpOn() const { return PartsOn() && parts_->ArpOn(); }
     // Once per audio block, before the samples: the clock, steps and gate ends.
     void Block(unsigned frames) {
+        if(secret_ != secret::Mode::Off) SecretBlock(frames);
         if(!parts_) return;
         parts_->Advance(frames); SoundParts();
         if(seq_) PlaySequence();
@@ -474,6 +523,7 @@ private:
     }
     void Silence() {
         synth_.Silence();
+        bloom_.Clear(); talk_.Stop();
         if(harmony_) harmony_->Clear();
         if(parts_) { parts_->Clear(); parts::Event e[parts::Parts::kEvents]; parts_->Take(e, parts::Parts::kEvents); }   // MIDI offs queued
         if(seq_) seq_->Silenced();                               // its notes are gone; the loop keeps playing (MANUAL 8c)
@@ -518,6 +568,14 @@ private:
     }
     harmony::Player* harmony_ = nullptr;
     parts::Parts* parts_ = nullptr;
+    // Harmony's secret modes (core/secret.h, 0.19.2): not saved, off at power-on.
+    static constexpr uint8_t kTalkSource = 2;              // the answer plays on the keybed's voices, as the chime
+    secret::Mode secret_ = secret::Mode::Off;
+    secret::Bloom bloom_;
+    secret::Conversation talk_;
+    secret::Rand rand_;
+    uint32_t Sixteenth() const { return secret::Sixteenth(sample_rate_, parts_ ? parts_->GetClock().Bpm() : 120.f); }
+    bool HarmonySilent() const { unsigned n = 0; for(uint8_t s = 0; s < harmony::Player::kSources; ++s) n += harmony_->Sounding(s); return n == 0; }
     seq::Sequencer* seq_ = nullptr;
     seq::Mailbox* mailbox_ = nullptr;
     bool replaying_ = false;
