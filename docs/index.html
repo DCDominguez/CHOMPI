@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>forge · Choowi for CHOMPI</title>
+<meta name="description" content="Forge is a little workshop of custom firmware for CHOMPI. Choowi is the first one: a synth, sampler and looper that plays chords for you, wakes up singing and dreams when you leave it alone.">
+<link rel="icon" href="forge/assets/choowi.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1b1b22;--paper:#fbfaf7;--rule:#e3e1da;--muted:#5a5a66;--spark:#ff5ea0;--accent:#c2185b}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--ink:#f4f2ec;--paper:#16161c;--rule:#2c2c36;--muted:#a9a9b4;--accent:#ff7db3}}
+:root[data-theme="dark"]{--ink:#f4f2ec;--paper:#16161c;--rule:#2c2c36;--muted:#a9a9b4;--accent:#ff7db3}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:'Fredoka',system-ui,sans-serif;padding:0 16px 56px}
+.wrap{max-width:980px;margin:0 auto}
+header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center;padding:48px 0 28px}
+@media (max-width:720px){header{grid-template-columns:1fr}header img{width:180px}}
+h1{font-size:clamp(3.4rem,10vw,6rem);margin:0;line-height:.95;letter-spacing:-.02em}
+.dots{display:flex;gap:8px;margin:10px 0 18px}.dots i{width:16px;height:16px;border-radius:50%;display:inline-block;border:1px solid #c9c7bf}
+.lede{font-size:1.35rem;line-height:1.35;margin:0 0 20px;max-width:34ch}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+a.btn{font-weight:700;font-size:1.05rem;text-decoration:none;border-radius:99px;padding:12px 22px;min-height:48px;display:inline-flex;align-items:center}
+a.go{background:var(--spark);color:#1b1b22}a.ghost{border:2px solid var(--ink);color:var(--ink)}
+h2{font-size:1.9rem;margin:44px 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.card{border:2px solid var(--rule);border-radius:20px;padding:16px 18px}
+.card b{display:block;font-size:1.15rem;margin-bottom:4px}
+.card span{color:var(--muted);line-height:1.4}
+.tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tool{border:2px solid var(--rule);border-radius:18px;padding:12px;text-align:center;display:grid;justify-items:center;gap:4px}
+.tool small{font-family:'Space Mono',monospace;background:var(--ink);color:var(--paper);border-radius:99px;padding:2px 9px;font-size:.72rem}
+ol{line-height:1.6;font-size:1.08rem;padding-left:1.3em}
+code{font-family:'Space Mono',monospace;font-size:.9em}
+footer{margin-top:48px;color:var(--muted);font-size:.9rem;line-height:1.5;border-top:2px solid var(--rule);padding-top:16px}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<div>
+<h1>forge</h1>
+<div class="dots" aria-hidden="true"><i style="background:#fff"></i><i style="background:#2fbf55"></i><i style="background:#f5c400"></i><i style="background:#ff8a2a"></i><i style="background:#ec3b3b"></i><i style="background:#ff5ea0"></i><i style="background:#9150f0"></i><i style="background:#2f7cf6"></i><i style="background:#19c9b6"></i></div>
+<p class="lede">a little workshop of custom firmware for CHOMPI. the first thing out of it is <b>Choowi</b>.</p>
+<div class="btns"><a class="btn go" href="https://github.com/myth-world/forge/releases">Get Choowi</a><a class="btn ghost" href="forge/ILLUSTRATED_MANUAL.html">Read the manual</a></div>
+</div>
+<img src="forge/assets/choowi.svg" width="240" alt="Choowi, the magic blacksmith">
+</header>
+
+<h2>meet Choowi</h2>
+<div class="grid">
+<div class="card"><b>it wakes up singing</b><span>switch it on and your last sound comes back with a little chime and a rainbow on the keys.</span></div>
+<div class="card"><b>one key, a whole chord</b><span>harmony plays chords in your key, and the keys light up so you can see what's happy and what's moody.</span></div>
+<div class="card"><b>out of ideas?</b><span>hold two knobs and Choowi forges a new sound. hold two others and it drifts. record anything, roll, and it's an instrument.</span></div>
+<div class="card"><b>it dreams</b><span>leave it alone for a couple of minutes and it plays quietly in your key, the keys breathing purple.</span></div>
+<div class="card"><b>build sounds on the panel</b><span>the synth page: waves, LFO, voices and glide, no computer needed. or describe a sound to an AI and send it.</span></div>
+<div class="card"><b>TAPE is still in there</b><span>the sampler, recording and looper work the way your hands already know.</span></div>
+</div>
+
+<h2>Choowi's toolbox</h2>
+<p>every release is a magic tool Choowi forges, in the next colour of CHOMPI's panel lights.</p>
+<div class="tools">
+<div class="tool"><img src="forge/assets/tool-colour-lantern.svg" width="64" alt=""><b>Colour Lantern</b><small>0.16</small></div>
+<div class="tool"><img src="forge/assets/tool-wake-up-bell.svg" width="64" alt=""><b>Wake-up Bell</b><small>0.17</small></div>
+<div class="tool"><img src="forge/assets/tool-sweep-brush.svg" width="52" alt=""><b>Sweep Brush</b><small>0.17.1</small></div>
+<div class="tool"><img src="forge/assets/tool-dream-bellows.svg" width="64" alt=""><b>Dream Bellows</b><small>0.18</small></div>
+<div class="tool"><img src="forge/assets/tool-tinker-wrench.svg" width="64" alt=""><b>Tinker Wrench</b><small>0.19</small></div>
+</div>
+
+<h2>put it on your CHOMPI</h2>
+<ol>
+<li>download <code>FORGE.bin</code> from the <a href="https://github.com/myth-world/forge/releases">releases</a>.</li>
+<li>charge CHOMPI (battery light green or white: hold SW6 for 2 s).</li>
+<li>back up the SD card, then rename every file in its top folder with <code>.bin</code> in the name (<code>CHOMPI_TAPEv2_0.bin</code> → <code>CHOMPI_TAPEv2_0_bin.old</code>).</li>
+<li>copy <code>FORGE.bin</code> to the card, card in, switch on. rainbow, then Choowi says hi.</li>
+</ol>
+<p>want stock TAPE back? rename TAPE's file back to <code>.bin</code>, remove <code>FORGE.bin</code>, switch on.</p>
+
+<footer>
+by DeeCee, built with Claude · <a href="https://github.com/myth-world/forge">source on GitHub</a> · MIT licence<br>
+Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club.
+</footer>
+</div>
+</body>
+</html>
