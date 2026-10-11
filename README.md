@@ -1,5 +1,7 @@
 # Forge for CHOMPI
 
+By **DeeCee**, built with Claude.
+
 *Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club. See [TRADEMARKS.md](TRADEMARKS.md).*
 
 **An AI-programmable instrument: describe a sound, play it, shape it, save it.**
