@@ -271,8 +271,16 @@ public:
                         else looper->Scrub(t);
                     }
                 } else {                                    // the cutoff, and the loop's tone with it (0.16)
-                    engine.Apply({Parameter::Cutoff, engine.Value(Parameter::Cutoff) + t * knobs::Step(4, Parameter::Cutoff)});
-                    if(looper && looper->HasLoop()) looper->NudgeTone(t * knobs::Step(4, Parameter::Cutoff));
+                    // 0.17.1: SW5 sweeps ~80 Hz .. 8 kHz, where every click is heard: turning down from
+                    // above 8 kHz starts at 8 kHz, turning up past it opens fully; resonance rises as it closes.
+                    constexpr float kSweepLow = .1157f, kSweepHigh = .8843f;    // 80 Hz, 8 kHz on the 40 Hz..16 kHz scale
+                    const float step = knobs::Step(4, Parameter::Cutoff), was = engine.Value(Parameter::Cutoff);
+                    float cutoff = (t < 0 && was > kSweepHigh ? kSweepHigh : was) + t * step;
+                    if(t > 0 && cutoff > kSweepHigh) cutoff = 1.f;
+                    if(t < 0 && cutoff < kSweepLow) cutoff = was < kSweepLow ? was : kSweepLow;
+                    engine.Apply({Parameter::Cutoff, cutoff});
+                    engine.SetSweepBoost(.35f * Clamp((kSweepHigh - cutoff) / (kSweepHigh - kSweepLow), 0.f, 1.f));
+                    if(looper && looper->HasLoop()) looper->NudgeTone(t * step);
                     tone_view_ = panel::kToneViewFrames;
                 }
             }

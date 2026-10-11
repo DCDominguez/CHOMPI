@@ -148,9 +148,7 @@ public:
         osc2_ratio_ = std::pow(2.f, ((int(p.osc2_semitones) - 24) + (p.osc2_detune * 2.f - 1.f) * 0.5f) / 12.f);
         noise_ = legacy_ ? 0.f : p.noise;
         mix_scale_ = 1.f / (1.f + osc2_level_ + noise_);
-        const float q = 0.70710678f * std::pow(16.f, p.resonance);          // Q 0.707..11.3
-        damping_ = 1.f / q;
-        resonance_gain_ = 1.f / std::sqrt(q / 0.70710678f);                 // tame the peak
+        resonance_ = p.resonance; Resonate();
         filter_octaves_ = (p.filter_amount * 2.f - 1.f) * 6.f;              // +/-6 octaves
         filter_shape_ = MakeShape(p.filter_attack, p.filter_decay, p.filter_sustain, p.filter_release);
         lfo_waveform_ = p.lfo_waveform; lfo_wheel_ = p.lfo_wheel;
@@ -324,6 +322,10 @@ public:
         else left = right = Process();
         left *= out_l_; right *= out_r_;
     }
+    // SW5's sweep (0.17.1, DC: "cutoff feels like it lowers the volume"): extra resonance while
+    // SW5 has the cutoff down, so a sweep is heard as movement. 0 = the patch's own; reset by a patch.
+    void SetSweepBoost(float boost) { sweep_boost_ = Clamp(boost, 0.f, .4f); Resonate(); }
+    float SweepBoost() const { return sweep_boost_; }
     float Process() {
         float sum = 0;
         float pitch_ratio = 1.f, amp_lfo = 1.f, lfo_octaves = 0.f;
@@ -698,6 +700,12 @@ private:
     uint8_t waveform_ = 0, osc2_waveform_ = 0, lfo_waveform_ = 0, voices_used_ = 4, cap_ = 7;
     float osc2_level_ = 0, osc2_ratio_ = 1, noise_ = 0, mix_scale_ = 1;
     float damping_ = 1.41421356f, resonance_gain_ = 1, filter_octaves_ = 0, cutoff_ = 0.5f, cutoff_target_ = 0.5f;
+    float resonance_ = 0.f, sweep_boost_ = 0.f;
+    void Resonate() {
+        const float q = 0.70710678f * std::pow(16.f, Clamp(resonance_ + sweep_boost_, 0.f, .85f));   // Q 0.707..11.3
+        damping_ = 1.f / q;
+        resonance_gain_ = 1.f / std::sqrt(q / 0.70710678f);                 // tame the peak
+    }
     float lfo_phase_ = 0, lfo_value_ = 0, lfo_increment_ = 0, lfo_cents_ = 0, lfo_octaves_ = 0, lfo_amp_ = 0, held_ = 0;
     float glide_slew_ = 1, glide_snap_ = 1e-6f, last_target_ = 0;
     // v4 sampler

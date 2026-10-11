@@ -1,5 +1,18 @@
 # Forge changelog
 
+## 0.17.1 SW5 sweeps like a filter — 2026-10-11 (software-tested; not installed yet)
+
+DC: "why does cutoff just feel like it's lowering the volume". Measured on CHOMPI (C-E-G, the
+loaded pad): the level held within 1 dB from 16 kHz down to 165 Hz while brightness fell from
+5.5 kHz to 0.9 kHz, so the filter worked, but with no resonance and the top 15 % of the travel
+(16 to 7 kHz) changing nothing, it read as "quieter".
+- SW5's turns now sweep **80 Hz to 8 kHz**: turning down from above 8 kHz starts at 8 kHz,
+  turning up past 8 kHz opens fully in one click, so every click is heard. Patches keep their
+  saved cutoff on the full scale.
+- **Resonance rises as SW5 closes the filter** (up to +0.35 over the patch's own), so a sweep
+  is heard as movement. Fully open: the patch's resonance. A new patch starts without it.
+- Panel test `Sweep0171`. Not on CHOMPI yet.
+
 ## 0.17.0 Magic: wakes up singing, surprise me, mutate — 2026-10-11 (software-tested; not installed yet)
 
 DC: "we still have the magic stuff" (PROJECT.md, magic batch items 1-3).

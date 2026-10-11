@@ -653,7 +653,25 @@ void Magic017() {
     assert(on >= 3 && on <= 6);                                                  // a band of the wave
 }
 
+// 0.17.1: SW5 sweeps 80 Hz .. 8 kHz with resonance rising as it closes; a patch resets it.
+void Sweep0171() {
+    Rig rig;
+    Parameters synth; synth.version = 3; synth.synth = true; synth.cutoff = 1.f; assert(rig.engine.ApplyPatch(synth));
+    rig.Block();
+    rig.hw.turns[panel::kToneEncoder] = -1; rig.Block();
+    assert(std::fabs(rig.engine.GetParameters().cutoff - (.8843f - .01f)) < 1e-4f);      // skips the dead top
+    const float low_boost = rig.engine.SweepBoost();
+    assert(low_boost > 0.f && low_boost < .02f);
+    rig.hw.turns[panel::kToneEncoder] = -200; rig.Block();
+    assert(std::fabs(rig.engine.GetParameters().cutoff - .1157f) < 1e-4f && std::fabs(rig.engine.SweepBoost() - .35f) < 1e-4f);
+    rig.hw.turns[panel::kToneEncoder] = 200; rig.Block();
+    assert(rig.engine.GetParameters().cutoff == 1.f && rig.engine.SweepBoost() == 0.f);  // fully open again
+    rig.hw.turns[panel::kToneEncoder] = -30; rig.Block(); assert(rig.engine.SweepBoost() > 0.f);
+    assert(rig.engine.ApplyPatch(synth) && rig.engine.SweepBoost() == 0.f);              // a new sound: its own resonance
+}
+
 int main() {
+    Sweep0171();
     Magic017();
     PanelFeedback016();
     KnobPages(); BatteryHold(); MenuKnobLayer(); OptionsAndMidiOut();

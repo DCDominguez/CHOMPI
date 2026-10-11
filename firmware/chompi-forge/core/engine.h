@@ -237,6 +237,8 @@ public:
     // The start-up chime (0.17): straight to the voices, past harmony, the arp, the looper's
     // arm and the event recorder, so a preset's latched arp cannot start from it.
     void ChimeNote(uint8_t note, uint8_t velocity) { if(parameters_.synth) synth_.Note(note, velocity, 2); }
+    void SetSweepBoost(float boost) { synth_.SetSweepBoost(boost); }
+    float SweepBoost() const { return synth_.SweepBoost(); }
     // Called only by the audio owner, between blocks. Validate before mutation;
     // smoothing and delay state continue uninterrupted across a patch change.
     FORGE_COLD bool ApplyPatch(const Parameters& patch, SlotPolicy policy = SlotPolicy::Patch) {
@@ -249,6 +251,7 @@ public:
 #ifdef FORGE_TEST_HOOKS
         ++patch_revision_;
 #endif
+        synth_.SetSweepBoost(0.f);                              // a new sound starts with its own resonance
         synth_.Configure(parameters_);
         if(has_reverb_) reverb_.Configure(parameters_.reverb_size, parameters_.reverb_damping);
         if(harmony_ && patch.version >= 6) {                    // v6 presets carry harmony mode

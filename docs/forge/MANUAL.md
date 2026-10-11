@@ -1,6 +1,6 @@
 # Forge for CHOMPI — user manual
 
-Firmware **0.17.0** (development builds; experimental community firmware, not an
+Firmware **0.17.1** (development builds; experimental community firmware, not an
 official CHOMPI release). Forge turns CHOMPI into a playable synthesizer,
 TAPE-compatible sampler and looper whose sounds you can design on a computer —
 by hand or by describing them to an AI — and send over USB.
@@ -117,7 +117,7 @@ Forge keeps TAPE's panel workflow (firmware 0.10). The toggle has two positions:
 | SW1 + SW2 held 1 s | **Harmony on / off** (0.16; all knob lights flash green = on, red = off) | — |
 | SW1 + SW3 held 1 s | **Surprise me** (0.17): a new sound; keep holding for another every 1.5 s (knob lights flash colours) | — |
 | SW2 + SW3 held 1 s | **Mutate** (0.17): the sound drifts a little; keep holding to drift further (knob lights flash teal) | — |
-| SW5 | Turn: filter cutoff, and the loop's tone with it (0.16). Push and turn (with a loop): loop speed, scrub when paused. Click: loop speed back to 1× | — |
+| SW5 | Turn: filter cutoff, about 80 Hz to 8 kHz with resonance rising as it closes (0.17.1), and the loop's tone with it (0.16). Push and turn (with a loop): loop speed, scrub when paused. Click: loop speed back to 1× | — |
 | SW6 | Turn: volume. Short press: switch to input gain (light blue → red) and back. Hold 2 s: battery light | — |
 | PLAY (KEY_27), LOOP (KEY_28) | Looper (section 8) | Overdub feedback − / + |
 | Line in jack | Plugging in selects line in for recording; unplugging selects the mic | — |
