@@ -6,6 +6,13 @@ the 2026-10-10/11 hardware sessions). "Target" assumes the listed fixes. The pan
 4 on its own: the virtual screen (webapp / Tab5) helps, but CHOMPI is often played without a
 computer.
 
+**Status 2026-10-11 (0.19.2 on CHOMPI):** cross-cutting fixes 1 and 2 are built and on CHOMPI
+(page colours, step colours, page flash), as are the last-preset boot, the looper and SW5
+fixes, the harmony key colours and Shift light, the recorder tap, the DJ-filter fix and the
+synth page (CHANGELOG 0.16-0.19). The owner rated the synth page "pretty easy" and the page /
+harmony checks "all worked". Fix 3 (virtual screen) and the webapp redesign are still to do.
+The ratings below are the 0.15.2 baseline; a re-rating after the release is pending.
+
 ## Cross-cutting fixes (they lift most rows)
 
 1. **Page colour on the CHOMPI key** (the owner approved). While the menu is open, the CHOMPI key

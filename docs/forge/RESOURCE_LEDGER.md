@@ -1,6 +1,9 @@
 # Forge Resource Ledger
 
-**Latest figures:** firmware 0.19.0 (2026-10-11): release **252,036 B** / development
+**Latest figures:** firmware 0.19.2 (build 8b51764, 2026-10-11): release **252,416 B** / development
+**266,272 B**, headroom **36,352 / 22,496 B** (+380 / +380 B over 0.19.0: the DJ filter floor,
+save as last preset, the battery-dip guard and the charger hand-over). SDRAM unchanged.
+Before that, firmware 0.19.0 (2026-10-11): release **252,036 B** / development
 **265,892 B**, headroom **36,732 / 22,876 B** (+3,712 / +3,704 B: the synth page). **The
 development build has under 23 KB left**: before the effects round-out, move code out of
 SRAM_EXEC (e.g. the Inspector and cold panel code to QSPI or flash-executed sections) or trim.

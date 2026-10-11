@@ -21,7 +21,14 @@ validation without per-feature flash requests. A real defect may require retest.
 The owner also requested continuously updated documentation for other development agents;
 read and maintain [CONTINUE.md](CONTINUE.md) at each checkpoint.
 
-## Current milestone: instrument candidate 0.15.1
+## Current milestone: Choowi 0.19 release (2026-10-11)
+
+0.16-0.19.2 (page colours, magic, dream, the synth page, power fixes) are on the owner's CHOMPI;
+the guided hands-on test has passed everything but the TAPE functions. Left before the release:
+those checks, the power-bank charging issue (CONTINUE), naming the 0.19.1 / 0.19.2 tools, then
+the owner publishes the draft GitHub Release. The paragraph below is the 0.15.1 history.
+
+### Instrument candidate 0.15.1 (history)
 
 Everything below "0.4" was the first milestone and is kept as history. Since then:
 sampler with recording (0.5), knob pages and v5 patch knobs (0.6), USB card / firmware
@@ -94,7 +101,7 @@ unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
 6. **Dedicated/networked controllers** (Tab5) — optional, last.
 
 **Backlog (the owner, 2026-10-10), after the hardware session:**
-- **Synth edit page** (owner request; built in 0.19.0, not yet on CHOMPI): full sound design on CHOMPI, in TAPE's
+- **Synth edit page** (owner request; built in 0.19.0, on CHOMPI and passed by the owner's hand, rated "pretty easy"): full sound design on CHOMPI, in TAPE's
   menu style. Keys choose oscillator 1/2 waveform, osc 2 interval, LFO shape and target,
   voice count; knobs set noise, glide, delay time and the other patch fields the knob
   pages do not reach (KNOBS.md). Saves through the existing presets page.
@@ -128,7 +135,7 @@ unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
   plays); the webapp gets a **virtual CHOMPI screen** (patch, page, control being turned,
   chord, BPM, looper / recorder state), reused on the Tab5. The owner's bar: every function rated
   4 / 5 or better for ease of use: [UX_REVIEW.md](UX_REVIEW.md).
-- **Magic batch (owner request, 2026-10-11; items 1-3 in 0.17.0 (on CHOMPI, checked), 4-6 built in 0.18.0 (not installed); 7 is design (Spark characters)).** Forge has power but little
+- **Magic batch (owner request, 2026-10-11; items 1-3 in 0.17.0 and 4-6 in 0.18.0, all on CHOMPI (0.19.2); 7 is design (Spark characters)).** Forge has power but little
   whimsy: it boots silent, its best features hide behind gestures, nothing surprises. A
   release spent on delight, cheapest first:
   1. **Wakes up singing:** a short boot jingle and light sweep, then the last preset loads
@@ -174,6 +181,9 @@ unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
   address). **Done 2026-10-11:** the repo is `myth-world/Forge` (the owner's org); Pages will be
   `https://myth-world.github.io/Forge` from `docs/` once `main` carries Forge. **Gumroad** product page later: pay what you want ($0 minimum), Choowi art, no CHOMPI
   artwork, LICENSE + THIRD_PARTY in the download.
+- **Ideas from the 0.19 hands-on test (the owner, 2026-10-11, later):** knob lights dim rather
+  than off in the record position (TAPE turns them off); a real battery reading (SW6's colour is
+  a 3.3 V comparator); charging while on from a power bank.
 - Candidates raised the same day: upgrade starter presets 01–06 (v1/v2) to v3+ with the
   same sound so every knob page works; add starter presets that show harmony, arp / bass
   and the event recorder (useful for the owner's listening session).

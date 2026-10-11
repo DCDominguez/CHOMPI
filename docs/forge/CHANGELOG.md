@@ -2,7 +2,7 @@
 
 Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)); the heading names it.
 
-## 0.19.2 What you save is what wakes up (small tool: to be named) — 2026-10-11 (software-tested; not installed yet)
+## 0.19.2 What you save is what wakes up (small tool: to be named) — 2026-10-11 (on CHOMPI since 0.19.2 build 8b51764; checks in TEST_RESULTS)
 
 - **Shut-offs while playing fast: found and fixed in software.** A power log (10 readings a
   second, CHOMPI on a computer's USB port, fast playing on a sample-based sound) caught one:
@@ -30,7 +30,7 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
 - MANUAL corrections from that cross-check: the menu reopens on the page you left it on; the
   bank knob is SW4 (stops at 1 and 8; KEY_16 / KEY_17 wrap round); pink (synth) in the page colours.
 
-## 0.19.1 The DJ filter never goes silent (small tool: to be named) — 2026-10-11 (software-tested; not installed yet)
+## 0.19.1 The DJ filter never goes silent (small tool: to be named) — 2026-10-11 (on CHOMPI since 0.19.2 build 8b51764; checks in TEST_RESULTS)
 
 The owner's open bug "SW3's DJ filter silences the sound". Measured (white noise through the real
 filter): no runaway or NaN at any setting, resonance or sweep, and full level back at the centre;
@@ -43,7 +43,7 @@ presets until a reset or power-off, so it read as "the sound is gone".
   silence; the largest drop is resonance at maximum (-14 to -18 dB, its peak compensation).
   Left as is for the owner's ear.
 
-## 0.19.0 The synth edit page (tool: Tinker Wrench) — 2026-10-11 (software-tested; not installed yet)
+## 0.19.0 The synth edit page (tool: Tinker Wrench) — 2026-10-11 (on CHOMPI since 0.19.2 build 8b51764; checks in TEST_RESULTS)
 
 The owner's backlog item: design a sound on CHOMPI itself. A fifth menu page, **Synth** (CHOMPI light
 pink), after parts: on TAPE's page keep holding KEY_21 (harmony at 1 s, parts at 2 s, synth at
@@ -61,7 +61,7 @@ pink), after parts: on TAPE's page keep holding KEY_21 (harmony at 1 s, parts at
   change nothing.
 - Panel test `SynthPage019`; the Inspector names the page "synth". Not on CHOMPI yet.
 
-## 0.18.0 Magic: chomp to instrument, dream mode, lights with character (tool: Dream Bellows) — 2026-10-11 (software-tested; not installed yet)
+## 0.18.0 Magic: chomp to instrument, dream mode, lights with character (tool: Dream Bellows) — 2026-10-11 (on CHOMPI since 0.19.2 build 8b51764; checks in TEST_RESULTS)
 
 PROJECT.md magic batch items 4-6 (owner request).
 - **Chomp to instrument:** record anything (toggle up, hold CHOMPI), then **surprise me**
@@ -81,7 +81,7 @@ PROJECT.md magic batch items 4-6 (owner request).
 - `core/magic.h` (`Roll` sampler-aware, `Dream`), panel `Dream018`, magic `ChompRollsKeepTheSample`
   / `DreamPlaysInTheKeyAndStops`. Not on CHOMPI yet.
 
-## 0.17.1 SW5 sweeps like a filter (tool: Sweep Brush) — 2026-10-11 (software-tested; not installed yet)
+## 0.17.1 SW5 sweeps like a filter (tool: Sweep Brush) — 2026-10-11 (on CHOMPI since 0.19.2 build 8b51764; checks in TEST_RESULTS)
 
 Owner request. Measured on CHOMPI (C-E-G, the
 loaded pad): the level held within 1 dB from 16 kHz down to 165 Hz while brightness fell from
@@ -94,7 +94,7 @@ loaded pad): the level held within 1 dB from 16 kHz down to 165 Hz while brightn
   is heard as movement. Fully open: the patch's resonance. A new patch starts without it.
 - Panel test `Sweep0171`. Not on CHOMPI yet.
 
-## 0.17.0 Magic: wakes up singing, surprise me, mutate (tool: Wake-up Bell) — 2026-10-11 (software-tested; not installed yet)
+## 0.17.0 Magic: wakes up singing, surprise me, mutate (tool: Wake-up Bell) — 2026-10-11 (on CHOMPI since 0.19.2 build 8b51764; checks in TEST_RESULTS)
 
 Owner request (PROJECT.md, magic batch items 1-3).
 - **Wakes up singing:** CHOMPI remembers the last preset recalled or saved (`FORGE/LAST.TXT`,
@@ -119,7 +119,7 @@ engine with delay and reverb: RMS -41 .. -22 dB, none above full scale; 1,000 ch
 mutations bounded; chime notes), panel `Magic017` (gestures, repeat, panic untouched, chime
 voices and light wave). Not on CHOMPI yet.
 
-## 0.16.0 Panel feedback and shortcuts (the owner's UX review; tool: Colour Lantern) — 2026-10-11 (software-tested; not installed yet)
+## 0.16.0 Panel feedback and shortcuts (the owner's UX review; tool: Colour Lantern) — 2026-10-11 (on CHOMPI since 0.19.2 build 8b51764; checks in TEST_RESULTS)
 
 The owner's decisions and ratings: [UX_REVIEW.md](UX_REVIEW.md). Bar: every function 4/5 for ease of use.
 

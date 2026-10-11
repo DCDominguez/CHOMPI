@@ -3,8 +3,9 @@
 Written 2026-10-10 for the owner's Muse agent ("Cosmo", the Tab5 Muse gadget) so it can act as a
 CHOMPI assistant: understand Forge, draw its menus and patches, design effects and edit
 the firmware. The integration itself is the owner's separate design. This page is the map;
-the linked documents hold the exact details. Firmware here is **0.15.2**, software-tested,
-**not yet hardware-verified** (CONTINUE.md is the live state; trust it over this page).
+the linked documents hold the exact details. Written for 0.15.2; the firmware is now
+**Choowi 0.19.2**, on the owner's CHOMPI (CONTINUE.md is the live state; trust it over this page;
+CHANGELOG lists what 0.16-0.19 added: page colours, magic, the synth page).
 
 ## 1. What Forge is
 

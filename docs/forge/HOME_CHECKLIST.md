@@ -7,7 +7,9 @@ should never need to take the SD card out for firmware or samples again.
 
 CHOMPI has **one USB-C port**. Charge it on a USB-C to USB-C charger (2 A or more)
 until the battery light is **green or white** (hold the SW6 knob down for 2 s;
-yellow = low). Only then install, by card or over USB.
+yellow = low). Only then install, by card or over USB. Green only means "above 3.3 V" and
+reads high while charging; **white** is the reliable "full". Charge with CHOMPI **switched
+off**: on some power banks it stops drawing while it is on (known issue, 0.19.2).
 
 With a low battery on a weak supply (a computer's USB-A port or a C-to-A cable),
 CHOMPI's bootloader can wait with every light off after the restart (the owner,
@@ -30,7 +32,7 @@ the newest green run → **Artifacts** → **Forge-Bridge-exe**. Unzip it. You g
   card flash below.
 - this checklist.
 
-## 2. Install 0.15.1
+## 2. Install the newest Choowi
 
 **If CHOMPI already runs Forge 0.7 or newer:** skip to section 4 and use step 4.7
 (USB install) after Connect CHOMPI.
@@ -66,7 +68,7 @@ same way.
    port is a weak supply; see section 0). Close other MIDI programs.
 2. Double-click `Forge Bridge.exe`; the browser opens it. Keep the black
    window open.
-3. **Connect CHOMPI**. It must say firmware **0.15** after the install (0.7 or
+3. **Connect CHOMPI**. It must say the new Choowi version (0.19 or newer) after the install (0.7 or
    newer before it).
 4. **Check setup**. Fix whatever it lists (each item says how) and run it
    again until it is all green. Its Power line must not warn about a weak
@@ -76,7 +78,7 @@ same way.
 6. **Run automatic checks**. CPU figures are per step.
 7. USB loader: **Card & firmware** → *Install this kit's firmware* → press the
    CHOMPI key while it blinks white. CHOMPI restarts, rainbow lights, Forge
-   starts; Connect CHOMPI shows 0.15. If it is refused for power: disconnect,
+   starts; Connect CHOMPI shows the new version. If it is refused for power: disconnect,
    charge (section 0), reconnect. Then put one TAPE-named sample in the `card`
    folder next to the exe (the section shows the path; *Refresh list* creates
    it), *Copy selected to CHOMPI*, and play it.

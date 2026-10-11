@@ -1,9 +1,22 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-11, checkpoint: 0.16.0 (Batch 1 + 2) built and software-tested; next: install on CHOMPI (the owner's key press), 3J checks, stress test to failure. Read this first; the owner's next session is
+Updated 2026-10-11 (late night), checkpoint: **0.19.2 (build 8b51764) on CHOMPI**; guided hands-on test done except the TAPE functions (recording, sampler, looper); open: charging from a power bank while on. Read this first; the owner's next session is
 [HOME_CHECKLIST.md](HOME_CHECKLIST.md), then [TEST_SESSION.md](TEST_SESSION.md).
 
-## 2026-10-11 (night, later): shut-off caught, fix built (resume here)
+## 2026-10-11 (late night): guided test nearly done, repo refreshed (resume here)
+
+- On CHOMPI: **0.19.2 build 8b51764** (both power changes). Guided test by the owner's hand: parts
+  1-3 passed earlier; save and recall pass; sample start / end on SW1 / SW2 (toggle down) work
+  with their lights; the owner reports most other features tried and working. **Not yet: the
+  TAPE functions** (recording, sampler, looper / SW5), best on a full battery.
+- Open bugs / ideas for the final release: (1) charging from the owner's power bank stops while
+  CHOMPI is on (0 W; 9.4 W off): log raw charger registers to the card, compare stock TAPE;
+  (2) knob lights dim instead of off in the record position (the owner: later; TAPE turns them
+  off); (3) SW6's battery colour is a 3.3 V comparator, not a gauge (documented).
+- Stale docs refreshed (README status, PROJECT milestone, HANDOFF, HOME_CHECKLIST, AGENT_GUIDE,
+  UX_REVIEW note, RESOURCE_LEDGER 0.19.2 sizes).
+
+## 2026-10-11 (night, later): shut-off caught, fix built
 
 - CHOMPI runs **0.19.1** (build e1bd640). The guided full test stopped in part 4 at the shut-off.
 - `D:	ools\chompi-session\power_log.py` (10 readings a second, CSV in `reports/power_log.csv`)

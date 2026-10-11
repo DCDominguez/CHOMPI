@@ -23,6 +23,11 @@ CHOMPI on the PC port (weak supply, charging), the owner playing fast on a sampl
 ## 2026-10-11 (late night) — guided part 4 (0.19.2 build 8b51764)
 
 - **Save and recall pass** by the owner's hand (synth sound saved to a slot, recalled back).
+- **Sample start / end pass** (SW1 / SW2 page 1, toggle down): they trim and their lights fade
+  yellow-orange / orange-red. With the toggle up (record position) the knob lights are off, as
+  on TAPE (`NormalPage.h`); the owner finds that confusing: dimming instead is on the idea list.
+- The owner reports most of the remaining features tried and working (not itemised); the TAPE
+  functions (recording, sampler, looper / SW5) are still to be checked.
 - The owner noticed surprise rolls sometimes switch harmony and the arp on and sometimes off.
   Intended (`magic::Roll`: harmony 25 %, arp 20 %, around a sample 60 % / 50 %; a roll that does
   not pick them turns them off); now documented in MANUAL 5a, GUIDE and the illustrated manual.

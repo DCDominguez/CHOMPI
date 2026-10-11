@@ -94,8 +94,11 @@ pair of ears.
   looper; harmony chords, the arp, bass and latch; the event recorder; page and chord
   colours; the wake-up chime, surprise me and mutate; a stress test (CPU peaks around 67 %,
   a 5,600-messages-a-second MIDI flood with nothing dropped, 40/40 preset save and load).
-- **built and tested on the computer, not yet on the device:** the 0.17.1 filter sweep, dream
-  mode, chomp to instrument, the light ripples, the synth page.
+- **checked by hand on 0.19.2:** the synth page, page and setting colours, harmony, saving
+  and recalling a sound, sample start / end; the owner tried most of the rest. The TAPE
+  functions (recording, sampler, looper) get their final check before the release.
+- **known issues:** on some power banks CHOMPI stops charging while it's switched on (charge it
+  switched off); the battery colour on SW6 is a rough voltage check, only white means full.
 - **still up to you:** how it sounds, how it feels, how fun the magic is.
 
 Every check and result is written down in [TEST_RESULTS.md](docs/forge/TEST_RESULTS.md).
