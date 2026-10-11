@@ -153,6 +153,12 @@ class Handler(BaseHTTPRequestHandler):
                 to = body.get("to", 3)
                 if to not in (3, 4, 5, 6, 7): raise ValueError("Upgrade target must be 3, 4, 5, 6 or 7")
                 result = {"patch": host.upgrade_patch(body.get("patch"), to)}
+            elif self.path in ("/api/chat-prompt", "/api/chat-reply"):
+                samples = body.get("samples")
+                if samples is not None: samples = validate_samples(samples)
+                kind = body.get("kind", "instrument")
+                result = ({"prompt": forge_ai.chat_prompt(body.get("prompt"), kind, samples)} if self.path == "/api/chat-prompt"
+                          else {"patch": forge_ai.read_reply(body.get("reply"), kind, samples)})
             elif self.path == "/api/generate":
                 if not self.server.ai_lock.acquire(blocking=False):
                     return self.reply(409, {"error": "A generation is already in progress"})

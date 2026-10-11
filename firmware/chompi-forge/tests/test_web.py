@@ -81,6 +81,24 @@ class ProviderTests(unittest.TestCase):
                 self.generate("openai", None, opener)
             self.assertNotIn("test-secret", str(caught.exception))
 
+    def test_chat_prompt_and_pasted_reply_need_no_key(self):
+        # No key (the owner, 2026-10-11): the prompt carries the same instructions and schema;
+        # a pasted reply with prose round it is read, checked and refused when it is not a patch.
+        prompt = forge_ai.chat_prompt("Warm pad", "instrument")
+        system, schema = forge_ai.instructions("instrument")
+        self.assertIn(system, prompt); self.assertIn(json.dumps(schema, separators=(",", ":")), prompt)
+        self.assertTrue(prompt.rstrip().endswith("Warm pad"))
+        delay = forge_ai.chat_prompt("Echo", "delay")
+        self.assertIn(forge_ai.SYSTEM, delay)
+        reply = "Sure!\n```json\n" + json.dumps(PRESET) + "\n```\nEnjoy."
+        self.assertEqual(forge_ai.read_reply(reply, "delay"), forge_host.validate_patch(PRESET))
+        self.assertEqual(forge_ai.read_reply(json.dumps(PRESET), "delay")["name"], PRESET["name"])   # bare JSON
+        for bad in ("", "no json", "```json\n{\"version\": 1}\n```", "x" * 70000):
+            with self.assertRaises(ValueError): forge_ai.read_reply(bad, "delay")
+        with self.assertRaises(ValueError): forge_ai.read_reply(reply, "instrument")         # wrong mode
+        for bad_prompt in ("", " ", "x" * 4001):
+            with self.assertRaises(ValueError): forge_ai.chat_prompt(bad_prompt)
+
     def test_invalid_inputs_make_no_request(self):
         opener = Mock()
         for change in ({"provider": "other"}, {"api_key": "x\r\nInjected: y"},
@@ -214,6 +232,18 @@ class WebTests(unittest.TestCase):
         self.assertEqual(self.request("/api/validate", {"patch": PRESET})[0], 200)
         for raw in (b'{"patch":{},"patch":{}}', b"[]", b'{"patch":NaN}', b"x" * 65537):
             self.assertEqual(self.request("/api/validate", raw=raw)[0], 400)
+
+    def test_chat_endpoints_need_the_token_and_no_midi(self):
+        with patch.object(forge_host, "exchange") as exchange:
+            status, _, data = self.request("/api/chat-prompt", {"kind": "delay", "prompt": "echo"})
+            self.assertEqual(status, 200); self.assertIn("echo", json.loads(data)["prompt"])
+            status, _, data = self.request("/api/chat-reply", {"kind": "delay", "reply": json.dumps(PRESET)})
+            self.assertEqual(status, 200); self.assertEqual(json.loads(data)["patch"]["name"], PRESET["name"])
+            status, _, _ = self.request("/api/chat-reply", {"kind": "delay", "reply": "nothing"})
+            self.assertEqual(status, 400)
+            status, _, _ = self.request("/api/chat-prompt", {"prompt": "echo"}, headers={"X-Forge-Token": "wrong"})
+            self.assertNotEqual(status, 200)
+            exchange.assert_not_called()
 
     def test_generate_is_separate_from_midi_and_returns_no_key(self):
         with patch.object(forge_ai, "generate_patch", return_value=PRESET) as generate, \

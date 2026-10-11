@@ -87,17 +87,14 @@ def provider_schema(node):
     return node
 
 
-def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay", samples=None):
-    if provider not in ("openai", "gemini"):
-        raise ValueError("Choose OpenAI or Gemini")
-    if not isinstance(api_key, str) or not 1 <= len(api_key) <= 512 or not all(
-            33 <= ord(c) <= 126 for c in api_key):
-        raise ValueError("Enter an API key without spaces or control characters")
-    if not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", model):
-        raise ValueError("Enter a model ID using letters, numbers, dots, dashes or underscores")
+def check_prompt(prompt, kind):
     if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 4000:
         raise ValueError("Describe your sound in 1–4000 characters")
     if kind not in ("delay", "instrument"): raise ValueError("Unknown authoring mode")
+
+
+def instructions(kind, samples=None):
+    """The system text and JSON Schema for one authoring mode (API providers and the chat prompt)."""
     schema = copy.deepcopy(SCHEMA7 if kind == "instrument" else SCHEMA)
     schema.pop("$schema", None)
     system = SYSTEM if kind == "delay" else (
@@ -141,6 +138,19 @@ def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay", 
     # Explicit types and enums work across both providers' JSON Schema subsets.
     schema["properties"]["version"] = {"type": "integer", "enum": [7 if kind == "instrument" else 1]}
     schema["properties"]["engine"] = {"type": "string", "enum": ["instrument" if kind == "instrument" else "stereo_delay"]}
+    return system, schema
+
+
+def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay", samples=None):
+    if provider not in ("openai", "gemini"):
+        raise ValueError("Choose OpenAI or Gemini")
+    if not isinstance(api_key, str) or not 1 <= len(api_key) <= 512 or not all(
+            33 <= ord(c) <= 126 for c in api_key):
+        raise ValueError("Enter an API key without spaces or control characters")
+    if not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", model):
+        raise ValueError("Enter a model ID using letters, numbers, dots, dashes or underscores")
+    check_prompt(prompt, kind)
+    system, schema = instructions(kind, samples)
     headers = {"Content-Type": "application/json"}
     if provider == "openai":
         url = "https://api.openai.com/v1/responses"
@@ -186,10 +196,40 @@ def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay", 
                 raise ValueError("Incomplete or blocked response")
             content = "".join(part["text"] for part in candidate["content"]["parts"]
                               if "text" in part and not part.get("thought"))
-        patch = validate_patch(parse_json(content))
-        if patch["version"] != (7 if kind == "instrument" else 1):
-            raise ValueError("Wrong patch format for authoring mode")
-        check_samples(patch, samples)
-        return patch
+        return checked_patch(parse_json(content), kind, samples)
     except (ValueError, KeyError, TypeError, IndexError, AttributeError):
         raise ProviderError("Provider returned an incomplete, refused, or invalid patch. Try revising the prompt.") from None
+
+
+def checked_patch(value, kind, samples):
+    patch = validate_patch(value)
+    if patch["version"] != (7 if kind == "instrument" else 1):
+        raise ValueError("Wrong patch format for authoring mode")
+    check_samples(patch, samples)
+    return patch
+
+
+# No key (the owner, 2026-10-11): a prompt to paste into any chatbot, and its reply pasted back.
+# Same instructions and schema as the API path; the reply is validated the same way. Nothing
+# leaves the computer through Forge.
+def chat_prompt(prompt, kind="instrument", samples=None):
+    check_prompt(prompt, kind)
+    system, schema = instructions(kind, samples)
+    return ("You are helping someone design a sound for CHOMPI, a small synthesizer running the Forge "
+            "firmware. Follow these rules exactly.\n\n" + system +
+            "\n\nReply with exactly one JSON object, inside a single ```json code block, that is valid "
+            "against this JSON Schema (every property is required):\n\n```json\n"
+            + json.dumps(schema, separators=(",", ":")) + "\n```\n\nThe sound to make:\n" + prompt.strip() + "\n")
+
+
+def read_reply(text, kind="instrument", samples=None):
+    if not isinstance(text, str) or not text.strip(): raise ValueError("Paste the chatbot's reply first")
+    if len(text) > 65536: raise ValueError("The reply is too long (over 64 KiB)")
+    fenced = re.findall(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.S)
+    candidates = fenced[::-1] or ([text[text.index("{"):text.rindex("}") + 1]] if "{" in text and "}" in text else [])
+    if not candidates: raise ValueError("No JSON found in the reply: ask the chatbot to answer with the JSON block only")
+    try:
+        return checked_patch(parse_json(candidates[0]), kind, samples)
+    except (ValueError, KeyError, TypeError) as error:
+        raise ValueError(f"The reply is not a valid Forge patch ({error}). Paste it back to the chatbot with "
+                         "this message and ask it to fix the JSON.") from None

@@ -138,7 +138,7 @@ function updateButtons() {
   }
   document.querySelectorAll("#slots button, #sample-slots button").forEach(button => { button.disabled = busy; });
   for (const [group] of GROUPS) $(`group-${group}`).classList.toggle("unavailable", !!patch && !CONTROLS.some(c => c.g === group && path(c, patch.version)));
-  for (const id of ["kind", "provider", "model", "api-key", "prompt", "preset", "import", "input-port", "output-port", "sample-mode", "sample-bank"]) $(id).disabled = busy;
+  for (const id of ["kind", "provider", "model", "api-key", "prompt", "reply", "use-reply", "preset", "import", "input-port", "output-port", "sample-mode", "sample-bank"]) $(id).disabled = busy;
 }
 async function run(message, action) {
   if (busy) return;
@@ -213,10 +213,36 @@ $("upgrade").addEventListener("click", () => run("Converting to a v7 instrument�
   notice("Converted to v7 (harmony, arp and bass start off). New modules start neutral (the sampler is used only if you choose its signal path) and the knobs keep their default jobs; the filter is steeper than v1/v2, so tone may differ slightly. Nothing sent to CHOMPI.");
 }));
 $("clear-key").addEventListener("click", () => { $("api-key").value = ""; notice("API key cleared from the form."); });
-$("provider").addEventListener("change", () => { $("api-key").value = ""; $("model").value = ""; notice("Provider changed. Enter its model ID and API key."); });
+// No key (the owner, 2026-10-11): "chat" builds a prompt for any chatbot and reads its reply back.
+function providerFields() {
+  const chat = $("provider").value === "chat";
+  $("key-fields").hidden = chat; $("chat-fields").hidden = !chat;
+  $("model").required = !chat; $("api-key").required = !chat;
+  $("generate").firstChild.textContent = chat ? "Copy the prompt " : "Generate a patch ";
+}
+$("provider").addEventListener("change", () => {
+  $("api-key").value = ""; $("model").value = ""; providerFields();
+  notice($("provider").value === "chat" ? "No key needed: copy the prompt into any chatbot." : "Provider changed. Enter its model ID and API key.");
+});
+providerFields();
+function chatRequest(extra) {
+  const request = {kind: $("kind").value, ...extra};
+  if (sampleList && request.kind === "instrument") request.samples = sampleList;   // the chatbot may only use samples the device reported
+  return request;
+}
+$("use-reply").addEventListener("click", () => run("Checking the chatbot's reply…", async () => {
+  const result = await api("chat-reply", chatRequest({reply: $("reply").value}));
+  loadPatch(result.patch); $("preset").value = ""; notice("Reply checked: a valid patch. Review it, then send it to CHOMPI.");
+}));
 window.addEventListener("pagehide", () => { $("api-key").value = ""; });
 $("generate-form").addEventListener("submit", event => {
   event.preventDefault();
+  if ($("provider").value === "chat") return run("Building the prompt…", async () => {
+    const text = (await api("chat-prompt", chatRequest({prompt: $("prompt").value}))).prompt;
+    const box = $("chat-prompt-text"); box.value = text;
+    try { await navigator.clipboard.writeText(text); box.hidden = true; notice("Prompt copied. Paste it into any chatbot, then paste its reply below."); }
+    catch { box.hidden = false; box.select(); notice("Copy the prompt from the box below (Ctrl+C), paste it into any chatbot, then paste its reply."); }
+  });
   run("Generating with your selected provider…", async () => {
     const request = {kind: $("kind").value, provider: $("provider").value, api_key: $("api-key").value.trim(), model: $("model").value.trim(), prompt: $("prompt").value};
     if (sampleList && request.kind === "instrument") request.samples = sampleList;   // AI may only use samples the device reported

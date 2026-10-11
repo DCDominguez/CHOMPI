@@ -16,14 +16,22 @@
       <p class="eyebrow">01 / AUTHOR</p><h2 id="author-heading">A little direction.</h2>
       <form id="generate-form">
         <label for="kind">Create</label><select id="kind"><option value="instrument">Playable instrument</option><option value="delay">External-audio delay</option></select>
-        <label for="provider">AI provider</label><select id="provider"><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select>
-        <label for="model">Model ID</label><input id="model" required maxlength="128" placeholder="Enter a model available to your API account" autocomplete="off">
+        <label for="provider">AI provider</label><select id="provider"><option value="chat">Any chatbot: copy and paste (no key)</option><option value="openai">OpenAI (your API key)</option><option value="gemini">Gemini (your API key)</option></select>
+        <div id="key-fields" hidden>
+        <label for="model">Model ID</label><input id="model" maxlength="128" placeholder="Enter a model available to your API account" autocomplete="off">
         <p class="hint">Use a text model with structured JSON output. Model access depends on your API account.</p>
-        <label for="api-key">Your API key</label><div class="key-row"><input id="api-key" type="password" required maxlength="512" autocomplete="off" spellcheck="false"><button id="clear-key" type="button" class="quiet">Clear</button></div>
+        <label for="api-key">Your API key</label><div class="key-row"><input id="api-key" type="password" maxlength="512" autocomplete="off" spellcheck="false"><button id="clear-key" type="button" class="quiet">Clear</button></div>
         <p class="hint">Kept in this page’s memory. Sent through your local bridge only to the selected provider. Never saved by Forge. Provider API usage may be billed.</p>
+        </div>
         <label for="prompt">Describe the sound</label><textarea id="prompt" required maxlength="4000" rows="4" placeholder="Warm detuned saw pad with a slow filter swell, gentle vibrato and a big reverb. Output at 25%." spellcheck="true"></textarea>
-        <button id="generate" class="primary" type="submit">Generate a patch <span aria-hidden="true">↗</span></button>
+        <button id="generate" class="primary" type="submit">Copy the prompt <span aria-hidden="true">↗</span></button>
       </form>
+      <div id="chat-fields">
+        <p class="hint">No key needed. 1. Describe the sound above and press <b>Copy the prompt</b>. 2. Paste it into any chatbot (ChatGPT, Claude, Gemini…). 3. Copy its whole reply and paste it here. Forge checks it before anything reaches CHOMPI.</p>
+        <textarea id="chat-prompt-text" rows="3" readonly hidden aria-label="The prompt to copy"></textarea>
+        <label for="reply">The chatbot's reply</label><textarea id="reply" rows="5" maxlength="65536" placeholder="Paste the whole reply here (the JSON block is enough)" spellcheck="false"></textarea>
+        <button id="use-reply" class="primary" type="button">Use this reply</button>
+      </div>
       <p class="footnote">Available: two oscillators and noise, a sampler for the WAV files on CHOMPI's SD card (TAPE layout) and its recording, up to seven voices, amplitude envelope, resonant filter with its own envelope, LFO (mod wheel), glide, stereo delay and reverb. AI chooses settings for these installed modules only and can use only the samples read from the device (Device samples, below). It cannot create audio. Looping is not implemented. Generation never sends a patch to the device.</p>
     </section>
     <section class="card" aria-labelledby="patch-heading">

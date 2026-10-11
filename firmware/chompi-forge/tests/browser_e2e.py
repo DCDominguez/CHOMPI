@@ -108,7 +108,7 @@ class BrowserTests(unittest.TestCase):
 
     def test_initial_render_and_instrument_editing(self):
         p = self.page
-        self.assertEqual(p.locator("#preset option").count(), 15)
+        self.assertEqual(p.locator("#preset option").count(), len(list((ROOT / "presets").glob("*.json"))) + 1)
         patch_json = self.json()
         self.assertEqual(patch_json["version"], 3)                  # starts on the first v3 preset
         self.assertFalse(p.is_disabled("#upgrade"))                 # v3 can convert to v6
@@ -164,7 +164,7 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(upgraded, forge_host.upgrade_patch(before, 7))
         self.assertEqual((upgraded["version"], upgraded["routing"], upgraded["knobs"], upgraded["harmony"], upgraded["parts"]),
                          (7, "synth>delay>reverb>output", ["default"] * 4, forge_host.HARMONY_DEFAULTS, forge_host.PARTS_DEFAULTS))
-        self.assertEqual(upgraded["modules"]["filter"]["cutoff_hz"], 1500)
+        self.assertEqual(upgraded["modules"]["filter"]["cutoff_hz"], forge_host.v2_cutoff(before["modules"]["synth"]))   # 0.17.1 conversion
         self.assertFalse(p.is_disabled("#reverb-mix")); self.assertTrue(p.is_disabled("#upgrade"))
         # 0.15.1: a v7 patch lists its three routes (the routing menu was empty for v7).
         self.assertEqual(len(p.locator("#routing option").all_inner_texts()), 3)
@@ -269,7 +269,7 @@ class BrowserTests(unittest.TestCase):
         sent = self.json()
         p.click("#send"); self.wait_idle()
         self.assertIn("acknowledged", self.notice())
-        self.assertIn("Firmware 0.15", p.inner_text("#device-state"))
+        self.assertIn(f"Firmware {forge_host.FIRMWARE_VERSION}", p.inner_text("#device-state"))
         # Legacy v1 delay patch switches device to aux path.
         self.choose_preset("Short slap"); p.click("#send"); self.wait_idle()
         p.click("#capture"); self.wait_idle()
