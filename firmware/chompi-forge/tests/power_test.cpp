@@ -156,8 +156,27 @@ void InstallPower() {
     assert(forge::restart::DescribeEvent(1, "x", line, 8) == 7 && std::strlen(line) == 7);    // truncated, still terminated
 }
 
+// 0.19.2: a dip while playing (the owner's shut-offs, 2026-10-11) is not a flat battery; 3 s of low readings is.
+void LockoutDip() {
+    Readings pc; pc.input_limit = 0xff; Readings low_pc = pc; low_pc.battery_low = 0xff;
+    LockoutGuard dip;
+    for(int i = 0; i < 40; ++i) assert(dip.Update(low_pc) == Lockout::None);            // 0.8 s below 3.0 V
+    assert(dip.Update(pc) == Lockout::None);                                            // recovers: the count restarts
+    for(uint32_t i = 1; i < LockoutGuard::kSustainChecks; ++i) assert(dip.Update(low_pc) == Lockout::None);
+    assert(dip.Update(low_pc) == Lockout::WeakSupply && dip.Update(low_pc) == Lockout::WeakSupply);
+    assert(LockoutGuard::kSustainChecks * LockoutGuard::kCheckMs == 3000);
+    Readings flat_unplugged; flat_unplugged.battery_low = 0xff; flat_unplugged.usb_good = 0;
+    LockoutGuard flat;
+    Lockout l = Lockout::None;
+    for(uint32_t i = 0; i < LockoutGuard::kSustainChecks; ++i) l = flat.Update(flat_unplugged);
+    assert(l == Lockout::Unplugged);                                                    // a flat battery still gets the stock protection
+    Readings strong; strong.battery_low = 0xff;
+    LockoutGuard charger;
+    for(int i = 0; i < 500; ++i) assert(charger.Update(strong) == Lockout::None);       // strong supply: never
+}
+
 int main() {
-    BootGestureOff(); Colours(); ChargerHandover(); StatusDecode(); RestartReason(); SafeMode(); OptionsFile(); InstallPower();
+    BootGestureOff(); Colours(); ChargerHandover(); StatusDecode(); RestartReason(); SafeMode(); OptionsFile(); InstallPower(); LockoutDip();
     std::cout << "PASS: power off gesture, battery colours, charger/USB hand-over (edges, timeout, wrap), status decode, restart reason, safe mode, options.json,"
                  " stock battery lockout, install power check, low-battery warning, supply flags\n";
 }

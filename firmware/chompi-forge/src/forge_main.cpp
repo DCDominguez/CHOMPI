@@ -1139,6 +1139,7 @@ FORGE_COLD int main() {
     hw.StartAudio(AudioCallback);
     BootStep(9, step);   // the rest, up to audio running
     uint32_t battery_check = System::GetNow();
+    forge::power::LockoutGuard lockout_guard;
     bool stable = false;
     while(true) {
         TransmitPending();
@@ -1166,9 +1167,12 @@ FORGE_COLD int main() {
 #endif
         const uint32_t now = System::GetNow();
         if(now - battery_check >= 20) {
-            const auto lockout = forge::power::StockLockout(ChargerReadings());
-            if(lockout != forge::power::Lockout::None) LogLockout(lockout);
-            hw.LowBatteryLockoutCheck();
+            // 0.19.2: the stock check's parts, its protection only after 3 s of low readings
+            // (core/power.h LockoutGuard): a dip while playing no longer stops CHOMPI.
+            hw.BMCPerformCheck();
+            const auto lockout = lockout_guard.Update(ChargerReadings());
+            if(lockout != forge::power::Lockout::None) { LogLockout(lockout); hw.LowBatteryLockoutCheck(); }
+            else hw.BMCMediumBattCheck();
             battery_check = now;
         }
         if(!stable && now >= forge::restart::kStableMs) { forge::restart::RanStably(startup_guard); stable = true; }

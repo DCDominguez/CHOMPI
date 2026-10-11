@@ -93,6 +93,24 @@ inline Lockout StockLockout(const Readings& r) {
     if(r.legacy == 0xff || r.input_limit == 0xff) return Lockout::WeakSupply;
     return Lockout::None;
 }
+// 0.19.2: the stock protection acts on 8 low readings in a row (160 ms at Forge's 20 ms
+// checks), so a dip under load stopped CHOMPI: the owner's shut-offs while playing fast on
+// a sampler sound on a computer's USB port (caught 2026-10-11: battery "high", then a reading
+// below 3.0 V, then off within 0.6 s). In the main loop Forge takes the readings itself and
+// hands over to the stock protection only once its condition has held for kSustainChecks
+// checks in a row; start-up and the fault loops keep the stock check.
+class LockoutGuard {
+public:
+    static constexpr uint32_t kCheckMs = 20, kSustainChecks = 150;   // 3 s
+    Lockout Update(const Readings& r) {
+        const Lockout l = StockLockout(r);
+        if(l == Lockout::None) { held_ = 0; return l; }
+        if(held_ < kSustainChecks) ++held_;
+        return held_ >= kSustainChecks ? l : Lockout::None;
+    }
+private:
+    uint32_t held_ = 0;
+};
 // A warning on SW6 before the stock protection acts (on a weak supply it gives none):
 // Low = battery yellow (below 3.3 V) and not on a strong supply; Critical = a reading
 // below the 3.0 V mark too, the protection is near. Nothing on a strong supply (it charges).

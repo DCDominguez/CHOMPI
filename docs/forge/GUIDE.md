@@ -447,9 +447,10 @@ sound stops; a loop is paused, not lost.
 **A knob seems to do nothing:** you may be on another page of that knob. Press and release it
 to step pages; hold it 1.5 s to put it back to the preset's value.
 
-**CHOMPI switches off (or restarts) while you play fast.** Known issue, being investigated. Seen
-on a sample-based sound, played fast, while CHOMPI was on a computer's USB port; not seen on
-synth sounds in a 20-minute fast-playing test. Until it's fixed:
+**CHOMPI switches off (or restarts) while you play fast.** Fixed in 0.19.2 (being confirmed on
+CHOMPI): the battery's voltage dipped while you played, and on a weak supply such as a computer's
+USB port the stock low-battery protection took the dip for a flat battery. If it still happens, or
+on older firmware:
 
 1. Power CHOMPI from a **USB-C charger** (2 A or more) or a **charged battery**, not a computer
    port.

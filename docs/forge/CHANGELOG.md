@@ -4,6 +4,17 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
 
 ## 0.19.2 What you save is what wakes up (small tool: to be named) — 2026-10-11 (software-tested; not installed yet)
 
+- **Shut-offs while playing fast: found and fixed in software.** A power log (10 readings a
+  second, CHOMPI on a computer's USB port, fast playing on a sample-based sound) caught one:
+  battery "high", then one reading later "medium" with the charger's below-3.0 V flag, then
+  CHOMPI dark within 0.6 s. The stock battery protection acts on 8 low readings in a row
+  (160 ms); with the battery low on a weak supply it turns every light off and stops the
+  processor until the power switch is cycled, so a dip under load looked like a shut-off.
+  Forge's main loop now takes the charger readings itself and hands over to the stock
+  protection only after 3 s of low readings (`core/power.h` `LockoutGuard`, test `LockoutDip`);
+  start-up and the fault loops keep the stock check, and a really flat battery still gets
+  the stock protection. Not yet confirmed on CHOMPI. A charged battery dropping below 3.0 V
+  under load also suggests a worn battery or a poor battery connection (hardware, to check).
 - **A preset saved on the panel is now also the one CHOMPI loads at power-on** (`FORGE/LAST.TXT`),
   as recalls already were. Before, only a recall counted, so a freshly saved sound could wake
   up as the previously recalled one. Found by the new guide's cross-check against the code.

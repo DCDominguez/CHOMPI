@@ -3,7 +3,23 @@
 Updated 2026-10-11, checkpoint: 0.16.0 (Batch 1 + 2) built and software-tested; next: install on CHOMPI (the owner's key press), 3J checks, stress test to failure. Read this first; the owner's next session is
 [HOME_CHECKLIST.md](HOME_CHECKLIST.md), then [TEST_SESSION.md](TEST_SESSION.md).
 
-## 2026-10-11 (end of day): 0.19 staged on the card, stress test done (resume here)
+## 2026-10-11 (night, later): shut-off caught, fix built (resume here)
+
+- CHOMPI runs **0.19.1** (build e1bd640). The guided full test stopped in part 4 at the shut-off.
+- `D:	ools\chompi-session\power_log.py` (10 readings a second, CSV in `reports/power_log.csv`)
+  caught a shut-off at 21:46:13 on the PC port (weak supply, charging): battery high, then
+  medium + the below-3.0 V flag, then no answer within 0.6 s. Cause: the stock lockout's weak-supply
+  branch (`hardware.h` LowBatteryLockoutCheck: lights off, STOP mode) on 8 low readings (160 ms).
+- Fix in 0.19.2: `forge::power::LockoutGuard` (3 s of low readings before the stock protection);
+  main loop only. `make test` passed (136 host tests + C++ incl. `LockoutDip`); `make firmware-dev`
+  built, layout OK (266,204 B). **Not installed, not hardware-verified.** Next: install (the owner's
+  press), repeat the power-log test on the PC port, then the save test video (`save_test.py`),
+  then resume the guided test at part 4.
+- Hardware note for the owner: a charged battery sagging under 3.0 V suggests a worn cell or a
+  poor battery connection. A front case USB port left CHOMPI unseen by Windows (a white flash of
+  every light, likely a brown-out restart); the usual port works.
+
+## 2026-10-11 (end of day): 0.19 staged on the card, stress test done
 
 - CHOMPI runs 0.17.0; **0.19.0 (build 9f0ce1c) is written to the card** and installs at the owner's
   next power cycle (bootloader). First thing next session: confirm the build over USB, then
