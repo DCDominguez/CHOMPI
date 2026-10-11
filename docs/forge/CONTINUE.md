@@ -3,7 +3,19 @@
 Updated 2026-10-12 (instrumented battery build, development only, not on CHOMPI); before that 2026-10-11 (late night), checkpoint: **0.19.2 (build 8b51764) on CHOMPI**; guided hands-on test done except the TAPE functions (recording, sampler, looper); open: charging from a power bank while on. Read this first; the owner's next session is
 [HOME_CHECKLIST.md](HOME_CHECKLIST.md), then [TEST_SESSION.md](TEST_SESSION.md).
 
-## 2026-10-12 (later): harmony secret modes built (resume here)
+## 2026-10-12: Choowi 0.19.2 release candidate published (resume here)
+
+- **Published** (the owner's go): https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc1
+  (pre-release; tag on `main`). Assets: release `FORGE.bin` (256,040 B), `choowi-0.19.2-card.zip`
+  (firmware, bank purple samples, manual, README-FIRST), `choowi-samples.zip`, the manual.
+- `main` fast-forwarded to forge/foundation (22d625a); Pages serves the site from main `/docs`,
+  the forge page is live at https://myth-world.github.io/Forge/workshop/.
+- On the owner's CHOMPI: development build b462bea (secret modes). Tools named: 0.19.1
+  Thingamabob, 0.19.2 Whatzit.
+- Next (the owner): TAPE checks, card cleanup with the card zip, dream mode unplugged; then fixes
+  for the final release.
+
+## 2026-10-12 (later): harmony secret modes built
 
 - Built, not installed: Chord Bloom, Chord Conversations, Harmony Mischief (`core/secret.h`,
   `tests/secret_test.cpp`; MANUAL 8a "Secret modes"). `make test` passes (147 host tests and every
