@@ -33,6 +33,22 @@ h1,h2,h3{font-family:var(--f-display);color:var(--ink);text-wrap:balance;line-he
 h1{font-size:clamp(3rem,8vw,5.4rem);font-weight:700;letter-spacing:-.02em}
 h2{font-size:clamp(1.7rem,3.6vw,2.4rem);font-weight:700;letter-spacing:-.01em}
 .dots{display:flex;gap:9px;margin-top:-4px}
+header.hero{grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:28px}
+.hero-main{display:grid;gap:18px;min-width:0}
+.hero-mascot svg{display:block;width:240px;height:auto}
+@media (max-width:760px){header.hero{grid-template-columns:1fr}.hero-mascot svg{width:170px}}
+.say{display:flex;gap:14px;align-items:center;margin:16px 0;max-width:68ch}
+.say svg{flex:0 0 auto;width:74px;height:auto}
+.say p{margin:0;background:var(--paper);border:2px solid var(--rule);border-radius:18px 18px 18px 4px;padding:10px 14px;font-family:var(--f-display);font-weight:500;font-size:1.02rem;color:var(--ink)}
+.say b{color:var(--accent)}
+.toolhead{display:flex;align-items:center;gap:12px}
+.toolhead svg.tool{flex:0 0 auto}
+.tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin:14px 0}
+.tools > div{background:var(--paper);border:2px solid var(--rule);border-radius:18px;padding:12px;display:grid;justify-items:center;gap:4px;text-align:center}
+.tools .v{font-family:var(--f-mono);font-size:.72rem;background:var(--ink);color:var(--bg);border-radius:99px;padding:2px 9px}
+.tools .n{font-family:var(--f-display);font-weight:700;font-size:1.1rem;color:var(--ink)}
+footer .mini{display:inline-block;vertical-align:middle;margin-right:8px}
+footer .mini svg{width:34px;height:auto}
 .dots i{width:16px;height:16px;border-radius:50%;display:inline-block;border:1px solid var(--key-edge)}
 h3{font-size:1.15rem;font-weight:700;margin-top:28px}
 p{margin:12px 0}
@@ -78,6 +94,7 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
 
 <div class="wrap">
 <header class="hero">
+  <div class="hero-main">
   <div class="eyebrow">Firmware 0.19.0 · community firmware for CHOMPI</div>
   <h1>forge</h1>
   <div class="dots" aria-hidden="true"><i style="background:var(--key-white)"></i><i style="background:var(--green)"></i><i style="background:var(--yellow)"></i><i style="background:var(--orange)"></i><i style="background:var(--red)"></i><i style="background:var(--pink)"></i><i style="background:var(--purple)"></i><i style="background:var(--blue)"></i><i style="background:var(--teal)"></i></div>
@@ -87,13 +104,38 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
     <span class="pill"><i class="dot-sw"></i>Software-tested only: knob ring colours, SW5's lights and sweep, dream mode, chomp rolls, the synth page</span>
     <span class="pill"><i class="dot-person"></i>Still to judge by ear and hand: sound, feel, how fun the magic is</span>
   </div>
+  </div>
+  <div class="hero-mascot"><svg width="240" height="294" viewBox="0 -24 280 344" role="img" aria-label="Choowi, the forge mascot">
+<ellipse cx="138" cy="196" rx="130" ry="128" fill="#9150f0" opacity=".10"></ellipse>
+<ellipse cx="138" cy="196" rx="104" ry="102" fill="#ff5ea0" opacity=".08"></ellipse>
+<path d="M22 58 Q24.16 67.84 34 70 Q24.16 72.16 22 82 Q19.84 72.16 10 70 Q19.84 67.84 22 58 Z" fill="#9150f0"></path><path d="M16 191 Q17.62 198.38 25 200 Q17.62 201.62 16 209 Q14.38 201.62 7 200 Q14.38 198.38 16 191 Z" fill="#19c9b6"></path><path d="M44 278 Q45.44 284.56 52 286 Q45.44 287.44 44 294 Q42.56 287.44 36 286 Q42.56 284.56 44 278 Z" fill="#ff5ea0"></path><path d="M250 290 Q251.8 298.2 260 300 Q251.8 301.8 250 310 Q248.2 301.8 240 300 Q248.2 298.2 250 290 Z" fill="#2f7cf6"></path><path d="M31.6 121.1 L32.9 127.2 L38.9 128.7 L33.6 131.9 L33.9 138.1 L29.3 134.0 L23.5 136.3 L26.0 130.6 L22.1 125.8 L28.2 126.4 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M212.5 283.2 L215.3 287.1 L220.1 286.5 L217.1 290.3 L219.2 294.7 L214.7 293.1 L211.2 296.4 L211.3 291.6 L207.0 289.3 L211.7 287.9 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<g><circle cx="256" cy="52" r="6" fill="#f1efe8" stroke="#1b1b22" stroke-width="1.5"></circle><circle cx="272" cy="70" r="5" fill="#2fbf55"></circle><circle cx="240" cy="36" r="5" fill="#f5c400"></circle><circle cx="220" cy="28" r="4.5" fill="#ff8a2a"></circle><circle cx="274" cy="92" r="4.5" fill="#ec3b3b"></circle><circle cx="262" cy="32" r="4" fill="#ff5ea0"></circle><circle cx="200" cy="24" r="4" fill="#9150f0"></circle><circle cx="276" cy="48" r="4" fill="#2f7cf6"></circle><circle cx="268" cy="112" r="4" fill="#19c9b6"></circle></g>
+<path d="M246 222 L260 112" stroke="#7a4a2a" stroke-width="9" stroke-linecap="round"></path>
+<circle cx="262" cy="100" r="26" fill="#f5c400" opacity=".28"></circle>
+<rect x="236" y="86" width="50" height="28" rx="6" transform="rotate(8 261 100)" fill="#4a4a55" stroke="#1b1b22" stroke-width="4"></rect>
+<path d="M262.3 91.1 L263.8 97.1 L269.9 98.4 L264.6 101.8 L265.2 107.9 L260.4 104.0 L254.7 106.5 L257.0 100.7 L252.9 96.1 L259.1 96.4 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<path d="M44 92 Q78 66 128 58 L214 54 Q232 54 232 72 L234 248 Q234 266 216 266 L62 270 Q46 270 45 254 Z" fill="#fff1cf" stroke="#1b1b22" stroke-width="6" stroke-linejoin="round"></path>
+<path d="M52 82 Q120 64 214 66 L206 54 Q176 6 112 -2 Q150 26 150 44 Q110 46 60 66 Z" fill="#6a3fd0" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<path d="M54 80 Q130 60 214 66 L216 78 Q130 72 56 92 Z" fill="#1b1b22"></path>
+<circle cx="80" cy="78" r="3" fill="#f1efe8"></circle><circle cx="96" cy="74" r="3" fill="#2fbf55"></circle><circle cx="112" cy="71" r="3" fill="#f5c400"></circle><circle cx="128" cy="69" r="3" fill="#ff8a2a"></circle><circle cx="144" cy="68" r="3" fill="#ec3b3b"></circle><circle cx="160" cy="68" r="3" fill="#ff5ea0"></circle><circle cx="176" cy="68" r="3" fill="#9150f0"></circle><circle cx="192" cy="69" r="3" fill="#2f7cf6"></circle><circle cx="207" cy="71" r="3" fill="#19c9b6"></circle>
+<path d="M134.1 24.3 L134.8 29.7 L140.0 31.6 L135.0 34.0 L134.9 39.5 L131.1 35.5 L125.8 37.0 L128.4 32.2 L125.3 27.6 L130.7 28.6 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M175.0 38.1 L177.2 41.6 L181.3 41.2 L178.7 44.4 L180.3 48.2 L176.5 46.7 L173.4 49.4 L173.6 45.3 L170.1 43.2 L174.1 42.1 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M105.7 47.3 L105.9 50.7 L109.0 52.2 L105.8 53.4 L105.4 56.8 L103.2 54.1 L99.9 54.8 L101.8 51.9 L100.1 48.9 L103.4 49.8 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<path d="M112.0 -11.0 L114.4 -5.3 L120.6 -4.8 L115.9 -0.7 L117.3 5.3 L112.0 2.0 L106.7 5.3 L108.1 -0.7 L103.4 -4.8 L109.6 -5.3 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<circle cx="94" cy="134" r="31" fill="#ffffff"></circle><circle cx="168" cy="116" r="38" fill="#ffffff"></circle>
+<path d="M98.6 133.4 L98.5 134.4 L98.0 135.4 L97.2 136.2 L96.1 136.9 L94.7 137.2 L93.2 137.1 L91.6 136.5 L90.2 135.4 L89.1 133.9 L88.3 132.1 L88.1 129.9 L88.5 127.7 L89.6 125.6 L91.2 123.7 L93.4 122.3 L96.0 121.5 L98.9 121.4 L101.8 122.1 L104.5 123.7 L106.8 125.9 L108.4 128.8 L109.3 132.2 L109.2 135.8 L108.2 139.3 L106.2 142.6 L103.3 145.3 L99.7 147.2 L95.6 148.1 L91.3 147.9 L87.1 146.5 L83.3 144.0 L80.2 140.5 L78.0 136.2 L77.1 131.4 L77.5 126.3 L79.2 121.4 L82.2 117.1 L86.4 113.6 L91.4 111.3 L97.0 110.3 L102.7 110.9 L108.2 112.9 L113.1 116.5 L117.0 121.3 L119.5 127.0 L120.5 133.3 L119.7 139.8 L117.3 146.0 L113.2 151.4 L107.8 155.6 L101.3 158.3 L94.2 159.3 L87.1 158.3 L80.2 155.5 L74.3 150.9 L69.7 144.8 L66.9 137.6 L66.0 129.8 L67.1 121.9 L70.4 114.4 L75.5 108.0 L82.3 103.1" fill="none" stroke="#1b1b22" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M168.8 120.7 L169.4 121.5 L170.4 122.1 L171.6 122.4 L173.0 122.2 L174.5 121.7 L175.8 120.6 L176.8 119.1 L177.4 117.3 L177.5 115.2 L176.9 113.0 L175.7 111.0 L173.9 109.2 L171.6 107.9 L168.9 107.3 L165.9 107.5 L163.0 108.4 L160.3 110.2 L158.2 112.8 L156.7 115.9 L156.0 119.5 L156.4 123.3 L157.8 127.0 L160.2 130.3 L163.5 132.9 L167.5 134.6 L172.0 135.2 L176.6 134.7 L181.0 132.8 L184.9 129.8 L188.0 125.7 L189.9 120.9 L190.5 115.5 L189.7 110.1 L187.4 104.9 L183.8 100.4 L178.9 96.9 L173.2 94.8 L167.0 94.2 L160.7 95.3 L154.8 98.0 L149.7 102.3 L145.8 107.9 L143.5 114.4 L142.9 121.5 L144.3 128.6 L147.5 135.3 L152.4 141.0 L158.7 145.3 L166.1 147.8 L174.1 148.3 L182.0 146.8 L189.4 143.1 L195.7 137.5 L200.4 130.4 L203.1 122.1 L203.6 113.3 L201.7 104.6 L197.6 96.4 L191.4 89.6 L183.5 84.5 L174.4 81.6 L164.7 81.1 L155.1 83.3 L146.2 87.9 L138.8 94.8 L133.3 103.5 L130.3 113.4" fill="none" stroke="#1b1b22" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M76 184 Q150 162 218 180 L214 228 Q150 246 82 230 Z" fill="#1b1b22"></path>
+<path d="M78 185 L88 208 L98 182 L110 205 L122 178 L134 201 L146 175 L158 199 L170 174 L182 198 L194 175 L206 197 L217 180 Q150 162 78 185 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="3" stroke-linejoin="round"></path>
+<path d="M84 228 L93 209 L104 231 L116 211 L128 234 L140 212 L152 235 L164 212 L176 233 L188 210 L200 229 L211 209 L214 226 Q150 246 84 228 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="3" stroke-linejoin="round"></path>
+<path d="M234 198 Q248 206 244 216" fill="none" stroke="#1b1b22" stroke-width="6" stroke-linecap="round"></path>
+<rect x="82" y="266" width="28" height="24" rx="8" fill="#1b1b22"></rect><rect x="168" y="266" width="28" height="24" rx="8" fill="#1b1b22"></rect>
+</svg></div>
 </header>
 
 <nav class="toc" aria-label="Contents">
   <a href="#start">Quick start</a><a href="#panel">The panel</a><a href="#knobs">Knobs &amp; pages</a><a href="#menu">Menu map</a>
   <a href="#tape">TAPE's page</a><a href="#presets">Presets</a><a href="#record">Recording</a><a href="#looper">Looper</a>
   <a href="#harmony">Harmony</a><a href="#parts">Arp, bass, tempo</a><a href="#recorder">Event recorder</a><a href="#synth">Synth page</a><a href="#sound">The sound</a>
-  <a href="#magic">Magic</a><a href="#lights">Lights</a><a href="#power">Power</a><a href="#install">Install</a><a href="#help">Troubleshooting</a>
+  <a href="#magic">Magic</a><a href="#lights">Lights</a><a href="#power">Power</a><a href="#install">Install</a><a href="#workshop">Workshop</a><a href="#help">Troubleshooting</a>
 </nav>
 
 <!-- 1 -->
@@ -106,6 +148,30 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
     <li><div>Play the 25 keys. Turn the knobs; press and release a knob for its next page.</div></li>
     <li><div><b>Stop everything:</b> hold <span class="k">SW4</span> and <span class="k">SW3</span> together for 1 second (panic).</div></li>
   </ol>
+  <div class="say"><svg width="74" height="90" viewBox="0 -24 280 344" role="img" aria-label="Choowi">
+<ellipse cx="138" cy="196" rx="130" ry="128" fill="#9150f0" opacity=".10"></ellipse>
+<ellipse cx="138" cy="196" rx="104" ry="102" fill="#ff5ea0" opacity=".08"></ellipse>
+<path d="M22 58 Q24.16 67.84 34 70 Q24.16 72.16 22 82 Q19.84 72.16 10 70 Q19.84 67.84 22 58 Z" fill="#9150f0"></path><path d="M16 191 Q17.62 198.38 25 200 Q17.62 201.62 16 209 Q14.38 201.62 7 200 Q14.38 198.38 16 191 Z" fill="#19c9b6"></path><path d="M44 278 Q45.44 284.56 52 286 Q45.44 287.44 44 294 Q42.56 287.44 36 286 Q42.56 284.56 44 278 Z" fill="#ff5ea0"></path><path d="M250 290 Q251.8 298.2 260 300 Q251.8 301.8 250 310 Q248.2 301.8 240 300 Q248.2 298.2 250 290 Z" fill="#2f7cf6"></path><path d="M31.6 121.1 L32.9 127.2 L38.9 128.7 L33.6 131.9 L33.9 138.1 L29.3 134.0 L23.5 136.3 L26.0 130.6 L22.1 125.8 L28.2 126.4 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M212.5 283.2 L215.3 287.1 L220.1 286.5 L217.1 290.3 L219.2 294.7 L214.7 293.1 L211.2 296.4 L211.3 291.6 L207.0 289.3 L211.7 287.9 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<g><circle cx="256" cy="52" r="6" fill="#f1efe8" stroke="#1b1b22" stroke-width="1.5"></circle><circle cx="272" cy="70" r="5" fill="#2fbf55"></circle><circle cx="240" cy="36" r="5" fill="#f5c400"></circle><circle cx="220" cy="28" r="4.5" fill="#ff8a2a"></circle><circle cx="274" cy="92" r="4.5" fill="#ec3b3b"></circle><circle cx="262" cy="32" r="4" fill="#ff5ea0"></circle><circle cx="200" cy="24" r="4" fill="#9150f0"></circle><circle cx="276" cy="48" r="4" fill="#2f7cf6"></circle><circle cx="268" cy="112" r="4" fill="#19c9b6"></circle></g>
+<path d="M246 222 L260 112" stroke="#7a4a2a" stroke-width="9" stroke-linecap="round"></path>
+<circle cx="262" cy="100" r="26" fill="#f5c400" opacity=".28"></circle>
+<rect x="236" y="86" width="50" height="28" rx="6" transform="rotate(8 261 100)" fill="#4a4a55" stroke="#1b1b22" stroke-width="4"></rect>
+<path d="M262.3 91.1 L263.8 97.1 L269.9 98.4 L264.6 101.8 L265.2 107.9 L260.4 104.0 L254.7 106.5 L257.0 100.7 L252.9 96.1 L259.1 96.4 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<path d="M44 92 Q78 66 128 58 L214 54 Q232 54 232 72 L234 248 Q234 266 216 266 L62 270 Q46 270 45 254 Z" fill="#fff1cf" stroke="#1b1b22" stroke-width="6" stroke-linejoin="round"></path>
+<path d="M52 82 Q120 64 214 66 L206 54 Q176 6 112 -2 Q150 26 150 44 Q110 46 60 66 Z" fill="#6a3fd0" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<path d="M54 80 Q130 60 214 66 L216 78 Q130 72 56 92 Z" fill="#1b1b22"></path>
+<circle cx="80" cy="78" r="3" fill="#f1efe8"></circle><circle cx="96" cy="74" r="3" fill="#2fbf55"></circle><circle cx="112" cy="71" r="3" fill="#f5c400"></circle><circle cx="128" cy="69" r="3" fill="#ff8a2a"></circle><circle cx="144" cy="68" r="3" fill="#ec3b3b"></circle><circle cx="160" cy="68" r="3" fill="#ff5ea0"></circle><circle cx="176" cy="68" r="3" fill="#9150f0"></circle><circle cx="192" cy="69" r="3" fill="#2f7cf6"></circle><circle cx="207" cy="71" r="3" fill="#19c9b6"></circle>
+<path d="M134.1 24.3 L134.8 29.7 L140.0 31.6 L135.0 34.0 L134.9 39.5 L131.1 35.5 L125.8 37.0 L128.4 32.2 L125.3 27.6 L130.7 28.6 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M175.0 38.1 L177.2 41.6 L181.3 41.2 L178.7 44.4 L180.3 48.2 L176.5 46.7 L173.4 49.4 L173.6 45.3 L170.1 43.2 L174.1 42.1 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M105.7 47.3 L105.9 50.7 L109.0 52.2 L105.8 53.4 L105.4 56.8 L103.2 54.1 L99.9 54.8 L101.8 51.9 L100.1 48.9 L103.4 49.8 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<path d="M112.0 -11.0 L114.4 -5.3 L120.6 -4.8 L115.9 -0.7 L117.3 5.3 L112.0 2.0 L106.7 5.3 L108.1 -0.7 L103.4 -4.8 L109.6 -5.3 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<circle cx="94" cy="134" r="31" fill="#ffffff"></circle><circle cx="168" cy="116" r="38" fill="#ffffff"></circle>
+<path d="M98.6 133.4 L98.5 134.4 L98.0 135.4 L97.2 136.2 L96.1 136.9 L94.7 137.2 L93.2 137.1 L91.6 136.5 L90.2 135.4 L89.1 133.9 L88.3 132.1 L88.1 129.9 L88.5 127.7 L89.6 125.6 L91.2 123.7 L93.4 122.3 L96.0 121.5 L98.9 121.4 L101.8 122.1 L104.5 123.7 L106.8 125.9 L108.4 128.8 L109.3 132.2 L109.2 135.8 L108.2 139.3 L106.2 142.6 L103.3 145.3 L99.7 147.2 L95.6 148.1 L91.3 147.9 L87.1 146.5 L83.3 144.0 L80.2 140.5 L78.0 136.2 L77.1 131.4 L77.5 126.3 L79.2 121.4 L82.2 117.1 L86.4 113.6 L91.4 111.3 L97.0 110.3 L102.7 110.9 L108.2 112.9 L113.1 116.5 L117.0 121.3 L119.5 127.0 L120.5 133.3 L119.7 139.8 L117.3 146.0 L113.2 151.4 L107.8 155.6 L101.3 158.3 L94.2 159.3 L87.1 158.3 L80.2 155.5 L74.3 150.9 L69.7 144.8 L66.9 137.6 L66.0 129.8 L67.1 121.9 L70.4 114.4 L75.5 108.0 L82.3 103.1" fill="none" stroke="#1b1b22" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M168.8 120.7 L169.4 121.5 L170.4 122.1 L171.6 122.4 L173.0 122.2 L174.5 121.7 L175.8 120.6 L176.8 119.1 L177.4 117.3 L177.5 115.2 L176.9 113.0 L175.7 111.0 L173.9 109.2 L171.6 107.9 L168.9 107.3 L165.9 107.5 L163.0 108.4 L160.3 110.2 L158.2 112.8 L156.7 115.9 L156.0 119.5 L156.4 123.3 L157.8 127.0 L160.2 130.3 L163.5 132.9 L167.5 134.6 L172.0 135.2 L176.6 134.7 L181.0 132.8 L184.9 129.8 L188.0 125.7 L189.9 120.9 L190.5 115.5 L189.7 110.1 L187.4 104.9 L183.8 100.4 L178.9 96.9 L173.2 94.8 L167.0 94.2 L160.7 95.3 L154.8 98.0 L149.7 102.3 L145.8 107.9 L143.5 114.4 L142.9 121.5 L144.3 128.6 L147.5 135.3 L152.4 141.0 L158.7 145.3 L166.1 147.8 L174.1 148.3 L182.0 146.8 L189.4 143.1 L195.7 137.5 L200.4 130.4 L203.1 122.1 L203.6 113.3 L201.7 104.6 L197.6 96.4 L191.4 89.6 L183.5 84.5 L174.4 81.6 L164.7 81.1 L155.1 83.3 L146.2 87.9 L138.8 94.8 L133.3 103.5 L130.3 113.4" fill="none" stroke="#1b1b22" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M76 184 Q150 162 218 180 L214 228 Q150 246 82 230 Z" fill="#1b1b22"></path>
+<path d="M78 185 L88 208 L98 182 L110 205 L122 178 L134 201 L146 175 L158 199 L170 174 L182 198 L194 175 L206 197 L217 180 Q150 162 78 185 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="3" stroke-linejoin="round"></path>
+<path d="M84 228 L93 209 L104 231 L116 211 L128 234 L140 212 L152 235 L164 212 L176 233 L188 210 L200 229 L211 209 L214 226 Q150 246 84 228 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="3" stroke-linejoin="round"></path>
+<path d="M234 198 Q248 206 244 216" fill="none" stroke="#1b1b22" stroke-width="6" stroke-linecap="round"></path>
+<rect x="82" y="266" width="28" height="24" rx="8" fill="#1b1b22"></rect><rect x="168" y="266" width="28" height="24" rx="8" fill="#1b1b22"></rect>
+</svg><p>Hi, I'm <b>Choowi</b>, the forge's blacksmith. Stuck for a sound? Hold <b>SW1 + SW3</b> and I'll forge you a new one.</p></div>
   </div>
 </section>
 
@@ -147,9 +213,40 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
 
 <!-- 4 -->
 <section id="menu">
-  <div class="head"><h2>Menu map</h2><span class="pill"><i class="dot-hw"></i>Menu pages checked on CHOMPI</span></div>
+  <div class="head"><h2 class="toolhead"><svg class="tool" width="52" height="49" viewBox="0 0 200 190" role="img" aria-label="Colour Lantern">
+<circle cx="100" cy="104" r="62" fill="#2fbf55" opacity=".22"></circle>
+<path d="M76 40 Q100 10 124 40" fill="none" stroke="#1b1b22" stroke-width="6" stroke-linecap="round"></path>
+<path d="M66 54 L134 50 L138 64 L62 68 Z" fill="#1b1b22"></path>
+<path d="M68 70 L132 66 Q140 110 130 150 L72 154 Q60 112 68 70 Z" fill="#fff6c7" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<path d="M100 86 Q116 108 104 128 Q96 138 90 124 Q86 110 100 86 Z" fill="#2fbf55" stroke="#1b1b22" stroke-width="3"></path>
+<path d="M70 156 L132 152 L134 166 L66 170 Z" fill="#1b1b22"></path>
+</svg>Menu map</h2><span class="pill"><i class="dot-hw"></i>Menu pages checked on CHOMPI</span></div>
   <p class="col">Toggle <b>down</b> and hold <span class="k">CHOMPI</span>. The menu opens on TAPE's page; two black keys lead to Forge's pages. <b>The CHOMPI light shows where you are</b>, in the colour of each page's outline below: teal TAPE's page, blue presets, purple harmony, orange parts, pink synth. Keep holding <span class="k">KEY_21</span>: harmony at 1 s, parts at 2 s, the <b style="color:var(--pink)">pink</b> synth page at 3 s. Release CHOMPI (with nothing pending) to close the menu.</p>
   <div class="figure" id="fig-menu"></div>
+  <div class="say"><svg width="74" height="90" viewBox="0 -24 280 344" role="img" aria-label="Choowi">
+<ellipse cx="138" cy="196" rx="130" ry="128" fill="#9150f0" opacity=".10"></ellipse>
+<ellipse cx="138" cy="196" rx="104" ry="102" fill="#ff5ea0" opacity=".08"></ellipse>
+<path d="M22 58 Q24.16 67.84 34 70 Q24.16 72.16 22 82 Q19.84 72.16 10 70 Q19.84 67.84 22 58 Z" fill="#9150f0"></path><path d="M16 191 Q17.62 198.38 25 200 Q17.62 201.62 16 209 Q14.38 201.62 7 200 Q14.38 198.38 16 191 Z" fill="#19c9b6"></path><path d="M44 278 Q45.44 284.56 52 286 Q45.44 287.44 44 294 Q42.56 287.44 36 286 Q42.56 284.56 44 278 Z" fill="#ff5ea0"></path><path d="M250 290 Q251.8 298.2 260 300 Q251.8 301.8 250 310 Q248.2 301.8 240 300 Q248.2 298.2 250 290 Z" fill="#2f7cf6"></path><path d="M31.6 121.1 L32.9 127.2 L38.9 128.7 L33.6 131.9 L33.9 138.1 L29.3 134.0 L23.5 136.3 L26.0 130.6 L22.1 125.8 L28.2 126.4 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M212.5 283.2 L215.3 287.1 L220.1 286.5 L217.1 290.3 L219.2 294.7 L214.7 293.1 L211.2 296.4 L211.3 291.6 L207.0 289.3 L211.7 287.9 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<g><circle cx="256" cy="52" r="6" fill="#f1efe8" stroke="#1b1b22" stroke-width="1.5"></circle><circle cx="272" cy="70" r="5" fill="#2fbf55"></circle><circle cx="240" cy="36" r="5" fill="#f5c400"></circle><circle cx="220" cy="28" r="4.5" fill="#ff8a2a"></circle><circle cx="274" cy="92" r="4.5" fill="#ec3b3b"></circle><circle cx="262" cy="32" r="4" fill="#ff5ea0"></circle><circle cx="200" cy="24" r="4" fill="#9150f0"></circle><circle cx="276" cy="48" r="4" fill="#2f7cf6"></circle><circle cx="268" cy="112" r="4" fill="#19c9b6"></circle></g>
+<path d="M246 222 L260 112" stroke="#7a4a2a" stroke-width="9" stroke-linecap="round"></path>
+<circle cx="262" cy="100" r="26" fill="#f5c400" opacity=".28"></circle>
+<rect x="236" y="86" width="50" height="28" rx="6" transform="rotate(8 261 100)" fill="#4a4a55" stroke="#1b1b22" stroke-width="4"></rect>
+<path d="M262.3 91.1 L263.8 97.1 L269.9 98.4 L264.6 101.8 L265.2 107.9 L260.4 104.0 L254.7 106.5 L257.0 100.7 L252.9 96.1 L259.1 96.4 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<path d="M44 92 Q78 66 128 58 L214 54 Q232 54 232 72 L234 248 Q234 266 216 266 L62 270 Q46 270 45 254 Z" fill="#fff1cf" stroke="#1b1b22" stroke-width="6" stroke-linejoin="round"></path>
+<path d="M52 82 Q120 64 214 66 L206 54 Q176 6 112 -2 Q150 26 150 44 Q110 46 60 66 Z" fill="#6a3fd0" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<path d="M54 80 Q130 60 214 66 L216 78 Q130 72 56 92 Z" fill="#1b1b22"></path>
+<circle cx="80" cy="78" r="3" fill="#f1efe8"></circle><circle cx="96" cy="74" r="3" fill="#2fbf55"></circle><circle cx="112" cy="71" r="3" fill="#f5c400"></circle><circle cx="128" cy="69" r="3" fill="#ff8a2a"></circle><circle cx="144" cy="68" r="3" fill="#ec3b3b"></circle><circle cx="160" cy="68" r="3" fill="#ff5ea0"></circle><circle cx="176" cy="68" r="3" fill="#9150f0"></circle><circle cx="192" cy="69" r="3" fill="#2f7cf6"></circle><circle cx="207" cy="71" r="3" fill="#19c9b6"></circle>
+<path d="M134.1 24.3 L134.8 29.7 L140.0 31.6 L135.0 34.0 L134.9 39.5 L131.1 35.5 L125.8 37.0 L128.4 32.2 L125.3 27.6 L130.7 28.6 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M175.0 38.1 L177.2 41.6 L181.3 41.2 L178.7 44.4 L180.3 48.2 L176.5 46.7 L173.4 49.4 L173.6 45.3 L170.1 43.2 L174.1 42.1 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M105.7 47.3 L105.9 50.7 L109.0 52.2 L105.8 53.4 L105.4 56.8 L103.2 54.1 L99.9 54.8 L101.8 51.9 L100.1 48.9 L103.4 49.8 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<path d="M112.0 -11.0 L114.4 -5.3 L120.6 -4.8 L115.9 -0.7 L117.3 5.3 L112.0 2.0 L106.7 5.3 L108.1 -0.7 L103.4 -4.8 L109.6 -5.3 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<circle cx="94" cy="134" r="31" fill="#ffffff"></circle><circle cx="168" cy="116" r="38" fill="#ffffff"></circle>
+<path d="M98.6 133.4 L98.5 134.4 L98.0 135.4 L97.2 136.2 L96.1 136.9 L94.7 137.2 L93.2 137.1 L91.6 136.5 L90.2 135.4 L89.1 133.9 L88.3 132.1 L88.1 129.9 L88.5 127.7 L89.6 125.6 L91.2 123.7 L93.4 122.3 L96.0 121.5 L98.9 121.4 L101.8 122.1 L104.5 123.7 L106.8 125.9 L108.4 128.8 L109.3 132.2 L109.2 135.8 L108.2 139.3 L106.2 142.6 L103.3 145.3 L99.7 147.2 L95.6 148.1 L91.3 147.9 L87.1 146.5 L83.3 144.0 L80.2 140.5 L78.0 136.2 L77.1 131.4 L77.5 126.3 L79.2 121.4 L82.2 117.1 L86.4 113.6 L91.4 111.3 L97.0 110.3 L102.7 110.9 L108.2 112.9 L113.1 116.5 L117.0 121.3 L119.5 127.0 L120.5 133.3 L119.7 139.8 L117.3 146.0 L113.2 151.4 L107.8 155.6 L101.3 158.3 L94.2 159.3 L87.1 158.3 L80.2 155.5 L74.3 150.9 L69.7 144.8 L66.9 137.6 L66.0 129.8 L67.1 121.9 L70.4 114.4 L75.5 108.0 L82.3 103.1" fill="none" stroke="#1b1b22" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M168.8 120.7 L169.4 121.5 L170.4 122.1 L171.6 122.4 L173.0 122.2 L174.5 121.7 L175.8 120.6 L176.8 119.1 L177.4 117.3 L177.5 115.2 L176.9 113.0 L175.7 111.0 L173.9 109.2 L171.6 107.9 L168.9 107.3 L165.9 107.5 L163.0 108.4 L160.3 110.2 L158.2 112.8 L156.7 115.9 L156.0 119.5 L156.4 123.3 L157.8 127.0 L160.2 130.3 L163.5 132.9 L167.5 134.6 L172.0 135.2 L176.6 134.7 L181.0 132.8 L184.9 129.8 L188.0 125.7 L189.9 120.9 L190.5 115.5 L189.7 110.1 L187.4 104.9 L183.8 100.4 L178.9 96.9 L173.2 94.8 L167.0 94.2 L160.7 95.3 L154.8 98.0 L149.7 102.3 L145.8 107.9 L143.5 114.4 L142.9 121.5 L144.3 128.6 L147.5 135.3 L152.4 141.0 L158.7 145.3 L166.1 147.8 L174.1 148.3 L182.0 146.8 L189.4 143.1 L195.7 137.5 L200.4 130.4 L203.1 122.1 L203.6 113.3 L201.7 104.6 L197.6 96.4 L191.4 89.6 L183.5 84.5 L174.4 81.6 L164.7 81.1 L155.1 83.3 L146.2 87.9 L138.8 94.8 L133.3 103.5 L130.3 113.4" fill="none" stroke="#1b1b22" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M76 184 Q150 162 218 180 L214 228 Q150 246 82 230 Z" fill="#1b1b22"></path>
+<path d="M78 185 L88 208 L98 182 L110 205 L122 178 L134 201 L146 175 L158 199 L170 174 L182 198 L194 175 L206 197 L217 180 Q150 162 78 185 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="3" stroke-linejoin="round"></path>
+<path d="M84 228 L93 209 L104 231 L116 211 L128 234 L140 212 L152 235 L164 212 L176 233 L188 210 L200 229 L211 209 L214 226 Q150 246 84 228 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="3" stroke-linejoin="round"></path>
+<path d="M234 198 Q248 206 244 216" fill="none" stroke="#1b1b22" stroke-width="6" stroke-linecap="round"></path>
+<rect x="82" y="266" width="28" height="24" rx="8" fill="#1b1b22"></rect><rect x="168" y="266" width="28" height="24" rx="8" fill="#1b1b22"></rect>
+</svg><p>Lost in the menu? Look at the CHOMPI key: <b>teal</b> TAPE, <b>blue</b> presets, <b>purple</b> harmony, <b>orange</b> parts, <b>pink</b> synth. My Colour Lantern keeps it lit.</p></div>
 </section>
 
 <!-- 5 -->
@@ -212,7 +309,12 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
 
 <!-- 8 -->
 <section id="looper">
-  <div class="head"><h2>Looper</h2><span class="pill"><i class="dot-hw"></i>Checked on CHOMPI, with audio</span></div>
+  <div class="head"><h2 class="toolhead"><svg class="tool" width="52" height="49" viewBox="0 0 200 190" role="img" aria-label="Sweep Brush">
+<path d="M18 150 C60 110 80 108 92 120" fill="none" stroke="#f5c400" stroke-width="12" stroke-linecap="round" opacity=".6"></path>
+<path d="M150 26 L96 120" stroke="#7a4a2a" stroke-width="9" stroke-linecap="round"></path>
+<path d="M88 112 L110 126 L96 172 Q78 176 62 164 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<path d="M74 150 L68 166 M84 154 L80 172 M94 156 L92 174" stroke="#1b1b22" stroke-width="3" stroke-linecap="round"></path>
+</svg>Looper</h2><span class="pill"><i class="dot-hw"></i>Checked on CHOMPI, with audio</span></div>
   <div class="figure" id="fig-looper"></div>
   <div class="tablebox"><table>
     <thead><tr><th>Do</th><th>Result</th></tr></thead>
@@ -237,6 +339,30 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
   <p class="col">Each key plays a whole chord in the key you choose, through the instrument and to MIDI out. Synth patches and the chromatic sampler. <b>Quick on / off:</b> hold <span class="k">SW1</span> + <span class="k">SW2</span> for 1 s. <b>Settings:</b> TAPE's page, hold <span class="k">KEY_21</span> for 1 s (purple); here a key sets the tonic, which lights white, its scale blue.</p>
   <p class="col"><b>The keys show the chords.</b> With harmony on, every key glows in the colour of the chord it plays: <b style="color:var(--orange)">orange</b> major, <b style="color:var(--blue)">blue</b> minor, <b style="color:var(--red)">red</b> diminished, <b style="color:var(--pink)">pink</b> augmented, <b style="color:var(--teal)">teal</b> sus4. Hold Shift and they change to show the shifted chords.</p>
   <div class="figure" id="fig-harmony"></div>
+  <div class="say"><svg width="74" height="90" viewBox="0 -24 280 344" role="img" aria-label="Choowi">
+<ellipse cx="138" cy="196" rx="130" ry="128" fill="#9150f0" opacity=".10"></ellipse>
+<ellipse cx="138" cy="196" rx="104" ry="102" fill="#ff5ea0" opacity=".08"></ellipse>
+<path d="M22 58 Q24.16 67.84 34 70 Q24.16 72.16 22 82 Q19.84 72.16 10 70 Q19.84 67.84 22 58 Z" fill="#9150f0"></path><path d="M16 191 Q17.62 198.38 25 200 Q17.62 201.62 16 209 Q14.38 201.62 7 200 Q14.38 198.38 16 191 Z" fill="#19c9b6"></path><path d="M44 278 Q45.44 284.56 52 286 Q45.44 287.44 44 294 Q42.56 287.44 36 286 Q42.56 284.56 44 278 Z" fill="#ff5ea0"></path><path d="M250 290 Q251.8 298.2 260 300 Q251.8 301.8 250 310 Q248.2 301.8 240 300 Q248.2 298.2 250 290 Z" fill="#2f7cf6"></path><path d="M31.6 121.1 L32.9 127.2 L38.9 128.7 L33.6 131.9 L33.9 138.1 L29.3 134.0 L23.5 136.3 L26.0 130.6 L22.1 125.8 L28.2 126.4 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M212.5 283.2 L215.3 287.1 L220.1 286.5 L217.1 290.3 L219.2 294.7 L214.7 293.1 L211.2 296.4 L211.3 291.6 L207.0 289.3 L211.7 287.9 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<g><circle cx="256" cy="52" r="6" fill="#f1efe8" stroke="#1b1b22" stroke-width="1.5"></circle><circle cx="272" cy="70" r="5" fill="#2fbf55"></circle><circle cx="240" cy="36" r="5" fill="#f5c400"></circle><circle cx="220" cy="28" r="4.5" fill="#ff8a2a"></circle><circle cx="274" cy="92" r="4.5" fill="#ec3b3b"></circle><circle cx="262" cy="32" r="4" fill="#ff5ea0"></circle><circle cx="200" cy="24" r="4" fill="#9150f0"></circle><circle cx="276" cy="48" r="4" fill="#2f7cf6"></circle><circle cx="268" cy="112" r="4" fill="#19c9b6"></circle></g>
+<path d="M246 222 L260 112" stroke="#7a4a2a" stroke-width="9" stroke-linecap="round"></path>
+<circle cx="262" cy="100" r="26" fill="#f5c400" opacity=".28"></circle>
+<rect x="236" y="86" width="50" height="28" rx="6" transform="rotate(8 261 100)" fill="#4a4a55" stroke="#1b1b22" stroke-width="4"></rect>
+<path d="M262.3 91.1 L263.8 97.1 L269.9 98.4 L264.6 101.8 L265.2 107.9 L260.4 104.0 L254.7 106.5 L257.0 100.7 L252.9 96.1 L259.1 96.4 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<path d="M44 92 Q78 66 128 58 L214 54 Q232 54 232 72 L234 248 Q234 266 216 266 L62 270 Q46 270 45 254 Z" fill="#fff1cf" stroke="#1b1b22" stroke-width="6" stroke-linejoin="round"></path>
+<path d="M52 82 Q120 64 214 66 L206 54 Q176 6 112 -2 Q150 26 150 44 Q110 46 60 66 Z" fill="#6a3fd0" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<path d="M54 80 Q130 60 214 66 L216 78 Q130 72 56 92 Z" fill="#1b1b22"></path>
+<circle cx="80" cy="78" r="3" fill="#f1efe8"></circle><circle cx="96" cy="74" r="3" fill="#2fbf55"></circle><circle cx="112" cy="71" r="3" fill="#f5c400"></circle><circle cx="128" cy="69" r="3" fill="#ff8a2a"></circle><circle cx="144" cy="68" r="3" fill="#ec3b3b"></circle><circle cx="160" cy="68" r="3" fill="#ff5ea0"></circle><circle cx="176" cy="68" r="3" fill="#9150f0"></circle><circle cx="192" cy="69" r="3" fill="#2f7cf6"></circle><circle cx="207" cy="71" r="3" fill="#19c9b6"></circle>
+<path d="M134.1 24.3 L134.8 29.7 L140.0 31.6 L135.0 34.0 L134.9 39.5 L131.1 35.5 L125.8 37.0 L128.4 32.2 L125.3 27.6 L130.7 28.6 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M175.0 38.1 L177.2 41.6 L181.3 41.2 L178.7 44.4 L180.3 48.2 L176.5 46.7 L173.4 49.4 L173.6 45.3 L170.1 43.2 L174.1 42.1 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M105.7 47.3 L105.9 50.7 L109.0 52.2 L105.8 53.4 L105.4 56.8 L103.2 54.1 L99.9 54.8 L101.8 51.9 L100.1 48.9 L103.4 49.8 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<path d="M112.0 -11.0 L114.4 -5.3 L120.6 -4.8 L115.9 -0.7 L117.3 5.3 L112.0 2.0 L106.7 5.3 L108.1 -0.7 L103.4 -4.8 L109.6 -5.3 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<circle cx="94" cy="134" r="31" fill="#ffffff"></circle><circle cx="168" cy="116" r="38" fill="#ffffff"></circle>
+<path d="M98.6 133.4 L98.5 134.4 L98.0 135.4 L97.2 136.2 L96.1 136.9 L94.7 137.2 L93.2 137.1 L91.6 136.5 L90.2 135.4 L89.1 133.9 L88.3 132.1 L88.1 129.9 L88.5 127.7 L89.6 125.6 L91.2 123.7 L93.4 122.3 L96.0 121.5 L98.9 121.4 L101.8 122.1 L104.5 123.7 L106.8 125.9 L108.4 128.8 L109.3 132.2 L109.2 135.8 L108.2 139.3 L106.2 142.6 L103.3 145.3 L99.7 147.2 L95.6 148.1 L91.3 147.9 L87.1 146.5 L83.3 144.0 L80.2 140.5 L78.0 136.2 L77.1 131.4 L77.5 126.3 L79.2 121.4 L82.2 117.1 L86.4 113.6 L91.4 111.3 L97.0 110.3 L102.7 110.9 L108.2 112.9 L113.1 116.5 L117.0 121.3 L119.5 127.0 L120.5 133.3 L119.7 139.8 L117.3 146.0 L113.2 151.4 L107.8 155.6 L101.3 158.3 L94.2 159.3 L87.1 158.3 L80.2 155.5 L74.3 150.9 L69.7 144.8 L66.9 137.6 L66.0 129.8 L67.1 121.9 L70.4 114.4 L75.5 108.0 L82.3 103.1" fill="none" stroke="#1b1b22" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M168.8 120.7 L169.4 121.5 L170.4 122.1 L171.6 122.4 L173.0 122.2 L174.5 121.7 L175.8 120.6 L176.8 119.1 L177.4 117.3 L177.5 115.2 L176.9 113.0 L175.7 111.0 L173.9 109.2 L171.6 107.9 L168.9 107.3 L165.9 107.5 L163.0 108.4 L160.3 110.2 L158.2 112.8 L156.7 115.9 L156.0 119.5 L156.4 123.3 L157.8 127.0 L160.2 130.3 L163.5 132.9 L167.5 134.6 L172.0 135.2 L176.6 134.7 L181.0 132.8 L184.9 129.8 L188.0 125.7 L189.9 120.9 L190.5 115.5 L189.7 110.1 L187.4 104.9 L183.8 100.4 L178.9 96.9 L173.2 94.8 L167.0 94.2 L160.7 95.3 L154.8 98.0 L149.7 102.3 L145.8 107.9 L143.5 114.4 L142.9 121.5 L144.3 128.6 L147.5 135.3 L152.4 141.0 L158.7 145.3 L166.1 147.8 L174.1 148.3 L182.0 146.8 L189.4 143.1 L195.7 137.5 L200.4 130.4 L203.1 122.1 L203.6 113.3 L201.7 104.6 L197.6 96.4 L191.4 89.6 L183.5 84.5 L174.4 81.6 L164.7 81.1 L155.1 83.3 L146.2 87.9 L138.8 94.8 L133.3 103.5 L130.3 113.4" fill="none" stroke="#1b1b22" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M76 184 Q150 162 218 180 L214 228 Q150 246 82 230 Z" fill="#1b1b22"></path>
+<path d="M78 185 L88 208 L98 182 L110 205 L122 178 L134 201 L146 175 L158 199 L170 174 L182 198 L194 175 L206 197 L217 180 Q150 162 78 185 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="3" stroke-linejoin="round"></path>
+<path d="M84 228 L93 209 L104 231 L116 211 L128 234 L140 212 L152 235 L164 212 L176 233 L188 210 L200 229 L211 209 L214 226 Q150 246 84 228 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="3" stroke-linejoin="round"></path>
+<path d="M234 198 Q248 206 244 216" fill="none" stroke="#1b1b22" stroke-width="6" stroke-linecap="round"></path>
+<rect x="82" y="266" width="28" height="24" rx="8" fill="#1b1b22"></rect><rect x="168" y="266" width="28" height="24" rx="8" fill="#1b1b22"></rect>
+</svg><p>The keys tell you what they play: <b>orange</b> happy (major), <b>blue</b> moody (minor), <b>red</b> tense. Hold Shift and watch them change.</p></div>
   <div class="caption">Static layout (the default) in C major, menu closed, coloured as CHOMPI lights them. The white keys C3–B4 are the chords I to vii twice; C5 is Shift. In Real layout the key you press is the chord's root.</div>
   <div class="tablebox"><table>
     <thead><tr><th>Knob</th><th>Turn</th><th>Press</th></tr></thead>
@@ -278,9 +404,38 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
 
 <!-- 11b -->
 <section id="synth">
-  <div class="head"><h2>The synth page</h2><span class="pill"><i class="dot-sw"></i>Software-tested only</span></div>
+  <div class="head"><h2 class="toolhead"><svg class="tool" width="52" height="49" viewBox="0 0 200 190" role="img" aria-label="Tinker Wrench">
+<path d="M58 152 L120 72" stroke="#ec3b3b" stroke-width="18" stroke-linecap="round"></path>
+<path d="M104 52 A30 30 0 1 0 146 94 L130 84 L126 70 L118 56 Z" fill="#ec3b3b" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<circle cx="52" cy="158" r="10" fill="#ffffff" stroke="#1b1b22" stroke-width="4"></circle>
+<circle cx="160" cy="146" r="22" fill="#1b1b22"></circle><circle cx="160" cy="146" r="14" fill="#ffffff"></circle><path d="M160 146 L170 134" stroke="#1b1b22" stroke-width="4" stroke-linecap="round"></path>
+</svg>The synth page</h2><span class="pill"><i class="dot-sw"></i>Software-tested only</span></div>
   <p class="col">Design a sound on CHOMPI itself. <b>Open:</b> on TAPE's page keep holding <span class="k">KEY_21</span> until CHOMPI turns <b style="color:var(--pink)">pink</b> (3 s), or tap KEY_21 on the harmony or parts page. Hold <span class="k">C5</span> to hear your changes. Save as a preset to keep them.</p>
   <div class="figure" id="fig-synth"></div>
+  <div class="say"><svg width="74" height="90" viewBox="0 -24 280 344" role="img" aria-label="Choowi">
+<ellipse cx="138" cy="196" rx="130" ry="128" fill="#9150f0" opacity=".10"></ellipse>
+<ellipse cx="138" cy="196" rx="104" ry="102" fill="#ff5ea0" opacity=".08"></ellipse>
+<path d="M22 58 Q24.16 67.84 34 70 Q24.16 72.16 22 82 Q19.84 72.16 10 70 Q19.84 67.84 22 58 Z" fill="#9150f0"></path><path d="M16 191 Q17.62 198.38 25 200 Q17.62 201.62 16 209 Q14.38 201.62 7 200 Q14.38 198.38 16 191 Z" fill="#19c9b6"></path><path d="M44 278 Q45.44 284.56 52 286 Q45.44 287.44 44 294 Q42.56 287.44 36 286 Q42.56 284.56 44 278 Z" fill="#ff5ea0"></path><path d="M250 290 Q251.8 298.2 260 300 Q251.8 301.8 250 310 Q248.2 301.8 240 300 Q248.2 298.2 250 290 Z" fill="#2f7cf6"></path><path d="M31.6 121.1 L32.9 127.2 L38.9 128.7 L33.6 131.9 L33.9 138.1 L29.3 134.0 L23.5 136.3 L26.0 130.6 L22.1 125.8 L28.2 126.4 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M212.5 283.2 L215.3 287.1 L220.1 286.5 L217.1 290.3 L219.2 294.7 L214.7 293.1 L211.2 296.4 L211.3 291.6 L207.0 289.3 L211.7 287.9 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<g><circle cx="256" cy="52" r="6" fill="#f1efe8" stroke="#1b1b22" stroke-width="1.5"></circle><circle cx="272" cy="70" r="5" fill="#2fbf55"></circle><circle cx="240" cy="36" r="5" fill="#f5c400"></circle><circle cx="220" cy="28" r="4.5" fill="#ff8a2a"></circle><circle cx="274" cy="92" r="4.5" fill="#ec3b3b"></circle><circle cx="262" cy="32" r="4" fill="#ff5ea0"></circle><circle cx="200" cy="24" r="4" fill="#9150f0"></circle><circle cx="276" cy="48" r="4" fill="#2f7cf6"></circle><circle cx="268" cy="112" r="4" fill="#19c9b6"></circle></g>
+<path d="M246 222 L260 112" stroke="#7a4a2a" stroke-width="9" stroke-linecap="round"></path>
+<circle cx="262" cy="100" r="26" fill="#f5c400" opacity=".28"></circle>
+<rect x="236" y="86" width="50" height="28" rx="6" transform="rotate(8 261 100)" fill="#4a4a55" stroke="#1b1b22" stroke-width="4"></rect>
+<path d="M262.3 91.1 L263.8 97.1 L269.9 98.4 L264.6 101.8 L265.2 107.9 L260.4 104.0 L254.7 106.5 L257.0 100.7 L252.9 96.1 L259.1 96.4 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<path d="M44 92 Q78 66 128 58 L214 54 Q232 54 232 72 L234 248 Q234 266 216 266 L62 270 Q46 270 45 254 Z" fill="#fff1cf" stroke="#1b1b22" stroke-width="6" stroke-linejoin="round"></path>
+<path d="M52 82 Q120 64 214 66 L206 54 Q176 6 112 -2 Q150 26 150 44 Q110 46 60 66 Z" fill="#6a3fd0" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<path d="M54 80 Q130 60 214 66 L216 78 Q130 72 56 92 Z" fill="#1b1b22"></path>
+<circle cx="80" cy="78" r="3" fill="#f1efe8"></circle><circle cx="96" cy="74" r="3" fill="#2fbf55"></circle><circle cx="112" cy="71" r="3" fill="#f5c400"></circle><circle cx="128" cy="69" r="3" fill="#ff8a2a"></circle><circle cx="144" cy="68" r="3" fill="#ec3b3b"></circle><circle cx="160" cy="68" r="3" fill="#ff5ea0"></circle><circle cx="176" cy="68" r="3" fill="#9150f0"></circle><circle cx="192" cy="69" r="3" fill="#2f7cf6"></circle><circle cx="207" cy="71" r="3" fill="#19c9b6"></circle>
+<path d="M134.1 24.3 L134.8 29.7 L140.0 31.6 L135.0 34.0 L134.9 39.5 L131.1 35.5 L125.8 37.0 L128.4 32.2 L125.3 27.6 L130.7 28.6 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M175.0 38.1 L177.2 41.6 L181.3 41.2 L178.7 44.4 L180.3 48.2 L176.5 46.7 L173.4 49.4 L173.6 45.3 L170.1 43.2 L174.1 42.1 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M105.7 47.3 L105.9 50.7 L109.0 52.2 L105.8 53.4 L105.4 56.8 L103.2 54.1 L99.9 54.8 L101.8 51.9 L100.1 48.9 L103.4 49.8 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<path d="M112.0 -11.0 L114.4 -5.3 L120.6 -4.8 L115.9 -0.7 L117.3 5.3 L112.0 2.0 L106.7 5.3 L108.1 -0.7 L103.4 -4.8 L109.6 -5.3 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<circle cx="94" cy="134" r="31" fill="#ffffff"></circle><circle cx="168" cy="116" r="38" fill="#ffffff"></circle>
+<path d="M98.6 133.4 L98.5 134.4 L98.0 135.4 L97.2 136.2 L96.1 136.9 L94.7 137.2 L93.2 137.1 L91.6 136.5 L90.2 135.4 L89.1 133.9 L88.3 132.1 L88.1 129.9 L88.5 127.7 L89.6 125.6 L91.2 123.7 L93.4 122.3 L96.0 121.5 L98.9 121.4 L101.8 122.1 L104.5 123.7 L106.8 125.9 L108.4 128.8 L109.3 132.2 L109.2 135.8 L108.2 139.3 L106.2 142.6 L103.3 145.3 L99.7 147.2 L95.6 148.1 L91.3 147.9 L87.1 146.5 L83.3 144.0 L80.2 140.5 L78.0 136.2 L77.1 131.4 L77.5 126.3 L79.2 121.4 L82.2 117.1 L86.4 113.6 L91.4 111.3 L97.0 110.3 L102.7 110.9 L108.2 112.9 L113.1 116.5 L117.0 121.3 L119.5 127.0 L120.5 133.3 L119.7 139.8 L117.3 146.0 L113.2 151.4 L107.8 155.6 L101.3 158.3 L94.2 159.3 L87.1 158.3 L80.2 155.5 L74.3 150.9 L69.7 144.8 L66.9 137.6 L66.0 129.8 L67.1 121.9 L70.4 114.4 L75.5 108.0 L82.3 103.1" fill="none" stroke="#1b1b22" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M168.8 120.7 L169.4 121.5 L170.4 122.1 L171.6 122.4 L173.0 122.2 L174.5 121.7 L175.8 120.6 L176.8 119.1 L177.4 117.3 L177.5 115.2 L176.9 113.0 L175.7 111.0 L173.9 109.2 L171.6 107.9 L168.9 107.3 L165.9 107.5 L163.0 108.4 L160.3 110.2 L158.2 112.8 L156.7 115.9 L156.0 119.5 L156.4 123.3 L157.8 127.0 L160.2 130.3 L163.5 132.9 L167.5 134.6 L172.0 135.2 L176.6 134.7 L181.0 132.8 L184.9 129.8 L188.0 125.7 L189.9 120.9 L190.5 115.5 L189.7 110.1 L187.4 104.9 L183.8 100.4 L178.9 96.9 L173.2 94.8 L167.0 94.2 L160.7 95.3 L154.8 98.0 L149.7 102.3 L145.8 107.9 L143.5 114.4 L142.9 121.5 L144.3 128.6 L147.5 135.3 L152.4 141.0 L158.7 145.3 L166.1 147.8 L174.1 148.3 L182.0 146.8 L189.4 143.1 L195.7 137.5 L200.4 130.4 L203.1 122.1 L203.6 113.3 L201.7 104.6 L197.6 96.4 L191.4 89.6 L183.5 84.5 L174.4 81.6 L164.7 81.1 L155.1 83.3 L146.2 87.9 L138.8 94.8 L133.3 103.5 L130.3 113.4" fill="none" stroke="#1b1b22" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M76 184 Q150 162 218 180 L214 228 Q150 246 82 230 Z" fill="#1b1b22"></path>
+<path d="M78 185 L88 208 L98 182 L110 205 L122 178 L134 201 L146 175 L158 199 L170 174 L182 198 L194 175 L206 197 L217 180 Q150 162 78 185 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="3" stroke-linejoin="round"></path>
+<path d="M84 228 L93 209 L104 231 L116 211 L128 234 L140 212 L152 235 L164 212 L176 233 L188 210 L200 229 L211 209 L214 226 Q150 246 84 228 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="3" stroke-linejoin="round"></path>
+<path d="M234 198 Q248 206 244 216" fill="none" stroke="#1b1b22" stroke-width="6" stroke-linecap="round"></path>
+<rect x="82" y="266" width="28" height="24" rx="8" fill="#1b1b22"></rect><rect x="168" y="266" width="28" height="24" rx="8" fill="#1b1b22"></rect>
+</svg><p>My Tinker Wrench: pick the waves, hold <b>C5</b> to hear it, then save it as a preset so it stays.</p></div>
   <div class="tablebox"><table>
     <thead><tr><th>Knob</th><th>Page 1 (pink)</th><th>Page 2 (teal, press to switch)</th></tr></thead>
     <tbody>
@@ -310,7 +465,14 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
 
 <!-- 12b -->
 <section id="magic">
-  <div class="head"><h2>Magic</h2><span class="pill"><i class="dot-hw"></i>Wake-up, surprise me, mutate checked on CHOMPI</span><span class="pill"><i class="dot-sw"></i>Chomp, dream, ripple: software-tested</span></div>
+  <div class="head"><h2 class="toolhead"><svg class="tool" width="52" height="49" viewBox="0 0 200 190" role="img" aria-label="Wake-up Bell">
+<path d="M100 26 L100 40" stroke="#1b1b22" stroke-width="6" stroke-linecap="round"></path>
+<path d="M60 128 Q60 44 102 42 Q142 44 142 128 L154 140 L48 142 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<circle cx="100" cy="154" r="10" fill="#1b1b22"></circle>
+<path d="M156 74 q10 -6 14 6 M162 58 q16 -6 20 12" fill="none" stroke="#1b1b22" stroke-width="4" stroke-linecap="round"></path>
+<rect x="18" y="128" width="38" height="38" rx="9" fill="#ffffff" stroke="#1b1b22" stroke-width="4" transform="rotate(-14 37 147)"></rect>
+<circle cx="28" cy="138" r="3.4" fill="#1b1b22"></circle><circle cx="37" cy="147" r="3.4" fill="#1b1b22"></circle><circle cx="46" cy="156" r="3.4" fill="#1b1b22"></circle>
+</svg>Magic</h2><span class="pill"><i class="dot-hw"></i>Wake-up, surprise me, mutate checked on CHOMPI</span><span class="pill"><i class="dot-sw"></i>Chomp, dream, ripple: software-tested</span></div>
   <div class="grid2">
     <div class="col">
       <h3 style="margin-top:6px">Wakes up singing</h3>
@@ -321,7 +483,13 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
       <p>Hold <span class="k">SW2</span> + <span class="k">SW3</span>: the sound you have shifts a little, brighter or darker, longer or shorter, a different echo, so it drifts instead of starting over. Keep holding to drift further. The knob lights flash teal.</p>
       <h3>Chomp to instrument</h3>
       <p>Record anything, your voice, a door, a cup, then hold <span class="k">SW1</span> + <span class="k">SW3</span>: the roll keeps your recording and builds an instrument around it, often with chords in your key and an arpeggio. The keys sparkle with every roll.</p>
-      <h3>Dream mode</h3>
+      <h3 class="toolhead"><svg class="tool" width="44" height="41" viewBox="0 0 200 190" role="img" aria-label="Dream Bellows">
+<path d="M40 70 Q100 40 150 86 L150 104 Q100 150 40 120 Z" fill="#ff8a2a" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<path d="M52 82 Q98 64 140 94 M52 108 Q98 128 140 98" fill="none" stroke="#1b1b22" stroke-width="3"></path>
+<path d="M150 88 L186 92 L186 100 L150 104 Z" fill="#4a4a55" stroke="#1b1b22" stroke-width="4" stroke-linejoin="round"></path>
+<path d="M40 76 L14 66 M40 114 L14 124" stroke="#7a4a2a" stroke-width="8" stroke-linecap="round"></path>
+<circle cx="182" cy="60" r="8" fill="#9150f0" opacity=".55"></circle><circle cx="170" cy="40" r="6" fill="#9150f0" opacity=".4"></circle><circle cx="186" cy="26" r="4" fill="#9150f0" opacity=".3"></circle>
+</svg>Dream mode</h3>
       <p>Leave CHOMPI alone for two minutes and it starts dreaming: a quiet, slow line in your key, its notes breathing purple on the keys. Touch anything and it stops; after three minutes it goes to sleep until you come back.</p>
       <p>Like it? Save it to a preset slot. Neither gesture changes a knob page. When a loop closes, a green ripple runs out from the middle key.</p>
     </div>
@@ -384,9 +552,70 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
   </div>
 </section>
 
+<!-- 15b -->
+<section id="workshop">
+  <div class="head"><h2>Choowi's workshop</h2></div>
+  <p class="col">Every Forge release is a magic tool Choowi forges, in the next colour of CHOMPI's panel row: green, yellow, orange, red, then pink, purple, blue and teal. Small updates are small tools.</p>
+  <div class="tools"><div><svg class="tool" width="96" height="91" viewBox="0 0 200 190" role="img" aria-label="Colour Lantern">
+<circle cx="100" cy="104" r="62" fill="#2fbf55" opacity=".22"></circle>
+<path d="M76 40 Q100 10 124 40" fill="none" stroke="#1b1b22" stroke-width="6" stroke-linecap="round"></path>
+<path d="M66 54 L134 50 L138 64 L62 68 Z" fill="#1b1b22"></path>
+<path d="M68 70 L132 66 Q140 110 130 150 L72 154 Q60 112 68 70 Z" fill="#fff6c7" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<path d="M100 86 Q116 108 104 128 Q96 138 90 124 Q86 110 100 86 Z" fill="#2fbf55" stroke="#1b1b22" stroke-width="3"></path>
+<path d="M70 156 L132 152 L134 166 L66 170 Z" fill="#1b1b22"></path>
+</svg><span class="n">Colour Lantern</span><span class="v">forge 0.16</span><span>Every page and setting shows its colour.</span></div><div><svg class="tool" width="96" height="91" viewBox="0 0 200 190" role="img" aria-label="Wake-up Bell">
+<path d="M100 26 L100 40" stroke="#1b1b22" stroke-width="6" stroke-linecap="round"></path>
+<path d="M60 128 Q60 44 102 42 Q142 44 142 128 L154 140 L48 142 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<circle cx="100" cy="154" r="10" fill="#1b1b22"></circle>
+<path d="M156 74 q10 -6 14 6 M162 58 q16 -6 20 12" fill="none" stroke="#1b1b22" stroke-width="4" stroke-linecap="round"></path>
+<rect x="18" y="128" width="38" height="38" rx="9" fill="#ffffff" stroke="#1b1b22" stroke-width="4" transform="rotate(-14 37 147)"></rect>
+<circle cx="28" cy="138" r="3.4" fill="#1b1b22"></circle><circle cx="37" cy="147" r="3.4" fill="#1b1b22"></circle><circle cx="46" cy="156" r="3.4" fill="#1b1b22"></circle>
+</svg><span class="n">Wake-up Bell</span><span class="v">forge 0.17</span><span>Wakes up singing; the lucky die rolls surprise sounds.</span></div><div><svg class="tool" width="96" height="91" viewBox="0 0 200 190" role="img" aria-label="Sweep Brush">
+<path d="M18 150 C60 110 80 108 92 120" fill="none" stroke="#f5c400" stroke-width="12" stroke-linecap="round" opacity=".6"></path>
+<path d="M150 26 L96 120" stroke="#7a4a2a" stroke-width="9" stroke-linecap="round"></path>
+<path d="M88 112 L110 126 L96 172 Q78 176 62 164 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<path d="M74 150 L68 166 M84 154 L80 172 M94 156 L92 174" stroke="#1b1b22" stroke-width="3" stroke-linecap="round"></path>
+</svg><span class="n">Sweep Brush</span><span class="v">forge 0.17.1</span><span>Sweeps the filter so you hear it move.</span></div><div><svg class="tool" width="96" height="91" viewBox="0 0 200 190" role="img" aria-label="Dream Bellows">
+<path d="M40 70 Q100 40 150 86 L150 104 Q100 150 40 120 Z" fill="#ff8a2a" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<path d="M52 82 Q98 64 140 94 M52 108 Q98 128 140 98" fill="none" stroke="#1b1b22" stroke-width="3"></path>
+<path d="M150 88 L186 92 L186 100 L150 104 Z" fill="#4a4a55" stroke="#1b1b22" stroke-width="4" stroke-linejoin="round"></path>
+<path d="M40 76 L14 66 M40 114 L14 124" stroke="#7a4a2a" stroke-width="8" stroke-linecap="round"></path>
+<circle cx="182" cy="60" r="8" fill="#9150f0" opacity=".55"></circle><circle cx="170" cy="40" r="6" fill="#9150f0" opacity=".4"></circle><circle cx="186" cy="26" r="4" fill="#9150f0" opacity=".3"></circle>
+</svg><span class="n">Dream Bellows</span><span class="v">forge 0.18</span><span>Breathes slow dreams into CHOMPI when you leave it alone.</span></div><div><svg class="tool" width="96" height="91" viewBox="0 0 200 190" role="img" aria-label="Tinker Wrench">
+<path d="M58 152 L120 72" stroke="#ec3b3b" stroke-width="18" stroke-linecap="round"></path>
+<path d="M104 52 A30 30 0 1 0 146 94 L130 84 L126 70 L118 56 Z" fill="#ec3b3b" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<circle cx="52" cy="158" r="10" fill="#ffffff" stroke="#1b1b22" stroke-width="4"></circle>
+<circle cx="160" cy="146" r="22" fill="#1b1b22"></circle><circle cx="160" cy="146" r="14" fill="#ffffff"></circle><path d="M160 146 L170 134" stroke="#1b1b22" stroke-width="4" stroke-linecap="round"></path>
+</svg><span class="n">Tinker Wrench</span><span class="v">forge 0.19</span><span>Builds a sound right there on the panel.</span></div></div>
+</section>
+
 <!-- 16 -->
 <section id="help">
   <div class="head"><h2>Troubleshooting</h2></div>
+  <div class="say"><svg width="74" height="90" viewBox="0 -24 280 344" role="img" aria-label="Choowi">
+<ellipse cx="138" cy="196" rx="130" ry="128" fill="#9150f0" opacity=".10"></ellipse>
+<ellipse cx="138" cy="196" rx="104" ry="102" fill="#ff5ea0" opacity=".08"></ellipse>
+<path d="M22 58 Q24.16 67.84 34 70 Q24.16 72.16 22 82 Q19.84 72.16 10 70 Q19.84 67.84 22 58 Z" fill="#9150f0"></path><path d="M16 191 Q17.62 198.38 25 200 Q17.62 201.62 16 209 Q14.38 201.62 7 200 Q14.38 198.38 16 191 Z" fill="#19c9b6"></path><path d="M44 278 Q45.44 284.56 52 286 Q45.44 287.44 44 294 Q42.56 287.44 36 286 Q42.56 284.56 44 278 Z" fill="#ff5ea0"></path><path d="M250 290 Q251.8 298.2 260 300 Q251.8 301.8 250 310 Q248.2 301.8 240 300 Q248.2 298.2 250 290 Z" fill="#2f7cf6"></path><path d="M31.6 121.1 L32.9 127.2 L38.9 128.7 L33.6 131.9 L33.9 138.1 L29.3 134.0 L23.5 136.3 L26.0 130.6 L22.1 125.8 L28.2 126.4 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M212.5 283.2 L215.3 287.1 L220.1 286.5 L217.1 290.3 L219.2 294.7 L214.7 293.1 L211.2 296.4 L211.3 291.6 L207.0 289.3 L211.7 287.9 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<g><circle cx="256" cy="52" r="6" fill="#f1efe8" stroke="#1b1b22" stroke-width="1.5"></circle><circle cx="272" cy="70" r="5" fill="#2fbf55"></circle><circle cx="240" cy="36" r="5" fill="#f5c400"></circle><circle cx="220" cy="28" r="4.5" fill="#ff8a2a"></circle><circle cx="274" cy="92" r="4.5" fill="#ec3b3b"></circle><circle cx="262" cy="32" r="4" fill="#ff5ea0"></circle><circle cx="200" cy="24" r="4" fill="#9150f0"></circle><circle cx="276" cy="48" r="4" fill="#2f7cf6"></circle><circle cx="268" cy="112" r="4" fill="#19c9b6"></circle></g>
+<path d="M246 222 L260 112" stroke="#7a4a2a" stroke-width="9" stroke-linecap="round"></path>
+<circle cx="262" cy="100" r="26" fill="#f5c400" opacity=".28"></circle>
+<rect x="236" y="86" width="50" height="28" rx="6" transform="rotate(8 261 100)" fill="#4a4a55" stroke="#1b1b22" stroke-width="4"></rect>
+<path d="M262.3 91.1 L263.8 97.1 L269.9 98.4 L264.6 101.8 L265.2 107.9 L260.4 104.0 L254.7 106.5 L257.0 100.7 L252.9 96.1 L259.1 96.4 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<path d="M44 92 Q78 66 128 58 L214 54 Q232 54 232 72 L234 248 Q234 266 216 266 L62 270 Q46 270 45 254 Z" fill="#fff1cf" stroke="#1b1b22" stroke-width="6" stroke-linejoin="round"></path>
+<path d="M52 82 Q120 64 214 66 L206 54 Q176 6 112 -2 Q150 26 150 44 Q110 46 60 66 Z" fill="#6a3fd0" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<path d="M54 80 Q130 60 214 66 L216 78 Q130 72 56 92 Z" fill="#1b1b22"></path>
+<circle cx="80" cy="78" r="3" fill="#f1efe8"></circle><circle cx="96" cy="74" r="3" fill="#2fbf55"></circle><circle cx="112" cy="71" r="3" fill="#f5c400"></circle><circle cx="128" cy="69" r="3" fill="#ff8a2a"></circle><circle cx="144" cy="68" r="3" fill="#ec3b3b"></circle><circle cx="160" cy="68" r="3" fill="#ff5ea0"></circle><circle cx="176" cy="68" r="3" fill="#9150f0"></circle><circle cx="192" cy="69" r="3" fill="#2f7cf6"></circle><circle cx="207" cy="71" r="3" fill="#19c9b6"></circle>
+<path d="M134.1 24.3 L134.8 29.7 L140.0 31.6 L135.0 34.0 L134.9 39.5 L131.1 35.5 L125.8 37.0 L128.4 32.2 L125.3 27.6 L130.7 28.6 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M175.0 38.1 L177.2 41.6 L181.3 41.2 L178.7 44.4 L180.3 48.2 L176.5 46.7 L173.4 49.4 L173.6 45.3 L170.1 43.2 L174.1 42.1 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M105.7 47.3 L105.9 50.7 L109.0 52.2 L105.8 53.4 L105.4 56.8 L103.2 54.1 L99.9 54.8 L101.8 51.9 L100.1 48.9 L103.4 49.8 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<path d="M112.0 -11.0 L114.4 -5.3 L120.6 -4.8 L115.9 -0.7 L117.3 5.3 L112.0 2.0 L106.7 5.3 L108.1 -0.7 L103.4 -4.8 L109.6 -5.3 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<circle cx="94" cy="134" r="31" fill="#ffffff"></circle><circle cx="168" cy="116" r="38" fill="#ffffff"></circle>
+<path d="M98.6 133.4 L98.5 134.4 L98.0 135.4 L97.2 136.2 L96.1 136.9 L94.7 137.2 L93.2 137.1 L91.6 136.5 L90.2 135.4 L89.1 133.9 L88.3 132.1 L88.1 129.9 L88.5 127.7 L89.6 125.6 L91.2 123.7 L93.4 122.3 L96.0 121.5 L98.9 121.4 L101.8 122.1 L104.5 123.7 L106.8 125.9 L108.4 128.8 L109.3 132.2 L109.2 135.8 L108.2 139.3 L106.2 142.6 L103.3 145.3 L99.7 147.2 L95.6 148.1 L91.3 147.9 L87.1 146.5 L83.3 144.0 L80.2 140.5 L78.0 136.2 L77.1 131.4 L77.5 126.3 L79.2 121.4 L82.2 117.1 L86.4 113.6 L91.4 111.3 L97.0 110.3 L102.7 110.9 L108.2 112.9 L113.1 116.5 L117.0 121.3 L119.5 127.0 L120.5 133.3 L119.7 139.8 L117.3 146.0 L113.2 151.4 L107.8 155.6 L101.3 158.3 L94.2 159.3 L87.1 158.3 L80.2 155.5 L74.3 150.9 L69.7 144.8 L66.9 137.6 L66.0 129.8 L67.1 121.9 L70.4 114.4 L75.5 108.0 L82.3 103.1" fill="none" stroke="#1b1b22" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M168.8 120.7 L169.4 121.5 L170.4 122.1 L171.6 122.4 L173.0 122.2 L174.5 121.7 L175.8 120.6 L176.8 119.1 L177.4 117.3 L177.5 115.2 L176.9 113.0 L175.7 111.0 L173.9 109.2 L171.6 107.9 L168.9 107.3 L165.9 107.5 L163.0 108.4 L160.3 110.2 L158.2 112.8 L156.7 115.9 L156.0 119.5 L156.4 123.3 L157.8 127.0 L160.2 130.3 L163.5 132.9 L167.5 134.6 L172.0 135.2 L176.6 134.7 L181.0 132.8 L184.9 129.8 L188.0 125.7 L189.9 120.9 L190.5 115.5 L189.7 110.1 L187.4 104.9 L183.8 100.4 L178.9 96.9 L173.2 94.8 L167.0 94.2 L160.7 95.3 L154.8 98.0 L149.7 102.3 L145.8 107.9 L143.5 114.4 L142.9 121.5 L144.3 128.6 L147.5 135.3 L152.4 141.0 L158.7 145.3 L166.1 147.8 L174.1 148.3 L182.0 146.8 L189.4 143.1 L195.7 137.5 L200.4 130.4 L203.1 122.1 L203.6 113.3 L201.7 104.6 L197.6 96.4 L191.4 89.6 L183.5 84.5 L174.4 81.6 L164.7 81.1 L155.1 83.3 L146.2 87.9 L138.8 94.8 L133.3 103.5 L130.3 113.4" fill="none" stroke="#1b1b22" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M76 184 Q150 162 218 180 L214 228 Q150 246 82 230 Z" fill="#1b1b22"></path>
+<path d="M78 185 L88 208 L98 182 L110 205 L122 178 L134 201 L146 175 L158 199 L170 174 L182 198 L194 175 L206 197 L217 180 Q150 162 78 185 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="3" stroke-linejoin="round"></path>
+<path d="M84 228 L93 209 L104 231 L116 211 L128 234 L140 212 L152 235 L164 212 L176 233 L188 210 L200 229 L211 209 L214 226 Q150 246 84 228 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="3" stroke-linejoin="round"></path>
+<path d="M234 198 Q248 206 244 216" fill="none" stroke="#1b1b22" stroke-width="6" stroke-linecap="round"></path>
+<rect x="82" y="266" width="28" height="24" rx="8" fill="#1b1b22"></rect><rect x="168" y="266" width="28" height="24" rx="8" fill="#1b1b22"></rect>
+</svg><p>Something odd? Hold <b>SW4 + SW3</b> to stop all sound first. Still stuck? Switch CHOMPI off and on; I'll be right back with your last sound.</p></div>
   <div class="tablebox"><table>
     <thead><tr><th>You see</th><th>What to do</th></tr></thead>
     <tbody>
@@ -402,7 +631,30 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
   </table></div>
 </section>
 
-<footer>forge 0.19.0 · by DeeCee · Spark · From the Forge MANUAL.md, KNOBS.md and TEST_RESULTS.md in the CHOMPI repository (branch forge/foundation). Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club. Keep a backup of your SD card.</footer>
+<footer><span class="mini"><svg width="34" height="41" viewBox="0 -24 280 344" role="img" aria-label="Choowi">
+<ellipse cx="138" cy="196" rx="130" ry="128" fill="#9150f0" opacity=".10"></ellipse>
+<ellipse cx="138" cy="196" rx="104" ry="102" fill="#ff5ea0" opacity=".08"></ellipse>
+<path d="M22 58 Q24.16 67.84 34 70 Q24.16 72.16 22 82 Q19.84 72.16 10 70 Q19.84 67.84 22 58 Z" fill="#9150f0"></path><path d="M16 191 Q17.62 198.38 25 200 Q17.62 201.62 16 209 Q14.38 201.62 7 200 Q14.38 198.38 16 191 Z" fill="#19c9b6"></path><path d="M44 278 Q45.44 284.56 52 286 Q45.44 287.44 44 294 Q42.56 287.44 36 286 Q42.56 284.56 44 278 Z" fill="#ff5ea0"></path><path d="M250 290 Q251.8 298.2 260 300 Q251.8 301.8 250 310 Q248.2 301.8 240 300 Q248.2 298.2 250 290 Z" fill="#2f7cf6"></path><path d="M31.6 121.1 L32.9 127.2 L38.9 128.7 L33.6 131.9 L33.9 138.1 L29.3 134.0 L23.5 136.3 L26.0 130.6 L22.1 125.8 L28.2 126.4 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M212.5 283.2 L215.3 287.1 L220.1 286.5 L217.1 290.3 L219.2 294.7 L214.7 293.1 L211.2 296.4 L211.3 291.6 L207.0 289.3 L211.7 287.9 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<g><circle cx="256" cy="52" r="6" fill="#f1efe8" stroke="#1b1b22" stroke-width="1.5"></circle><circle cx="272" cy="70" r="5" fill="#2fbf55"></circle><circle cx="240" cy="36" r="5" fill="#f5c400"></circle><circle cx="220" cy="28" r="4.5" fill="#ff8a2a"></circle><circle cx="274" cy="92" r="4.5" fill="#ec3b3b"></circle><circle cx="262" cy="32" r="4" fill="#ff5ea0"></circle><circle cx="200" cy="24" r="4" fill="#9150f0"></circle><circle cx="276" cy="48" r="4" fill="#2f7cf6"></circle><circle cx="268" cy="112" r="4" fill="#19c9b6"></circle></g>
+<path d="M246 222 L260 112" stroke="#7a4a2a" stroke-width="9" stroke-linecap="round"></path>
+<circle cx="262" cy="100" r="26" fill="#f5c400" opacity=".28"></circle>
+<rect x="236" y="86" width="50" height="28" rx="6" transform="rotate(8 261 100)" fill="#4a4a55" stroke="#1b1b22" stroke-width="4"></rect>
+<path d="M262.3 91.1 L263.8 97.1 L269.9 98.4 L264.6 101.8 L265.2 107.9 L260.4 104.0 L254.7 106.5 L257.0 100.7 L252.9 96.1 L259.1 96.4 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<path d="M44 92 Q78 66 128 58 L214 54 Q232 54 232 72 L234 248 Q234 266 216 266 L62 270 Q46 270 45 254 Z" fill="#fff1cf" stroke="#1b1b22" stroke-width="6" stroke-linejoin="round"></path>
+<path d="M52 82 Q120 64 214 66 L206 54 Q176 6 112 -2 Q150 26 150 44 Q110 46 60 66 Z" fill="#6a3fd0" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<path d="M54 80 Q130 60 214 66 L216 78 Q130 72 56 92 Z" fill="#1b1b22"></path>
+<circle cx="80" cy="78" r="3" fill="#f1efe8"></circle><circle cx="96" cy="74" r="3" fill="#2fbf55"></circle><circle cx="112" cy="71" r="3" fill="#f5c400"></circle><circle cx="128" cy="69" r="3" fill="#ff8a2a"></circle><circle cx="144" cy="68" r="3" fill="#ec3b3b"></circle><circle cx="160" cy="68" r="3" fill="#ff5ea0"></circle><circle cx="176" cy="68" r="3" fill="#9150f0"></circle><circle cx="192" cy="69" r="3" fill="#2f7cf6"></circle><circle cx="207" cy="71" r="3" fill="#19c9b6"></circle>
+<path d="M134.1 24.3 L134.8 29.7 L140.0 31.6 L135.0 34.0 L134.9 39.5 L131.1 35.5 L125.8 37.0 L128.4 32.2 L125.3 27.6 L130.7 28.6 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M175.0 38.1 L177.2 41.6 L181.3 41.2 L178.7 44.4 L180.3 48.2 L176.5 46.7 L173.4 49.4 L173.6 45.3 L170.1 43.2 L174.1 42.1 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path><path d="M105.7 47.3 L105.9 50.7 L109.0 52.2 L105.8 53.4 L105.4 56.8 L103.2 54.1 L99.9 54.8 L101.8 51.9 L100.1 48.9 L103.4 49.8 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<path d="M112.0 -11.0 L114.4 -5.3 L120.6 -4.8 L115.9 -0.7 L117.3 5.3 L112.0 2.0 L106.7 5.3 L108.1 -0.7 L103.4 -4.8 L109.6 -5.3 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="2" stroke-linejoin="round"></path>
+<circle cx="94" cy="134" r="31" fill="#ffffff"></circle><circle cx="168" cy="116" r="38" fill="#ffffff"></circle>
+<path d="M98.6 133.4 L98.5 134.4 L98.0 135.4 L97.2 136.2 L96.1 136.9 L94.7 137.2 L93.2 137.1 L91.6 136.5 L90.2 135.4 L89.1 133.9 L88.3 132.1 L88.1 129.9 L88.5 127.7 L89.6 125.6 L91.2 123.7 L93.4 122.3 L96.0 121.5 L98.9 121.4 L101.8 122.1 L104.5 123.7 L106.8 125.9 L108.4 128.8 L109.3 132.2 L109.2 135.8 L108.2 139.3 L106.2 142.6 L103.3 145.3 L99.7 147.2 L95.6 148.1 L91.3 147.9 L87.1 146.5 L83.3 144.0 L80.2 140.5 L78.0 136.2 L77.1 131.4 L77.5 126.3 L79.2 121.4 L82.2 117.1 L86.4 113.6 L91.4 111.3 L97.0 110.3 L102.7 110.9 L108.2 112.9 L113.1 116.5 L117.0 121.3 L119.5 127.0 L120.5 133.3 L119.7 139.8 L117.3 146.0 L113.2 151.4 L107.8 155.6 L101.3 158.3 L94.2 159.3 L87.1 158.3 L80.2 155.5 L74.3 150.9 L69.7 144.8 L66.9 137.6 L66.0 129.8 L67.1 121.9 L70.4 114.4 L75.5 108.0 L82.3 103.1" fill="none" stroke="#1b1b22" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M168.8 120.7 L169.4 121.5 L170.4 122.1 L171.6 122.4 L173.0 122.2 L174.5 121.7 L175.8 120.6 L176.8 119.1 L177.4 117.3 L177.5 115.2 L176.9 113.0 L175.7 111.0 L173.9 109.2 L171.6 107.9 L168.9 107.3 L165.9 107.5 L163.0 108.4 L160.3 110.2 L158.2 112.8 L156.7 115.9 L156.0 119.5 L156.4 123.3 L157.8 127.0 L160.2 130.3 L163.5 132.9 L167.5 134.6 L172.0 135.2 L176.6 134.7 L181.0 132.8 L184.9 129.8 L188.0 125.7 L189.9 120.9 L190.5 115.5 L189.7 110.1 L187.4 104.9 L183.8 100.4 L178.9 96.9 L173.2 94.8 L167.0 94.2 L160.7 95.3 L154.8 98.0 L149.7 102.3 L145.8 107.9 L143.5 114.4 L142.9 121.5 L144.3 128.6 L147.5 135.3 L152.4 141.0 L158.7 145.3 L166.1 147.8 L174.1 148.3 L182.0 146.8 L189.4 143.1 L195.7 137.5 L200.4 130.4 L203.1 122.1 L203.6 113.3 L201.7 104.6 L197.6 96.4 L191.4 89.6 L183.5 84.5 L174.4 81.6 L164.7 81.1 L155.1 83.3 L146.2 87.9 L138.8 94.8 L133.3 103.5 L130.3 113.4" fill="none" stroke="#1b1b22" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M76 184 Q150 162 218 180 L214 228 Q150 246 82 230 Z" fill="#1b1b22"></path>
+<path d="M78 185 L88 208 L98 182 L110 205 L122 178 L134 201 L146 175 L158 199 L170 174 L182 198 L194 175 L206 197 L217 180 Q150 162 78 185 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="3" stroke-linejoin="round"></path>
+<path d="M84 228 L93 209 L104 231 L116 211 L128 234 L140 212 L152 235 L164 212 L176 233 L188 210 L200 229 L211 209 L214 226 Q150 246 84 228 Z" fill="#ffffff" stroke="#1b1b22" stroke-width="3" stroke-linejoin="round"></path>
+<path d="M234 198 Q248 206 244 216" fill="none" stroke="#1b1b22" stroke-width="6" stroke-linecap="round"></path>
+<rect x="82" y="266" width="28" height="24" rx="8" fill="#1b1b22"></rect><rect x="168" y="266" width="28" height="24" rx="8" fill="#1b1b22"></rect>
+</svg></span>forge 0.19.0 · by DeeCee · Spark · From the Forge MANUAL.md, KNOBS.md and TEST_RESULTS.md in the CHOMPI repository (branch forge/foundation). Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club. Keep a backup of your SD card.</footer>
 </div>
 
 <script>
