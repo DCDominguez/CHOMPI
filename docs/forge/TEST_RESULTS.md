@@ -20,6 +20,22 @@ CHOMPI on the PC port (weak supply, charging), the owner playing fast on a sampl
   is suspect (hardware). Not caused by the logger: the shut-off predates it (0.9) and the status
   request is a few bytes ten times a second.
 
+## 2026-10-12 — instrumented build c4d576b on CHOMPI: battery diagnostics, no shut-off
+
+Installed 0.19.2 build c4d576b (battery diagnostics, Inspector page 11; sample bank d red) over
+USB (the owner's press). `host/forge_battery_log.py` at 10 Hz, CSV in
+`D:	ools\chompi-sessioneportsattery_diag.csv`, PC port, charging, battery green.
+- Power-on: level "medium" until the first level check at ~30 s uptime, then "high": confirms
+  BATTERY_READINGS problem 1 (the starting value) on the hardware.
+- Level checks: register 0x0C read back 3.3 V after the stock 3.3 V write and 3.0 V after the
+  restore, every time; 0 mismatches, 0 read errors (3 checks). Readings taken inside the 3.3 V
+  window: 6 (problem 2's mechanism, harmless while the battery is above 3.3 V).
+- ~90 s of the owner's fast playing on a sample sound: 5,477 readings at 3.0 V, **0 low**; IINDPM
+  never set; the PC port is classed as a **legacy** source (that is the "weak supply" flag here).
+  No shut-off. With a well-charged battery nothing dipped, so hypotheses A (sag) and B (stuck
+  threshold) are neither confirmed nor ruled out: both earlier shut-offs came at lower charge after
+  long sessions. Next: log through a long session or a low battery until a shut-off is caught.
+
 ## 2026-10-11 (late night) — guided part 4 (0.19.2 build 8b51764)
 
 - **Save and recall pass** by the owner's hand (synth sound saved to a slot, recalled back).
