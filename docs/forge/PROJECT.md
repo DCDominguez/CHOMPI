@@ -151,10 +151,12 @@ unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
   woke up singing."). Board: https://claude.ai/artifact/DdDCg63EzsSjYQBomaU2JY (private to the owner).
   Applies to the webapp redesign, the manual, the virtual screen and the Tab5 view. Community
   firmware: never use CHOMPI's or its maker's logo; "for CHOMPI", not "by".
-- **Mascot: Chewy the magic blacksmith (owner, 2026-10-11).** Forge's own character (never the
-  CHOMPI character): round, goggles up, moustache, leather apron with the nine panel colours on
-  the pocket, a hammer throwing sparks in those colours. **Every release gets a spark friend
-  Chewy forges**, in the next colour of the panel row (0.16 Glim green, 0.17 Chime yellow, 0.18
+- **Mascot: Choowi (or "Choowee", owner to pick) the magic blacksmith (owner's sketch,
+  2026-10-11):** a square with spiral, slightly crazy eyes, a big chewy grin and a hammer throwing
+  sparks in the nine panel colours. Keep it clearly Forge's own next to the CHOMPI character
+  (TRADEMARKS.md): not CHOMPI's salmon pink, no headphones, nothing from their logo; a "same
+  species" look only with CHOMPI Club's written OK. **Every release gets a spark friend
+  the mascot forges**, in the next colour of the panel row (0.16 Glim green, 0.17 Chime yellow, 0.18
   Doze orange, 0.19 Tinker red; then pink, purple, blue, teal, and round again), holding something
   from that release; small updates get a tiny sidekick (0.17.1 Swoop). Name the character in each
   CHANGELOG heading; later on the start-up / virtual screen. Board: the brand canvas, "Chewy" artboard.
