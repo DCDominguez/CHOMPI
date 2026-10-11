@@ -15,6 +15,10 @@ Updated 2026-10-11, checkpoint: 0.16.0 (Batch 1 + 2) built and software-tested; 
   built, layout OK (266,204 B). **Not installed, not hardware-verified.** Next: install (the owner's
   press), repeat the power-log test on the PC port, then the save test video (`save_test.py`),
   then resume the guided test at part 4.
+- Second fix built after that: a charger plugged in while CHOMPI is on never started charging
+  (power bank 0 W until a restart). `ChargerUsb` now also starts the hand-over when USB power
+  appears in the 20 ms reads. Tests pass, firmware builds (266,272 B). Not installed. Hardware
+  check: CHOMPI on, unplug and re-plug the power bank, watts should rise within a few seconds.
 - Hardware note for the owner: a charged battery sagging under 3.0 V suggests a worn cell or a
   poor battery connection. A front case USB port left CHOMPI unseen by Windows (a white flash of
   every light, likely a brown-out restart); the usual port works.

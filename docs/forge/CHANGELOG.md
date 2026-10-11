@@ -15,6 +15,14 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
   start-up and the fault loops keep the stock check, and a really flat battery still gets
   the stock protection. Not yet confirmed on CHOMPI. A charged battery dropping below 3.0 V
   under load also suggests a worn battery or a poor battery connection (hardware, to check).
+- **A charger plugged in while CHOMPI is on now charges it.** The owner's power bank showed 0 W
+  after a re-plug with CHOMPI on, and 11 W once CHOMPI was switched off and on while plugged in:
+  the charger's interrupt is a short pulse the main loop could miss, and then the charger IC
+  never got the USB lines to identify the supply. USB power appearing in the 20 ms battery
+  reads now starts the same hand-over (TAPE's), and the lines go back to the Daisy once a read
+  shows the source identified (`ChargerUsb`, power test "plug"). Not yet confirmed on CHOMPI.
+- Known limit: SW6's battery colour is the charger's 3.3 V comparator checked every 30 s, so
+  charging current reads high and playing reads low; only white (charge done) is reliable.
 - **A preset saved on the panel is now also the one CHOMPI loads at power-on** (`FORGE/LAST.TXT`),
   as recalls already were. Before, only a recall counted, so a freshly saved sound could wake
   up as the previously recalled one. Found by the new guide's cross-check against the code.

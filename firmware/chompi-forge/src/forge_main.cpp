@@ -549,7 +549,7 @@ void DrawLeds(); void SendResponses(); void TransmitPending(); void RunSampler()
 forge::power::ChargerUsb charger_usb;
 bool usb_lines_to_daisy = true;
 void ServiceChargerUsb(uint32_t now) {
-    const auto a = charger_usb.Poll(now, hw.mpc_int.Read(), hw.read_ready, hw.mp_buff_[0]);
+    const auto a = charger_usb.Poll(now, hw.mpc_int.Read(), hw.read_ready, hw.mp_buff_[0], hw.mp_buff_[1]);
     if(a.read) hw.MpReadAll();
     if(a.usb_to_daisy >= 0) { usb_lines_to_daisy = a.usb_to_daisy != 0; hw.usb_sw.Write(usb_lines_to_daisy); }
     if(a.force_detection) hw.MpWrite(0x0a, 0B00110100);   // FORCEDPDM (as TAPE)

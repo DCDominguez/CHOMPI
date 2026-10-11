@@ -52,10 +52,21 @@ public:
     };
     // `status0` is register 0x11 from the last completed read; `read_ready` is true
     // once the read started for this edge has completed.
-    Actions Poll(uint32_t now, bool interrupt_line, bool read_ready, uint8_t status0) {
+    // 0.19.2: `status1` is register 0x12 (bit 6 VIN_GD) from the latest completed read, the
+    // 20 ms battery reads included. The interrupt is a short pulse the main loop can miss (the
+    // owner, 2026-10-11: a charger plugged in while CHOMPI was on drew nothing until a restart),
+    // so USB power appearing in those reads counts as an edge too, and lines left with the
+    // charger IC go back to the Daisy once a read shows the source identified.
+    Actions Poll(uint32_t now, bool interrupt_line, bool read_ready, uint8_t status0, uint8_t status1 = 0x40) {
         Actions a;
-        const bool edge = !interrupt_line && line_;
+        bool edge = !interrupt_line && line_;
         line_ = interrupt_line;
+        if(read_ready && !waiting_) {
+            const int8_t vin = (status1 >> 6) & 1u;
+            if(vin && vin_ == 0) edge = true;
+            vin_ = vin;
+            if(!lines_to_daisy_ && !handoff_ && (status0 & 0xF0u)) a.usb_to_daisy = 1;
+        }
         if(waiting_) {
             if(read_ready) {
                 waiting_ = false;
@@ -65,10 +76,13 @@ public:
         }
         if(edge) { a.read = true; waiting_ = true; asked_ = now; }
         if(handoff_ && now - handoff_at_ > kHandoffMs) { handoff_ = false; a.force_detection = true; }
+        if(a.usb_to_daisy >= 0) lines_to_daisy_ = a.usb_to_daisy != 0;
         return a;
     }
     bool Handover() const { return handoff_; }
 private:
+    int8_t vin_ = -1;                       // USB power in the last read; -1 before the first
+    bool lines_to_daisy_ = true;            // start-up leaves the lines with the Daisy
     bool line_ = true, waiting_ = false, handoff_ = false;
     uint32_t asked_ = 0, handoff_at_ = 0;
 };

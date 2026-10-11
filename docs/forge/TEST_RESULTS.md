@@ -20,6 +20,15 @@ CHOMPI on the PC port (weak supply, charging), the owner playing fast on a sampl
   is suspect (hardware). Not caused by the logger: the shut-off predates it (0.9) and the status
   request is a few bytes ten times a second.
 
+## 2026-10-11 (night) — power bank: no charging after a re-plug while on
+
+The owner, on a power bank (USB-C) after the power-log run: CHOMPI off and plugged in 6.4 W; on,
+still drawing; unplugged and re-plugged while on: **0 W for well over a few seconds**; switched
+off and on while plugged in: 11 W. Also on a wall charger with the cable from another
+instrument, CHOMPI still shut off (supply type unknown; likely plugged in while on, so not
+charging). SW6 read green and yellow minutes apart on the same charge (the 3.3 V comparator,
+see the 0.19.2 changelog). Fix built (0.19.2, `ChargerUsb` reads-based hand-over), not installed.
+
 ## 2026-10-11 (evening) — guided test on 0.19.1: the random shut-off reproduced
 
 - 0.19.1 (build e1bd640) installed over USB (the owner's press; the first 15 s window was missed).

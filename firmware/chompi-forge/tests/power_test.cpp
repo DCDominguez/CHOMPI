@@ -53,6 +53,20 @@ void ChargerHandover() {
     ChargerUsb wrap; wrap.Poll(0xfffffffeu, true, true, 0); a = wrap.Poll(0xffffffffu, false, false, 0); assert(a.read);
     a = wrap.Poll(0u, false, true, 0); assert(a.usb_to_daisy == 0);
     a = wrap.Poll(2u, false, true, 0); assert(a.force_detection);
+    // 0.19.2: USB power plugged in while on, the interrupt pulse missed: the reads start the
+    // hand-over; the lines go back once a read shows the source identified (its pulse missed too).
+    ChargerUsb plug;
+    a = plug.Poll(0, true, true, 0x00, 0x00);  assert(!a.read && a.usb_to_daisy == -1);               // on battery
+    a = plug.Poll(20, true, true, 0x00, 0x40); assert(a.read);                                        // power appears
+    a = plug.Poll(21, true, true, 0x00, 0x40); assert(a.usb_to_daisy == 0 && plug.Handover());
+    a = plug.Poll(23, true, true, 0x00, 0x40); assert(a.force_detection && !a.read);                  // no second edge
+    a = plug.Poll(40, true, true, 0x00, 0x40); assert(a.usb_to_daisy == -1 && !a.read);               // still detecting
+    a = plug.Poll(60, true, true, 0x30, 0x40); assert(a.usb_to_daisy == 1);                           // identified: back
+    a = plug.Poll(80, true, true, 0x30, 0x40); assert(a.usb_to_daisy == -1 && !a.read);               // once
+    ChargerUsb boot;                                                                                  // powered at start-up: no hand-over
+    a = boot.Poll(0, true, true, 0x30, 0x40);  assert(!a.read && a.usb_to_daisy == -1);
+    a = boot.Poll(20, true, true, 0x00, 0x40); assert(!a.read && a.usb_to_daisy == -1);
+    a = boot.Poll(40, true, true, 0x00, 0x00); a = boot.Poll(60, true, true, 0x00, 0x40); assert(a.read); // unplug, replug
 }
 
 void StatusDecode() {
