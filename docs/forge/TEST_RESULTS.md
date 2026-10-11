@@ -20,6 +20,13 @@ CHOMPI on the PC port (weak supply, charging), the owner playing fast on a sampl
   is suspect (hardware). Not caused by the logger: the shut-off predates it (0.9) and the status
   request is a few bytes ten times a second.
 
+## 2026-10-11 (late night) — guided part 4 (0.19.2 build 8b51764)
+
+- **Save and recall pass** by the owner's hand (synth sound saved to a slot, recalled back).
+- The owner noticed surprise rolls sometimes switch harmony and the arp on and sometimes off.
+  Intended (`magic::Roll`: harmony 25 %, arp 20 %, around a sample 60 % / 50 %; a roll that does
+  not pick them turns them off); now documented in MANUAL 5a, GUIDE and the illustrated manual.
+
 ## 2026-10-11 (late night) — 0.19.2 build 8b51764: the power bank still reads 0 W while CHOMPI is on
 
 Installed 8b51764 (the owner's press). On the PC port it charges (from about a minute after the

@@ -262,9 +262,13 @@ With the menu closed:
   with chords in your key, sometimes an arp, sometimes a gliding solo voice). The knob lights
   flash colours and the keys sparkle. **Keep holding** and it rolls another every 1.5 s. Let go
   on one you like. Your volume and key stay put.
+  **Chords and the arp come and go, on purpose:** each roll also decides them (about 1 roll in
+  4 turns harmony on, about 1 in 5 starts the arp) and switches them off when it doesn't pick
+  them, even if you had them on. Want chords on a rolled sound? Switch harmony on yourself
+  (SW1 + SW2) afterwards, then save.
 - **Mutate:** hold **SW2 + SW3** for a second. The sound you have now drifts a little
   (brighter, darker, longer, a different echo…). The knob lights flash teal. Keep holding to
-  drift further.
+  drift further. Mutate never changes harmony or the arp.
 - **Chomp to instrument:** record anything first
   ([record and use samples](#how-do-i-record-and-use-samples)), then hold **SW1 + SW3**. The
   roll keeps your recording and builds an instrument around it, often with chords and an arp.

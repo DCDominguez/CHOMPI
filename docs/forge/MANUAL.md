@@ -191,13 +191,20 @@ Out of ideas? **Hold SW1 + SW3** for a second: CHOMPI rolls a brand-new sound (s
 chords in your key, sometimes with an arp, sometimes a gliding solo voice). Keep holding and it
 rolls another every 1.5 s, until you let go on one you like. Your volume, key and tempo stay put.
 
+**Each roll also decides harmony and the arp, on purpose.** For a synth sound about 1 roll in 4
+turns harmony on (chords in your key) and about 1 in 5 starts the arp (bass stays off); a roll
+that doesn't pick them switches them **off**, even if you had them on. So one roll may play
+chords and the next single notes: that's the surprise, not a fault. Want chords on a sound you
+rolled? Switch harmony on yourself afterwards (SW1 + SW2), then save. Mutate never touches
+harmony or the arp.
+
 **Hold SW2 + SW3** to **mutate** instead: the sound you have now shifts a little (brighter or
 darker, longer or shorter, a different echo...), so it drifts rather than starts over. Keep
 holding to drift further.
 
 **Chomp to instrument (0.18):** record anything into the mic or line in (section 7), then hold
 **SW1 + SW3**: the roll keeps your recording and builds an instrument around it, often with
-chords in your key and an arpeggio. Every surprise roll also sparkles the keys.
+chords in your key and an arpeggio (harmony about 6 rolls in 10, the arp about 1 in 2). Every surprise roll also sparkles the keys.
 
 Like it? Save it to a preset slot (section 6). Neither gesture changes a knob page.
 
