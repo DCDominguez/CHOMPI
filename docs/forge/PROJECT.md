@@ -171,7 +171,8 @@ unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
   free GitHub organisation (names free on 2026-10-11: forge-workshop, forgeworkshop,
   forge-firmware, choowi-forge; no "CHOMPI" in the name) created by the owner; the repo moves
   there and GitHub Pages serves the web page at `<org>.github.io` (no personal name in the
-  address). **Gumroad** product page later: pay what you want ($0 minimum), Choowi art, no CHOMPI
+  address). **Done 2026-10-11:** the repo is `myth-world/Forge` (the owner's org); Pages will be
+  `https://myth-world.github.io/Forge` from `docs/` once `main` carries Forge. **Gumroad** product page later: pay what you want ($0 minimum), Choowi art, no CHOMPI
   artwork, LICENSE + THIRD_PARTY in the download.
 - Candidates raised the same day: upgrade starter presets 01–06 (v1/v2) to v3+ with the
   same sound so every knob page works; add starter presets that show harmony, arp / bass
