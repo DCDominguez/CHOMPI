@@ -63,3 +63,13 @@ footer{display:flex;justify-content:space-between;gap:16px;padding-top:28px;marg
 a.badge{text-decoration:none}a.badge:hover{background:var(--spark);color:#1b1b22}
 .handoff{display:inline-block;margin-top:14px;font-weight:600;color:var(--accent)}
 @media(max-width:760px){.pair{grid-template-columns:1fr;gap:0}}
+/* editor folds (0.19.2): each settings group opens on demand */
+.fold-bar{display:flex;justify-content:space-between;align-items:end;gap:12px;margin-top:22px}
+.fold-bar .group{margin:0;border:0;padding:0}
+button.small{min-height:40px;padding:6px 14px;font-size:13px}
+details.group-set{margin-top:10px;border:2px solid var(--rule);border-radius:14px;padding:0 14px}
+details.group-set>summary.group{cursor:pointer;margin:0;padding:12px 0;border:0;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.group-set>summary.group::-webkit-details-marker{display:none}
+details.group-set>summary.group::after{content:"+";font-family:var(--mono);font-size:16px;color:var(--accent)}
+details.group-set[open]>summary.group::after{content:"–"}
+details.group-set[open]{padding-bottom:16px}

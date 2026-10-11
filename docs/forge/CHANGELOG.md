@@ -28,6 +28,9 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
   `/api/generate` endpoint), sending to CHOMPI, device presets and samples, and the test-bridge
   link. New Spark look: Choowi, the nine dots, warm paper or dark, rounded cards. Tests: web
   tests and the browser end-to-end tests updated (8 pass; mobile layout checked).
+- Workshop editor: every sound opens as v7 (the *Convert to v7* button is gone) and the settings
+  groups fold, closed by default, with *open all* (the editor column went from about 7,100 px
+  to 1,400 px tall).
 - **Take it to CHOMPI** (`/send`, Web MIDI): connect in Chrome / Edge (SysEx permission), pick the
   workshop's sound (handed over in the browser's storage) or a JSON file, send; check CHOMPI
   (firmware, battery) and stop sound. The local server encodes the patch and checks the reply

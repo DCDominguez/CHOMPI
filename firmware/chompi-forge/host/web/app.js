@@ -129,7 +129,6 @@ async function api(path, body) {
 function updateButtons() {
   document.querySelectorAll("button").forEach(button => { button.disabled = busy; });
   $("download").disabled = busy || !patch;
-  $("upgrade").disabled = busy || !patch || patch.version === 7;
   $("editor").disabled = busy || !patch;
   $("routing").disabled = !patch || patch.version === 1;
   for (const c of CONTROLS) {
@@ -160,19 +159,12 @@ function loadPatch(value) {
     else if (c.type === "select") $(c.id).value = value ?? c.options[0];
     else { $(c.id).value = value ?? ""; $(`${c.id}-range`).value = toSlider(c, value); }
   }
-  $("version-note").textContent = {1: "v1 delay preset: external audio through the delay. Convert to v7 to add synth, sampler, filter, LFO, reverb, knob choices, harmony, arp and bass.",
-    2: "v2 instrument preset (firmware 0.3 format). Convert to v7 for the second oscillator, sampler, resonant filter, LFO, reverb, knob choices, harmony, arp and bass.",
-    3: "v3 instrument (firmware 0.4 format). Convert to v7 to add the sampler, up to 7 voices, knob choices, harmony, arp and bass.",
-    4: "v4 instrument (firmware 0.5 format). Convert to v7 to choose what the panel knobs control and add harmony, arp and bass.",
-    5: "v5 instrument: all installed modules, the sampler and what the four panel knobs control (firmware 0.6). Convert to v7 for harmony, arp and bass.",
-    6: "v6 instrument: everything in v5 plus harmony mode, where one key plays a chord (firmware 0.13). Convert to v7 for the arp, bass and tempo.",
-    7: "v7 instrument: everything in v6 plus the arpeggiator, a bass part and the tempo (firmware 0.14)."}[patch.version];
   showJSON(); updateButtons();
 }
 function build() {
   for (const [group, legend] of GROUPS) {
-    const set = document.createElement("fieldset"); set.id = `group-${group}`; set.className = "group-set";
-    const title = document.createElement("legend"); title.className = "group"; title.textContent = legend;
+    const set = document.createElement("details"); set.id = `group-${group}`; set.className = "group-set";
+    const title = document.createElement("summary"); title.className = "group"; title.textContent = legend;
     set.append(title); $("groups").append(set);
   }
   for (const c of CONTROLS) {
@@ -210,15 +202,20 @@ function build() {
 build();
 $("patch-name").addEventListener("input", () => { if (patch) { patch.name = $("patch-name").value; showJSON(); } });
 $("routing").addEventListener("change", () => { if (patch && patch.version !== 1) { patch.routing = $("routing").value; showJSON(); } });
-$("upgrade").addEventListener("click", () => run("Converting to a v7 instrument…", async () => {
-  const result = await api("upgrade", {patch, to: 7}); loadPatch(result.patch); $("preset").value = "";
-  notice("Converted to v7 (harmony, arp and bass start off). New modules start neutral (the sampler is used only if you choose its signal path) and the knobs keep their default jobs; the filter is steeper than v1/v2, so tone may differ slightly.");
-}));
+// Every sound is edited as v7 (the owner, 2026-10-12): older presets, files and replies convert as they open.
+async function adopt(value) {
+  if (value.version === 7) { loadPatch(value); return false; }
+  loadPatch((await api("upgrade", {patch: value, to: 7})).patch); return true;
+}
+$("fold-all").addEventListener("click", () => {
+  const sets = [...document.querySelectorAll("#groups details")], open = !sets.every(d => d.open);
+  sets.forEach(d => { d.open = open; }); $("fold-all").textContent = open ? "close all" : "open all";
+});
 // No key, no hardware (the owner, 2026-10-12): the prompt goes to any chatbot and its reply comes back here.
 function chatRequest(extra) { return {kind: $("kind").value, ...extra}; }
 $("use-reply").addEventListener("click", () => run("Checking the chatbot's reply…", async () => {
   const result = await api("chat-reply", chatRequest({reply: $("reply").value}));
-  loadPatch(result.patch); $("preset").value = ""; notice("Reply checked: a valid patch. Review it, then Save JSON.");
+  await adopt(result.patch); $("preset").value = ""; notice("Reply checked: a valid patch. Poke at it, then Save JSON.");
 }));
 $("generate-form").addEventListener("submit", event => {
   event.preventDefault();
@@ -229,7 +226,7 @@ $("generate-form").addEventListener("submit", event => {
     catch { box.hidden = false; box.select(); notice("Copy the prompt from the box below (Ctrl+C), paste it into any chatbot, then paste its reply."); }
   });
 });
-$("preset").addEventListener("change", () => { if ($("preset").value !== "") { loadPatch(presets[Number($("preset").value)]); notice("Preset loaded for review."); } });
+$("preset").addEventListener("change", () => { if ($("preset").value !== "") run("Opening the preset…", async () => { await adopt(presets[Number($("preset").value)]); notice("Preset opened. Poke at it, then Save JSON."); }); });
 $("download").addEventListener("click", () => run("Validating your preset…", async () => {
   const result = await api("validate", {patch});
   const url = URL.createObjectURL(new Blob([JSON.stringify(result.patch, null, 2) + "\n"], {type: "application/json"}));
@@ -244,7 +241,7 @@ $("import").addEventListener("change", () => run("Validating imported preset…"
     const raw = await file.text();
     const response = await fetch("/api/validate", {method: "POST", headers: {"Content-Type": "application/json", "X-Forge-Token": token}, body: `{"patch":${raw}}`});
     const result = await response.json(); if (!response.ok) throw new Error(result.error);
-    loadPatch(result.patch); $("preset").value = ""; notice("Preset imported and validated.");
+    await adopt(result.patch); $("preset").value = ""; notice("File opened and checked.");
   } finally { $("import").value = ""; }
 }));
 async function start() {
@@ -253,7 +250,7 @@ async function start() {
     const response = await fetch("/api/session"); if (!response.ok) throw new Error("Could not start a local session. Reload the URL printed by Forge.");
     const session = await response.json(); token = session.token; presets = session.presets;
     presets.forEach((item, index) => $("preset").add(new Option(item.name, String(index))));
-    if (presets.length) { const initial = Math.max(0, presets.findIndex(item => item.version === 3)); loadPatch(presets[initial]); $("preset").value = String(initial); }
+    if (presets.length) { const initial = Math.max(0, presets.findIndex(item => item.version === 7)); await adopt(presets[initial]); $("preset").value = String(initial); }
     const skipped = session.preset_errors || [];
     notice(skipped.length ? `Ready. Skipped damaged preset file(s): ${skipped.join("; ")}` : "Forge is lit. Describe a sound, pick a preset, or open a JSON file.", skipped.length > 0);
   } catch (error) { notice(error.message, true); }

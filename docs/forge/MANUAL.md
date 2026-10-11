@@ -615,8 +615,10 @@ asks for an API key.
    Gemini…), copy its whole reply, paste it back and press **Use this reply**. The
    workshop checks it; a reply that isn't a valid patch is refused with the reason (paste
    that back to the chatbot).
-3. **Tweak & keep:** or *start from a preset*; edit every module; **Save JSON** / **Open
-   JSON** keeps sounds on the computer.
+3. **Tweak & keep:** or *start from a preset*; edit every module (each group folds open on a
+   click; *open all* shows everything); **Save JSON** / **Open JSON** keeps sounds on the
+   computer. Every sound opens as a v7 instrument: older presets and files are converted as
+   they open, so there is no convert step.
 
 Until 0.19.2 the page also sent sounds to CHOMPI and managed the card's presets and
 samples, and could call OpenAI or Gemini with your own key; those parts were removed (the

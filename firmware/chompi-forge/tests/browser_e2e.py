@@ -88,6 +88,7 @@ class BrowserTests(unittest.TestCase):
         self.page.on("pageerror", lambda e: self.console.append(str(e)))
         self.page.goto(self.server.origin + "/")
         expect(self.page.locator("#notice")).to_contain_text("Forge is lit")
+        self.page.click("#fold-all")                                # the settings folds start closed
 
     def tearDown(self):
         self.assertEqual(self.console, [], "browser console errors/CSP violations")
@@ -110,10 +111,9 @@ class BrowserTests(unittest.TestCase):
         p = self.page
         self.assertEqual(p.locator("#preset option").count(), len(list((ROOT / "presets").glob("*.json"))) + 1)
         patch_json = self.json()
-        self.assertEqual(patch_json["version"], 3)                  # starts on the first v3 preset
-        self.assertFalse(p.is_disabled("#upgrade"))                 # v3 can convert to v6
-        self.assertTrue(p.is_disabled("#sampler-mode"))             # sampler controls need v4+
-        self.assertTrue(p.is_disabled("#knobs-0"))                  # knob choices need v5
+        self.assertEqual(patch_json["version"], 7)                  # every sound is edited as v7 (0.19.2)
+        self.assertEqual(p.locator("#upgrade").count(), 0)          # so there is no convert button
+        self.assertFalse(p.is_disabled("#sampler-mode")); self.assertFalse(p.is_disabled("#knobs-0"))
         for control in ("#synth-waveform", "#filter-resonance", "#lfo-rate_hz", "#reverb-mix", "#lfo-mod_wheel"):
             self.assertFalse(p.is_disabled(control), control)
         self.assertEqual(p.input_value("#routing"), patch_json["routing"])
@@ -147,25 +147,16 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(p.input_value("#filter-cutoff_hz-range"), "1000")
         p.screenshot(path=str(SHOTS / "desktop-instrument.png"), full_page=True)
 
-    def test_v2_controls_map_to_v2_fields_and_convert_to_v7(self):
+    def test_older_presets_open_as_v7(self):
         p = self.page
-        self.choose_preset("Soft Pad")
-        self.assertEqual(self.json()["version"], 2)
-        self.assertFalse(p.is_disabled("#filter-cutoff_hz"))         # v2 cutoff lives in synth
-        for control in ("#filter-resonance", "#synth-osc2_level", "#lfo-rate_hz", "#reverb-mix", "#synth-voices"):
-            self.assertTrue(p.is_disabled(control), control)
-        p.fill("#filter-cutoff_hz", "1500")
-        self.assertEqual(self.json()["modules"]["synth"]["cutoff_hz"], 1500)
-        self.assertNotIn("filter", self.json()["modules"])
-        before = self.json()
-        p.click("#upgrade"); self.wait_idle()
-        self.assertIn("Converted to v7", self.notice())
+        self.choose_preset("Soft Pad")                              # a v2 preset
+        before = forge_host.load_patch(ROOT / "presets" / "05-soft-pad.json")
         upgraded = self.json()
         self.assertEqual(upgraded, forge_host.upgrade_patch(before, 7))
         self.assertEqual((upgraded["version"], upgraded["routing"], upgraded["knobs"], upgraded["harmony"], upgraded["parts"]),
                          (7, "synth>delay>reverb>output", ["default"] * 4, forge_host.HARMONY_DEFAULTS, forge_host.PARTS_DEFAULTS))
         self.assertEqual(upgraded["modules"]["filter"]["cutoff_hz"], forge_host.v2_cutoff(before["modules"]["synth"]))   # 0.17.1 conversion
-        self.assertFalse(p.is_disabled("#reverb-mix")); self.assertTrue(p.is_disabled("#upgrade"))
+        self.assertFalse(p.is_disabled("#reverb-mix"))
         # 0.15.1: a v7 patch lists its three routes (the routing menu was empty for v7).
         self.assertEqual(len(p.locator("#routing option").all_inner_texts()), 3)
         p.select_option("#routing", "sampler>delay>reverb>output")
@@ -210,21 +201,19 @@ class BrowserTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             v1 = ROOT / "presets" / "02-slap.json"
             p.set_input_files("#import", str(v1)); self.wait_idle()
-            self.assertEqual(self.json()["version"], 1)
-            self.assertTrue(p.is_disabled("#synth-waveform"), "v1 delay patch must not expose synth controls")
-            self.assertTrue(p.is_disabled("#routing")); self.assertFalse(p.is_disabled("#delay-mix"))
-            self.assertEqual(p.input_value("#synth-attack_ms"), "")
+            self.assertEqual(self.json(), forge_host.upgrade_patch(forge_host.load_patch(v1), 7))   # opens as v7
+            self.assertEqual(self.json()["routing"], "aux>delay>reverb>output")            # still the line-in delay
+            before = self.json()
             dup = Path(folder) / "dup.json"; dup.write_text('{"version":1,"version":1}')
             p.set_input_files("#import", str(dup)); self.wait_idle()
             self.assertIn("error", p.get_attribute("#notice", "class"))
-            self.assertEqual(self.json()["version"], 1, "failed import must not replace the editor")
+            self.assertEqual(self.json(), before, "failed import must not replace the editor")
             v2 = ROOT / "presets" / "05-soft-pad.json"
             p.set_input_files("#import", str(v2)); self.wait_idle()
-            self.assertEqual(self.json(), forge_host.load_patch(v2))
-            self.assertFalse(p.is_disabled("#synth-waveform"))
+            self.assertEqual(self.json(), forge_host.upgrade_patch(forge_host.load_patch(v2), 7))
             v3 = ROOT / "presets" / "08-acid-bass.json"
             p.set_input_files("#import", str(v3)); self.wait_idle()
-            self.assertEqual(self.json(), forge_host.load_patch(v3))
+            self.assertEqual(self.json(), forge_host.upgrade_patch(forge_host.load_patch(v3), 7))
             self.assertEqual(p.input_value("#synth-voices"), "1")
 
     def test_chat_copy_and_paste_needs_no_key_or_device(self):
@@ -251,7 +240,7 @@ class BrowserTests(unittest.TestCase):
     def test_sampler_controls(self):
         p = self.page
         self.choose_preset("Recorded Keys")
-        self.assertEqual(self.json()["version"], 4); self.assertFalse(p.is_disabled("#upgrade"))
+        self.assertEqual(self.json()["version"], 7)
         p.select_option("#sampler-mode", "kit"); p.select_option("#sampler-bank", "c"); p.check("#sampler-reverse")
         p.uncheck("#sampler-hold"); p.fill("#sampler-crossfade_ms", "80"); p.fill("#synth-voices", "7")
         s = self.json()["modules"]["sampler"]
