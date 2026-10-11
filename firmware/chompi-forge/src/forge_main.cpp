@@ -258,6 +258,29 @@ std::atomic<uint32_t> inspector_event_drops{0}, inspector_panel_drops{0}, inspec
 uint32_t inspector_tx[2]{}, inspector_tx_errors[2]{};
 uint32_t inspector_storage_errors=0;
 uint8_t inspector_last_storage_error=0;
+// Battery reading instrumentation (core/battery_diag.h, Inspector page 11): observes the stock
+// MP2722 reads and level check, changes nothing they do.
+forge::power::BatteryMonitor battery_monitor;
+// Read register 0x0C (the BATT_LOW threshold) back. Main loop only, and only when no stock DMA
+// read is in flight: right after a stock write (MpWrite's blocking transmit waited for the read
+// started before it, and nothing starts one in between) or with read_ready set (the last read has
+// completed). libDaisy's blocking calls wait for the peripheral to be idle, then give up after 5 ms.
+// The stock read sets the register pointer back to 0x11 before every read.
+FORGE_COLD void ReadBackThreshold(forge::power::ReadBack kind) {
+    uint8_t reg = forge::power::kThresholdRegister, value = 0;
+    const bool ok = hw.i2c.TransmitBlocking(0x3f, &reg, 1, 5) == I2CHandle::Result::OK
+                 && hw.i2c.ReceiveBlocking(0x3f, &value, 1, 5) == I2CHandle::Result::OK;
+    battery_monitor.ReadBackDone(kind, ok, value);
+}
+FORGE_COLD void FillBattery(forge::power::BatteryDiag& b) {
+    b = battery_monitor.Diag();
+    b.uptime_ms = System::GetNow();
+    for(unsigned i = 0; i < 6; ++i) b.reg[i] = hw.mp_buff_[i];
+    b.battery_low = hw.batt_low_bounce; b.usb_good = hw.vin_gd_bounce;
+    b.legacy = hw.legacy_cable_bounce; b.input_limit = hw.iindpm_stat_bounce;
+    b.level = static_cast<uint8_t>(hw.GetBatteryLevel()); b.check_state = hw.batt_check_state;
+    b.read_ready = hw.read_ready;
+}
 void InspectorEvent(forge::InspectorEventKind kind, uint8_t id, uint32_t value) {
     inspector_log.Add({0,System::GetNow(),value,kind,id});
 }
@@ -550,7 +573,12 @@ forge::power::ChargerUsb charger_usb;
 bool usb_lines_to_daisy = true;
 void ServiceChargerUsb(uint32_t now) {
     const auto a = charger_usb.Poll(now, hw.mpc_int.Read(), hw.read_ready, hw.mp_buff_[0], hw.mp_buff_[1]);
-    if(a.read) hw.MpReadAll();
+    if(a.read) {
+#ifdef FORGE_TEST_HOOKS
+        battery_monitor.ReadStarted();
+#endif
+        hw.MpReadAll();
+    }
     if(a.usb_to_daisy >= 0) { usb_lines_to_daisy = a.usb_to_daisy != 0; hw.usb_sw.Write(usb_lines_to_daisy); }
     if(a.force_detection) hw.MpWrite(0x0a, 0B00110100);   // FORCEDPDM (as TAPE)
 }
@@ -953,7 +981,7 @@ FORGE_COLD void HandleFrame(const forge::MidiFrame& frame, uint8_t source) {
     if(error == forge::Error::None && request.kind == forge::RequestKind::Probe) {
         uint8_t envelope[kMaxEnvelope];
         size_t size;
-        if(request.page>=2 && !inspector_latest.block) {
+        if(request.page>=2 && request.page!=11 && !inspector_latest.block) {   // page 11: main loop only
             inspector_mailbox.RequestRefresh();
             ++rejected_messages;
             Send(source,envelope,forge::EncodeError(request.sequence,forge::Error::Busy,envelope+1));
@@ -961,7 +989,8 @@ FORGE_COLD void HandleFrame(const forge::MidiFrame& frame, uint8_t source) {
         }
         if(request.page==1) size = forge::EncodeProbeLeds(request.sequence, led_shadow, envelope + 1);
         else {
-            if(request.page==2 || !inspector_snapshot.generation) CaptureInspector();
+            if(request.page==11) FillBattery(inspector_snapshot.battery);
+            else if(request.page==2 || !inspector_snapshot.generation) CaptureInspector();
             size=forge::EncodeInspector(request.sequence,request.page,inspector_snapshot,inspector_log,request.inspector_cursor,envelope+1);
         }
         Send(source, envelope, size);
@@ -1169,10 +1198,24 @@ FORGE_COLD int main() {
         if(now - battery_check >= 20) {
             // 0.19.2: the stock check's parts, its protection only after 3 s of low readings
             // (core/power.h LockoutGuard): a dip while playing no longer stops CHOMPI.
+#ifdef FORGE_TEST_HOOKS
+            battery_monitor.Sample(hw.read_ready, hw.mp_buff_[5]);
+            if(battery_monitor.PeriodicDue(now, hw.read_ready)) ReadBackThreshold(forge::power::ReadBack::Periodic);
+            battery_monitor.ReadStarted();
+#endif
             hw.BMCPerformCheck();
             const auto lockout = lockout_guard.Update(ChargerReadings());
             if(lockout != forge::power::Lockout::None) { LogLockout(lockout); hw.LowBatteryLockoutCheck(); }
+#ifdef FORGE_TEST_HOOKS
+            else {
+                const uint8_t before = hw.batt_check_state;
+                hw.BMCMediumBattCheck();
+                const auto readback = battery_monitor.LevelCheck(before, hw.batt_check_state);
+                if(readback != forge::power::ReadBack::None) ReadBackThreshold(readback);
+            }
+#else
             else hw.BMCMediumBattCheck();
+#endif
             battery_check = now;
         }
         if(!stable && now >= forge::restart::kStableMs) { forge::restart::RanStably(startup_guard); stable = true; }

@@ -2,6 +2,7 @@
 #include <cstring>
 #include <iostream>
 #include "../core/power.h"
+#include "../core/battery_diag.h"
 #include "../core/restart.h"
 #include "../core/options.h"
 
@@ -189,8 +190,42 @@ void LockoutDip() {
     for(int i = 0; i < 500; ++i) assert(charger.Update(strong) == Lockout::None);       // strong supply: never
 }
 
+// Battery instrumentation (development builds): readings are counted under the threshold that
+// applied when their read started; read-backs follow the stock level check's writes.
+void BatteryInstrumentation() {
+    BatteryMonitor m;
+    assert(m.Expected(ReadBack::Periodic) == kThreshold30 && kThreshold30 == 0x51 && kThreshold33 == 0x5d);
+    m.Sample(false, 0); assert(m.Diag().checks == 1 && m.Diag().not_ready == 1 && m.Diag().samples_30 == 0);
+    m.ReadStarted(); assert(m.LevelCheck(0, 0) == ReadBack::None);
+    m.Sample(true, 0x10); m.ReadStarted(); m.Sample(true, 0x10);            // two low readings at 3.0 V
+    // The check that writes 3.3 V: its read started before the write, so it still counts at 3.0 V.
+    m.ReadStarted(); assert(m.LevelCheck(0, 1) == ReadBack::After33 && m.Diag().expect_33);
+    m.ReadBackDone(ReadBack::After33, true, kThreshold33);
+    m.Sample(true, 0x00); assert(m.Diag().samples_30 == 3 && m.Diag().low_30 == 2 && m.Diag().low_run_30 == 0 && m.Diag().low_run_30_max == 2);
+    m.ReadStarted(); assert(m.LevelCheck(1, 1) == ReadBack::None);
+    m.Sample(true, 0x10);                                                     // low against 3.3 V
+    // The check that writes 3.0 V: both its reads started at 3.3 V; the write reads back wrong.
+    m.ReadStarted(); assert(m.LevelCheck(1, 2) == ReadBack::After30 && !m.Diag().expect_33);
+    m.ReadBackDone(ReadBack::After30, true, kThreshold33);
+    m.Sample(true, 0x10);
+    assert(m.Diag().samples_33 == 2 && m.Diag().low_33 == 2 && m.Diag().samples_30 == 3);
+    assert(m.Diag().mismatch_30 == 1 && m.Diag().mismatch_33 == 0 && m.Diag().after_30 == kThreshold33 && m.Diag().readback_valid == 3);
+    m.ReadStarted(); assert(m.LevelCheck(2, 0) == ReadBack::None && m.Diag().level_checks == 1);
+    m.Sample(true, 0x10); assert(m.Diag().samples_30 == 4 && m.Diag().low_run_30 == 1);
+    // A charger hand-over read after the 3.3 V write counts at 3.3 V.
+    m.LevelCheck(0, 1); m.ReadStarted(); m.Sample(true, 0x00); assert(m.Diag().samples_33 == 3 && m.Diag().low_run_30 == 1);
+    // Periodic read-backs: once a second, never while a read is in flight; expected value follows the check.
+    assert(!m.PeriodicDue(999, true) && !m.PeriodicDue(1000, false) && m.PeriodicDue(1000, true) && !m.PeriodicDue(1500, true));
+    assert(m.Expected(ReadBack::Periodic) == kThreshold33);
+    m.ReadBackDone(ReadBack::Periodic, true, kThreshold30); assert(m.Diag().mismatch_periodic == 1 && m.Diag().periodic == kThreshold30);
+    m.ReadBackDone(ReadBack::Periodic, false, 0); assert(m.Diag().readback_errors == 1 && m.Diag().readback_valid == 7);
+    m.ReadBackDone(ReadBack::None, true, 0); assert(m.Diag().readback_errors == 1 && m.Diag().mismatch_periodic == 1);
+    assert(m.PeriodicDue(0xffffffffu, true) && m.PeriodicDue(1500, true));            // the millisecond clock wraps
+}
+
 int main() {
+    BatteryInstrumentation();
     BootGestureOff(); Colours(); ChargerHandover(); StatusDecode(); RestartReason(); SafeMode(); OptionsFile(); InstallPower(); LockoutDip();
     std::cout << "PASS: power off gesture, battery colours, charger/USB hand-over (edges, timeout, wrap), status decode, restart reason, safe mode, options.json,"
-                 " stock battery lockout, install power check, low-battery warning, supply flags\n";
+                 " stock battery lockout, install power check, low-battery warning, supply flags, battery instrumentation\n";
 }

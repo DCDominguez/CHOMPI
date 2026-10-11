@@ -23,7 +23,7 @@ def word(value):
 
 
 def request(page, sequence, cursor=0):
-    if type(page) is not int or not 1 <= page <= 10:
+    if type(page) is not int or not 1 <= page <= 11:
         raise ValueError("Unknown Inspector page")
     return host.message(0x0b, sequence, [page, *word(cursor)] if page == 6 else [page])
 
@@ -47,9 +47,9 @@ def decode(data, sequence, expected_page=None):
         if len(data) != 88:
             raise ValueError("Invalid LED page")
         return {"page": 1, "rgb": [data[9+3*i:12+3*i] for i in range(26)]}
-    if page not in range(2,11) or len(data) < 16 or data[9] != 1:
+    if page not in range(2,12) or len(data) < 16 or data[9] != 1:
         raise ValueError("Unsupported Inspector schema/page; use the matching host")
-    lengths = {2:(88, 91, 98, 104), 3:(97,), 4:(88,), 5:(94,), 8:(38,), 9:(50,), 10:(29,)}  # page 2: 91 from firmware 0.8 (power), 98 from 0.10 (restart), 104 from 0.15.2 (build)
+    lengths = {2:(88, 91, 98, 104), 3:(97,), 4:(88,), 5:(94,), 8:(38,), 9:(50,), 10:(29,), 11:(116,)}  # page 2: 91 from firmware 0.8 (power), 98 from 0.10 (restart), 104 from 0.15.2 (build)
     if page in lengths and len(data) not in lengths[page]:
         raise ValueError("Invalid Inspector page length")
     pos = 10
@@ -203,6 +203,26 @@ def decode(data, sequence, expected_page=None):
             raise ValueError("Invalid sequence page")
         result.update({"state":("empty","armed","recording","playing","stopped")[state],"overdub":bool(overdub),
                        "bars":length//96,"length_ticks":length,"position_ticks":position,"events":count,"drops":drops})
+    elif page == 11:                    # battery diagnostics (0.19.2 development builds, core/battery_diag.h)
+        if byte()!=1: raise ValueError("Unsupported battery page layout; use the matching host")
+        uptime=u32()
+        def raw():
+            v=u14()
+            if v>255: raise ValueError("Invalid battery page register")
+            return v
+        regs=[raw() for _ in range(6)]; histories=[raw() for _ in range(4)]
+        level,state,flags=byte(),byte(),byte()
+        after=[raw() for _ in range(3)]
+        names=("mismatch_33","mismatch_30","mismatch_periodic","readback_errors","checks","not_ready",
+               "samples_30","low_30","samples_33","low_33","low_run_30","low_run_30_max","level_checks")
+        counters={k:u32() for k in names}
+        if level>4 or state>2 or flags>31: raise ValueError("Invalid battery page")
+        result.update({"uptime_ms":uptime,"registers":regs,
+                       "histories":dict(zip(("battery_low","usb_good","legacy","input_limit"),histories)),
+                       "level":host.BATTERY_LEVELS[level],"check_state":state,"read_ready":bool(flags&1),
+                       "expect_33":bool(flags&2),
+                       "readback":{k:(v if flags>>(2+i)&1 else None) for i,(k,v) in enumerate(zip(("after_33","after_30","periodic"),after))},
+                       **counters})
     if pos!=len(data)-1: raise ValueError("Unexpected Inspector trailing data")
     return result
 

@@ -4,6 +4,16 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
 
 ## 0.19.2 What you save is what wakes up (small tool: to be named) — 2026-10-11 (on CHOMPI since 0.19.2 build 8b51764; checks in TEST_RESULTS)
 
+- **Battery reading instrumentation (development builds only; software-tested, not
+  hardware-verified).** `make firmware-dev` now answers Inspector page 11: the raw charger
+  registers 0x11-0x16, the stock 8-reading histories, the level check's state, read-backs of the
+  BATT_LOW threshold register 0x0C after each stock write and once a second, and how many 20 ms
+  readings were low against 3.0 V vs. the 3.3 V window (`core/battery_diag.h`). New host tool
+  `host/forge_battery_log.py` logs it at 10 Hz to CSV and prints changes
+  ([BATTERY_READINGS.md](BATTERY_READINGS.md) "Instrumented build"). Observation only: the stock
+  reads, writes, lockout and `LockoutGuard` are unchanged; the release build is unchanged
+  (252,416 B); development 268,348 B (+2,076 B). Tests: `make test` (C++ suites incl. power
+  "battery instrumentation" and the page-11 wire bounds, 142 host tests); not run on CHOMPI.
 - **Shut-offs while playing fast: found and fixed in software.** A power log (10 readings a
   second, CHOMPI on a computer's USB port, fast playing on a sample-based sound) caught one:
   battery "high", then one reading later "medium" with the charger's below-3.0 V flag, then

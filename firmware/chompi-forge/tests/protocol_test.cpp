@@ -109,7 +109,7 @@ void ProtocolV3() {
         uint8_t dev[11]; Header(dev, op, 3); dev[7] = 0; dev[8] = 15; dev[9] = 65; dev[10] = Checksum(dev, 10);
         assert(DecodeRequest(dev, op == 0x0a ? 11 : 9, request) == Error::Opcode || DecodeRequest(dev, 11, request) == Error::Opcode);
     }
-    for(uint8_t page=0;page<=7;++page) {
+    for(uint8_t page=0;page<=11;++page) {   // 11: battery diagnostics (0.19.2)
         uint8_t dev[14]{}; Header(dev,0x0b,3); dev[7]=page; dev[8]=Checksum(dev,8);
         assert(DecodeRequest(dev,9,request)==Error::Opcode);
     }

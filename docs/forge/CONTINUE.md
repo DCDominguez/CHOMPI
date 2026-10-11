@@ -1,9 +1,23 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-11 (late night), checkpoint: **0.19.2 (build 8b51764) on CHOMPI**; guided hands-on test done except the TAPE functions (recording, sampler, looper); open: charging from a power bank while on. Read this first; the owner's next session is
+Updated 2026-10-12 (instrumented battery build, development only, not on CHOMPI); before that 2026-10-11 (late night), checkpoint: **0.19.2 (build 8b51764) on CHOMPI**; guided hands-on test done except the TAPE functions (recording, sampler, looper); open: charging from a power bank while on. Read this first; the owner's next session is
 [HOME_CHECKLIST.md](HOME_CHECKLIST.md), then [TEST_SESSION.md](TEST_SESSION.md).
 
-## 2026-10-12: battery readings under investigation (resume here)
+## 2026-10-12: instrumented battery build (development only; resume here)
+
+- Built, software-tested, **not run on CHOMPI**: Inspector page 11 in `make firmware-dev`
+  (`core/battery_diag.h`, `forge_main.cpp` battery check) and `host/forge_battery_log.py`
+  (10 Hz CSV + change lines). Observes the stock reader only; release build unchanged.
+- Checks: `make test CXX="g++ -D_USE_MATH_DEFINES"` passed (17 C++ suites; 142 host tests,
+  1 skipped: Playwright not installed); `make firmware-dev` layout OK 268,348 B (headroom 20,420 B);
+  `make firmware` layout OK 252,416 B (unchanged). Sanitizers not run (no DSP change).
+- Next (needs the owner): install the development `FORGE.bin`, run
+  `D:\tools\forge-venv\Scripts\python.exe forge_battery_log.py --csv battery_log.csv` from
+  `firmware/chompi-forge/host` through the shut-off tests, then read the log against the
+  hypotheses in [BATTERY_READINGS.md](BATTERY_READINGS.md) "Instrumented build". Unverified:
+  the 0x0C read-back on real hardware (value, bits that may read differently), I2C timing.
+
+## 2026-10-12: battery readings under investigation
 
 - The owner suspects the battery *readings*, not only the battery. Analysis in
   [BATTERY_READINGS.md](BATTERY_READINGS.md): the stock reader starts at "medium" for 30 s after
