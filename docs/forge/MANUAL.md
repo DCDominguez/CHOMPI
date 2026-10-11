@@ -221,6 +221,11 @@ middle key.
 ## 6. Presets on CHOMPI
 
 8 banks × 15 slots on the SD card. They start empty — save sounds into them first.
+Banks go by colour (the bank keys KEY_16 / KEY_17 light up in it):
+
+| Bank | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Colour | red | orange | yellow | green | teal | blue | purple | pink |
 
 Open the menu: **toggle down, hold CHOMPI.** It opens on the page you left it on, at first TAPE's page (section 7);
 **hold KEY_22 for 1 s** to reach Forge's presets page (a tap on the presets page goes
@@ -266,11 +271,42 @@ Forge plays TAPE's sample files from the card's top folder:
 8/16/24-bit or float, mono or stereo, 8–96 kHz. Copy files with the card in a
 computer, or over USB with Forge Bridge (*Card & firmware*, section 10).
 
-**Choowi's sample pack (0.19.2):** two banks of our own, free (CC0): chromatic bank **d** (14
-instruments: plucks, keys, bells, pads, bass, choir…) and kit bank **d** (14 drums and hits,
-ending with Choowi's anvil). It's `choowi-samples.zip` on the release page; copy the WAVs to the
-card's top folder next to TAPE's. Banks a-c stay TAPE's. The list is in
-`firmware/chompi-forge/samples/choowi-pack/README.md`.
+**Sample banks go by colour** (TAPE's page lights KEY_16 / KEY_17 in the bank's colour):
+
+| Bank | a | b | c | d | e |
+| --- | --- | --- | --- | --- | --- |
+| Colour | **purple** | orange | teal | red | lime |
+| Files | `…_a1`–`…_a14` | `…_b…` | `…_c…` | `…_d…` | `…_e…` |
+
+(TAPE shows bank d dark orange; Forge 0.19.2 makes it red so no two banks share a name.)
+
+**Choowi's default samples (0.19.2): bank purple.** Forge comes with two banks of its own, free
+(CC0): chromatic **purple** (14 instruments) and kit **purple** (14 drums and hits). They are
+`choowi-samples.zip` on the release page; copy the WAVs to the card's top folder. They are
+named `jammi_a…` / `cubbi_a…`, so they **replace TAPE's bank a samples** on a TAPE card: copy
+TAPE's files to the computer first if you want to keep them.
+
+| Slot | Chromatic purple (played at middle C) | Kit purple |
+| --- | --- | --- |
+| 1 (C3) | Glass Pluck | Kick |
+| 2 (D3) | Soft Keys | Snare |
+| 3 (E3) | FM Bell (an octave down) | Closed Hat |
+| 4 (F3) | Warm Saw Pad | Open Hat |
+| 5 (G3) | Round Bass (an octave down) | Clap |
+| 6 (A3) | Acid Squelch | Low Tom |
+| 7 (B3) | Marimba | High Tom |
+| 8 (C4) | Ooh Choir | Rim |
+| 9 (D4) | Music Box (an octave up) | Cowbell |
+| 10 (E4) | Brass Stab | Shaker |
+| 11 (F4) | Kalimba | Crash |
+| 12 (G4) | Lofi Organ | Zap |
+| 13 (A4) | Wobble Lead | Choowi Chirp |
+| 14 (B4) | Sparkle Pad | Anvil (Choowi's hammer) |
+
+**To play them:** toggle **down**, **hold CHOMPI**; on TAPE's page (CHOMPI light teal; from a
+Forge page tap KEY_22) press **KEY_16** until it glows **purple** and press a white key: that
+sound plays across the keys once you let go of CHOMPI. For the kit, press **KEY_17** until it
+glows purple and let go: each white key is one hit.
 
 ### Playing samples
 - **Chromatic:** one sample across the keys; the middle C key plays it at its own
@@ -299,8 +335,8 @@ Forge share it: what you set in one is there in the other.
 ### TAPE's menu page (the menu opens here)
 | Key | Does |
 | --- | --- |
-| KEY_16 | Chromatic (press again: next bank a–e) |
-| KEY_17 | Kit (press again: next bank a–e) |
+| KEY_16 | Chromatic (press again: next bank: purple, orange, teal, red, lime) |
+| KEY_17 | Kit (press again: next bank, same colours) |
 | White key | Chromatic: load and play that slot. Kit: pick a slot for save/copy/erase |
 | KEY_18 / 19 / 20 | Record from mic / line in / resample (the instrument's own output) |
 | KEY_25 | Save the recording into a slot (white key, CHOMPI) |

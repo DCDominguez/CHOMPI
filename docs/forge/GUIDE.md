@@ -346,6 +346,22 @@ your preset. MIDI clock from other gear takes over the tempo while it plays. Det
 
 ---
 
+## how do I play Choowi's samples?
+
+Forge comes with its own sounds in **bank purple** (copy `choowi-samples.zip` from the release
+page to the card's top folder first; it replaces TAPE's bank a files).
+
+1. Toggle **down**, **hold CHOMPI**, go to **TAPE's page** (teal; from a Forge page tap **KEY_22**).
+2. **Instruments:** press **KEY_16** until it glows **purple**, then press a white key: 1 Glass
+   Pluck, 2 Soft Keys, 3 FM Bell, 4 Warm Saw Pad, 5 Round Bass, 6 Acid Squelch, 7 Marimba, 8 Ooh
+   Choir, 9 Music Box, 10 Brass Stab, 11 Kalimba, 12 Lofi Organ, 13 Wobble Lead, 14 Sparkle Pad.
+   Let go of CHOMPI and play it across the keys.
+3. **Drums:** press **KEY_17** until it glows **purple**, let go: the white keys are Kick, Snare,
+   Closed Hat, Open Hat, Clap, Low Tom, High Tom, Rim, Cowbell, Shaker, Crash, Zap, Choowi
+   Chirp and Anvil.
+
+Sample banks by colour: purple, orange, teal, red, lime (the files' a to e).
+
 ## how do I record and use samples?
 
 **Record**
@@ -368,7 +384,8 @@ again to get the volume back. Up to about 87 s per take.
    It turns blue.
 4. Press CHOMPI. The CHOMPI light blinks pink while it writes, then flashes green.
 
-The slot goes into the bank shown on TAPE's page (chromatic banks a–e).
+The slot goes into the bank shown on TAPE's page: KEY_16 / KEY_17 glow in its colour (purple,
+orange, teal, red, lime).
 
 **Play samples from the card** (TAPE's page): **KEY_16** = chromatic (one sample across the
 keys; press again for the next bank), **KEY_17** = kit (each white key a different sample).

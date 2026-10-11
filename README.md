@@ -112,7 +112,7 @@ python3 -m pip install -r firmware/chompi-forge/host/requirements.txt
 python3 firmware/chompi-forge/host/forge_web.py
 ```
 
-There's also **Choowi's sample pack**: two free banks (chromatic d, kit d) for the card, in
+Choowi's own sounds are **bank purple** (14 instruments, 14 drums, free) for the card, in
 [firmware/chompi-forge/samples/choowi-pack](firmware/chompi-forge/samples/choowi-pack/).
 
 Open **http://127.0.0.1:8765**, describe a sound and copy the prompt into any chatbot (ChatGPT,

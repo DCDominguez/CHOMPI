@@ -37,10 +37,13 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
   (`/api/midi/send|status|stop|reply`, forge_host's wire format, including the acknowledged-patch
   match); it opens no MIDI port. Tested in the browser end-to-end through the firmware's decoder
   (`forge_probe`) with a stand-in for Web MIDI; not yet with a real CHOMPI in Chrome.
-- **Choowi's sample pack:** 28 samples of our own (CC0), made with Web Audio in Chromium by
-  `host/make_sample_pack.py` (`host/sample_pack/pack.js`, seeded): chromatic bank d (14 instruments
-  at C4, measured within 5 cents) and kit bank d (14 hits). In `samples/choowi-pack/` with a
-  listening page; `choowi-samples.zip` for the release. Not yet played on CHOMPI.
+- **Choowi's sample pack, Forge's default samples:** 28 of our own (CC0), made with Web Audio in
+  Chromium by `host/make_sample_pack.py` (`host/sample_pack/pack.js`, seeded): chromatic and kit
+  bank **purple** (bank a; 14 instruments at C4, measured within 5 cents, and 14 hits). In
+  `samples/choowi-pack/` with a listening page; `choowi-samples.zip` for the release. Copied to
+  the owner's card as bank d first (before the move to bank a); not yet judged by ear.
+- **Sample bank d is red** (TAPE: dark orange, next to b's orange), so banks go by colour:
+  purple, orange, teal, red, lime. The manuals name banks by colour (presets: red to pink).
 - Known limit: SW6's battery colour is the charger's 3.3 V comparator checked every 30 s, so
   charging current reads high and playing reads low; only white (charge done) is reliable.
 - **A preset saved on the panel is now also the one CHOMPI loads at power-on** (`FORGE/LAST.TXT`),

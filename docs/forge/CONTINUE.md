@@ -13,7 +13,7 @@ Updated 2026-10-11 (late night), checkpoint: **0.19.2 (build 8b51764) on CHOMPI*
   build (raw registers, 0x0C read-back, write results), then a Forge-owned reader if confirmed.
 - Also since the last checkpoint: the webapp is Choowi's sound workshop (no keys, no hardware,
   chatbot copy and paste, always v7, settings in folds), the Web MIDI page `/send`, and Choowi's
-  sample pack (chromatic d, kit d; not yet copied to CHOMPI, waiting for the owner's OK).
+  sample pack, now the default bank purple (bank a); copied to the owner's card as bank d before that move. Sample bank d is red (firmware, not yet installed).
 
 ## 2026-10-11 (late night): guided test nearly done, repo refreshed
 
