@@ -3,7 +3,15 @@
 Updated 2026-10-11, checkpoint: 0.16.0 (Batch 1 + 2) built and software-tested; next: install on CHOMPI (DC's key press), 3J checks, stress test to failure. Read this first; DC's next session is
 [HOME_CHECKLIST.md](HOME_CHECKLIST.md), then [TEST_SESSION.md](TEST_SESSION.md).
 
-## 2026-10-11 (night): 0.17.1 + 0.18.0 built, Spark chosen (resume here)
+## 2026-10-11 (late night): 0.19.0 synth page built (resume here)
+
+- Built, not installed: 0.17.1 (SW5 sweep), 0.18.0 (magic 4-6), 0.19.0 (synth edit page, menu
+  page 5, pink). One install covers all three (DC's press). Webapp: Spark mockup v2 published
+  (virtual screen, dice, characters). Next: install + TEST_SESSION 3J-3M + the filter "after"
+  video; then the stress test; then the virtual screen protocol and the Spark webapp build.
+- Development headroom 22,876 B (RESOURCE_LEDGER): plan a code move before effects.
+
+## 2026-10-11 (night): 0.17.1 + 0.18.0 built, Spark chosen
 
 - On CHOMPI: 0.17.0 (e7b5e12), magic 1-3 checked (TEST_RESULTS). Built, NOT installed (DC out;
   Claude Code's permission check refused a virtual CHOMPI press twice, even with DC's chat OK, so

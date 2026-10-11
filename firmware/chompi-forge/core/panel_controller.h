@@ -181,12 +181,13 @@ public:
         battery_view_.store(volume_held_ >= kBatteryHoldFrames, std::memory_order_relaxed);
         keys_down_.store(static_cast<uint32_t>(keys), std::memory_order_relaxed);   // all 25 note keys are switches 0-31
         for(unsigned key = 0; key < panel::kButtons; ++key) if(panel::kKeyNotes[key]) {
-            const bool harmony_page = HarmonyPage(), parts_page = PartsPage();   // before the key may change the page
+            const bool harmony_page = HarmonyPage(), parts_page = PartsPage(), synth_page = SynthPage();   // before the key may change the page
             if(((rising >> key) & 1u) && !menu_.Key(static_cast<uint8_t>(key), true))
                 PlayKey(engine, panel::kKeyNotes[key], 127);   // TAPE: full velocity
             else if(((rising >> key) & 1u) && harmony_page && HarmonyPage() && engine.Harmony())
                 engine.Harmony()->state.tonic = static_cast<uint8_t>(panel::kKeyNotes[key] % 12);   // harmony page: the key's note is the tonic
             else if(((rising >> key) & 1u) && parts_page && PartsPage() && engine.Parts()) PartsKey(panel::kKeyNotes[key], engine);
+            else if(((rising >> key) & 1u) && synth_page && SynthPage()) SynthKey(panel::kKeyNotes[key], engine);
             if((falling >> key) & 1u) {
                 menu_.Key(static_cast<uint8_t>(key), false); PlayKey(engine, panel::kKeyNotes[key], 0);
             }
@@ -222,7 +223,8 @@ public:
         // 0.16: keep holding KEY_21 another second: straight on to the parts page.
         if(fx_key_parts_) {
             if(!((keys >> panel::kFxBefore) & 1u)) fx_key_parts_ = false;
-            else if((fx_key_frames_ += hardware.frames) >= 2 * panel::kPresetsHoldFrames) { if(HarmonyPage()) menu_.ShowPage(MenuPage::Parts); fx_key_parts_ = false; }
+            else if((fx_key_frames_ += hardware.frames) >= 3 * panel::kPresetsHoldFrames) { if(PartsPage()) menu_.ShowPage(MenuPage::Synth); fx_key_parts_ = false; }
+            else if(fx_key_frames_ >= 2 * panel::kPresetsHoldFrames && HarmonyPage()) menu_.ShowPage(MenuPage::Parts);   // 0.19: on to the synth page at 3 s
         }
         if(fx_key_armed_ && ((falling >> panel::kFxBefore) & 1u)) { if(tape_page) engine.SetFxBeforeLoop(true); fx_key_armed_ = false; }
         if(tape_page && ((rising >> panel::kPage) & 1u)) { page_key_frames_ = 0; page_key_armed_ = true; }
@@ -254,6 +256,9 @@ public:
         // 0.17: the start-up chime (main loop asks once the remembered preset is queued).
         if(chime_request_.exchange(false, std::memory_order_relaxed)) chime_.Start();
         chime_.Tick(hardware.frames, [&](uint8_t note, uint8_t velocity) { engine.ChimeNote(note, velocity); });
+        if(audition_ && (!SynthPage() || !((keys >> 28) & 1u))) {   // 0.19: C5 (button 28) let go, or the menu closed
+            audition_ = false; for(uint8_t n : {uint8_t(60), uint8_t(64), uint8_t(67)}) engine.ChimeNote(n, 0);
+        }
         // 0.18 dream mode: quiet = nothing touched (keys, knobs, SW5, MIDI from the main loop);
         // allowed = menu position, menu closed, a synth or chromatic sampler sound, the looper,
         // recorder and event recorder not playing.
@@ -273,6 +278,7 @@ public:
         if(menu_.Active() && menu_.Page() == MenuPage::Samples) MenuControls(hardware, keys, rising, turns, engine);
         else if(HarmonyPage()) HarmonyControls(keys, turns, engine);
         else if(PartsPage()) PartsControls(keys, turns, engine);
+        else if(SynthPage()) SynthControls(keys, turns, engine);
         else {
             // SW5 (virtual: 2 = one click, 1 = held).
             const bool tone_down = hardware.tone_down || virtual_tone_ != 0;
@@ -361,6 +367,13 @@ public:
     uint32_t MenuPacked() const { return menu_.Packed(); }
     bool HarmonyPage() const { return menu_.Active() && menu_.Page() == MenuPage::Harmony; }
     bool PartsPage() const { return menu_.Active() && menu_.Page() == MenuPage::Parts; }
+    bool SynthPage() const { return menu_.Active() && menu_.Page() == MenuPage::Synth; }
+    // 0.19 synth page lights: bits 0-1 osc 1 wave, 2-3 osc 2 wave, 4-6 interval choice (7 = other),
+    // 7-8 LFO shape, 9 mod wheel, 10-11 voices (0 four, 1 seven, 2 mono, 3 other), 12 audition held,
+    // 13 a synth sound is loaded, 14-17 knob pages (one bit each), 24 the page's knobs.
+    uint32_t SynthLights() const { return synth_lights_.load(std::memory_order_relaxed); }
+    // The four knobs' values on the synth page (8 bits each, SW4 lowest).
+    uint32_t SynthKnobs() const { return synth_knobs_.load(std::memory_order_relaxed); }
     // parts::PackArp of the parts settings, and the clock for the lights: bit 0 running,
     // 1 MIDI clock, 2 on the beat (first 1/16 of each quarter), bits 8-16 the tempo.
     uint32_t PartsLights() const { return parts_lights_.load(std::memory_order_relaxed); }
@@ -451,6 +464,19 @@ private:
         const uint32_t chime = chime_.Active() ? 1u + static_cast<uint32_t>(chime_.Progress() * 254.f) : 0u;
         magic_lights_.store((magic_flash_ ? magic_kind_ & 3u : 0u) | (magic_count_ & 15u) << 2 | chime << 8, std::memory_order_relaxed);
         dream_lights_.store(dream_.Active() ? (dream_.KeyMask() | 1u << 25) : 0u, std::memory_order_relaxed);
+        {   // 0.19 synth page
+            uint32_t interval = 7;
+            for(uint32_t i = 0; i < 6; ++i) if(static_cast<int>(p.osc2_semitones) - 24 == Intervals()[i]) interval = i;
+            const uint32_t voices = p.voices == 1 ? 2u : p.voices == 7 ? 1u : p.voices == 4 ? 0u : 3u;
+            uint32_t s = (p.waveform & 3u) | (p.osc2_waveform & 3u) << 2 | interval << 4 | (p.lfo_waveform & 3u) << 7
+                       | (p.lfo_wheel ? 1u << 9 : 0u) | voices << 10 | (audition_ ? 1u << 12 : 0u) | (p.synth && p.version >= 3 ? 1u << 13 : 0u);
+            uint32_t values = 0;
+            for(unsigned k = 0; k < 4; ++k) {
+                s |= (synth_page_[k] & 1u) << (14 + k);
+                values |= static_cast<uint32_t>(Clamp(engine.Value(SynthTarget(k, synth_page_[k])), 0.f, 1.f) * 255.f + .5f) << (8 * k);
+            }
+            synth_lights_.store(s, std::memory_order_relaxed); synth_knobs_.store(values, std::memory_order_relaxed);
+        }
         const bool tape_menu = menu_.Active() && menu_.Page() == MenuPage::Samples;
         harmony_lights_.store(engine.Harmony() ? harmony::Pack(engine.Harmony()->state, engine.Harmony()->Shift()) : 0u, std::memory_order_relaxed);
         if(const parts::Parts* pp = engine.Parts()) {
@@ -643,6 +669,61 @@ private:
         if(changed) engine.PartsChanged();
     }
     int parts_detents_[4] = {};
+    // ---- Synth page (0.19, DC's synth edit page) ----
+    // Keys: C3-F3 osc 1 wave (sine, triangle, saw, square); G3-C4 osc 2 wave; D4-B4 osc 2 interval
+    // (unison, +5th, +octave, -octave, +4th, +12th); C5 audition (C major while held);
+    // C#3 D#3 F#3 G#3 LFO shape (sine, triangle, square, random); A#3 mod wheel gates the LFO;
+    // F#4 four voices, G#4 seven, A#4 mono with glide. KEY_21 harmony page, KEY_22 TAPE's page.
+    // Knobs (press = the knob's other page): SW4 osc 2 level / vibrato, SW1 osc 2 detune / tremolo,
+    // SW2 noise / LFO rate, SW3 glide / delay time.
+    static const int8_t* Intervals() { static const int8_t i[6] = {0, 7, 12, -12, 5, 19}; return i; }
+    FORGE_COLD static Parameter SynthTarget(unsigned knob, unsigned page) {
+        static const Parameter t[4][2] = {{Parameter::Osc2Level, Parameter::LfoPitch}, {Parameter::Osc2Detune, Parameter::LfoAmp},
+                                          {Parameter::Noise, Parameter::LfoRate}, {Parameter::Glide, Parameter::Time}};
+        return t[knob & 3][page & 1];
+    }
+    // Discrete patch fields: the live sound (harmony and parts as they are now) with one change.
+    template<typename F> FORGE_COLD void EditSynth(Engine& engine, F change) {
+        Parameters p = engine.Snapshot();
+        if(!p.synth || p.version < 3) return;                    // effects-only and v1/v2 sounds have no such fields
+        change(p);
+        if(p.Valid()) engine.ApplyPatch(p);
+    }
+    FORGE_COLD void SynthKey(uint8_t note, Engine& engine) {
+        static const uint8_t lfo_keys[4] = {49, 51, 54, 56};
+        if(note >= 48 && note <= 53 && note != 49 && note != 51) {   // C3 D3 E3 F3
+            static const uint8_t w[6] = {0, 0, 1, 0, 2, 3};
+            const uint8_t wave = w[note - 48]; EditSynth(engine, [&](Parameters& p) { p.waveform = wave; }); return;
+        }
+        static const uint8_t osc2[4] = {55, 57, 59, 60};
+        for(uint8_t i = 0; i < 4; ++i) if(note == osc2[i]) { EditSynth(engine, [&](Parameters& p) { p.osc2_waveform = i; }); return; }
+        static const uint8_t interval_keys[6] = {62, 64, 65, 67, 69, 71};
+        for(uint8_t i = 0; i < 6; ++i) if(note == interval_keys[i]) {
+            const int8_t st = Intervals()[i];
+            EditSynth(engine, [&](Parameters& p) { p.osc2_semitones = static_cast<uint8_t>(24 + st); if(p.osc2_level < .05f) p.osc2_level = .4f; }); return;
+        }
+        for(uint8_t i = 0; i < 4; ++i) if(note == lfo_keys[i]) { EditSynth(engine, [&](Parameters& p) { p.lfo_waveform = i; }); return; }
+        if(note == 58) { EditSynth(engine, [&](Parameters& p) { p.lfo_wheel = !p.lfo_wheel; }); return; }
+        if(note == 66 || note == 68) { const uint8_t n = note == 66 ? 4 : 7; EditSynth(engine, [&](Parameters& p) { p.voices = n < p.MaxVoices() ? n : p.MaxVoices(); }); return; }
+        if(note == 70) { EditSynth(engine, [&](Parameters& p) { p.voices = 1; if(p.glide < .01f) p.glide = .04f; }); return; }
+        if(note == 72) { audition_ = true; for(uint8_t n : {uint8_t(60), uint8_t(64), uint8_t(67)}) engine.ChimeNote(n, 100); }
+    }
+    FORGE_COLD void SynthControls(uint64_t keys, const int16_t (&turns)[panel::kEncoders], Engine& engine) {
+        for(unsigned knob = 0; knob < 4; ++knob) {
+            KnobHold& h = hold_[knob];
+            const bool down = (keys >> panel::kKnobEncoder[knob]) & 1u;
+            if(down && !h.down) { h = KnobHold{}; h.down = true; synth_page_[knob] ^= 1u; page_flash_[knob] = panel::kPageFlashFrames; }
+            if(!down) h.down = false;
+            if(const int t = turns[panel::kKnobEncoder[knob]]) {
+                const Parameter target = SynthTarget(knob, synth_page_[knob]);
+                engine.Apply({target, engine.Value(target) + t * .01f});
+                turn_view_[knob] = panel::kTurnViewFrames;
+            }
+        }
+    }
+    uint8_t synth_page_[4] = {};
+    bool audition_ = false;
+    std::atomic<uint32_t> synth_lights_{0}, synth_knobs_{0};
     static constexpr uint32_t kClearFrames = 2 * 48000;   // A#4: the second press within 2 s clears
     uint32_t clear_frames_ = 0;
     std::atomic<uint32_t> parts_lights_{0}, parts_clock_{0}, sequence_lights_{0};
@@ -802,6 +883,7 @@ struct LedView {
     uint32_t sequence = 0;                        // PanelController::SequenceLights (0.15)
     uint32_t magic = 0;                           // PanelController::MagicLights (0.17)
     uint32_t dream = 0;                           // PanelController::DreamLights (0.18)
+    uint32_t synth = 0;                           // PanelController::SynthLights (0.19)
     float dream_level = .5f;                      // the dream's breathing, 0..1 (main loop clock)
     uint8_t ripple = 0;                           // a loop just closed: the ripple's progress 1..255 (0.18)
 };
@@ -1006,6 +1088,41 @@ FORGE_COLD inline void RenderPartsLeds(uint32_t packed, uint32_t clock, uint32_t
 inline Rgb TempoColour(unsigned bpm) {
     return knobs::StepColour(bpm < 80 ? 7u : bpm < 100 ? 1u : bpm < 120 ? 2u : bpm < 140 ? 3u : 4u);
 }
+// 0.19 synth page: the chosen key of each group lit in its group colour, the rest of the group dim:
+// osc 1 wave pink, osc 2 wave teal, interval yellow, LFO shape purple, voices green; A#3 white with
+// the mod wheel on; C5 (audition) white, bright while held; KEY_21 / KEY_22 dim. No synth sound
+// loaded (effects-only, v1 / v2): every key dim red.
+FORGE_COLD inline void RenderSynthLeds(uint32_t s, Rgb (&keys)[25]) {
+    using namespace knobs::colour;
+    for(auto& led : keys) led = Rgb{};
+    auto lit = [&](uint8_t note, Rgb c) {
+        for(uint8_t key = 0; key < panel::kButtons; ++key) if(panel::kKeyNotes[key] == note) {
+            const uint8_t slot = panel::KeyToSlot(key);
+            const uint8_t led = slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key);
+            if(led < 25) keys[led] = c;
+        }
+    };
+    if(!((s >> 13) & 1u)) { for(auto& led : keys) led = Rgb{.15f, 0.f, 0.f}; return; }
+    auto group = [&](const uint8_t* notes, unsigned n, unsigned chosen, Rgb c) {
+        for(unsigned i = 0; i < n; ++i) lit(notes[i], i == chosen ? c : knobs::Scale(c, .12f));
+    };
+    static const uint8_t osc1[4] = {48, 50, 52, 53}, osc2[4] = {55, 57, 59, 60}, interval[6] = {62, 64, 65, 67, 69, 71};
+    static const uint8_t lfo[4] = {49, 51, 54, 56}, voices[3] = {66, 68, 70};
+    group(osc1, 4, s & 3u, pink); group(osc2, 4, (s >> 2) & 3u, teal); group(interval, 6, (s >> 4) & 7u, yellow);
+    group(lfo, 4, (s >> 7) & 3u, purple); group(voices, 3, (s >> 10) & 3u, green);
+    lit(58, (s >> 9) & 1u ? white : Rgb{.08f, .08f, .08f});
+    lit(72, (s >> 12) & 1u ? white : Rgb{.3f, .3f, .3f});
+    lit(61, Rgb{.08f, .08f, .08f}); lit(63, Rgb{.08f, .08f, .08f});
+}
+// Synth page rings: page 1 pink, page 2 teal, brighter with the value; turning shows the full colour.
+inline void ComposeSynthKnobLeds(uint32_t s, uint32_t values, Rgb (&rings)[4], uint32_t flags = 0) {
+    for(unsigned k = 0; k < 4; ++k) {
+        const Rgb c = (s >> (14 + k)) & 1u ? knobs::colour::teal : knobs::colour::pink;
+        const float v = ((values >> (8 * k)) & 255u) / 255.f;
+        rings[k] = knobs::Scale(c, (flags >> (4 + k)) & 1u ? 1.f : .15f + .85f * v);
+        if((flags >> k) & 1u) rings[k] = c;                       // page change flash
+    }
+}
 inline void ComposePartsKnobLeds(uint32_t packed, uint32_t clock, Rgb (&rings)[4], uint32_t flags = 0) {
     const parts::Settings s = parts::Unpack(packed, parts::kDefaultBpm);
     const Rgb white{1.f, 1.f, 1.f}, dim{.08f, .08f, .08f};
@@ -1020,6 +1137,8 @@ FORGE_COLD inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chomp
         RenderHarmonyLeds(v.harmony, keys);
     else if((v.menu & 1u) && ((v.menu >> 1) & 7u) == 6u)
         RenderPartsLeds(v.parts, v.parts_clock, v.sequence, keys);
+    else if((v.menu & 1u) && ((v.menu >> 1) & 7u) == 5u)
+        RenderSynthLeds(v.synth, keys);
     else if(!(v.menu & 1u))
         RenderPlayLeds(v.keys_down, v.live, v.kit_occupancy, v.recording_present, keys, v.harmony);
     else if((v.menu >> 21) & 1u)
@@ -1043,7 +1162,7 @@ FORGE_COLD inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chomp
         // 0.16: the open menu page: TAPE's teal, presets blue, harmony purple, parts orange
         // (dimmer while CHOMPI is up with a save / copy / erase pending).
         const unsigned mode = (v.menu >> 1) & 7u;
-        const Rgb page = mode == 7u ? knobs::colour::purple : mode == 6u ? knobs::colour::orange
+        const Rgb page = mode == 7u ? knobs::colour::purple : mode == 6u ? knobs::colour::orange : mode == 5u ? knobs::colour::pink
                        : (v.menu >> 21) & 1u ? knobs::colour::teal : knobs::colour::blue;
         chompi = (v.keys_down >> panel::kChompiKey) & 1u ? page : knobs::Scale(page, .35f);
     }
@@ -1091,7 +1210,7 @@ FORGE_COLD inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chomp
     if(v.install == 1) chompi = v.blink ? Rgb{1.f, 1.f, 1.f} : Rgb{};
     else if(v.install == 2) chompi = Rgb{1.f, 1.f, 1.f};
     // Menu, presets page: KEY_21 / KEY_20 show where the effects sit (before / after the loop).
-    if((v.menu & 1u) && !((v.menu >> 21) & 1u) && ((v.menu >> 1) & 7u) < 6u) {   // not on the harmony / parts pages
+    if((v.menu & 1u) && !((v.menu >> 21) & 1u) && ((v.menu >> 1) & 7u) < 5u) {   // not on the harmony / parts / synth pages
         const bool before = (v.looper >> 4) & 1u;
         keys[panel::BlackLed(panel::kFxBefore)] = before ? Rgb{.8f, .8f, .8f} : Rgb{.1f, .1f, .1f};
         keys[panel::BlackLed(panel::kFxAfter)] = before ? Rgb{.1f, .1f, .1f} : Rgb{.8f, .8f, .8f};

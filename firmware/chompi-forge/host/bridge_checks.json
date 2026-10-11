@@ -684,6 +684,36 @@
     "group": "3L. More magic (firmware 0.18)"
   },
   {
+    "id": "3.94",
+    "do": "**Open:** Warm Pad, toggle down, hold CHOMPI, on TAPE's page hold KEY_21 for 3 s; then tap KEY_21 three times",
+    "expect": "CHOMPI purple, orange, then pink; the taps cycle harmony, parts, synth",
+    "group": "3M. Synth page (firmware 0.19)"
+  },
+  {
+    "id": "3.95",
+    "do": "**Waves and interval:** on the synth page press C3, F3, then hold C5 after each; press G3 then F4, hold C5",
+    "expect": "Each audition sounds the chosen wave (sine soft, square hollow); oscillator 2 an octave up joins in; the chosen keys light pink / teal / yellow",
+    "group": "3M. Synth page (firmware 0.19)"
+  },
+  {
+    "id": "3.96",
+    "do": "**Knobs:** turn SW4 (osc 2 level) and SW1 (detune) while holding C5; press SW4 and turn it (vibrato)",
+    "expect": "The second oscillator fades in and beats; the ring turns teal on page 2 and vibrato is heard",
+    "group": "3M. Synth page (firmware 0.19)"
+  },
+  {
+    "id": "3.97",
+    "do": "**Mono and keep it:** press A#4, close the menu, play legato; save the sound to a free slot in bank 8, recall another, recall it again",
+    "expect": "Mono with glide between notes; the recalled slot has every edit",
+    "group": "3M. Synth page (firmware 0.19)"
+  },
+  {
+    "id": "3.98",
+    "do": "**Effects-only:** recall Dry (bank 8 slot 1), open the synth page",
+    "expect": "Every key dim red; pressing keys changes nothing",
+    "group": "3M. Synth page (firmware 0.19)"
+  },
+  {
     "id": "4.1",
     "do": "Hold a long-release chord with echo (use Warm Pad for reverb too); hold SW4 + SW3 for 1 s (panic; SW5 was the panic before 0.10)",
     "expect": "Voices, old echo and reverb tails stop at once",

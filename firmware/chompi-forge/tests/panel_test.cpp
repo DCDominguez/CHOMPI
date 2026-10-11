@@ -701,7 +701,64 @@ void Dream018() {
     assert(keys[panel::SlotLed(7)].b > .7f && keys[panel::SlotLed(7)].r > .4f);       // C4 breathing purple
 }
 
+// 0.19 synth edit page: reached by KEY_21 from parts (and KEY_21 held 3 s); keys set the waves,
+// interval, LFO shape, wheel and voices; knobs set two pages of continuous fields; C5 auditions;
+// harmony / parts survive an edit; lights; effects-only sounds are left alone.
+void SynthPage019() {
+    Rig rig;
+    harmony::Player player; rig.engine.SetHarmony(&player);
+    parts::Parts parts; parts.Init(48000.f); rig.engine.SetParts(&parts);
+    Parameters synth; synth.version = 7; synth.synth = true;
+    { parts::Settings s; synth.parts_arp = parts::PackArp(s); synth.parts_clock = parts::PackClock(s); }
+    assert(rig.engine.ApplyPatch(synth));
+    player.state.enabled = true; player.state.tonic = 9;                          // live harmony, not in the patch
+    rig.hw.toggle_up = true; rig.Block();
+    rig.Key(panel::kChompiKey, true);
+    rig.Key(panel::kPage, true); rig.Key(panel::kPage, false);                    // TAPE's page
+    rig.Key(panel::kFxBefore, true); for(int i = 0; i < 6010; ++i) rig.Block();   // held 3 s
+    assert(rig.panel.SynthPage());
+    rig.Key(panel::kFxBefore, false); assert(rig.panel.SynthPage());
+    auto key_of = [](uint8_t note) { for(uint8_t k = 0; k < panel::kButtons; ++k) if(panel::kKeyNotes[k] == note) return k; return uint8_t(0); };
+    auto press = [&](uint8_t note) { rig.Tap(key_of(note)); };
+    press(52); assert(rig.engine.GetParameters().waveform == 2);                 // E3: saw
+    press(59); assert(rig.engine.GetParameters().osc2_waveform == 2);            // B3: osc 2 saw
+    press(65); assert(rig.engine.GetParameters().osc2_semitones == 36 && rig.engine.GetParameters().osc2_level >= .4f);   // F4: +octave, audible
+    press(54); assert(rig.engine.GetParameters().lfo_waveform == 2);             // F#3: square
+    press(58); assert(rig.engine.GetParameters().lfo_wheel);                     // A#3: wheel
+    press(70); assert(rig.engine.GetParameters().voices == 1 && rig.engine.GetParameters().glide > 0.f);   // A#4: mono + glide
+    press(68); assert(rig.engine.GetParameters().voices == 7);
+    assert(player.state.enabled && player.state.tonic == 9);                      // the live harmony survived the edits
+    const float level = rig.engine.GetParameters().osc2_level;
+    rig.hw.turns[panel::kKnobEncoder[0]] = 10; rig.Block();
+    assert(std::fabs(rig.engine.GetParameters().osc2_level - (level + .1f)) < 1e-4f);
+    rig.Tap(panel::kKnobEncoder[0]);                                              // SW4 page 2: vibrato
+    rig.hw.turns[panel::kKnobEncoder[0]] = 5; rig.Block();
+    assert(std::fabs(rig.engine.GetParameters().lfo_pitch - .05f) < 1e-4f && (rig.panel.SynthLights() >> 14) & 1u);
+    rig.hw.turns[panel::kKnobEncoder[3]] = 8; rig.Block(); assert(rig.engine.GetParameters().glide > .07f);
+    rig.Key(key_of(72), true); for(int i = 0; i < 200; ++i) rig.Block();           // C5: audition
+    assert(rig.engine.ActiveVoices() >= 3 && (rig.panel.SynthLights() >> 12) & 1u);
+    rig.Key(key_of(72), false); for(int i = 0; i < 9600; ++i) rig.Block();
+    assert(!((rig.panel.SynthLights() >> 12) & 1u));
+    // Lights: E3 pink (osc 1 saw), F4 yellow, the CHOMPI light pink.
+    LedView v; v.menu = rig.panel.MenuPacked(); v.synth = rig.panel.SynthLights(); v.keys_down = uint64_t(1) << panel::kChompiKey;
+    Rgb keys[25], chompi; ComposeLeds(v, keys, chompi);
+    assert(keys[panel::SlotLed(2)].r == 1.f && keys[panel::SlotLed(2)].b > .5f);  // E3 pink
+    assert(keys[panel::SlotLed(10)].g > .9f && keys[panel::SlotLed(10)].b < .1f); // F4 yellow
+    assert(chompi.r == 1.f && chompi.b > .5f);                                    // pink page
+    // KEY_21 cycles back to harmony.
+    rig.Tap(panel::kFxBefore); assert(rig.panel.HarmonyPage());
+    rig.Tap(panel::kFxBefore); assert(rig.panel.PartsPage());
+    rig.Tap(panel::kFxBefore); assert(rig.panel.SynthPage());
+    // An effects-only sound: the keys change nothing and light dim red.
+    rig.Key(panel::kChompiKey, false); Parameters dry; assert(rig.engine.ApplyPatch(dry));
+    rig.Key(panel::kChompiKey, true); assert(rig.panel.SynthPage());
+    press(52); assert(rig.engine.GetParameters().waveform == 0);
+    v.synth = rig.panel.SynthLights(); ComposeLeds(v, keys, chompi); assert(keys[panel::SlotLed(2)].r > 0.f && keys[panel::SlotLed(2)].g == 0.f);
+    rig.Key(panel::kChompiKey, false); rig.hw.toggle_up = false; rig.Block();
+}
+
 int main() {
+    SynthPage019();
     Dream018();
     Sweep0171();
     Magic017();

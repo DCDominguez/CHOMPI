@@ -1,5 +1,23 @@
 # Forge changelog
 
+## 0.19.0 The synth edit page — 2026-10-11 (software-tested; not installed yet)
+
+DC's backlog item: design a sound on CHOMPI itself. A fifth menu page, **Synth** (CHOMPI light
+pink), after parts: on TAPE's page keep holding KEY_21 (harmony at 1 s, parts at 2 s, synth at
+3 s), or tap KEY_21 on the harmony / parts pages (harmony -> parts -> synth -> harmony).
+- Keys: C3-F3 oscillator 1 wave (sine, triangle, saw, square); G3-C4 oscillator 2 wave; D4-B4
+  oscillator 2 interval (unison, +5th, +octave, -octave, +4th, +12th; choosing one makes a
+  silent oscillator 2 audible); C#3 D#3 F#3 G#3 LFO shape (sine, triangle, square, random); A#3 the
+  mod wheel gates the LFO; F#4 four voices, G#4 seven, A#4 mono with glide; C5 auditions a C major
+  chord while held. The chosen key of each group lights in the group's colour (osc 1 pink, osc 2
+  teal, interval yellow, LFO purple, voices green).
+- Knobs (press = the knob's other page; rings pink page 1, teal page 2): SW4 osc 2 level /
+  vibrato, SW1 osc 2 detune / tremolo, SW2 noise / LFO rate, SW3 glide / delay time.
+- Edits apply to the live sound (harmony and parts as they are) and are kept by the normal
+  preset save. Effects-only and v1 / v2 sounds have no such fields: the keys light dim red and
+  change nothing.
+- Panel test `SynthPage019`; the Inspector names the page "synth". Not on CHOMPI yet.
+
 ## 0.18.0 Magic: chomp to instrument, dream mode, lights with character — 2026-10-11 (software-tested; not installed yet)
 
 PROJECT.md magic batch items 4-6 (DC: "work on magic and spark branding").

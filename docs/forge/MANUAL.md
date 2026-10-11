@@ -1,6 +1,6 @@
 # Forge for CHOMPI — user manual
 
-Firmware **0.18.0** (development builds; experimental community firmware, not an
+Firmware **0.19.0** (development builds; experimental community firmware, not an
 official CHOMPI release). Forge turns CHOMPI into a playable synthesizer,
 TAPE-compatible sampler and looper whose sounds you can design on a computer —
 by hand or by describing them to an AI — and send over USB.
@@ -458,6 +458,34 @@ follow it, with MIDI start / stop / continue; the SW4 light blinks blue then. Ha
 without clock and CHOMPI's own tempo takes over again. While the parts play on CHOMPI's
 own tempo it sends MIDI clock (start, 24 ticks per beat, stop) so other gear can follow
 (the webapp can turn that off).
+
+---
+
+## 8d. The synth page: design a sound on CHOMPI — firmware 0.19
+
+Change the sound itself without a computer. **Open:** toggle down, hold CHOMPI, then on TAPE's
+page keep holding **KEY_21**: purple (harmony) at 1 s, orange (parts) at 2 s, **pink (synth)** at
+3 s. Or tap KEY_21 on the harmony or parts page until CHOMPI is pink.
+
+| Keys | Choose |
+| --- | --- |
+| C3 · D3 · E3 · F3 (pink) | Oscillator 1: sine · triangle · saw · square |
+| G3 · A3 · B3 · C4 (teal) | Oscillator 2: sine · triangle · saw · square |
+| D4 · E4 · F4 · G4 · A4 · B4 (yellow) | Oscillator 2 interval: unison · +5th · +octave · −octave · +4th · +12th |
+| C#3 · D#3 · F#3 · G#3 (purple) | LFO shape: sine · triangle · square · random |
+| A#3 (white = on) | The mod wheel controls the LFO depth |
+| F#4 · G#4 · A#4 (green) | 4 voices · 7 voices · mono with glide |
+| C5 | Hear it: a C major chord while you hold it |
+
+| Knob | Page 1 (pink) | Page 2 (teal; press to switch) |
+| --- | --- | --- |
+| SW4 | Oscillator 2 level | Vibrato depth |
+| SW1 | Oscillator 2 detune | Tremolo depth |
+| SW2 | Noise | LFO speed |
+| SW3 | Glide | Delay time |
+
+Edits change the sound you are playing; save it as a preset (section 6) to keep it. Effects-only
+sounds (Dry, Slap, Long echoes) have no oscillators: the keys light dim red.
 
 ---
 

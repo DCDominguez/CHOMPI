@@ -330,7 +330,8 @@ void EngineAndPanel() {
     assert(led(48).b == 0.f && led(60).g == 0.f);
     forge::Rgb rings[4]; forge::ComposePartsKnobLeds(v.parts, v.parts_clock, rings);
     assert(rings[1].g == 1.f && rings[1].r == 0.f && rings[3].r == 1.f && rings[3].g > .5f && rings[3].g < .7f);   // 2 octaves green, 1/8 orange (0.16)
-    // KEY_21 back to the harmony page (the tonic unchanged), KEY_22 back to TAPE's page.
+    // KEY_21 on to the synth page (0.19), again back to the harmony page (the tonic unchanged), KEY_22 back to TAPE's page.
+    press(forge::panel::kFxBefore); assert(panel.SynthPage());
     press(forge::panel::kFxBefore); assert(panel.HarmonyPage() && player.state.tonic == tonic);
     // 0.15.1: KEY_22 leaving the harmony page is not also TAPE's tap (effects after the looper).
     e.SetFxBeforeLoop(true);

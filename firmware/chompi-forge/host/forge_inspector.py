@@ -113,7 +113,7 @@ def decode(data, sequence, expected_page=None):
         result["logical"]={"toggle_up":bool(logical&1),"toggle_position":position(logical),"line_jack":bool(logical&2),"tone_press":bool(logical&4),"overridden":bool(logical&8)}
         menu=u32()
         result["menu"]={"packed":menu,"open":bool(menu&1),
-                        "page":"samples" if menu>>21&1 else "harmony" if (menu>>1)&7==7 else "parts" if (menu>>1)&7==6 else "presets","bank_index":menu>>4&7}
+                        "page":"samples" if menu>>21&1 else "harmony" if (menu>>1)&7==7 else "parts" if (menu>>1)&7==6 else "synth" if (menu>>1)&7==5 else "presets","bank_index":menu>>4&7}
         result["raw_encoder_turns"]=[signed(u32()) for _ in range(6)]
         result["logical_encoder_turns"]=[signed(u32()) for _ in range(6)]
         pages=byte()|(byte()<<7)

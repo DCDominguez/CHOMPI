@@ -771,6 +771,7 @@ FORGE_COLD void DrawLeds() {
     view.sequence = panel_controller.SequenceLights();
     view.magic = panel_controller.MagicLights();
     view.dream = panel_controller.DreamLights();
+    view.synth = panel_controller.SynthLights();
     view.dream_level = .5f + .5f * std::sin(now * (6.2831853f / 4000.f));   // a 4 s breath
     view.blink = (now / 250) % 2 == 0; view.slow_blink = (now / 300) % 2 != 0;
     view.flash = now < flash_until ? (flash_ok ? 1 : 0) : -1;
@@ -805,6 +806,7 @@ FORGE_COLD void DrawLeds() {
     forge::ComposeMenuKnobLeds(panel_controller.MenuLights(), knobs, volume);   // TAPE's menu page
     if((view.menu & 1u) && ((view.menu >> 1) & 7u) == 7u) forge::ComposeHarmonyKnobLeds(view.harmony, knobs, knob_flags);   // harmony page
     if((view.menu & 1u) && ((view.menu >> 1) & 7u) == 6u) forge::ComposePartsKnobLeds(view.parts, view.parts_clock, knobs, knob_flags);   // parts page
+    if((view.menu & 1u) && ((view.menu >> 1) & 7u) == 5u) forge::ComposeSynthKnobLeds(view.synth, panel_controller.SynthKnobs(), knobs, knob_flags);   // synth page (0.19)
     for(unsigned k = 0; k < 4; ++k) Pth(forge::panel::kKnobLed[k], knobs[k]);
     forge::ComposeTransportLeds(view.looper, loop_speed.load(std::memory_order_relaxed), loop_head.load(std::memory_order_relaxed),
                                 knob_flags, view.record_position, reverse, forward);

@@ -1,4 +1,4 @@
-# Forge 0.18.0 — the one consolidated hardware test
+# Forge 0.19.0 — the one consolidated hardware test
 
 Status of the candidate: **software-tested, hardware-unverified.** This is the
 single planned physical session. Work top to bottom. If a stage fails, record
@@ -307,6 +307,18 @@ MANUAL section 5a. Software-tested only.
 | 3.91 | **Dream mode:** Warm Pad, toggle down, menu closed, touch nothing for 2 minutes; then touch any key | After about 2 minutes a quiet slow line plays in the key, its notes glowing purple; the touch stops it at once with no hanging note |
 | 3.92 | **Dream sleeps, and stays out of the way:** leave it dreaming for 3 minutes; then start a loop and wait 2 minutes; then toggle up and wait 2 minutes | It stops by itself after 3 minutes; it never starts while the loop plays or in the record position |
 | 3.93 | **Loop ripple:** record a looper take (LOOP, play, PLAY) | A green ripple runs from the middle key out to both ends as the loop closes |
+
+## 3M. Synth page (firmware 0.19)
+
+MANUAL section 8d. Software-tested only.
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.94 | **Open:** Warm Pad, toggle down, hold CHOMPI, on TAPE's page hold KEY_21 for 3 s; then tap KEY_21 three times | CHOMPI purple, orange, then pink; the taps cycle harmony, parts, synth |
+| 3.95 | **Waves and interval:** on the synth page press C3, F3, then hold C5 after each; press G3 then F4, hold C5 | Each audition sounds the chosen wave (sine soft, square hollow); oscillator 2 an octave up joins in; the chosen keys light pink / teal / yellow |
+| 3.96 | **Knobs:** turn SW4 (osc 2 level) and SW1 (detune) while holding C5; press SW4 and turn it (vibrato) | The second oscillator fades in and beats; the ring turns teal on page 2 and vibrato is heard |
+| 3.97 | **Mono and keep it:** press A#4, close the menu, play legato; save the sound to a free slot in bank 8, recall another, recall it again | Mono with glide between notes; the recalled slot has every edit |
+| 3.98 | **Effects-only:** recall Dry (bank 8 slot 1), open the synth page | Every key dim red; pressing keys changes nothing |
 
 ## 4. Panic and recovery
 

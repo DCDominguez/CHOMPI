@@ -91,7 +91,7 @@ unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
 6. **Dedicated/networked controllers** (Tab5) — optional, last.
 
 **Backlog (DC, 2026-10-10), after the hardware session:**
-- **Synth edit page** (DC: "add to the list"): full sound design on CHOMPI, in TAPE's
+- **Synth edit page** (DC: "add to the list"; built in 0.19.0, not yet on CHOMPI): full sound design on CHOMPI, in TAPE's
   menu style. Keys choose oscillator 1/2 waveform, osc 2 interval, LFO shape and target,
   voice count; knobs set noise, glide, delay time and the other patch fields the knob
   pages do not reach (KNOBS.md). Saves through the existing presets page.
