@@ -2,6 +2,19 @@
 
 Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)); the heading names it.
 
+## 0.19.1 The DJ filter never goes silent (small tool: to be named) — 2026-10-11 (software-tested; not installed yet)
+
+The owner's open bug "SW3's DJ filter silences the sound". Measured (white noise through the real
+filter): no runaway or NaN at any setting, resonance or sweep, and full level back at the centre;
+but TAPE's low-pass curve went to about 0 Hz, so a few clicks left of the centre cost -7 dB, 8
+clicks -15 dB and the far left -37 dB. Being a performance setting it also stays on across
+presets until a reset or power-off, so it read as "the sound is gone".
+- TAPE's curve is kept everywhere except the very bottom, which now stops around 150 Hz: dark
+  and thumpy at the far left, never silent. The high-pass side and the centre are unchanged. Panel test `DjFilterNeverSilent` (a C3 saw keeps over 25 % of its level fully left).
+- Also measured for "sound lost while modulating": the LFO pages never produce NaN or a stuck
+  silence; the largest drop is resonance at maximum (-14 to -18 dB, its peak compensation).
+  Left as is for the owner's ear.
+
 ## 0.19.0 The synth edit page (tool: Tinker Wrench) — 2026-10-11 (software-tested; not installed yet)
 
 The owner's backlog item: design a sound on CHOMPI itself. A fifth menu page, **Synth** (CHOMPI light

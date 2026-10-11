@@ -44,6 +44,9 @@ public:
     void SetControl(float control, float resonance) {
         control_ = control; res_ = resonance * .95f;
         lp_target_ = Clamp(.01f + control * 2.f, 0.f, .99f); lp_target_ = lp_target_ * lp_target_ * lp_target_;
+        // 0.19.1: TAPE's curve, floored around 150 Hz (TAPE's goes to ~0 Hz, so the far left silenced
+        // every preset until a reset: the owner's "DJ filter silences the sound").
+        if(lp_target_ < .02f) lp_target_ = .02f;
         hp_target_ = Clamp(control * 1.9f - 1.f, 0.f, 1.f); hp_target_ = hp_target_ * hp_target_ * hp_target_;
         moving_ = true;
     }

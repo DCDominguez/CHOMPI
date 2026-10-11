@@ -757,7 +757,26 @@ void SynthPage019() {
     rig.Key(panel::kChompiKey, false); rig.hw.toggle_up = false; rig.Block();
 }
 
+// 0.19.1: SW3's DJ filter never silences the sound: a C3 saw keeps most of its body fully
+// left (TAPE's curve went to ~0 Hz: -37 dB on noise) and is untouched back at the centre.
+void DjFilterNeverSilent() {
+    auto rms = [](float control) {
+        tape::Effects fx; Performance p; p.dj_filter = control; fx.Configure(p);
+        double s = 0, dry = 0; float phase = 0;
+        for(int i = 0; i < 96000; ++i) {
+            const float x = .4f * (2.f * phase - 1.f); phase += 130.8f / 48000.f; if(phase >= 1.f) phase -= 1.f;
+            float l = x, r = x; fx.Process(l, r);
+            if(i >= 48000) { s += l * l; dry += x * x; }
+        }
+        return static_cast<float>(std::sqrt(s / dry));
+    };
+    assert(rms(0.f) > .25f);                 // fully left: dark, still clearly there
+    assert(rms(1.f) > .05f);                 // fully right: thin, still there
+    assert(std::fabs(rms(.5f) - 1.f) < .01f); // centre: untouched
+}
+
 int main() {
+    DjFilterNeverSilent();
     SynthPage019();
     Dream018();
     Sweep0171();
