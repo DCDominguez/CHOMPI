@@ -20,7 +20,7 @@ the firmware, Choowi's own sounds and the illustrated manual).
 
 | Document | Purpose |
 | --- | --- |
-| [Guide](GUIDE.md) | Task by task: play, save, presets, samples, harmony and its secret modes, arp, looper, recorder, trouble |
+| [Guide](GUIDE.md) | Task by task: play, save, presets, samples, harmony, arp, looper, recorder, trouble |
 | [User manual](MANUAL.md) | The reference: install, power, panel, knob pages, presets, samples (banks by colour), harmony, parts, looper, recorder, MIDI, the forge page, troubleshooting |
 | [Illustrated manual](ILLUSTRATED_MANUAL.html) | The storybook tutorial and panel diagrams |
 | [Knobs](KNOBS.md) | Every knob page and the v5 patch knob choices |
@@ -47,7 +47,7 @@ Older, kept for the record: [TEST_SESSION.md](TEST_SESSION.md) and [HOME_CHECKLI
 | Area | On the owner's CHOMPI | Software-tested only / open |
 | --- | --- | --- |
 | Playing | Synth, sampler, recording, looper, presets, harmony, arp / bass, recorder, page colours, wake-up chime, surprise me, mutate, the synth page, save and recall, sample start / end | The TAPE functions' final check; SW5 sweep, chomp, ripples by hand |
-| Harmony's secret modes | Installed (build b462bea) | Bloom, Conversations, Mischief not yet judged by ear |
+| Hidden harmony modes (kept out of the player manuals; CHANGELOG 0.19.2) | Installed (build b462bea) | Not yet judged by ear |
 | Dream mode | | Not seen on a computer-connected CHOMPI (any MIDI keeps it awake): test unplugged |
 | Choowi's sounds | On the card (bank purple from the card zip) | Judged by ear |
 | The forge page | Live on GitHub Pages | Tested against the firmware's decoder with a Web MIDI stand-in; first real-CHOMPI run pending |

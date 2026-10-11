@@ -42,8 +42,7 @@ work for you:
 - **leave it alone** for a couple of minutes and it starts dreaming quietly in your key.
 - **design sounds right on the panel** (the synth page), or describe one to any chatbot on
   [Choowi's forge](https://myth-world.github.io/Forge/workshop/) and hear it on CHOMPI straight away.
-- **harmony has secrets.** chords that bloom one note at a time, a CHOMPI that answers your chords,
-  and a little mischief that bends the chord you're holding.
+- **harmony keeps a few secrets.** we won't spoil them. poke around.
 - **its own sounds:** 14 instruments and 14 drums in bank purple, free.
 - **everything TAPE does stays.** the sampler, recording, the looper and TAPE's menu all
   work the way your hands already know.
@@ -65,7 +64,7 @@ Every Choowi release is a magic tool he forges, in the next colour of CHOMPI's p
 | <img src="docs/forge/assets/tool-dream-bellows.svg" width="48" alt=""> | 0.18 | Dream Bellows | dream mode, chomp to instrument, sparkles and ripples |
 | <img src="docs/forge/assets/tool-tinker-wrench.svg" width="48" alt=""> | 0.19 | Tinker Wrench | the synth page: build a sound on the panel |
 | | 0.19.1 | Thingamabob | the DJ filter never goes silent |
-| | 0.19.2 | Whatzit | harmony's secret modes, the forge site, bank purple sounds |
+| | 0.19.2 | Whatzit | a few hidden surprises, the forge site, bank purple sounds |
 
 Everything before 0.16 (the synth, the TAPE sampler and looper, harmony, the arp, the event
 recorder, presets, the sound workshop) is Choowi's foundation. The full story is in the
@@ -103,7 +102,7 @@ pair of ears.
 - **checked by hand on 0.19.2:** the synth page, page and setting colours, harmony, saving
   and recalling a sound, sample start / end; the owner tried most of the rest.
 - **in the release candidate, being checked now:** the TAPE functions' final run, harmony's
-  secret modes, dream mode unplugged, the forge page with a real CHOMPI.
+  hidden modes, dream mode unplugged, the forge page with a real CHOMPI.
 - **known issues:** on some power banks CHOMPI stops charging while it's switched on (charge it
   switched off); the battery colour on SW6 is a rough voltage check, only white means full.
 - **still up to you:** how it sounds, how it feels, how fun the magic is.
