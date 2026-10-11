@@ -90,8 +90,8 @@ Rename `CHOMPI_TAPEv2_0_bin.old` back to `CHOMPI_TAPEv2_0.bin`, rename or remove
 - **Charging:** plug USB into a wall charger or computer. A wall charger is faster.
 - **Battery over USB (0.15.2):** `python host/forge_host.py battery` (from
   `firmware/chompi-forge`, CHOMPI on USB) prints the level, its SW6 colour, USB power,
-  charging and whether a firmware install is allowed; Connect CHOMPI and the webapp
-  show it too. Stock TAPE does not report it: use SW6.
+  charging and whether a firmware install is allowed; the bridge's Connect CHOMPI
+  shows it too. Stock TAPE does not report it: use SW6.
 - **Battery level:** hold the **SW6** knob down for 2 s — its light shows
   **white** = charged (on the charger), **green** = good, **yellow** = low
   (below about 3.3 V). Release to hide it.
@@ -334,11 +334,8 @@ red; 75 % at power-on, as TAPE); short-press again for the volume. Up to about
 - **Add WAV files:** put them, named as above, in the `card` folder next to
   `Forge Bridge.exe` (the bridge shows the folder; *Refresh list* creates it), then
   *Card & firmware* → *Copy selected to CHOMPI*.
-- **See, play, save or erase what is on the card:** open the sound designer
-  (section 10), scroll to **Device samples · SD card**, press **Read samples**.
-  Choose chromatic or kit and a bank a–e; the slots show what is on the card.
-  *Use in patch* plays a slot; *Save recording here* stores your last CHOMPI
-  recording into the selected slot; *Erase sample* deletes it.
+- **See what is on the card:** put the card in a computer; the files are named as above.
+  (Before 0.19.2 the webapp could list, save and erase card samples over USB.)
 
 ---
 
@@ -601,19 +598,24 @@ Your browser opens the bridge; keep the black window open.
 
 Close other MIDI programs first; only one program can use CHOMPI's MIDI port.
 
-### The sound designer (webapp)
-The bridge's main page — the same address in the browser without `/inspector`
-(normally **http://127.0.0.1:8765/**).
+### Choowi's sound workshop (webapp, 0.19.2)
+Run `python3 host/forge_web.py` (from `firmware/chompi-forge`) and open
+**http://127.0.0.1:8765/**. It makes sounds; it does not connect to CHOMPI, and it never
+asks for an API key.
 
-1. **Author:** choose *Playable instrument* (or *External-audio delay*), an AI
-   provider (OpenAI or Gemini) and **your own API key**, describe the sound,
-   *Generate a patch*. The key stays in that page only; it is never saved.
-2. **Refine:** or *Start from a preset*; edit every module; *Save JSON* / *Import
-   JSON* keeps sounds on the computer.
-3. **Play:** choose CHOMPI's MIDI ports, **Send to CHOMPI**. *Device presets* and
-   *Device samples* manage what is stored on the card.
+1. **Say it:** choose *a playable instrument* (or *an echo for outside audio*), describe
+   the sound, press **Copy the prompt**.
+2. **Let a chatbot forge it:** paste the prompt into any chatbot (ChatGPT, Claude,
+   Gemini…), copy its whole reply, paste it back and press **Use this reply**. The
+   workshop checks it; a reply that isn't a valid patch is refused with the reason (paste
+   that back to the chatbot).
+3. **Tweak & keep:** or *start from a preset*; edit every module; **Save JSON** / **Open
+   JSON** keeps sounds on the computer.
 
-Nothing is sent to CHOMPI until you press Send.
+Until 0.19.2 the page also sent sounds to CHOMPI and managed the card's presets and
+samples, and could call OpenAI or Gemini with your own key; those parts were removed (the
+owner's call: simpler and safer). Sending a JSON sound to CHOMPI now needs the bridge's
+test page or a later Web MIDI page.
 
 ### Built-in sounds
 Dry, Slap, Long Echo (delay effects for line in); Glass Keys, Soft Pad, Saw Bass,
@@ -663,7 +665,7 @@ so one card sets both firmwares:
 | CHOMPI switched itself off or restarted | *Check setup* shows **Last start** (power-on, brown-out = the supply dipped, or a crash); the card keeps a line per start in `FORGE/RESTARTS.TXT`. Send both with your report. A low battery switches CHOMPI off as stock TAPE does: with no USB after 15 s of amber flashes; on a weak USB supply (computer port) at once, lights off. From 0.11 these leave a "battery low" line in `RESTARTS.TXT`; charge it, or play on a USB-C charger |
 | Knob lights flash magenta three times at start, then the CHOMPI light blinks magenta every 2 s; menu keys red | **Safe mode** (0.15.2): Forge crashed three times within 10 s of starting, so it started without the card's settings, presets and samples. Playing works; your card is untouched. Copy `FORGE/RESTARTS.TXT` off the card and report it; switch off and on to leave safe mode. A firmware install over USB or from the card still works |
 | Dim blue light for 30 s or more at start, or it hangs there | A card written by Forge before the 0.15.2 card fix: put the card in a computer, run a disk check (Windows: `chkdsk X: /F`), delete empty files named `RESTARTS.TXT`, `presets_backup.json` (in `FORGE/`) and `presets_temp.json`; until then CHOMPI starts without the card |
-| Which build is on CHOMPI? | Connect CHOMPI (bridge) or the webapp's status line: e.g. "Forge 0.15.2 (build 0f5bb18)" — the build is the commit it was made from |
+| Which build is on CHOMPI? | Connect CHOMPI (bridge) or `python host/forge_host.py battery`: e.g. "Forge 0.15.2 (build 0f5bb18)" — the build is the commit it was made from |
 | Dark after an install or a restart; only the red charge light | The bootloader is waiting on a low battery with a weak USB supply. Plug in a USB-C to USB-C charger, switch off, wait 5 s, switch on |
 | White keys all red in the menu | SD card missing or unreadable; reinsert it |
 | A sample doesn't play | Exact name in the card's top folder (`cubbi_a1.wav`), not inside a folder |

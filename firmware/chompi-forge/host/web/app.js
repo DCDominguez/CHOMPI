@@ -128,7 +128,7 @@ async function api(path, body) {
 }
 function updateButtons() {
   document.querySelectorAll("button").forEach(button => { button.disabled = busy; });
-  for (const id of ["download", "send"]) $(id).disabled = busy || !patch;
+  $("download").disabled = busy || !patch;
   $("upgrade").disabled = busy || !patch || patch.version === 7;
   $("editor").disabled = busy || !patch;
   $("routing").disabled = !patch || patch.version === 1;
@@ -136,9 +136,8 @@ function updateButtons() {
     const off = !patch || !path(c, patch.version);
     $(c.id).disabled = off; if ($(`${c.id}-range`)) $(`${c.id}-range`).disabled = off;
   }
-  document.querySelectorAll("#slots button, #sample-slots button").forEach(button => { button.disabled = busy; });
   for (const [group] of GROUPS) $(`group-${group}`).classList.toggle("unavailable", !!patch && !CONTROLS.some(c => c.g === group && path(c, patch.version)));
-  for (const id of ["kind", "provider", "model", "api-key", "prompt", "reply", "use-reply", "preset", "import", "input-port", "output-port", "sample-mode", "sample-bank"]) $(id).disabled = busy;
+  for (const id of ["kind", "prompt", "reply", "use-reply", "preset", "import"]) $(id).disabled = busy;
 }
 async function run(message, action) {
   if (busy) return;
@@ -210,47 +209,24 @@ $("patch-name").addEventListener("input", () => { if (patch) { patch.name = $("p
 $("routing").addEventListener("change", () => { if (patch && patch.version !== 1) { patch.routing = $("routing").value; showJSON(); } });
 $("upgrade").addEventListener("click", () => run("Converting to a v7 instrument…", async () => {
   const result = await api("upgrade", {patch, to: 7}); loadPatch(result.patch); $("preset").value = "";
-  notice("Converted to v7 (harmony, arp and bass start off). New modules start neutral (the sampler is used only if you choose its signal path) and the knobs keep their default jobs; the filter is steeper than v1/v2, so tone may differ slightly. Nothing sent to CHOMPI.");
+  notice("Converted to v7 (harmony, arp and bass start off). New modules start neutral (the sampler is used only if you choose its signal path) and the knobs keep their default jobs; the filter is steeper than v1/v2, so tone may differ slightly.");
 }));
-$("clear-key").addEventListener("click", () => { $("api-key").value = ""; notice("API key cleared from the form."); });
-// No key (the owner, 2026-10-11): "chat" builds a prompt for any chatbot and reads its reply back.
-function providerFields() {
-  const chat = $("provider").value === "chat";
-  $("key-fields").hidden = chat; $("chat-fields").hidden = !chat;
-  $("model").required = !chat; $("api-key").required = !chat;
-  $("generate").firstChild.textContent = chat ? "Copy the prompt " : "Generate a patch ";
-}
-$("provider").addEventListener("change", () => {
-  $("api-key").value = ""; $("model").value = ""; providerFields();
-  notice($("provider").value === "chat" ? "No key needed: copy the prompt into any chatbot." : "Provider changed. Enter its model ID and API key.");
-});
-providerFields();
-function chatRequest(extra) {
-  const request = {kind: $("kind").value, ...extra};
-  if (sampleList && request.kind === "instrument") request.samples = sampleList;   // the chatbot may only use samples the device reported
-  return request;
-}
+// No key, no hardware (the owner, 2026-10-12): the prompt goes to any chatbot and its reply comes back here.
+function chatRequest(extra) { return {kind: $("kind").value, ...extra}; }
 $("use-reply").addEventListener("click", () => run("Checking the chatbot's reply…", async () => {
   const result = await api("chat-reply", chatRequest({reply: $("reply").value}));
-  loadPatch(result.patch); $("preset").value = ""; notice("Reply checked: a valid patch. Review it, then send it to CHOMPI.");
+  loadPatch(result.patch); $("preset").value = ""; notice("Reply checked: a valid patch. Review it, then Save JSON.");
 }));
-window.addEventListener("pagehide", () => { $("api-key").value = ""; });
 $("generate-form").addEventListener("submit", event => {
   event.preventDefault();
-  if ($("provider").value === "chat") return run("Building the prompt…", async () => {
+  run("Building the prompt…", async () => {
     const text = (await api("chat-prompt", chatRequest({prompt: $("prompt").value}))).prompt;
     const box = $("chat-prompt-text"); box.value = text;
     try { await navigator.clipboard.writeText(text); box.hidden = true; notice("Prompt copied. Paste it into any chatbot, then paste its reply below."); }
     catch { box.hidden = false; box.select(); notice("Copy the prompt from the box below (Ctrl+C), paste it into any chatbot, then paste its reply."); }
   });
-  run("Generating with your selected provider…", async () => {
-    const request = {kind: $("kind").value, provider: $("provider").value, api_key: $("api-key").value.trim(), model: $("model").value.trim(), prompt: $("prompt").value};
-    if (sampleList && request.kind === "instrument") request.samples = sampleList;   // AI may only use samples the device reported
-    const result = await api("generate", request);
-    loadPatch(result.patch); $("preset").value = ""; notice("Patch generated and validated. Review it before sending to CHOMPI.");
-  });
 });
-$("preset").addEventListener("change", () => { if ($("preset").value !== "") { loadPatch(presets[Number($("preset").value)]); notice("Preset loaded for review. Nothing sent to CHOMPI."); } });
+$("preset").addEventListener("change", () => { if ($("preset").value !== "") { loadPatch(presets[Number($("preset").value)]); notice("Preset loaded for review."); } });
 $("download").addEventListener("click", () => run("Validating your preset…", async () => {
   const result = await api("validate", {patch});
   const url = URL.createObjectURL(new Blob([JSON.stringify(result.patch, null, 2) + "\n"], {type: "application/json"}));
@@ -265,131 +241,8 @@ $("import").addEventListener("change", () => run("Validating imported preset…"
     const raw = await file.text();
     const response = await fetch("/api/validate", {method: "POST", headers: {"Content-Type": "application/json", "X-Forge-Token": token}, body: `{"patch":${raw}}`});
     const result = await response.json(); if (!response.ok) throw new Error(result.error);
-    loadPatch(result.patch); $("preset").value = ""; notice("Preset imported and validated. Nothing sent to CHOMPI.");
+    loadPatch(result.patch); $("preset").value = ""; notice("Preset imported and validated.");
   } finally { $("import").value = ""; }
-}));
-$("ports").addEventListener("click", () => run("Looking for MIDI ports…", async () => {
-  const result = await api("ports", {});
-  for (const [id, names] of [["input-port", result.inputs], ["output-port", result.outputs]]) {
-    const select = $(id), previous = select.value; select.replaceChildren(new Option(names.length ? "Select a port" : "No ports found", ""));
-    for (const name of names) select.add(new Option(name, name));
-    if (names.includes(previous)) select.value = previous;
-  }
-  notice("Port list refreshed. Select both CHOMPI ports explicitly.");
-}));
-function ports() { return {input: $("input-port").value, output: $("output-port").value}; }
-function deviceStatus(result) { $("device-state").textContent = `Firmware ${result.firmware}${result.build ? ` (build ${result.build})` : ""}${result.safe_mode ? " · SAFE MODE" : ""}${result.power ? ` · Battery ${result.power.battery}${result.power.usb_power ? (result.power.charging ? ", charging" : ", USB power") : ""}` : ""} · CPU average ${result.cpu_average_percent}% / peak ${result.cpu_max_percent}% · Dropped ${result.dropped} · Rejected ${result.rejected}`; }
-for (const id of ["status", "capture"]) $(id).addEventListener("click", () => run("Reading CHOMPI…", async () => {
-  const result = await api("status", ports()); deviceStatus(result);
-  if (id === "capture") { loadPatch(result.patch); $("preset").value = ""; }
-  notice(id === "capture" ? "Device targets captured to the editor. Save JSON to keep them." : "Device status received. Your editor patch is unchanged.");
-}));
-$("send").addEventListener("click", () => run("Sending patch and waiting for acknowledgement…", async () => {
-  const result = await api("send", {...ports(), patch}); deviceStatus(result);
-  notice("CHOMPI acknowledged the requested patch. Device values use 14-bit precision.");
-}));
-$("panic").addEventListener("click", () => run("Silencing CHOMPI…", async () => {
-  const result = await api("panic", ports()); deviceStatus(result); notice("Panic acknowledged. Voices, delay and reverb tails stopped; retrigger notes to play.");
-}));
-// Device presets (SD card): bank 1-8, slot 1-15, as on the panel.
-let occupied = {}, selectedSlot = 0, eraseArmed = null;   // eraseArmed: {key, at} after the first Erase click
-for (let bank = 1; bank <= 8; ++bank) $("bank").add(new Option(`Bank ${bank}`, String(bank)));
-function drawSlots() {
-  const bank = Number($("bank").value), filled = occupied[bank] || [];
-  $("slots").replaceChildren(...Array.from({length: 15}, (_, i) => {
-    const slot = i + 1, button = document.createElement("button");
-    button.type = "button"; button.id = `slot-${slot}`; button.textContent = String(slot);
-    button.classList.toggle("filled", filled.includes(slot));
-    button.setAttribute("aria-pressed", String(slot === selectedSlot));
-    button.setAttribute("aria-label", `Slot ${slot}${filled.includes(slot) ? ", stored" : ", empty"}`);
-    button.disabled = busy;
-    button.addEventListener("click", () => { selectedSlot = slot; eraseArmed = null; drawSlots(); });
-    return button;
-  }));
-}
-$("bank").addEventListener("change", () => { selectedSlot = 0; eraseArmed = null; drawSlots(); });
-function slotTarget() {
-  if (!selectedSlot) throw new Error("Choose a slot first.");
-  return {...ports(), bank: Number($("bank").value), slot: selectedSlot};
-}
-async function readSlots() { occupied = (await api("preset", {...ports(), action: "list"})).occupied; drawSlots(); }
-$("slots-read").addEventListener("click", () => run("Reading device presets…", async () => {
-  await readSlots(); notice("Device preset slots read from the SD card.");
-}));
-$("slot-recall").addEventListener("click", () => run("Recalling device preset…", async () => {
-  const target = slotTarget(), result = await api("preset", {...target, action: "recall"});
-  deviceStatus(result); loadPatch({...result.patch, name: `Bank ${target.bank} slot ${target.slot}`}); $("preset").value = "";
-  notice(`Bank ${target.bank} slot ${target.slot} is playing on CHOMPI and loaded into the editor.`);
-}));
-$("slot-store").addEventListener("click", () => run("Storing the device's current sound…", async () => {
-  const target = slotTarget(); await api("preset", {...target, action: "store"}); await readSlots();
-  notice(`CHOMPI's current sound saved to bank ${target.bank} slot ${target.slot} on the SD card.`);
-}));
-$("slot-erase").addEventListener("click", () => run("Erasing device preset…", async () => {
-  const target = slotTarget(), key = `${target.bank}:${target.slot}`;
-  if (!eraseArmed || eraseArmed.key !== key || Date.now() - eraseArmed.at > 4000) {
-    eraseArmed = {key, at: Date.now()};
-    notice(`Press Erase slot again within 4 seconds to delete bank ${target.bank} slot ${target.slot}.`);
-    return;
-  }
-  eraseArmed = null;
-  await api("preset", {...target, action: "erase"}); await readSlots();
-  notice(`Bank ${target.bank} slot ${target.slot} erased.`);
-}));
-// Device samples (SD card, TAPE file names): read, use in the editor, save the recording, erase.
-let sampleList = null, sampleSlot = 0, sampleEraseArmed = null;
-for (const mode of SAMPLE_MODES) $("sample-mode").add(new Option(mode === "kit" ? "Kit (CUBBI)" : "Chromatic (JAMMI)", mode));
-for (const bank of SAMPLE_BANKS) $("sample-bank").add(new Option(`Bank ${bank.toUpperCase()}`, bank));
-function drawSamples() {
-  const mode = $("sample-mode").value, bank = $("sample-bank").value;
-  const filled = sampleList ? sampleList.samples[mode][bank] : [];
-  $("sample-slots").replaceChildren(...Array.from({length: 15}, (_, i) => {
-    const slot = i + 1, button = document.createElement("button"), recording = slot === 15;
-    const has = recording ? !!(sampleList && sampleList.recording) : filled.includes(slot);
-    button.type = "button"; button.id = `sample-slot-${slot}`; button.textContent = recording ? "REC" : String(slot);
-    button.classList.toggle("filled", has);
-    button.setAttribute("aria-pressed", String(slot === sampleSlot));
-    button.setAttribute("aria-label", recording ? `Recording${has ? `, ${sampleList.recording_seconds.toFixed(1)} seconds` : ", empty"}` : `Sample slot ${slot}${has ? ", on card" : ", empty"}`);
-    button.disabled = busy;
-    button.addEventListener("click", () => { sampleSlot = slot; sampleEraseArmed = null; drawSamples(); });
-    return button;
-  }));
-  $("sample-state").textContent = !sampleList ? "Samples not read yet." : !sampleList.card ? "No SD card (the recording still works)."
-    : `Recording: ${sampleList.recording ? sampleList.recording_seconds.toFixed(1) + " s" : "none"} of ${Math.round(sampleList.capacity_seconds)} s.`;
-}
-for (const id of ["sample-mode", "sample-bank"]) $(id).addEventListener("change", () => { sampleSlot = 0; sampleEraseArmed = null; drawSamples(); });
-function sampleTarget(fileSlot = true) {
-  if (!sampleSlot || (fileSlot && sampleSlot === 15)) throw new Error(fileSlot ? "Choose a card slot 1–14 first." : "Choose a slot first.");
-  return {...ports(), mode: $("sample-mode").value, bank: $("sample-bank").value, slot: sampleSlot};
-}
-async function readSamples() { sampleList = await api("samples", {...ports(), action: "list"}); drawSamples(); }
-$("samples-read").addEventListener("click", () => run("Reading device samples…", async () => {
-  await readSamples(); notice("Sample slots read from the SD card. AI instrument patches can now use them.");
-}));
-$("sample-use").addEventListener("click", () => run("Putting the sample into the editor…", async () => {
-  if (!patch) throw new Error("Load a patch first.");
-  const mode = $("sample-mode").value;
-  if (mode === "chromatic" && !sampleSlot) throw new Error("Choose a slot first.");
-  if (patch.version < 5) loadPatch((await api("upgrade", {patch, to: 5})).patch);
-  const sampler = patch.modules.sampler;
-  sampler.mode = mode; sampler.bank = $("sample-bank").value; if (mode === "chromatic") sampler.slot = sampleSlot;
-  patch.routing = "sampler>delay>reverb>output"; loadPatch(patch); $("preset").value = "";
-  notice("Sampler set in the editor. Send to CHOMPI to play it.");
-}));
-$("sample-save").addEventListener("click", () => run("Saving the recording to the SD card…", async () => {
-  const target = sampleTarget(); await api("samples", {...target, action: "save"}); await readSamples();
-  notice(`Recording saved as ${target.mode === "kit" ? "cubbi" : "jammi"}_${target.bank}${target.slot}.wav (TAPE format).`);
-}));
-$("sample-erase").addEventListener("click", () => run("Erasing sample…", async () => {
-  const target = sampleTarget(), key = `${target.mode}:${target.bank}:${target.slot}`;
-  if (!sampleEraseArmed || sampleEraseArmed.key !== key || Date.now() - sampleEraseArmed.at > 4000) {
-    sampleEraseArmed = {key, at: Date.now()};
-    notice(`Press Erase sample again within 4 seconds to delete ${target.mode} ${target.bank}${target.slot} from the card.`);
-    return;
-  }
-  sampleEraseArmed = null;
-  await api("samples", {...target, action: "erase"}); await readSamples();
-  notice(`Sample ${target.mode} ${target.bank}${target.slot} erased from the card.`);
 }));
 async function start() {
   busy = true; updateButtons();
@@ -398,9 +251,8 @@ async function start() {
     const session = await response.json(); token = session.token; presets = session.presets;
     presets.forEach((item, index) => $("preset").add(new Option(item.name, String(index))));
     if (presets.length) { const initial = Math.max(0, presets.findIndex(item => item.version === 3)); loadPatch(presets[initial]); $("preset").value = String(initial); }
-    drawSlots(); drawSamples();
     const skipped = session.preset_errors || [];
-    notice(skipped.length ? `Ready. Skipped damaged preset file(s): ${skipped.join("; ")}` : "Ready. Start with AI, a preset, or an imported patch.", skipped.length > 0);
+    notice(skipped.length ? `Ready. Skipped damaged preset file(s): ${skipped.join("; ")}` : "Forge is lit. Describe a sound, pick a preset, or open a JSON file.", skipped.length > 0);
   } catch (error) { notice(error.message, true); }
   finally { busy = false; updateButtons(); }
 }

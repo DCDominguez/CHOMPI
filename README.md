@@ -63,7 +63,7 @@ Every Choowi release is a magic tool he forges, in the next colour of CHOMPI's p
 | <img src="docs/forge/assets/tool-tinker-wrench.svg" width="48" alt=""> | 0.19 | Tinker Wrench | the synth page: build a sound on the panel |
 
 Everything before 0.16 (the synth, the TAPE sampler and looper, harmony, the arp, the event
-recorder, presets, the AI webapp) is Choowi's foundation. The full story is in the
+recorder, presets, the sound workshop) is Choowi's foundation. The full story is in the
 [changelog](docs/forge/CHANGELOG.md).
 
 ## put it on your CHOMPI
@@ -103,17 +103,18 @@ pair of ears.
 
 Every check and result is written down in [TEST_RESULTS.md](docs/forge/TEST_RESULTS.md).
 
-## make sounds with the AI
+## make sounds with any chatbot
 
-On the computer that's plugged into CHOMPI (Python 3.10+):
+Choowi's sound workshop, on any computer (Python 3.10+):
 
 ```sh
 python3 -m pip install -r firmware/chompi-forge/host/requirements.txt
 python3 firmware/chompi-forge/host/forge_web.py
 ```
 
-Open **http://127.0.0.1:8765**, describe a sound, tweak it, send it. OpenAI and Gemini use
-your own API key, which never gets saved anywhere. Nothing goes to CHOMPI until you send it.
+Open **http://127.0.0.1:8765**, describe a sound and copy the prompt into any chatbot (ChatGPT,
+Claude, Gemini…). Paste its reply back, tweak the sound, save it as a JSON file. No API key, no
+account, and the workshop doesn't talk to CHOMPI: it only makes and checks sounds.
 
 ## for tinkerers
 

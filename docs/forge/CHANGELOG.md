@@ -21,6 +21,13 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
   never got the USB lines to identify the supply. USB power appearing in the 20 ms battery
   reads now starts the same hand-over (TAPE's), and the lines go back to the Daisy once a read
   shows the source identified (`ChargerUsb`, power test "plug"). Not yet confirmed on CHOMPI.
+- **Choowi's sound workshop (the webapp), the owner's request:** no API keys and no hardware.
+  Describe a sound, copy the prompt into any chatbot, paste the reply back; the workshop checks
+  it (`forge_ai.chat_prompt` / `read_reply`, same instructions and schema as before) and you
+  tweak and save it as JSON. Removed from the page: the OpenAI / Gemini key fields (and the
+  `/api/generate` endpoint), sending to CHOMPI, device presets and samples, and the test-bridge
+  link. New Spark look: Choowi, the nine dots, warm paper or dark, rounded cards. Tests: web
+  tests and the browser end-to-end tests updated (8 pass; mobile layout checked).
 - Known limit: SW6's battery colour is the charger's 3.3 V comparator checked every 30 s, so
   charging current reads high and playing reads low; only white (charge done) is reliable.
 - **A preset saved on the panel is now also the one CHOMPI loads at power-on** (`FORGE/LAST.TXT`),

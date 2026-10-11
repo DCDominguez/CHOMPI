@@ -87,7 +87,7 @@ class BrowserTests(unittest.TestCase):
                      and self.console.append(m.text))
         self.page.on("pageerror", lambda e: self.console.append(str(e)))
         self.page.goto(self.server.origin + "/")
-        expect(self.page.locator("#notice")).to_contain_text("Ready")
+        expect(self.page.locator("#notice")).to_contain_text("Forge is lit")
 
     def tearDown(self):
         self.assertEqual(self.console, [], "browser console errors/CSP violations")
@@ -227,113 +227,28 @@ class BrowserTests(unittest.TestCase):
             self.assertEqual(self.json(), forge_host.load_patch(v3))
             self.assertEqual(p.input_value("#synth-voices"), "1")
 
-    def test_generate_with_mock_provider_keeps_key_ephemeral(self):
-        p, provider = self.page, self.provider
-        provider.status, provider.patch = 200, forge_host.upgrade_patch(forge_host.load_patch(ROOT / "presets" / "08-acid-bass.json"), 7)
-        provider.requests.clear()
-        for name in ("openai", "gemini"):
-            p.select_option("#provider", name)
-            p.fill("#model", "test-model"); p.fill("#api-key", FAKE_KEY)
-            p.fill("#prompt", "Gritty saw bass with a short slap echo")
-            p.click("#generate"); self.wait_idle()
-            self.assertIn("generated and validated", self.notice())
-            self.assertEqual(self.json()["name"], provider.patch["name"])
-            request = provider.requests[-1]
-            self.assertNotIn(FAKE_KEY, request.data.decode()); self.assertNotIn(FAKE_KEY, request.full_url)
-            self.assertIn(FAKE_KEY, json.dumps(dict(request.header_items())))
-            self.assertEqual(json.loads(request.data)["text"]["format"]["schema"]["properties"]["version"]["enum"]
-                             if name == "openai" else
-                             json.loads(request.data)["generationConfig"]["responseFormat"]["text"]["schema"]["properties"]["version"]["enum"], [7])
-        # storage_state() reads cookies/localStorage without page eval (blocked by the CSP).
-        self.assertNotIn(FAKE_KEY, json.dumps(self.context.storage_state()))
-        self.assertNotIn(FAKE_KEY, p.inner_text("#json"))
-        p.click("#clear-key"); self.assertEqual(p.input_value("#api-key"), "")
-        # Provider rejection: safe message, editor unchanged.
-        before = self.json()
-        provider.status = 401
-        p.fill("#api-key", FAKE_KEY); p.click("#generate"); self.wait_idle()
-        self.assertIn("API key was not accepted", self.notice())
-        self.assertNotIn("secret body", self.notice())
-        self.assertEqual(self.json(), before)
-        # Wrong mode output (delay patch for instrument request) is rejected.
-        provider.status, provider.patch = 200, forge_host.load_patch(ROOT / "presets" / "02-slap.json")
+    def test_chat_copy_and_paste_needs_no_key_or_device(self):
+        # The owner, 2026-10-12: no API keys and no hardware in the webapp; any chatbot writes the patch.
+        p = self.page
+        for gone in ("#provider", "#api-key", "#model", "#send", "#ports", "#slots", "#sample-slots"):
+            self.assertEqual(p.locator(gone).count(), 0, gone)
+        p.fill("#prompt", "Gritty saw bass with a short slap echo")
         p.click("#generate"); self.wait_idle()
-        self.assertIn("error", p.get_attribute("#notice", "class"))
-        provider.status = 200
+        self.assertIn("paste it into any chatbot", self.notice())
+        box = p.locator("#chat-prompt-text")
+        if box.is_visible():                                   # clipboard refused: the prompt is shown to copy
+            self.assertIn("Gritty saw bass", box.input_value())
+        bass = forge_host.upgrade_patch(forge_host.load_patch(ROOT / "presets" / "08-acid-bass.json"), 7)
+        p.fill("#reply", "Here you go!\n```json\n" + json.dumps(bass) + "\n```\nHave fun.")
+        p.click("#use-reply"); self.wait_idle()
+        self.assertIn("valid patch", self.notice()); self.assertEqual(self.json()["name"], bass["name"])
+        before = self.json()
+        for bad in ("sorry, I can't", "```json\n{\"version\": 7}\n```", json.dumps(forge_host.load_patch(ROOT / "presets" / "02-slap.json"))):
+            p.fill("#reply", bad); p.click("#use-reply"); self.wait_idle()
+            self.assertIn("error", p.get_attribute("#notice", "class")); self.assertEqual(self.json(), before)
+        p.screenshot(path=str(SHOTS / "desktop-chat.png"), full_page=True)
 
-    def test_device_round_trip_v2_v1_v3_capture_and_panic(self):
-        p = self.page
-        p.click("#ports"); self.wait_idle()
-        p.select_option("#input-port", sim_device.INPUT); p.select_option("#output-port", sim_device.OUTPUT)
-        self.choose_preset("Soft Pad")
-        sent = self.json()
-        p.click("#send"); self.wait_idle()
-        self.assertIn("acknowledged", self.notice())
-        self.assertIn(f"Firmware {forge_host.FIRMWARE_VERSION}", p.inner_text("#device-state"))
-        # Legacy v1 delay patch switches device to aux path.
-        self.choose_preset("Short slap"); p.click("#send"); self.wait_idle()
-        p.click("#capture"); self.wait_idle()
-        self.assertEqual(self.json()["version"], 1)
-        self.assertEqual(self.json()["name"], "Captured from Forge")
-        # Back to an instrument and capture it: values survive 14-bit quantization.
-        self.choose_preset("Soft Pad"); p.click("#send"); self.wait_idle()
-        p.click("#capture"); self.wait_idle()
-        captured = self.json()
-        self.assertEqual(captured["version"], 2)
-        self.assertEqual(captured["routing"], sent["routing"])
-        for key, value in sent["modules"]["synth"].items():
-            if key == "waveform": self.assertEqual(captured["modules"]["synth"][key], value)
-            else: self.assertAlmostEqual(captured["modules"]["synth"][key], value, delta=max(1, value * 0.001))
-        # v3 instrument: every module survives send -> capture within quantization.
-        self.choose_preset("Warm Pad"); sent = self.json(); p.click("#send"); self.wait_idle()
-        self.assertIn("acknowledged", self.notice())
-        p.click("#capture"); self.wait_idle()
-        captured = self.json()
-        self.assertEqual((captured["version"], captured["routing"]), (3, sent["routing"]))
-        for module, fields in sent["modules"].items():
-            for key, value in fields.items():
-                got = captured["modules"][module][key]
-                if isinstance(value, (bool, str)) or isinstance(value, int) and key in ("voices", "osc2_semitones"):
-                    self.assertEqual(got, value, f"{module}.{key}")
-                else:
-                    self.assertAlmostEqual(got, value, delta=max(0.01, abs(value) * 0.002), msg=f"{module}.{key}")
-        p.click("#panic"); self.wait_idle()
-        self.assertIn("Panic acknowledged", self.notice())
-        # Panic must not change targets.
-        p.click("#status"); self.wait_idle()
-        self.assertIn("editor patch is unchanged", self.notice())
-
-    def test_device_presets_store_recall_erase(self):
-        p = self.page
-        self.assertEqual(p.locator("#slots button").count(), 15)
-        p.click("#slot-recall"); self.wait_idle()
-        self.assertIn("Choose a slot", self.notice())
-        p.click("#ports"); self.wait_idle()
-        p.select_option("#input-port", sim_device.INPUT); p.select_option("#output-port", sim_device.OUTPUT)
-        self.choose_preset("Acid Bass"); sent = self.json(); p.click("#send"); self.wait_idle()
-        p.select_option("#bank", "2"); p.click("#slot-4")
-        self.assertEqual(p.get_attribute("#slot-4", "aria-pressed"), "true")
-        p.click("#slot-store"); self.wait_idle()
-        self.assertIn("bank 2 slot 4", self.notice())
-        expect(p.locator("#slot-4")).to_have_class("filled")
-        self.choose_preset("Dry routing check"); p.click("#send"); self.wait_idle()       # device now plays something else
-        p.click("#slot-recall"); self.wait_idle()
-        recalled = self.json()
-        self.assertEqual(recalled["name"], "Bank 2 slot 4")
-        self.assertEqual(recalled["modules"]["synth"]["voices"], sent["modules"]["synth"]["voices"])
-        self.assertAlmostEqual(recalled["modules"]["filter"]["cutoff_hz"], sent["modules"]["filter"]["cutoff_hz"], delta=1)
-        # Erase needs a second click.
-        p.click("#slot-erase"); self.wait_idle()
-        self.assertIn("again within 4 seconds", self.notice())
-        expect(p.locator("#slot-4")).to_have_class("filled")
-        p.click("#slot-erase"); self.wait_idle()
-        self.assertIn("erased", self.notice())
-        expect(p.locator("#slot-4")).not_to_have_class("filled")
-        p.click("#slot-recall"); self.wait_idle()
-        self.assertIn("slot is empty", self.notice())
-        p.select_option("#bank", "1"); self.assertEqual(p.get_attribute("#slot-4", "aria-pressed"), "false")
-
-    def test_sampler_controls_and_device_samples(self):
+    def test_sampler_controls(self):
         p = self.page
         self.choose_preset("Recorded Keys")
         self.assertEqual(self.json()["version"], 4); self.assertFalse(p.is_disabled("#upgrade"))
@@ -345,57 +260,14 @@ class BrowserTests(unittest.TestCase):
         p.fill("#sampler-start", "0.8"); p.fill("#sampler-end", "0.2"); p.click("#download")     # start must stay below end
         expect(p.locator("#notice")).to_have_class("error"); self.assertIn("sampler.start", self.notice())
         p.fill("#sampler-start", "0.1"); p.fill("#sampler-end", "0.9")
-        # Device samples from the simulated card (kit a: 1, 2; chromatic a: 1; a 1 s recording).
-        self.assertEqual(p.locator("#sample-slots button").count(), 15)
-        p.click("#ports"); self.wait_idle()
-        p.select_option("#input-port", sim_device.INPUT); p.select_option("#output-port", sim_device.OUTPUT)
-        p.click("#samples-read"); self.wait_idle()
-        expect(p.locator("#sample-slot-15")).to_have_class("filled")
-        self.assertIn("Recording: 1.0 s", p.inner_text("#sample-state"))
-        p.select_option("#sample-mode", "kit")
-        expect(p.locator("#sample-slot-1")).to_have_class("filled"); expect(p.locator("#sample-slot-3")).not_to_have_class("filled")
-        # Use a chromatic slot in the editor patch, then send it.
-        p.select_option("#sample-mode", "chromatic"); p.click("#sample-slot-1"); p.click("#sample-use"); self.wait_idle()
-        patch_json = self.json()
-        self.assertEqual((patch_json["routing"], patch_json["modules"]["sampler"]["mode"], patch_json["modules"]["sampler"]["slot"]),
-                         ("sampler>delay>reverb>output", "chromatic", 1))
-        p.click("#send"); self.wait_idle(); self.assertIn("acknowledged", self.notice())
-        # Save the recording into chromatic b3, then erase it (two presses).
-        p.select_option("#sample-bank", "b"); p.click("#sample-slot-15"); p.click("#sample-save"); self.wait_idle()
-        self.assertIn("card slot 1–14", self.notice())
-        p.click("#sample-slot-3"); p.click("#sample-save"); self.wait_idle()
-        self.assertIn("jammi_b3.wav", self.notice()); expect(p.locator("#sample-slot-3")).to_have_class("filled")
-        p.click("#sample-erase"); self.wait_idle(); self.assertIn("again within 4 seconds", self.notice())
-        p.click("#sample-erase"); self.wait_idle(); self.assertIn("erased", self.notice())
-        expect(p.locator("#sample-slot-3")).not_to_have_class("filled")
-        # A v1 patch is converted to v5 when a sample is used.
-        self.choose_preset("Short slap"); self.assertEqual(self.json()["version"], 1)
-        p.select_option("#sample-bank", "a"); p.click("#sample-slot-1"); p.click("#sample-use"); self.wait_idle()
-        self.assertEqual((self.json()["version"], self.json()["routing"]), (5, "sampler>delay>reverb>output"))
         p.screenshot(path=str(SHOTS / "desktop-samples.png"), full_page=True)
-
-    def test_missing_ports_and_lost_reply(self):
-        p = self.page
-        p.click("#send"); self.wait_idle()
-        self.assertIn("MIDI input and output", self.notice())
-        # The status banner is sticky, so feedback stays visible next to the device buttons.
-        box = p.locator("#notice").bounding_box()
-        self.assertTrue(0 <= box["y"] < 900, "status message scrolled out of view")
-        p.click("#ports"); self.wait_idle()
-        p.select_option("#input-port", sim_device.INPUT); p.select_option("#output-port", sim_device.OUTPUT)
-        self.device.drop_replies = True
-        try:
-            p.click("#send"); self.wait_idle()
-            self.assertIn("may have applied", self.notice())
-        finally:
-            self.device.drop_replies = False
 
     def test_mobile_layout_has_no_horizontal_overflow(self):
         # Layout measurement needs page scripts; CSP bypass affects only this measuring context.
         context = self.browser.new_context(bypass_csp=True)
         page = context.new_page()
         page.goto(self.server.origin + "/")
-        expect(page.locator("#notice")).to_contain_text("Ready")
+        expect(page.locator("#notice")).to_contain_text("Forge is lit")
         for width, height, name in ((390, 844, "mobile"), (768, 1024, "tablet")):
             page.set_viewport_size({"width": width, "height": height})
             overflow = page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
@@ -409,7 +281,7 @@ class BrowserTests(unittest.TestCase):
     def test_localhost_url_is_accepted(self):
         page = self.context.new_page()
         page.goto(f"http://localhost:{self.server.server_port}/")
-        expect(page.locator("#notice")).to_contain_text("Ready", timeout=5000)
+        expect(page.locator("#notice")).to_contain_text("Forge is lit", timeout=5000)
         page.close()
 
 

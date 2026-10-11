@@ -18,7 +18,7 @@ import forge_bridge
 
 ROOT = Path(os.environ.get("FORGE_HOST_DIR") or Path(__file__).resolve().parent)   # FORGE_HOST_DIR: Forge Bridge.exe
 ASSETS = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"),
-          "/style.css": ("style.css", "text/css"),
+          "/style.css": ("style.css", "text/css"), "/choowi.svg": ("choowi.svg", "image/svg+xml"),
           "/inspector": ("inspector.html", "text/html"),
           "/inspector.js": ("inspector.js", "text/javascript"),
           "/inspector.css": ("inspector.css", "text/css")}
@@ -57,7 +57,6 @@ class ForgeServer(ThreadingHTTPServer):
         self.authorities = (self.authority, f"localhost:{self.server_port}")
         self.token = secrets.token_urlsafe(32)
         self.midi_lock = threading.Lock()
-        self.ai_lock = threading.Lock()
         self.bridge = forge_bridge.Bridge(self.midi_lock, probe)
 
     def server_close(self):
@@ -159,17 +158,6 @@ class Handler(BaseHTTPRequestHandler):
                 kind = body.get("kind", "instrument")
                 result = ({"prompt": forge_ai.chat_prompt(body.get("prompt"), kind, samples)} if self.path == "/api/chat-prompt"
                           else {"patch": forge_ai.read_reply(body.get("reply"), kind, samples)})
-            elif self.path == "/api/generate":
-                if not self.server.ai_lock.acquire(blocking=False):
-                    return self.reply(409, {"error": "A generation is already in progress"})
-                try:
-                    samples = body.get("samples")
-                    if samples is not None: samples = validate_samples(samples)
-                    result = {"patch": forge_ai.generate_patch(body.get("provider"), body.get("api_key"),
-                                body.get("model"), body.get("prompt"), kind=body.get("kind", "delay"), samples=samples)}
-                finally:
-                    body.pop("api_key", None)
-                    self.server.ai_lock.release()
             elif self.path in ("/api/ports", "/api/status", "/api/send", "/api/panic", "/api/preset", "/api/samples"):
                 if not self.server.midi_lock.acquire(blocking=False):
                     return self.reply(409, {"error": "A MIDI request is already in progress"})

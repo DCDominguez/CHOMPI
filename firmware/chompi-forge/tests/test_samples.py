@@ -201,7 +201,7 @@ class SampleWebAndAiTests(unittest.TestCase):
                 forge_ai.generate_patch("openai", "k", "m", "x", reply(wrong), kind="instrument", samples=listing)
         # The web bridge checks the echoed list's shape before it reaches a prompt.
         for samples in ({"samples": {}}, {**listing, "recording_seconds": "x"}, {**listing, "samples": {**listing["samples"], "kit": {"a": [99]}}}):
-            status, _ = self.post("/api/generate", {"provider": "openai", "api_key": "k", "model": "m", "prompt": "x",
+            status, _ = self.post("/api/chat-prompt", {"prompt": "x",
                                                     "kind": "instrument", "samples": samples})
             self.assertEqual(status, 400)
 

@@ -154,7 +154,7 @@ class WebTests(unittest.TestCase):
         return result
 
     def test_assets_session_and_no_arbitrary_file_access(self):
-        for path in ("/", "/app.js", "/style.css", "/api/session"):
+        for path in ("/", "/app.js", "/style.css", "/choowi.svg", "/api/session"):
             status, headers, data = self.request(path)
             self.assertEqual(status, 200)
             self.assertEqual(headers["Cache-Control"], "no-store")
@@ -245,16 +245,10 @@ class WebTests(unittest.TestCase):
             self.assertNotEqual(status, 200)
             exchange.assert_not_called()
 
-    def test_generate_is_separate_from_midi_and_returns_no_key(self):
-        with patch.object(forge_ai, "generate_patch", return_value=PRESET) as generate, \
-                patch.object(forge_host, "exchange") as exchange:
-            status, _, data = self.request("/api/generate", {"provider": "gemini", "model": "model",
-                                                            "api_key": "test-secret", "prompt": "echo"})
-            self.assertEqual(status, 200)
-            self.assertEqual(json.loads(data)["patch"], PRESET)
-            self.assertNotIn(b"test-secret", data)
-            generate.assert_called_once_with("gemini", "test-secret", "model", "echo", kind="delay", samples=None)
-            exchange.assert_not_called()
+    def test_the_api_key_endpoint_is_gone(self):
+        # The owner, 2026-10-12: no API keys in the webapp; the chatbot copy-and-paste replaces it.
+        status, _, _ = self.request("/api/generate", {"provider": "gemini", "model": "m", "api_key": "k", "prompt": "echo"})
+        self.assertEqual(status, 404)
 
     def test_send_uses_existing_validated_protocol_and_explicit_ports(self):
         result = {"firmware": "0.2", "patch": PRESET}
@@ -281,7 +275,7 @@ class WebTests(unittest.TestCase):
         with patch.object(forge_host, "exchange", return_value={"firmware": "0.3"}) as exchange:
             self.assertEqual(self.request("/api/panic", {"input": "in", "output": "out"})[0], 200)
             self.assertEqual(exchange.call_args.args[0][4], 3)
-        for lock, route in ((self.server.midi_lock, "ports"), (self.server.ai_lock, "generate")):
+        for lock, route in ((self.server.midi_lock, "ports"),):
             with lock:
                 self.assertEqual(self.request("/api/" + route, {})[0], 409)
 
