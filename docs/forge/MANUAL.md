@@ -614,8 +614,15 @@ asks for an API key.
 
 Until 0.19.2 the page also sent sounds to CHOMPI and managed the card's presets and
 samples, and could call OpenAI or Gemini with your own key; those parts were removed (the
-owner's call: simpler and safer). Sending a JSON sound to CHOMPI now needs the bridge's
-test page or a later Web MIDI page.
+owner's call: simpler and safer).
+
+**Take it to CHOMPI** (`/send`, the link under the editor): a separate page that sends a
+sound over **Web MIDI** (Chrome or Edge; Safari has none). Plug CHOMPI in, **Connect** (the
+browser asks once for MIDI permission, including SysEx), pick **The workshop's sound** or
+**Open JSON**, **Send to CHOMPI**. It replaces the sound CHOMPI is playing; save it to a
+slot on the panel to keep it. **Check CHOMPI** shows the firmware and battery, **Stop
+sound** is the panic. The page lets the local Forge server encode the sound and check
+CHOMPI's reply (the same code as the bridge), and only the browser talks to the device.
 
 ### Built-in sounds
 Dry, Slap, Long Echo (delay effects for line in); Glass Keys, Soft Pad, Saw Bass,

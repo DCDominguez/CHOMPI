@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Take it to CHOMPI</title>
+  <link rel="icon" href="/choowi.svg">
+  <link rel="stylesheet" href="/style.css"><script src="/send.js" defer></script>
+</head>
+<body>
+<header>
+  <div>
+    <a class="brand" href="/">forge</a>
+    <div class="dots" aria-hidden="true"><i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="c4"></i><i class="c5"></i><i class="c6"></i><i class="c7"></i><i class="c8"></i><i class="c9"></i></div>
+  </div>
+  <a class="badge" href="/">← the workshop</a>
+</header>
+<main>
+  <div class="intro">
+    <div>
+      <h1>take it to CHOMPI.</h1>
+      <p>plug CHOMPI into this computer, connect, pick a sound, send. it lands on CHOMPI right away; save it to a slot on the panel to keep it.</p>
+    </div>
+    <img src="/choowi.svg" width="160" alt="Choowi, the magic blacksmith">
+  </div>
+  <div id="notice" role="status" aria-live="polite">Plug in CHOMPI and press Connect.</div>
+  <div class="grid">
+    <section class="card" aria-labelledby="connect-heading">
+      <p class="eyebrow"><i class="step c8">1</i>connect</p><h2 id="connect-heading">Find CHOMPI.</h2>
+      <button id="connect" class="primary wide" type="button">Connect <span aria-hidden="true">✦</span></button>
+      <p class="hint">Your browser asks once for permission to use MIDI devices (including "system exclusive" messages, which is how sounds travel). Works in Chrome and Edge; Safari has no Web MIDI.</p>
+      <div class="pair">
+        <div><label for="output">Send to</label><select id="output" disabled><option value="">connect first</option></select></div>
+        <div><label for="input">Listen on</label><select id="input" disabled><option value="">connect first</option></select></div>
+      </div>
+      <p id="device" class="hint">Not connected.</p>
+      <div class="button-row"><button id="status" type="button" disabled>Check CHOMPI</button><button id="stop" type="button" disabled>Stop sound</button></div>
+    </section>
+    <section class="card" aria-labelledby="sound-heading">
+      <p class="eyebrow"><i class="step c6">2</i>pick a sound</p><h2 id="sound-heading">What goes over?</h2>
+      <div class="button-row"><button id="from-workshop" type="button">The workshop's sound</button><label class="file-button" for="file">Open JSON<input id="file" type="file" accept=".json,application/json"></label></div>
+      <p id="sound" class="hint">No sound picked yet.</p>
+      <p class="eyebrow later"><i class="step c3">3</i>send</p>
+      <button id="send" class="primary wide" type="button" disabled>Send to CHOMPI <span aria-hidden="true">✦</span></button>
+      <p class="footnote">Sending replaces the sound CHOMPI is playing; nothing on its card changes. To keep it, save it on the panel (toggle down, hold CHOMPI, presets page, KEY_25, a slot, CHOMPI). Volume low for the first try.</p>
+    </section>
+  </div>
+  <footer><span>forge · choowi</span><span>Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club.</span></footer>
+</main>
+</body></html>

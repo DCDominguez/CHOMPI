@@ -245,6 +245,23 @@ class WebTests(unittest.TestCase):
             self.assertNotEqual(status, 200)
             exchange.assert_not_called()
 
+    def test_web_midi_encode_and_reply_use_the_host_wire_format(self):
+        # The Web MIDI page: the server frames requests and checks replies; it never opens a MIDI port.
+        with patch.object(forge_host, "exchange") as exchange, patch.object(forge_host, "midi_module") as midi:
+            status, _, data = self.request("/api/midi/send", {"patch": PRESET})
+            self.assertEqual(status, 200)
+            sent = json.loads(data)
+            self.assertEqual(sent["sysex"], [0xF0] + forge_host.encode_patch(PRESET, sent["sequence"]) + [0xF7])
+            status, _, data = self.request("/api/midi/status", {})
+            self.assertEqual(json.loads(data)["sysex"][1:-1], forge_host.message(2, json.loads(data)["sequence"]))
+            stop = json.loads(self.request("/api/midi/stop", {})[2])
+            self.assertEqual(stop["sysex"][1:-1], forge_host.message(3, stop["sequence"]))
+            for bad in ({"data": [1, 2, 3], "sent": sent["sysex"]}, {"data": [0xF0, 200, 0xF7], "sent": sent["sysex"]},
+                        {"data": [0xF0] + forge_host.message(0x40, 5) + [0xF7], "sent": sent["sysex"]}, {"sent": sent["sysex"]}):
+                self.assertEqual(self.request("/api/midi/reply", bad)[0], 400)
+            self.assertEqual(self.request("/api/midi/send", {"patch": {"version": 7}})[0], 400)
+            exchange.assert_not_called(); midi.assert_not_called()
+
     def test_the_api_key_endpoint_is_gone(self):
         # The owner, 2026-10-12: no API keys in the webapp; the chatbot copy-and-paste replaces it.
         status, _, _ = self.request("/api/generate", {"provider": "gemini", "model": "m", "api_key": "k", "prompt": "echo"})

@@ -262,20 +262,56 @@ class BrowserTests(unittest.TestCase):
         p.fill("#sampler-start", "0.1"); p.fill("#sampler-end", "0.9")
         p.screenshot(path=str(SHOTS / "desktop-samples.png"), full_page=True)
 
+    def test_send_page_over_web_midi(self):
+        # Web MIDI page (0.19.2): a stand-in for the browser's MIDI hands each SysEx to the simulated
+        # device (the firmware's own decoder in build/forge_probe) and plays its reply back.
+        page = self.context.new_page(); errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        def probe(data):
+            with self.device.lock: self.device.replies.clear()
+            self.device.handle(sim_device.Message("sysex", data[1:-1]))
+            with self.device.lock: reply = list(self.device.replies.popleft().data)
+            return [0xF0, *reply, 0xF7]
+        page.expose_function("forgeProbe", probe)
+        page.add_init_script("""
+          navigator.requestMIDIAccess = async () => {
+            const input = {id: "in", name: "CHOMPI 1", onmidimessage: null};
+            const output = {id: "out", name: "CHOMPI 2", send(bytes) {
+              window.forgeProbe(Array.from(bytes)).then(r => input.onmidimessage && input.onmidimessage({data: new Uint8Array(r)})); }};
+            return {inputs: new Map([["in", input]]), outputs: new Map([["out", output]]), onstatechange: null};
+          };""")
+        # The workshop hands its current sound over (localStorage, same origin).
+        self.choose_preset("Acid Bass")
+        page.goto(self.server.origin + "/send")
+        expect(page.locator("#connect")).to_be_enabled()
+        self.assertTrue(page.is_disabled("#send"))
+        page.click("#connect"); expect(page.locator("#notice")).to_contain_text("CHOMPI found")
+        self.assertIn("Forge ", page.inner_text("#device"))
+        page.click("#from-workshop"); expect(page.locator("#sound")).to_contain_text("Acid Bass")
+        page.click("#send"); expect(page.locator("#notice")).to_contain_text("CHOMPI is playing Acid Bass")
+        sent = self.device.sent[-1]
+        self.assertEqual(sent, forge_host.encode_patch(self.json(), forge_host.read14(sent, 5)))   # the editor's sound, as encoded by forge_host
+        page.click("#stop"); expect(page.locator("#notice")).to_contain_text("Stopped")
+        page.set_input_files("#file", str(ROOT / "presets" / "02-slap.json"))
+        expect(page.locator("#sound")).to_contain_text("02-slap.json")
+        page.screenshot(path=str(SHOTS / "send-page.png"), full_page=True)
+        self.assertEqual(errors, []); page.close()
+
     def test_mobile_layout_has_no_horizontal_overflow(self):
         # Layout measurement needs page scripts; CSP bypass affects only this measuring context.
         context = self.browser.new_context(bypass_csp=True)
         page = context.new_page()
-        page.goto(self.server.origin + "/")
-        expect(page.locator("#notice")).to_contain_text("Forge is lit")
-        for width, height, name in ((390, 844, "mobile"), (768, 1024, "tablet")):
+        for path in ("/", "/send"):
+          page.goto(self.server.origin + path)
+          expect(page.locator("#notice")).not_to_have_text("")
+          for width, height, name in ((390, 844, "mobile"), (768, 1024, "tablet")):
             page.set_viewport_size({"width": width, "height": height})
             overflow = page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
             self.assertLessEqual(overflow, 0, f"{name} layout scrolls sideways")
             small = page.evaluate("""[...document.querySelectorAll('button,select,input:not([type=checkbox]):not([type=range]):not([type=file])')]
                 .filter(e => e.offsetParent && e.getBoundingClientRect().height < 40).map(e => e.id)""")
             self.assertEqual(small, [], f"{name}: touch targets under 40px")
-            page.screenshot(path=str(SHOTS / f"{name}.png"), full_page=True)
+            page.screenshot(path=str(SHOTS / f"{name}-{path.strip('/') or 'workshop'}.png"), full_page=True)
         context.close()
 
     def test_localhost_url_is_accepted(self):

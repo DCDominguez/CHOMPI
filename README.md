@@ -114,7 +114,8 @@ python3 firmware/chompi-forge/host/forge_web.py
 
 Open **http://127.0.0.1:8765**, describe a sound and copy the prompt into any chatbot (ChatGPT,
 Claude, Gemini…). Paste its reply back, tweak the sound, save it as a JSON file. No API key, no
-account, and the workshop doesn't talk to CHOMPI: it only makes and checks sounds.
+account. Then **take it to CHOMPI** (the link under the editor, `/send`): connect over Web MIDI
+in Chrome or Edge, send, play. Save it to a slot on the panel to keep it.
 
 ## for tinkerers
 

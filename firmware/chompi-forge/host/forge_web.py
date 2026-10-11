@@ -19,9 +19,26 @@ import forge_bridge
 ROOT = Path(os.environ.get("FORGE_HOST_DIR") or Path(__file__).resolve().parent)   # FORGE_HOST_DIR: Forge Bridge.exe
 ASSETS = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"),
           "/style.css": ("style.css", "text/css"), "/choowi.svg": ("choowi.svg", "image/svg+xml"),
+          "/send": ("send.html", "text/html"), "/send.js": ("send.js", "text/javascript"),
           "/inspector": ("inspector.html", "text/html"),
           "/inspector.js": ("inspector.js", "text/javascript"),
           "/inspector.css": ("inspector.css", "text/css")}
+
+
+def midi_reply(body):
+    """Decode a reply the Web MIDI page received (F0 ... F7) for the request it sent."""
+    def frame(name, required=True):
+        value = body.get(name)
+        if value is None and not required: return None
+        if (not isinstance(value, list) or not 3 <= len(value) <= 512 or value[0] != 0xF0 or value[-1] != 0xF7
+                or any(type(x) is not int or not 0 <= x < 128 for x in value[1:-1])):
+            raise ValueError(f"{name} must be one SysEx message")
+        return value[1:-1]
+    data, sent = frame("data"), frame("sent")
+    status = host.decode_response(data, host.read14(sent, 5))
+    if sent[4] == 1 and data[8:len(sent)] != sent[7:-1]:     # as host.exchange: the acknowledged patch is the one sent
+        raise RuntimeError("Acknowledgement does not match the sound sent; send it again")
+    return status
 
 
 def validate_samples(samples):
@@ -152,6 +169,14 @@ class Handler(BaseHTTPRequestHandler):
                 to = body.get("to", 3)
                 if to not in (3, 4, 5, 6, 7): raise ValueError("Upgrade target must be 3, 4, 5, 6 or 7")
                 result = {"patch": host.upgrade_patch(body.get("patch"), to)}
+            elif self.path in ("/api/midi/send", "/api/midi/status", "/api/midi/stop"):
+                # Web MIDI page (0.19.2): the browser carries the bytes; the wire format stays here.
+                sequence = secrets.randbelow(16384)
+                payload = (host.encode_patch(body.get("patch"), sequence) if self.path == "/api/midi/send"
+                           else host.message(2 if self.path == "/api/midi/status" else 3, sequence))
+                result = {"sequence": sequence, "sysex": [0xF0] + payload + [0xF7]}
+            elif self.path == "/api/midi/reply":
+                result = midi_reply(body)
             elif self.path in ("/api/chat-prompt", "/api/chat-reply"):
                 samples = body.get("samples")
                 if samples is not None: samples = validate_samples(samples)

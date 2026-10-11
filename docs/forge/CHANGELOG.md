@@ -28,6 +28,12 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
   `/api/generate` endpoint), sending to CHOMPI, device presets and samples, and the test-bridge
   link. New Spark look: Choowi, the nine dots, warm paper or dark, rounded cards. Tests: web
   tests and the browser end-to-end tests updated (8 pass; mobile layout checked).
+- **Take it to CHOMPI** (`/send`, Web MIDI): connect in Chrome / Edge (SysEx permission), pick the
+  workshop's sound (handed over in the browser's storage) or a JSON file, send; check CHOMPI
+  (firmware, battery) and stop sound. The local server encodes the patch and checks the reply
+  (`/api/midi/send|status|stop|reply`, forge_host's wire format, including the acknowledged-patch
+  match); it opens no MIDI port. Tested in the browser end-to-end through the firmware's decoder
+  (`forge_probe`) with a stand-in for Web MIDI; not yet with a real CHOMPI in Chrome.
 - Known limit: SW6's battery colour is the charger's 3.3 V comparator checked every 30 s, so
   charging current reads high and playing reads low; only white (charge done) is reliable.
 - **A preset saved on the panel is now also the one CHOMPI loads at power-on** (`FORGE/LAST.TXT`),

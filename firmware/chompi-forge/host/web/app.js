@@ -145,7 +145,10 @@ async function run(message, action) {
   try { await action(); } catch (error) { notice(error.message || "Operation failed", true); }
   finally { busy = false; updateButtons(); }
 }
-function showJSON() { $("json").textContent = JSON.stringify(patch, null, 2); }
+function showJSON() {
+  $("json").textContent = JSON.stringify(patch, null, 2);
+  try { localStorage.setItem("forge.lastSound", JSON.stringify(patch)); } catch { /* storage blocked: the send page falls back to Open JSON */ }
+}
 function loadPatch(value) {
   patch = structuredClone(value); $("patch-name").value = patch.name;
   const routes = ROUTES[patch.version] || [];

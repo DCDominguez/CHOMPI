@@ -57,3 +57,9 @@ pre{overflow:auto;max-height:260px;line-height:1.6;background:var(--field);paddi
 .group-set{margin-top:28px}.group-set.unavailable{opacity:.45}.group-set legend{padding:0 0 6px;margin:0}
 footer{display:flex;justify-content:space-between;gap:16px;padding-top:28px;margin-top:28px;border-top:2px solid var(--rule);color:var(--muted);font-size:12px}
 @media(max-width:760px){header{padding:20px 16px 12px}main{padding:6px 16px 24px}.intro{grid-template-columns:1fr}.intro img{width:140px;order:-1}.grid{grid-template-columns:1fr}.card{padding:20px}.button-row button,.button-row .file-button{flex-grow:1}footer{flex-direction:column}}
+/* take it to CHOMPI (send.html) */
+.wide{width:100%;display:flex;justify-content:space-between;align-items:center;margin-top:16px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+a.badge{text-decoration:none}a.badge:hover{background:var(--spark);color:#1b1b22}
+.handoff{display:inline-block;margin-top:14px;font-weight:600;color:var(--accent)}
+@media(max-width:760px){.pair{grid-template-columns:1fr;gap:0}}
