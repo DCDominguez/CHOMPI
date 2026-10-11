@@ -76,13 +76,13 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
 
 <div class="wrap">
 <header class="hero">
-  <div class="eyebrow">Firmware 0.15.2 · community firmware for CHOMPI</div>
+  <div class="eyebrow">Firmware 0.17.0 · community firmware for CHOMPI</div>
   <h1>Forge for CHOMPI</h1>
-  <p class="sub">A playable synth, a TAPE-compatible sampler and looper, harmony, an arpeggiator and bass, and an event recorder, all inside stock TAPE's workflow. Design sounds on the computer, by hand or with an AI, and send them over USB.</p>
+  <p class="sub">A playable synth, a TAPE-compatible sampler and looper, harmony, an arpeggiator and bass, an event recorder, and a little magic, all inside stock TAPE's workflow. Design sounds on the computer, by hand or with an AI, and send them over USB.</p>
   <div class="status">
-    <span class="pill"><i class="dot-hw"></i>Checked on CHOMPI: 34 of 34 automatic checks, 10 Oct 2026</span>
-    <span class="pill"><i class="dot-sw"></i>Software-tested only: harmony, arp &amp; bass, event recorder</span>
-    <span class="pill"><i class="dot-person"></i>Still to judge by ear and hand: sound, feel, lights</span>
+    <span class="pill"><i class="dot-hw"></i>Checked on CHOMPI, 10–11 Oct 2026: 34 automatic checks, harmony, arp &amp; bass, event recorder, page and chord colours, surprise me, mutate, wake-up chime</span>
+    <span class="pill"><i class="dot-sw"></i>Software-tested only: knob ring colours, SW5's lights</span>
+    <span class="pill"><i class="dot-person"></i>Still to judge by ear and hand: sound, feel, how fun the magic is</span>
   </div>
 </header>
 
@@ -90,7 +90,7 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
   <a href="#start">Quick start</a><a href="#panel">The panel</a><a href="#knobs">Knobs &amp; pages</a><a href="#menu">Menu map</a>
   <a href="#tape">TAPE's page</a><a href="#presets">Presets</a><a href="#record">Recording</a><a href="#looper">Looper</a>
   <a href="#harmony">Harmony</a><a href="#parts">Arp, bass, tempo</a><a href="#recorder">Event recorder</a><a href="#sound">The sound</a>
-  <a href="#lights">Lights</a><a href="#power">Power</a><a href="#install">Install</a><a href="#help">Troubleshooting</a>
+  <a href="#magic">Magic</a><a href="#lights">Lights</a><a href="#power">Power</a><a href="#install">Install</a><a href="#help">Troubleshooting</a>
 </nav>
 
 <!-- 1 -->
@@ -98,8 +98,8 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
   <div class="head"><h2>Quick start</h2></div>
   <div class="col">
   <ol class="steps">
-    <li><div>Plug in headphones, switch CHOMPI on and turn <span class="k">SW6</span> (volume) up a little. Forge starts as a clean pass-through: line in, or the built-in mic when nothing is plugged in, goes to the output.</div></li>
-    <li><div><b>Load a sound.</b> The keys play nothing until you do. Record one (toggle <b>up</b>, hold <span class="k">CHOMPI</span> through the red count-in), recall a preset (toggle <b>down</b>, hold <span class="k">CHOMPI</span>, hold <span class="k">KEY_22</span> 1 s, press a lit white key), or send one from the computer with Forge Bridge.</div></li>
+    <li><div>Plug in headphones, switch CHOMPI on and turn <span class="k">SW6</span> (volume) up a little. <b>CHOMPI wakes up singing:</b> it loads the last preset you used and plays a little chime while a rainbow runs across the keys. The very first time, before any preset has been used, it starts as a clean pass-through.</div></li>
+    <li><div><b>No sound yet?</b> Hold <span class="k">SW1</span> + <span class="k">SW3</span> for a second: <b>surprise me</b> rolls a brand-new sound. Or record one (toggle <b>up</b>, hold <span class="k">CHOMPI</span> through the red count-in), recall a preset (toggle <b>down</b>, hold <span class="k">CHOMPI</span>, hold <span class="k">KEY_22</span> 1 s, press a lit white key), or send one from the computer with Forge Bridge.</div></li>
     <li><div>Play the 25 keys. Turn the knobs; press and release a knob for its next page.</div></li>
     <li><div><b>Stop everything:</b> hold <span class="k">SW4</span> and <span class="k">SW3</span> together for 1 second (panic).</div></li>
   </ol>
@@ -116,10 +116,13 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
     <thead><tr><th>Control</th><th>Normal play</th><th>In the menu (toggle down, hold CHOMPI)</th></tr></thead>
     <tbody>
       <tr><td>25 keys</td><td>Play notes, full velocity (as TAPE)</td><td>Pick slots and functions: see the menu pages</td></tr>
-      <tr><td>CHOMPI key</td><td>Toggle <b>up</b> + hold: record, after a 1.5 s count-in</td><td>Toggle <b>down</b> + hold: open the menu. Press: confirm</td></tr>
+      <tr><td>CHOMPI key</td><td>Toggle <b>up</b> + hold: record, after a 1.5 s count-in. Toggle <b>down</b>, quick tap: the event recorder's record / stop / play</td><td>Toggle <b>down</b> + hold: open the menu (its light shows the page). Press: confirm</td></tr>
       <tr><td>SW4 · SW1 · SW2 · SW3</td><td>Turn: the knob's page. Press and release: next page. Hold 1.5 s: reset that control</td><td>TAPE's second layer (pitch steps, window, delay time…). SW4 also turns the preset bank</td></tr>
       <tr><td>SW4 + SW3, 1 s</td><td><b>Panic</b>: stops all sound</td><td>—</td></tr>
-      <tr><td>SW5</td><td>Turn: filter cutoff. Push and turn (with a loop): loop speed, scrub when paused. Click: speed back to 1×</td><td>Loop speed</td></tr>
+      <tr><td>SW1 + SW2, 1 s</td><td><b>Harmony on / off</b> (knob lights flash green / red)</td><td>—</td></tr>
+      <tr><td>SW1 + SW3, 1 s</td><td><b>Surprise me</b>: a new sound; keep holding for another every 1.5 s</td><td>—</td></tr>
+      <tr><td>SW2 + SW3, 1 s</td><td><b>Mutate</b>: the sound drifts a little; keep holding to drift further</td><td>—</td></tr>
+      <tr><td>SW5</td><td>Turn: filter cutoff, and the loop's tone with it. Push and turn (with a loop): loop speed, scrub when paused. Click: speed back to 1×</td><td>Loop speed</td></tr>
       <tr><td>SW6</td><td>Turn: volume. Short press: input gain (light blue → red) and back. Hold 2 s: battery light</td><td>Output compressor; press: monitor position</td></tr>
       <tr><td>PLAY · LOOP</td><td>The looper</td><td>Overdub feedback − / +</td></tr>
       <tr><td>Line in jack</td><td>Plugged in: records from line in. Unplugged: the mic</td><td>—</td></tr>
@@ -133,13 +136,16 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
   <p class="col">TAPE's pages come first, then Forge's synth controls. Press and <b>release</b> a knob to step to its next page; its light shows the page. Hold it for 1.5 s without turning to put that control back to the preset's value. One click moves 3 % on SW1–SW3, as on TAPE.</p>
   <div class="figure" id="fig-knobs"></div>
   <div class="caption">Synth patches. On sampler patches page 1 is TAPE's: pitch (SW4), sample start (SW1), sample end (SW2); SW1 page 2 is attack, SW2 page 2 release and page 4 loop crossfade. A patch can add its own control as each knob's last page.</div>
+  <h3>One colour rule</h3>
+  <p class="col">Wherever you pick from a list or step through pages, the colours go in the same order: the 1st is always white, the 2nd green, and so on. Pressing a knob to its next page flashes that page's colour for a moment, then the light shows the value again.</p>
+  <div class="legend" id="lg-steps"></div>
   <div class="note col">Pitch, gain, saturation and the DJ filter are performance settings, as on TAPE: they stay when you change presets and reset at power-on.</div>
 </section>
 
 <!-- 4 -->
 <section id="menu">
   <div class="head"><h2>Menu map</h2><span class="pill"><i class="dot-hw"></i>Menu pages checked on CHOMPI</span></div>
-  <p class="col">Toggle <b>down</b> and hold <span class="k">CHOMPI</span>. The menu opens on TAPE's page; two black keys lead to Forge's pages. Release CHOMPI (with nothing pending) to close it.</p>
+  <p class="col">Toggle <b>down</b> and hold <span class="k">CHOMPI</span>. The menu opens on TAPE's page; two black keys lead to Forge's pages. <b>The CHOMPI light shows where you are</b>, in the colour of each page's outline below: teal TAPE's page, blue presets, purple harmony, orange parts. Keep holding <span class="k">KEY_21</span> for 2 s to go straight to the parts page. Release CHOMPI (with nothing pending) to close the menu.</p>
   <div class="figure" id="fig-menu"></div>
 </section>
 
@@ -182,6 +188,7 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
       <p>Saving a preset also saves the <b>event recorder's loop</b>, harmony, arp, bass and tempo: together that is a project.</p>
       <p>MIDI program change on channel 1 recalls slots too: program = (bank − 1) × 15 + (slot − 1).</p>
       <p>All white keys red means no usable SD card.</p>
+      <p><b>Wakes up singing:</b> CHOMPI remembers the last preset you recalled or saved and loads it at power-on (its recorded loop waits until you recall the slot).</p>
     </div>
   </div>
 </section>
@@ -215,17 +222,19 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
       <tr><td>Hold PLAY + LOOP 2 s</td><td>Clear the loop</td></tr>
       <tr><td>PLAY + LOOP, no loop yet</td><td>Armed: recording starts with the first note</td></tr>
       <tr><td>SW5 push and turn</td><td>Loop speed (below zero plays backwards); paused: scrub. Click: 1×</td></tr>
+      <tr><td>SW5 turn</td><td>The cutoff, and it darkens or opens the playing loop too (the recording itself is untouched)</td></tr>
     </tbody>
   </table></div>
-  <p class="col">Up to about 83 s. Everything you hear goes into the loop. Panic pauses it without losing it. To keep a loop as a sample: TAPE's page, <span class="k">KEY_24</span>, LOOP, a white key, CHOMPI.</p>
+  <p class="col">Up to about 83 s. Everything you hear goes into the loop. A new loop always starts at normal speed and fully open. SW5's lights: the loop speed while it plays; dim white while paused, the direction lighting up as you scrub; after a plain turn, the cutoff for a second (purple closed → white open). Panic pauses it without losing it. To keep a loop as a sample: TAPE's page, <span class="k">KEY_24</span>, LOOP, a white key, CHOMPI.</p>
 </section>
 
 <!-- 9 -->
 <section id="harmony">
-  <div class="head"><h2>Harmony: one key, one chord</h2><span class="pill"><i class="dot-sw"></i>Software-tested only</span></div>
-  <p class="col">Each key plays a whole chord in the key you choose, through the instrument and to MIDI out. Synth patches and the chromatic sampler. <b>Open:</b> TAPE's page, hold <span class="k">KEY_21</span> for 1 s. On this page a key sets the tonic; the tonic lights white and its scale blue.</p>
+  <div class="head"><h2>Harmony: one key, one chord</h2><span class="pill"><i class="dot-hw"></i>Chords and colours checked on CHOMPI</span></div>
+  <p class="col">Each key plays a whole chord in the key you choose, through the instrument and to MIDI out. Synth patches and the chromatic sampler. <b>Quick on / off:</b> hold <span class="k">SW1</span> + <span class="k">SW2</span> for 1 s. <b>Settings:</b> TAPE's page, hold <span class="k">KEY_21</span> for 1 s (purple); here a key sets the tonic, which lights white, its scale blue.</p>
+  <p class="col"><b>The keys show the chords.</b> With harmony on, every key glows in the colour of the chord it plays: <b style="color:var(--orange)">orange</b> major, <b style="color:var(--blue)">blue</b> minor, <b style="color:var(--red)">red</b> diminished, <b style="color:var(--pink)">pink</b> augmented, <b style="color:var(--teal)">teal</b> sus4. Hold Shift and they change to show the shifted chords.</p>
   <div class="figure" id="fig-harmony"></div>
-  <div class="caption">Static layout (the default) in C major, when playing with the menu closed. The white keys C3–B4 are the chords I to vii twice; C5 is Shift. In Real layout the key you press is the chord's root.</div>
+  <div class="caption">Static layout (the default) in C major, menu closed, coloured as CHOMPI lights them. The white keys C3–B4 are the chords I to vii twice; C5 is Shift. In Real layout the key you press is the chord's root.</div>
   <div class="tablebox"><table>
     <thead><tr><th>Knob</th><th>Turn</th><th>Press</th></tr></thead>
     <tbody>
@@ -235,21 +244,22 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
       <tr><td>SW3</td><td>—</td><td>Open spread on / off</td></tr>
     </tbody>
   </table></div>
+  <p class="col">While you turn SW4, SW1 or SW2 its light shows the value in the colour rule: the 1st mode or size white, the 2nd green, the 3rd yellow…</p>
   <p class="col"><b>Shift</b> (hold C5 while playing): a dominant becomes its tritone substitute, a major chord sus4, a minor chord the dominant on the same root, a diminished chord the key's V7.</p>
 </section>
 
 <!-- 10 -->
 <section id="parts">
-  <div class="head"><h2>Arp, bass and tempo</h2><span class="pill"><i class="dot-sw"></i>Software-tested only</span></div>
-  <p class="col">An arpeggiator plays the held keys (or the harmony chord) on CHOMPI's clock; a bass part plays the chord's root under it, on MIDI channel 2. <b>Open:</b> the harmony page, then tap <span class="k">KEY_21</span>.</p>
+  <div class="head"><h2>Arp, bass and tempo</h2><span class="pill"><i class="dot-hw"></i>Patterns, latch and bass checked on CHOMPI</span></div>
+  <p class="col">An arpeggiator plays the held keys (or the harmony chord) on CHOMPI's clock; a bass part plays the chord's root under it, on MIDI channel 2. <b>Open:</b> TAPE's page, keep holding <span class="k">KEY_21</span> for 2 s (orange); or from the harmony page tap <span class="k">KEY_21</span>.</p>
   <div class="figure" id="fig-parts"></div>
   <div class="tablebox"><table>
     <thead><tr><th>Knob</th><th>Turn</th><th>Press</th></tr></thead>
     <tbody>
-      <tr><td>SW4</td><td>Tempo, 1 BPM a click (40–300)</td><td>Tap tempo</td></tr>
-      <tr><td>SW1</td><td>Arp octaves 1–4 (white, green, yellow, red)</td><td>—</td></tr>
+      <tr><td>SW4</td><td>Tempo, 1 BPM a click (40–300). While turning: under 80 blue, 80–99 green, 100–119 yellow, 120–139 orange, 140+ red</td><td>Tap tempo</td></tr>
+      <tr><td>SW1</td><td>Arp octaves 1–4 (white, green, yellow, orange)</td><td>—</td></tr>
       <tr><td>SW2</td><td>Arp gate 5–100 %</td><td>—</td></tr>
-      <tr><td>SW3</td><td>Bass rate: per chord (purple), 1/2 (blue), 1/4 (green), 1/8 (yellow)</td><td>Bass octave C1 → C2 → C3</td></tr>
+      <tr><td>SW3</td><td>Bass rate: per chord (white), 1/2 (green), 1/4 (yellow), 1/8 (orange)</td><td>Bass octave C1 → C2 → C3</td></tr>
     </tbody>
   </table></div>
   <p class="col">MIDI clock in (USB or the jack) takes over the tempo, with start, stop and continue; the SW4 light blinks blue. On its own tempo CHOMPI sends MIDI clock, so other gear can follow.</p>
@@ -257,10 +267,10 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
 
 <!-- 11 -->
 <section id="recorder">
-  <div class="head"><h2>Event recorder and projects</h2><span class="pill"><i class="dot-sw"></i>Software-tested only</span></div>
+  <div class="head"><h2>Event recorder and projects</h2><span class="pill"><i class="dot-hw"></i>Record, loop, stop and clear checked on CHOMPI</span></div>
   <p class="col">Records what you play, keys, MIDI notes in and knob moves, on the clock, and loops it over 1–8 bars. It plays back like a second player: through harmony, the arp and the bass, and out of MIDI. It is separate from the audio looper. The controls are the parts page's <span class="k">F#4</span>, <span class="k">G#4</span> and <span class="k">A#4</span>.</p>
   <div class="figure" id="fig-recorder"></div>
-  <p class="col">Arm on the parts page, release CHOMPI and play; to close the loop, open the menu and press F#4 again. Up to 1,024 events; a take closes by itself after 8 bars. Saving a preset saves the loop beside it.</p>
+  <p class="col">Arm on the parts page, release CHOMPI and play; to close the loop just <b>tap CHOMPI</b> (toggle down). The same tap stops it and plays it again. Opening the menu and pressing F#4 still works. Up to 1,024 events; a take closes by itself after 8 bars. Saving a preset saves the loop beside it.</p>
 </section>
 
 <!-- 12 -->
@@ -279,11 +289,29 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
   </div>
 </section>
 
+<!-- 12b -->
+<section id="magic">
+  <div class="head"><h2>Magic</h2><span class="pill"><i class="dot-hw"></i>Checked on CHOMPI, 11 Oct 2026</span></div>
+  <div class="grid2">
+    <div class="col">
+      <h3 style="margin-top:6px">Wakes up singing</h3>
+      <p>Switch CHOMPI on and it comes back with the last preset you used, plays a little four-note chime through it, and runs a rainbow across the white keys.</p>
+      <h3>Surprise me</h3>
+      <p>Out of ideas? Hold <span class="k">SW1</span> + <span class="k">SW3</span> for a second: a brand-new sound, sometimes with chords in your key, sometimes with an arp, sometimes a gliding solo voice. Keep holding and it rolls another every 1.5 s; let go on one you like. Your volume, key and tempo stay put. The knob lights flash new colours each roll.</p>
+      <h3>Mutate</h3>
+      <p>Hold <span class="k">SW2</span> + <span class="k">SW3</span>: the sound you have shifts a little, brighter or darker, longer or shorter, a different echo, so it drifts instead of starting over. Keep holding to drift further. The knob lights flash teal.</p>
+      <p>Like it? Save it to a preset slot. Neither gesture changes a knob page.</p>
+    </div>
+    <div class="figure" id="fig-magic" style="margin-top:0"></div>
+  </div>
+</section>
+
 <!-- 13 -->
 <section id="lights">
   <div class="head"><h2>What the lights mean</h2><span class="pill"><i class="dot-person"></i>Colours still to be judged on CHOMPI</span></div>
   <h3 style="margin-top:6px">CHOMPI key</h3>
   <div class="legend" id="lg-chompi"></div>
+  <p class="col">At power-on a rainbow runs across the white keys with the chime. With harmony on, the keys glow in their chord's colours (see Harmony).</p>
   <h3>SW6: battery and warnings</h3>
   <div class="legend" id="lg-sw6"></div>
   <h3>Safe mode</h3>
@@ -326,7 +354,7 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
       <ol class="steps">
         <li><div>Forge Bridge → Connect CHOMPI → Card &amp; firmware → Install this kit's firmware.</div></li>
         <li><div>When the CHOMPI key blinks white, press it within 15 s.</div></li>
-        <li><div>CHOMPI restarts and installs. Connect CHOMPI shows the new version and build, e.g. <code>Forge 0.15.2 (build c93357b)</code>.</div></li>
+        <li><div>CHOMPI restarts and installs. Connect CHOMPI shows the new version and build, e.g. <code>Forge 0.17.0 (build e7b5e12)</code>. If it stays all white after the install, switch it off and on.</div></li>
       </ol>
       <p>Back to stock TAPE: rename <code>CHOMPI_TAPEv2_0_bin.old</code> back to <code>.bin</code>, remove <code>FORGE.bin</code>, power on.</p>
     </div>
@@ -339,7 +367,8 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
   <div class="tablebox"><table>
     <thead><tr><th>You see</th><th>What to do</th></tr></thead>
     <tbody>
-      <tr><td>Keys play nothing</td><td>No sound loaded yet: record, recall a preset or send one (quick start)</td></tr>
+      <tr><td>Keys play nothing</td><td>No sound loaded yet (only before the first preset): hold SW1 + SW3, record, recall a preset or send one</td></tr>
+      <tr><td>It started with an old sound</td><td>That is the last preset you used (wakes up singing). Recall another, or roll one with SW1 + SW3</td></tr>
       <tr><td>All white keys red in the menu</td><td>SD card missing or unreadable; reinsert it</td></tr>
       <tr><td>A sample doesn't play</td><td>Exact name, in the card's top folder (<code>cubbi_a1.wav</code>), not in a folder</td></tr>
       <tr><td>Magenta flashes at start</td><td>Safe mode (see the lights section)</td></tr>
@@ -350,7 +379,7 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
   </table></div>
 </section>
 
-<footer>Forge 0.15.2 · From the Forge MANUAL.md, KNOBS.md and TEST_RESULTS.md in the CHOMPI repository (branch forge/foundation). Community firmware, not an official Chase Bliss release. Keep a backup of your SD card.</footer>
+<footer>Forge 0.17.0 · From the Forge MANUAL.md, KNOBS.md and TEST_RESULTS.md in the CHOMPI repository (branch forge/foundation). Community firmware, not an official Chase Bliss release. Keep a backup of your SD card.</footer>
 </div>
 
 <script>
@@ -460,6 +489,7 @@ down menu");
   arrow("M166 125 H244","hold CHOMPI",205,116);
   arrow("M420 112 C480 80 500 44 554 44","hold KEY_22 1 s",478,62);
   arrow("M420 140 C480 170 500 206 554 206","hold KEY_21 1 s",478,198);
+  svg.appendChild(el("text",{x:478,y:236,"text-anchor":"middle","font-family":"var(--f-body)","font-size":11,fill:"var(--muted)"},"(2 s: straight to Parts)"));
   arrow("M710 200 H754","KEY_21",732,192);
   arrow("M760 222 C740 240 730 240 712 226","",0,0);
   svg.appendChild(el("text",{x:735,y:248,"text-anchor":"middle","font-family":"var(--f-mono)","font-size":11,fill:"var(--ink)"},"KEY_21"));
@@ -512,10 +542,10 @@ place("fig-presets",keyboard({
 
 // Harmony, static layout in C major.
 place("fig-harmony",keyboard({
-  "C3":{t:"I",c:"purple"},"D3":{t:"ii",c:"purple"},"E3":{t:"iii",c:"purple"},"F3":{t:"IV",c:"purple"},"G3":{t:"V",c:"purple"},"A3":{t:"vi",c:"purple"},"B3":{t:"vii°",c:"purple"},
-  "C4":{t:"I",c:"blue"},"D4":{t:"ii",c:"blue"},"E4":{t:"iii",c:"blue"},"F4":{t:"IV",c:"blue"},"G4":{t:"V",c:"blue"},"A4":{t:"vi",c:"blue"},"B4":{t:"vii°",c:"blue"},"C5":{t:"Shift",c:"orange"},
-  "C#3":{t:"V/ii",c:"pink"},"D#3":{t:"V/iii",c:"pink"},"F#3":{t:"V/V",c:"pink"},"G#3":{t:"V/vi",c:"pink"},"A#3":{t:"♭VII",c:"pink"},
-  "C#4":{t:"iv",c:"pink"},"D#4":{t:"♭III",c:"pink"},"F#4":{t:"♭VI",c:"pink"},"G#4":{t:"V/IV",c:"pink"},"A#4":{t:"♭II",c:"pink"}
+  "C3":{t:"I",c:"orange"},"D3":{t:"ii",c:"blue"},"E3":{t:"iii",c:"blue"},"F3":{t:"IV",c:"orange"},"G3":{t:"V",c:"orange"},"A3":{t:"vi",c:"blue"},"B3":{t:"vii°",c:"red"},
+  "C4":{t:"I",c:"orange"},"D4":{t:"ii",c:"blue"},"E4":{t:"iii",c:"blue"},"F4":{t:"IV",c:"orange"},"G4":{t:"V",c:"orange"},"A4":{t:"vi",c:"blue"},"B4":{t:"vii°",c:"red"},"C5":{t:"Shift",c:"white"},
+  "C#3":{t:"V/ii",c:"orange"},"D#3":{t:"V/iii",c:"orange"},"F#3":{t:"V/V",c:"orange"},"G#3":{t:"V/vi",c:"orange"},"A#3":{t:"♭VII",c:"orange"},
+  "C#4":{t:"iv",c:"blue"},"D#4":{t:"♭III",c:"orange"},"F#4":{t:"♭VI",c:"orange"},"G#4":{t:"V/IV",c:"orange"},"A#4":{t:"♭II",c:"orange"}
 },{label:"Harmony static layout in C major"}));
 
 // Parts page.
@@ -558,11 +588,28 @@ place("fig-parts",keyboard({
   place("fig-chain",svg);
 })();
 
+// Magic: the three gestures.
+(function(){
+  const svg=el("svg",{viewBox:"0 0 420 330",role:"img","aria-label":"Magic gestures"});
+  const knobs=[["SW4",60],["SW1",150],["SW2",240],["SW3",330]];
+  const row=(y,held,title,sub,col)=>{knobs.forEach(([n,x])=>{const on=held.includes(n);
+      svg.appendChild(el("circle",{cx:x,cy:y,r:22,fill:on?col:"var(--bg)",stroke:on?col:"var(--rule)","stroke-width":on?4:1.5,opacity:on?.9:1}));
+      svg.appendChild(el("text",{x,y:y+4,"text-anchor":"middle","font-family":"var(--f-mono)","font-size":11,"font-weight":600,fill:on?"var(--key-black)":"var(--muted)"},n));});
+    svg.appendChild(el("text",{x:20,y:y+44,"font-family":"var(--f-display)","font-size":15,"font-weight":700,fill:"var(--ink)"},title));
+    svg.appendChild(el("text",{x:20,y:y+62,"font-family":"var(--f-body)","font-size":11.5,fill:"var(--muted)"},sub));};
+  row(34,["SW1","SW3"],"Surprise me","hold 1 s · keep holding: a new roll every 1.5 s","var(--pink)");
+  row(140,["SW2","SW3"],"Mutate","hold 1 s · keep holding to drift further","var(--teal)");
+  row(246,["SW1","SW2"],"Harmony on / off","hold 1 s · (SW4 + SW3 is still panic)","var(--green)");
+  place("fig-magic",svg);
+})();
+
 // Light legends.
 function legend(id,items){const box=document.getElementById(id);items.forEach(([c,t,b])=>{const d=document.createElement("div");
   const s=document.createElement("span");s.className="sw"+(b?" blink":"");s.style.background=c;d.appendChild(s);
   const p=document.createElement("span");p.innerHTML=t;d.appendChild(p);box.appendChild(d);});}
-legend("lg-chompi",[["var(--purple)","<b>Purple</b>: you are holding it (menu)"],["var(--red)","<b>Red</b>: recording"],["var(--red)","<b>Red blinks</b>: count-in",1],
+legend("lg-steps",[["var(--key-white)","<b>1st</b> white"],["var(--green)","<b>2nd</b> green"],["var(--yellow)","<b>3rd</b> yellow"],["var(--orange)","<b>4th</b> orange"],["var(--red)","<b>5th</b> red"],
+  ["var(--pink)","<b>6th</b> pink"],["var(--purple)","<b>7th</b> purple"],["var(--blue)","<b>8th</b> blue"],["var(--teal)","<b>9th</b> teal"]]);
+legend("lg-chompi",[["var(--teal)","<b>Teal</b>: menu open on TAPE's page"],["var(--blue)","<b>Blue</b>: presets page"],["var(--purple)","<b>Purple</b>: harmony page"],["var(--orange)","<b>Orange</b> (menu open): parts page"],["var(--red)","<b>Red</b>: recording"],["var(--red)","<b>Red blinks</b>: count-in",1],
   ["linear-gradient(90deg,var(--key-white),var(--green),var(--yellow),var(--pink))","<b>Input meter</b> in the record position: dim white → green → yellow → pink"],
   ["var(--orange)","<b>Orange blinking</b>: event recorder armed",1],["var(--orange)","<b>Orange</b>: event recorder recording"],["var(--green)","<b>Dim green</b>: event loop playing"],
   ["var(--yellow)","<b>Yellow</b>: event loop overdubbing"],["var(--pink)","<b>Pink blink</b>: saving",1],["var(--key-white)","<b>White blink</b>: press to confirm an install",1],["linear-gradient(90deg,var(--green) 50%,var(--red) 50%)","<b>Green / red flash</b>: done / failed"]]);

@@ -1,5 +1,23 @@
 # Forge test results
 
+## 2026-10-11 (evening) — 0.17.0 magic on CHOMPI
+
+- **Install:** development build `e7b5e12` over USB (DC pressed CHOMPI); this time it came back
+  by itself (start flags: reset pin, software; no all-white hang).
+- **Plan `D:\tools\chompi-session\magic017_plan.json` (agent, video `reports/cam/magic017_check.mp4`,
+  report `reports/magic017`): 4 / 4.** Three surprise-me rolls (SW1 + SW3), each a different
+  playable sound (not silent; roll 2 audibly differs from roll 1); two mutates (SW2 + SW3), the
+  same chord audibly changed. Fun: DC's judgement.
+- **Wakes up singing (3.86): pass.** The card had no presets at all (all 8 banks empty), so DC's
+  first try had nothing to recall. Agent stored the 15 starter presets in bank 8 (DC allowed
+  bank 8) and recalled 8/7 over USB; after DC's power cycle CHOMPI played that v5 instrument
+  patch instead of pass-through, DC heard the chime, and on a further power cycle saw the rainbow across the keys. Lesson for agents: the rig check
+  (`forge_audio run --setup-only`) sends its own test patches; read the patch before running it.
+- **Open (found in the start-up video, `reports/cam/wake_chime2.mp4`):** each power cycle has a loud
+  burst on the UMC about 10 s before the chime (peaks -2 to -3 dB, ~2 s, energy near 288 / 432 Hz),
+  then the chime (262 / 331 / 525 Hz, -29 dB peak). Source not identified yet (power-on pop, the
+  bootloader, or handling); also in the first recording. Ask DC whether it is heard in the room.
+
 ## 2026-10-11 (later) — 0.16.0 installed; panel feedback checks on CHOMPI
 
 - **Install:** USB install of the development build `e7e3f0a` (DC pressed CHOMPI). CHOMPI did
