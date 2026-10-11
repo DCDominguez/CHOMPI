@@ -1,5 +1,24 @@
 # Forge test results
 
+## 2026-10-11 (evening) — guided test on 0.19.1: the random shut-off reproduced
+
+- 0.19.1 (build e1bd640) installed over USB (the owner's press; the first 15 s window was missed).
+  Guided parts 1-3 all pass by the owner's hand: CHOMPI page colours and KEY_21 to pink, the
+  knob page flash, SW1 + SW2 harmony and the chord colours, Shift, harmony setting colours, the
+  synth page (waves, osc 2, interval, knobs, mono + glide; rated "pretty easy").
+- **The 0.9 "random shut-off while playing rapidly" reproduced twice, on USB power (PC port,
+  weak supply), battery reading high, no charger fault, no crash recorded:** an unattended
+  restart around 20:47 (watcher: uptime fell to 388 s), and at 20:54:42 CHOMPI went off about
+  0.5 s after the owner started playing B3 / C4 / D4 quickly on a sampler patch (voice events
+  show sample_slot 7; the owner was in part 4: save, surprise me, mutate, chomp). CPU 27 % avg /
+  56 % peak just before, nothing unusual in the panel state. The start causes read power-on,
+  brown-out, reset pin, software, the same set as after a normal power-on, so they do not prove
+  a brown-out. Leading theory: a supply dip when sampler voices start fast on a weak supply;
+  to test: the same patch with rapid keys on USB versus battery only, and synth versus sampler.
+  The 20-minute rapid-key soak (synth patches, virtual keys) never triggered it.
+- MANUAL and the illustrated manual list it as a known issue with the workaround (charger or
+  charged battery, save sounds, switch back on).
+
 ## 2026-10-11 (night) — stress test on CHOMPI (agent, owner away; 0.17.0, same audio engine as 0.19)
 
 Script `D:\tools\chompi-session\stress.py`, report `reports/stress-20261011-182915.json`, video
