@@ -164,6 +164,15 @@ unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
   separate firmware line gets its own mascot. Name the tool in each CHANGELOG heading. Keep Choowi
   clearly Forge's own next to the CHOMPI character (TRADEMARKS.md): not CHOMPI's salmon pink, no
   headphones, nothing from their logo; a "same species" look only with CHOMPI Club's written OK.
+- **Distribution (owner, 2026-10-11).** Users install from the SD card with `FORGE.bin` from a
+  GitHub Release (draft pre-release "Choowi 0.19 · the Tinker Wrench" ready; publish after 0.19's
+  hardware check). Forge Bridge.exe is no longer the way in: it stays as the optional Windows
+  USB updater and the test tool, retired once a Web MIDI page can install updates. **Hosting:** a
+  free GitHub organisation (names free on 2026-10-11: forge-workshop, forgeworkshop,
+  forge-firmware, choowi-forge; no "CHOMPI" in the name) created by the owner; the repo moves
+  there and GitHub Pages serves the web page at `<org>.github.io` (no personal name in the
+  address). **Gumroad** product page later: pay what you want ($0 minimum), Choowi art, no CHOMPI
+  artwork, LICENSE + THIRD_PARTY in the download.
 - Candidates raised the same day: upgrade starter presets 01–06 (v1/v2) to v3+ with the
   same sound so every knob page works; add starter presets that show harmony, arp / bass
   and the event recorder (useful for the owner's listening session).
