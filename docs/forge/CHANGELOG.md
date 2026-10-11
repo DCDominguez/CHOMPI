@@ -1,5 +1,30 @@
 # Forge changelog
 
+## 0.17.0 Magic: wakes up singing, surprise me, mutate — 2026-10-11 (software-tested; not installed yet)
+
+DC: "we still have the magic stuff" (PROJECT.md, magic batch items 1-3).
+- **Wakes up singing:** CHOMPI remembers the last preset recalled or saved (`FORGE/LAST.TXT`,
+  written 2 s after the last change) and loads it at power-on, without its recorded loop, so
+  nothing plays by itself. Then a four-note chime (C E G C) plays through that sound while a
+  rainbow wave runs across the white keys. No remembered preset: pass-through as before, and
+  the wave alone. Safe mode skips the remembered preset (its card view stays closed).
+- **Surprise me:** hold **SW1 + SW3** for 1 s (menu closed): a new sound, rolled within musical
+  bounds (waveforms, second oscillator interval, envelopes, filter, LFO, delay, reverb, mono
+  glide leads now and then; harmony in your key 25 % of the time, an unlatched arp 20 %). Your
+  output level, key and tempo stay. Keep holding: another roll every 1.5 s. The knob lights
+  flash four colours (new ones each roll). Keep a sound by saving it as usual.
+- **Mutate:** hold **SW2 + SW3** for 1 s: every sound setting moves a little (up to 6 %), the
+  second oscillator's interval jumps now and then; waveform, voices, level, sample, harmony
+  and parts stay. Keep holding to drift further (every 1.5 s). The knob lights flash teal.
+- SW4 + SW3 is still panic; neither combination steps a knob page or resets a control.
+- `core/magic.h` (pure); the chime's notes go straight to the voices (`Engine::ChimeNote`),
+  past harmony, the arp, the looper's arm and the event recorder.
+
+Checks: `magic_test` (300 rolls per base format valid and bounded; 150 rendered through the
+engine with delay and reverb: RMS -41 .. -22 dB, none above full scale; 1,000 chained
+mutations bounded; chime notes), panel `Magic017` (gestures, repeat, panic untouched, chime
+voices and light wave). Not on CHOMPI yet.
+
 ## 0.16.0 Panel feedback and shortcuts (DC's UX review) — 2026-10-11 (software-tested; not installed yet)
 
 DC's decisions and ratings: [UX_REVIEW.md](UX_REVIEW.md). Bar: every function 4/5 for ease of use.

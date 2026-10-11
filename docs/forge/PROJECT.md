@@ -125,6 +125,25 @@ unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
   plays); the webapp gets a **virtual CHOMPI screen** (patch, page, control being turned,
   chord, BPM, looper / recorder state), reused on the Tab5. DC's bar: every function rated
   4 / 5 or better for ease of use: [UX_REVIEW.md](UX_REVIEW.md).
+- **Magic batch (DC: "i really like these", 2026-10-11; items 1-3 built in 0.17.0, not yet on CHOMPI).** Forge has power but little
+  whimsy: it boots silent, its best features hide behind gestures, nothing surprises. A
+  release spent on delight, cheapest first:
+  1. **Wakes up singing:** a short boot jingle and light sweep, then the last preset loads
+     (also lifts Playing to 4 in [UX_REVIEW.md](UX_REVIEW.md)).
+  2. **Surprise me:** one gesture (e.g. SW1 + SW3) rolls a new sound within musical bounds
+     (waveforms, filter, envelopes, effects; sometimes harmony / arp); hold to keep rolling.
+     Same as a dice button in the webapp.
+  3. **Mutate:** each press nudges the current sound a little, so it drifts instead of resets.
+  4. **Chomp to instrument:** record anything into the mic and it plays back at once as
+     harmonised chords with the arp running.
+  5. **Idle dream mode:** left alone for a minute, soft generative arps in the current key,
+     keys glowing along, until touched.
+  6. **Lights with character:** ripples when a loop closes, sparkle on a steady tap tempo,
+     breathing with the arp.
+  7. **Sounds with personality:** names and small characters for presets in the webapp and
+     on the virtual CHOMPI screen.
+  Constraints: bounded randomness (no harsh or silent results; a test renders many rolls),
+  no audio-callback allocation, a gesture that does not collide with panic / harmony combos.
 - Candidates raised the same day: upgrade starter presets 01–06 (v1/v2) to v3+ with the
   same sound so every knob page works; add starter presets that show harmony, arp / bass
   and the event recorder (useful for DC's listening session).

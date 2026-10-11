@@ -1,5 +1,24 @@
 # Forge test results
 
+## 2026-10-11 (later) — 0.16.0 installed; panel feedback checks on CHOMPI
+
+- **Install:** USB install of the development build `e7e3f0a` (DC pressed CHOMPI). CHOMPI did
+  not come back on USB; the webcam showed every key light on white (as after the first SD
+  install, 2026-10-10). DC power-cycled: Forge 0.16.0 (build e7e3f0a, development) started.
+  **Open:** the restart after a USB install needed a power cycle; watch whether it repeats.
+- **Plan `D:\tools\chompi-session\ux016_plan.json` (agent, LED readback + UMC audio, video
+  `reports/cam/ux016_check.mp4`, report `reports/ux016`): 12 / 13.** Pass: CHOMPI page colours
+  (teal / blue / purple / orange, exact LED values), KEY_21 held 2 s to the parts page, SW1 +
+  SW2 harmony on / off, chord colours (C3 orange, D3 blue, B3 red, C5 dim white; Shift held:
+  D3 orange), recorder by CHOMPI tap (close at the bar, plays alone, stop, play), SW5 audibly
+  darkens a playing loop with nobody playing, a new take after a clear plays. The one fail
+  (3.84 expected "armed", got "recording") is the plan's timing: the bar line came within the
+  0.5 s before the probe; the flow after it passed.
+- Not checked on hardware yet: knob ring page flash and setting colours (rings are not in the
+  LED readback; camera), SW5's lights, a new take at 1× after a changed speed, Saw Bass
+  brightness (DC's ear). Battery read medium then high (USB, charging, weak PC supply);
+  the stress test waits (DC: magic batch first).
+
 ## 2026-10-11 — automatic run on the SD-fix build (DC away, webcam + UMC)
 
 - Rig trouble first: UMC MIX at "IN" closed a feedback loop (392 / 175 Hz howl through the

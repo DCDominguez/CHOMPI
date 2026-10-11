@@ -636,6 +636,30 @@
     "group": "3J. Panel feedback and shortcuts (firmware 0.16, DC's UX review)"
   },
   {
+    "id": "3.86",
+    "do": "**Wakes up singing:** recall a preset from the menu (e.g. Warm Pad), wait 3 s, switch CHOMPI off and on",
+    "expect": "The same preset is playing after the start; a short chime plays through it while a rainbow runs left to right across the white keys; no recorded loop starts by itself",
+    "group": "3K. Magic (firmware 0.17)"
+  },
+  {
+    "id": "3.87",
+    "do": "**Surprise me:** menu closed, hold SW1 + SW3 for 1 s, play; keep holding for 5 s, then let go and play",
+    "expect": "Each roll is a new playable sound (no silence, nothing harsh), knob lights flash colours each time; letting go keeps the last one; the volume is unchanged",
+    "group": "3K. Magic (firmware 0.17)"
+  },
+  {
+    "id": "3.88",
+    "do": "**Mutate:** hold SW2 + SW3 for 1 s, play; keep holding for 5 s",
+    "expect": "The sound changes a little each time (same character), knob lights flash teal; no knob page changed",
+    "group": "3K. Magic (firmware 0.17)"
+  },
+  {
+    "id": "3.89",
+    "do": "**Panic still panic:** hold SW4 + SW3 1 s while a chord rings",
+    "expect": "Silence, the sound unchanged (no roll)",
+    "group": "3K. Magic (firmware 0.17)"
+  },
+  {
     "id": "4.1",
     "do": "Hold a long-release chord with echo (use Warm Pad for reverb too); hold SW4 + SW3 for 1 s (panic; SW5 was the panic before 0.10)",
     "expect": "Voices, old echo and reverb tails stop at once",

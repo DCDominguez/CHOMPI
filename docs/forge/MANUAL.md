@@ -1,6 +1,6 @@
 # Forge for CHOMPI — user manual
 
-Firmware **0.16.0** (development builds; experimental community firmware, not an
+Firmware **0.17.0** (development builds; experimental community firmware, not an
 official CHOMPI release). Forge turns CHOMPI into a playable synthesizer,
 TAPE-compatible sampler and looper whose sounds you can design on a computer —
 by hand or by describing them to an AI — and send over USB.
@@ -115,6 +115,8 @@ Forge keeps TAPE's panel workflow (firmware 0.10). The toggle has two positions:
 | SW4, SW1, SW2, SW3 | Turn: the knob's current page. Press and release: next page. Hold 1.5 s: reset that control | SW4 turns the bank |
 | SW4 + SW3 held 1 s | **Panic** (stops all sound) | — |
 | SW1 + SW2 held 1 s | **Harmony on / off** (0.16; all knob lights flash green = on, red = off) | — |
+| SW1 + SW3 held 1 s | **Surprise me** (0.17): a new sound; keep holding for another every 1.5 s (knob lights flash colours) | — |
+| SW2 + SW3 held 1 s | **Mutate** (0.17): the sound drifts a little; keep holding to drift further (knob lights flash teal) | — |
 | SW5 | Turn: filter cutoff, and the loop's tone with it (0.16). Push and turn (with a loop): loop speed, scrub when paused. Click: loop speed back to 1× | — |
 | SW6 | Turn: volume. Short press: switch to input gain (light blue → red) and back. Hold 2 s: battery light | — |
 | PLAY (KEY_27), LOOP (KEY_28) | Looper (section 8) | Overdub feedback − / + |
@@ -172,6 +174,20 @@ Details: [KNOBS.md](KNOBS.md).
 
 ---
 
+## 5a. Surprise me and mutate (0.17)
+
+Out of ideas? **Hold SW1 + SW3** for a second: CHOMPI rolls a brand-new sound (sometimes with
+chords in your key, sometimes with an arp, sometimes a gliding solo voice). Keep holding and it
+rolls another every 1.5 s, until you let go on one you like. Your volume, key and tempo stay put.
+
+**Hold SW2 + SW3** to **mutate** instead: the sound you have now shifts a little (brighter or
+darker, longer or shorter, a different echo...), so it drifts rather than starts over. Keep
+holding to drift further.
+
+Like it? Save it to a preset slot (section 6). Neither gesture changes a knob page.
+
+---
+
 ## 6. Presets on CHOMPI
 
 8 banks × 15 slots on the SD card. They start empty — save sounds into them first.
@@ -203,7 +219,10 @@ Pad (one key = a 7th chord), 14 Arp Bells (latched 1/16 arp with a root bass), 1
 (minor chords through an up-down arp and an alternating bass). Slots already holding a preset are kept,
 never overwritten. No firmware update needed (it uses the normal store request).
 
-CHOMPI always starts in the pass-through mode; recall a preset after switching on.
+**CHOMPI wakes up singing (0.17):** it remembers the last preset you recalled or saved and
+loads it when switched on (its recorded loop stays quiet until you recall the slot), then plays
+a little chime through it while a rainbow runs across the keys. Before any preset has been
+used it starts in the pass-through mode, as before.
 TAPE's own presets are not used by Forge.
 
 ---

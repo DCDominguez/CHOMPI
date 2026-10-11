@@ -3,7 +3,15 @@
 Updated 2026-10-11, checkpoint: 0.16.0 (Batch 1 + 2) built and software-tested; next: install on CHOMPI (DC's key press), 3J checks, stress test to failure. Read this first; DC's next session is
 [HOME_CHECKLIST.md](HOME_CHECKLIST.md), then [TEST_SESSION.md](TEST_SESSION.md).
 
-## 2026-10-11 (later): 0.16.0 Batch 1 + 2 built (resume here)
+## 2026-10-11 (latest): 0.17.0 magic items 1-3 built (resume here)
+
+- 0.16.0 is on CHOMPI (e7e3f0a; TEST_RESULTS: 12/13, the fail is plan timing). DC: magic batch
+  before the stress test. Built (CHANGELOG 0.17.0): last preset + start-up chime, surprise me
+  (SW1 + SW3), mutate (SW2 + SW3); `core/magic.h`, `tests/magic_test.cpp`, panel `Magic017`.
+- Next: install 0.17.0 (DC's press), TEST_SESSION 3K + DC's ear; then the stress test to failure
+  (bank 8 allowed); then magic items 4-7, virtual screen, webapp.
+
+## 2026-10-11 (later): 0.16.0 Batch 1 + 2 built
 
 - Implemented (CHANGELOG 0.16.0): step colour rule, knob page flash, harmony / parts setting
   colours while turning, CHOMPI page colour, SW5 lights (cutoff, scrub), SW5 filters the
@@ -14,7 +22,7 @@ Updated 2026-10-11, checkpoint: 0.16.0 (Batch 1 + 2) built and software-tested; 
   layout OK. Not run locally: sanitizers, browser tests, bench (CI).
 - Not on CHOMPI: TEST_SESSION 3J (3.77-3.85). DC approved install + stress test to failure
   (2026-10-11): installs need DC's physical CHOMPI press; no card writes outside an agreed
-  bank (DC has not answered whether bank 8 may be used: until then no card-write stress).
+  bank (DC, 2026-10-11: bank 8 may be used for save / load stress; the rest of the card stays untouched).
 
 ## 2026-10-11: agent hardware checks, soak, UX review
 

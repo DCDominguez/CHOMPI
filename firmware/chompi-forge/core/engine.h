@@ -234,6 +234,9 @@ public:
         if(edge && control == 1) looper_->Loop(edge > 0);
     }
     unsigned ActiveVoices() const { return synth_.Active(); }
+    // The start-up chime (0.17): straight to the voices, past harmony, the arp, the looper's
+    // arm and the event recorder, so a preset's latched arp cannot start from it.
+    void ChimeNote(uint8_t note, uint8_t velocity) { if(parameters_.synth) synth_.Note(note, velocity, 2); }
     // Called only by the audio owner, between blocks. Validate before mutation;
     // smoothing and delay state continue uninterrupted across a patch change.
     FORGE_COLD bool ApplyPatch(const Parameters& patch, SlotPolicy policy = SlotPolicy::Patch) {

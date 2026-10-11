@@ -4,6 +4,7 @@
 #include "engine.h"
 #include "file_transfer.h"
 #include "knob_layout.h"
+#include "magic.h"
 #include "options.h"
 #include "power.h"
 #include "preset_menu.h"
@@ -35,6 +36,8 @@ constexpr uint32_t kPresetsHoldFrames = 48 * 1000;     // menu: hold KEY_22 1 s 
 constexpr uint32_t kTurnViewFrames = 48 * 1500, kPageFlashFrames = 48 * 600, kToneViewFrames = 48 * 1000;
 constexpr uint32_t kHarmonyFlashFrames = 48 * 500;     // SW1 + SW2 held 1 s: harmony on / off (rings flash)
 constexpr uint32_t kChompiTapFrames = 48 * 400;        // a CHOMPI tap (menu position): the event recorder's F#4
+// 0.17 magic: SW1 + SW3 held 1 s = surprise me (a new sound), SW2 + SW3 = mutate; held on, again every 1.5 s.
+constexpr uint32_t kMagicHoldFrames = 48 * 1000, kMagicRepeatFrames = 48 * 1500, kMagicFlashFrames = 48 * 400;
 // TAPE's monitor positions (options.json "Monitor Position" 1-3; menu SW6 press cycles).
 enum class MonitorMode : uint8_t { Headphones, Both, SendReturn };
 } // namespace panel
@@ -246,7 +249,11 @@ public:
         if(tap_down_) for(unsigned i = 0; i < panel::kEncoders; ++i) if(turns[i]) tap_clean_ = false;
         auto count_down = [&](uint32_t& f) { f = f > hardware.frames ? f - hardware.frames : 0; };
         for(unsigned k = 0; k < 4; ++k) { count_down(turn_view_[k]); count_down(page_flash_[k]); }
-        count_down(tone_view_); count_down(harmony_flash_);
+        count_down(tone_view_); count_down(harmony_flash_); count_down(magic_flash_);
+        rng_.Stir(static_cast<uint32_t>(keys) ^ static_cast<uint32_t>(keys >> 32) ^ static_cast<uint32_t>(turns[0] + 7 * turns[4]) ^ ++block_count_);
+        // 0.17: the start-up chime (main loop asks once the remembered preset is queued).
+        if(chime_request_.exchange(false, std::memory_order_relaxed)) chime_.Start();
+        chime_.Tick(hardware.frames, [&](uint8_t note, uint8_t velocity) { engine.ChimeNote(note, velocity); });
         // TAPE's menu page: the knobs are TAPE's shift layer (MenuControls).
         if(menu_.Active() && menu_.Page() == MenuPage::Samples) MenuControls(hardware, keys, rising, turns, engine);
         else if(HarmonyPage()) HarmonyControls(keys, turns, engine);
@@ -287,6 +294,17 @@ public:
                     s.enabled = !s.enabled; hold_[1].used = hold_[2].used = true; harmony_flash_ = panel::kHarmonyFlashFrames;
                 }
             } else harmony_combo_frames_ = 0;
+            // 0.17: SW1 + SW3 = surprise me, SW2 + SW3 = mutate (not with SW4: SW4 + SW3 is panic).
+            const bool roll_combo = hold_[1].down && hold_[3].down && !hold_[0].down && !hold_[2].down;
+            const bool mutate_combo = hold_[2].down && hold_[3].down && !hold_[0].down && !hold_[1].down;
+            MagicCombo(roll_combo, roll_frames_, hardware.frames, [&] {
+                engine.ApplyPatch(magic::Roll(engine.Snapshot(), rng_)); hold_[1].used = hold_[3].used = true;
+                magic_flash_ = panel::kMagicFlashFrames; magic_kind_ = 1; ++magic_count_;
+            });
+            MagicCombo(mutate_combo, mutate_frames_, hardware.frames, [&] {
+                engine.ApplyPatch(magic::Mutate(engine.Snapshot(), rng_)); hold_[2].used = hold_[3].used = true;
+                magic_flash_ = panel::kMagicFlashFrames; magic_kind_ = 2; ++magic_count_;
+            });
             for(unsigned knob = 0; knob < 4; ++knob) {
                 KnobHold& h = hold_[knob];
                 if(knob_page_[knob] >= knobs::Pages(knob, patch)) knob_page_[knob] = 0;   // a new patch has fewer pages
@@ -296,7 +314,7 @@ public:
                 if(down) {
                     if(!h.down) h = KnobHold{}, h.down = true; else h.frames += hardware.frames;
                     if(increment) h.turned = true;
-                    if(!h.used && !h.turned && !combo && !harmony_combo && h.frames >= panel::kResetHoldFrames && !menu_.Active()) {
+                    if(!h.used && !h.turned && !combo && !harmony_combo && !roll_combo && !mutate_combo && h.frames >= panel::kResetHoldFrames && !menu_.Active()) {
                         engine.ResetControl(target); h.used = true; reset_flash_[knob] = 48 * 300;
                     }
                 } else if(h.down) {
@@ -339,6 +357,11 @@ public:
     // 0.16 light feedback: bits 0-3 page flash, 4-7 a stepped setting being turned, 8 SW5's
     // cutoff shown, 9-16 the cutoff 0..255, 17 harmony on/off flash, 18 harmony now on.
     uint32_t KnobFlags() const { return knob_flags_.load(std::memory_order_relaxed); }
+    // 0.17: main loop, once at start-up after the remembered preset is queued.
+    void RequestChime() { chime_request_.store(true, std::memory_order_relaxed); }
+    // 0.17 magic lights: bits 0-1 the flash (1 surprise, 2 mutate), 2-5 the roll count (colours
+    // change each roll), 8-15 the chime's progress 1..255 (0 = not playing).
+    uint32_t MagicLights() const { return magic_lights_.load(std::memory_order_relaxed); }
     bool RecordPosition() const { return recording_position_.load(std::memory_order_relaxed); }
     uint8_t CountIn() const { return count_in_.load(std::memory_order_relaxed); }
     bool VolumePage() const { return volume_page_; }
@@ -396,6 +419,8 @@ private:
         if(harmony_flash_) flags |= 1u << 17;
         if(engine.Harmony() && engine.Harmony()->state.enabled) flags |= 1u << 18;
         knob_flags_.store(flags, std::memory_order_relaxed);
+        const uint32_t chime = chime_.Active() ? 1u + static_cast<uint32_t>(chime_.Progress() * 254.f) : 0u;
+        magic_lights_.store((magic_flash_ ? magic_kind_ & 3u : 0u) | (magic_count_ & 15u) << 2 | chime << 8, std::memory_order_relaxed);
         const bool tape_menu = menu_.Active() && menu_.Page() == MenuPage::Samples;
         harmony_lights_.store(engine.Harmony() ? harmony::Pack(engine.Harmony()->state, engine.Harmony()->Shift()) : 0u, std::memory_order_relaxed);
         if(const parts::Parts* pp = engine.Parts()) {
@@ -597,7 +622,20 @@ private:
     uint32_t tap_frames_ = 0;
     // 0.16 light feedback timers (frames): turned stepped settings, page flashes, SW5 cutoff, harmony on/off.
     uint32_t turn_view_[4]{}, page_flash_[4]{}, tone_view_ = 0, harmony_flash_ = 0, harmony_combo_frames_ = 0;
-    std::atomic<uint32_t> knob_flags_{0};
+    std::atomic<uint32_t> knob_flags_{0}, magic_lights_{0};
+    // 0.17 magic: combos (frames held), the light flash, the dice and the chime.
+    uint32_t roll_frames_ = 0, mutate_frames_ = 0, magic_flash_ = 0, block_count_ = 0;
+    uint8_t magic_kind_ = 0, magic_count_ = 0;
+    magic::Rng rng_;
+    magic::Chime chime_;
+    std::atomic<bool> chime_request_{false};
+    // Fires at 1 s held, then every 1.5 s while held; letting go resets.
+    template<typename F> static void MagicCombo(bool held, uint32_t& frames, uint32_t block, F fire) {
+        if(!held) { frames = 0; return; }
+        const uint32_t before = frames; frames += block;
+        if(before < panel::kMagicHoldFrames && frames >= panel::kMagicHoldFrames) fire();
+        else if(frames >= panel::kMagicHoldFrames + panel::kMagicRepeatFrames) { frames = panel::kMagicHoldFrames; fire(); }
+    }
     std::atomic<uint32_t> harmony_lights_{0};
     int speed_detents_ = 0, loop_detents_ = 0;
     Options options_;
@@ -730,6 +768,7 @@ struct LedView {
     uint32_t harmony = 0;                         // harmony::Pack (PanelController::HarmonyLights)
     uint32_t parts = 0, parts_clock = 0;          // PanelController::PartsLights / PartsClock (0.14)
     uint32_t sequence = 0;                        // PanelController::SequenceLights (0.15)
+    uint32_t magic = 0;                           // PanelController::MagicLights (0.17)
 };
 // 0.16: with harmony on, each key glows dim in the colour of the chord it plays now: major
 // orange, minor blue, diminished red, augmented pink, sus4 teal (Shift held: the shifted
@@ -834,13 +873,16 @@ inline void ComposeTransportLeds(uint32_t looper, float speed, float head, uint3
 // 0.16 (flags = PanelController::KnobFlags): a page change shows the page's step colour for
 // 0.6 s (page 1 white, 2 green, 3 yellow, 4 orange, 5 red); SW1 + SW2 flash all four green
 // (harmony on) or red (off).
-inline void ComposeKnobLeds(uint32_t values, uint32_t state, bool record_position, Rgb (&rings)[4], uint32_t flags = 0) {
+inline void ComposeKnobLeds(uint32_t values, uint32_t state, bool record_position, Rgb (&rings)[4], uint32_t flags = 0, uint32_t magic = 0) {
     for(unsigned k = 0; k < 4; ++k) {
         const unsigned page = (state >> (3 * k)) & 7u;
         rings[k] = knobs::KnobColour(k, page, ((values >> (8 * k)) & 255u) / 255.f, (state >> (12 + k)) & 1u, (state >> 21) & 1u);
         if((state >> (16 + k)) & 1u) rings[k] = Rgb{1.f, 1.f, 1.f};
         else if((flags >> k) & 1u) rings[k] = knobs::StepColour(page);
         if((flags >> 17) & 1u) rings[k] = (flags >> 18) & 1u ? knobs::colour::green : knobs::colour::red;
+        // 0.17: surprise me flashes four different colours (new ones each roll), mutate teal.
+        if((magic & 3u) == 1u) rings[k] = knobs::StepColour(k * 2u + ((magic >> 2) & 15u));
+        else if((magic & 3u) == 2u) rings[k] = knobs::colour::teal;
         if(record_position && !((state >> (16 + k)) & 1u)) rings[k] = Rgb{};
     }
 }
@@ -977,6 +1019,14 @@ FORGE_COLD inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chomp
         const unsigned state = v.sequence & 7u;
         chompi = state == 1 ? ((v.parts_clock & 5u) == 5u ? knobs::colour::orange : Rgb{}) : state == 2 ? knobs::colour::orange
                : state == 3 ? ((v.sequence & 8u) ? knobs::colour::yellow : knobs::Scale(knobs::colour::green, .3f)) : Rgb{};
+    }
+    // 0.17 start-up chime: a rainbow wave runs left to right across the white keys.
+    if(const uint32_t chime = (v.magic >> 8) & 255u) {
+        const float head = chime / 255.f * 19.f - 2.f;
+        for(uint8_t s = 0; s < 15; ++s) {
+            const float d = s - head;
+            if(d > -2.5f && d < 2.5f) keys[panel::SlotLed(s)] = knobs::Scale(knobs::StepColour(s), 1.f - (d < 0 ? -d : d) / 2.5f);
+        }
     }
     // Firmware install: CHOMPI blinks white until pressed, then stays white while CHOMPI restarts.
     if(v.install == 1) chompi = v.blink ? Rgb{1.f, 1.f, 1.f} : Rgb{};

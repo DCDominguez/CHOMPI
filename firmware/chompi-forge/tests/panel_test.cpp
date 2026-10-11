@@ -1,6 +1,7 @@
 // The panel controller (menus, record gesture, keys, knobs) driven like the
 // audio callback does, including development-only injected events, the LED
 // composition and the development opcodes 0A/0B. Built with FORGE_TEST_HOOKS.
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstring>
@@ -608,7 +609,52 @@ void PanelFeedback016() {
     rig.Key(panel::kChompiKey, false); rig.hw.toggle_up = false; rig.Block();
 }
 
+// 0.17 magic: SW1 + SW3 held 1 s rolls a new sound (again every 1.5 s held), SW2 + SW3 mutates,
+// neither steps a page; the start-up chime plays four notes and sweeps the keys.
+void Magic017() {
+    Rig rig;
+    Parameters synth; synth.version = 7; synth.synth = true; synth.level = .4f;
+    { parts::Settings s; synth.parts_arp = parts::PackArp(s); synth.parts_clock = parts::PackClock(s); }
+    assert(rig.engine.ApplyPatch(synth));
+    rig.Block();
+    const uint16_t pages = rig.panel.KnobPages();
+    const float cutoff = rig.engine.GetParameters().cutoff;
+    rig.hw.keys = (uint64_t(1) << panel::kKnobEncoder[1]) | (uint64_t(1) << panel::kKnobEncoder[3]);
+    for(int i = 0; i < 2010; ++i) rig.Block();
+    Parameters first = rig.engine.GetParameters();
+    assert(first.cutoff != cutoff && first.level == .4f && (rig.panel.MagicLights() & 3u) == 1u);
+    for(int i = 0; i < 3010; ++i) rig.Block();                                    // held on: another roll
+    assert(rig.engine.GetParameters().cutoff != first.cutoff);
+    rig.hw.keys = 0; rig.Block(); assert(rig.panel.KnobPages() == pages);
+    for(int i = 0; i < 900; ++i) rig.Block();
+    assert((rig.panel.MagicLights() & 3u) == 0u);
+    const Parameters before = rig.engine.GetParameters();
+    rig.hw.keys = (uint64_t(1) << panel::kKnobEncoder[2]) | (uint64_t(1) << panel::kKnobEncoder[3]);
+    for(int i = 0; i < 2010; ++i) rig.Block();
+    const Parameters mutated = rig.engine.GetParameters();
+    assert((rig.panel.MagicLights() & 3u) == 2u && mutated.waveform == before.waveform && mutated.level == before.level);
+    assert(mutated.cutoff != before.cutoff || mutated.decay != before.decay);
+    rig.hw.keys = 0; rig.Block(); assert(rig.panel.KnobPages() == pages);
+    // SW4 + SW3 is still panic, not a roll.
+    const Parameters kept = rig.engine.GetParameters();
+    rig.hw.keys = (uint64_t(1) << panel::kKnobEncoder[0]) | (uint64_t(1) << panel::kKnobEncoder[3]);
+    for(int i = 0; i < 2010; ++i) rig.Block();
+    assert(rig.engine.GetParameters().cutoff == kept.cutoff);
+    rig.hw.keys = 0; for(int i = 0; i < 100; ++i) rig.Block();
+    // The chime: notes sound, the lights sweep, then it ends.
+    rig.panel.RequestChime();
+    unsigned most = 0; bool lit = false;
+    for(int i = 0; i < 1000; ++i) { rig.Block(); most = std::max(most, rig.engine.ActiveVoices()); lit = lit || (rig.panel.MagicLights() >> 8); }
+    assert(most >= 2 && lit);
+    for(int i = 0; i < 4000; ++i) rig.Block();
+    assert((rig.panel.MagicLights() >> 8) == 0 && rig.engine.ActiveVoices() == 0);
+    LedView v; v.magic = 128u << 8; Rgb keys[25], chompi; ComposeLeds(v, keys, chompi);
+    unsigned on = 0; for(auto& k : keys) on += k.r + k.g + k.b > 0.f;
+    assert(on >= 3 && on <= 6);                                                  // a band of the wave
+}
+
 int main() {
+    Magic017();
     PanelFeedback016();
     KnobPages(); BatteryHold(); MenuKnobLayer(); OptionsAndMidiOut();
     KeysKnobsAndOverrides(); MenuAndRecordingThroughTheController(); LedComposition(); DevelopmentOpcodes(); LooperThroughThePanel(); LooperVoiceCap(); LooperSaveGesture();

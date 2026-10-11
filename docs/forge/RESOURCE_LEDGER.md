@@ -1,6 +1,9 @@
 # Forge Resource Ledger
 
-**Latest figures:** firmware 0.16.0 (2026-10-11, pinned Arm GCC 10.3-2021.10): release
+**Latest figures:** firmware 0.17.0 (2026-10-11): release **241,028 B** / development
+**254,732 B**, headroom **47,740 / 34,036 B** (+5,400 / +5,380 B: the magic batch, mostly the
+roll / mutate tables and the chime; no new RAM reservation beyond a few words of panel state).
+Before that, firmware 0.16.0 (2026-10-11, pinned Arm GCC 10.3-2021.10): release
 **235,628 B** / development **249,352 B** of SRAM_EXEC's 288,768 B, headroom **53,140 /
 39,416 B** (+3,048 / +3,096 B over 0.15.2: panel feedback, the loop's tone filter, chord
 colours, shortcuts). No new SDRAM, DTCM or D2 reservation; the loop filter adds 32 B of

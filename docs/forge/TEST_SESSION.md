@@ -1,4 +1,4 @@
-# Forge 0.16.0 — the one consolidated hardware test
+# Forge 0.17.0 — the one consolidated hardware test
 
 Status of the candidate: **software-tested, hardware-unverified.** This is the
 single planned physical session. Work top to bottom. If a stage fails, record
@@ -286,7 +286,17 @@ and to use (UX_REVIEW.md: 4/5 or better).
 | 3.84 | **Recorder by tap:** arm on the parts page (F#4), let go, play a line; tap CHOMPI (toggle down); tap again; tap again | First tap closes the take at the bar line and it loops; second stops it; third plays it from bar 1. With the recorder empty a tap does nothing |
 | 3.85 | **Old presets:** play 06 Saw Bass from the starter bank (stored after this update) against the old file in the webapp | About as bright as the v2 original (it was half as bright before) |
 
-## 4. Panic and recovery
+## 3K. Magic (firmware 0.17)
+
+MANUAL sections 5a and 6. Software-tested only. DC judges the fun.
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.86 | **Wakes up singing:** recall a preset from the menu (e.g. Warm Pad), wait 3 s, switch CHOMPI off and on | The same preset is playing after the start; a short chime plays through it while a rainbow runs left to right across the white keys; no recorded loop starts by itself |
+| 3.87 | **Surprise me:** menu closed, hold SW1 + SW3 for 1 s, play; keep holding for 5 s, then let go and play | Each roll is a new playable sound (no silence, nothing harsh), knob lights flash colours each time; letting go keeps the last one; the volume is unchanged |
+| 3.88 | **Mutate:** hold SW2 + SW3 for 1 s, play; keep holding for 5 s | The sound changes a little each time (same character), knob lights flash teal; no knob page changed |
+| 3.89 | **Panic still panic:** hold SW4 + SW3 1 s while a chord rings | Silence, the sound unchanged (no roll) |
+
 
 | # | Do | Pass when |
 | --- | --- | --- |

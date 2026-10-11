@@ -186,6 +186,37 @@ struct PanelAction { forge::MenuAction action; forge::Parameters patch; };
 forge::SpscQueue<PanelAction, 8> panel_actions;   // audio -> main
 std::atomic<uint32_t> menu_state{0};               // PresetMenu::Packed(), for LEDs
 uint8_t last_bank = 0, last_slot = forge::panel::kNoSlot; // main-loop owned
+// 0.17: the last recalled / saved preset, kept in FORGE/LAST.TXT ("bank slot", 0-based) and
+// recalled at start-up (not in safe mode: the settings view is closed then).
+uint8_t remembered_bank = 0xff, remembered_slot = 0xff;
+uint32_t last_changed_at = 0;
+FORGE_COLD void ReadLastPreset() {
+    if(!card.Ready()) return;
+    static FIL file;   // static: DMA-reachable (see LogRestart)
+    if(f_open(&file, "FORGE/LAST.TXT", FA_READ) != FR_OK) return;
+    char text[8] = {}; UINT got = 0;
+    f_read(&file, text, sizeof(text) - 1, &got);
+    f_close(&file);
+    if(got >= 3 && text[0] >= '0' && text[0] < '0' + forge::kPresetBanks && text[1] == ' ') {
+        const int slot = text[3] >= '0' && text[3] <= '9' ? (text[2] - '0') * 10 + (text[3] - '0') : text[2] - '0';
+        if(slot >= 0 && slot < 15) { remembered_bank = static_cast<uint8_t>(text[0] - '0'); remembered_slot = static_cast<uint8_t>(slot); }
+    }
+}
+// Written 2 s after the last change, so a burst of program changes writes once.
+FORGE_COLD void WatchLastPreset() {
+    static uint8_t seen_bank = 0xff, seen_slot = 0xff;
+    if(last_slot == forge::panel::kNoSlot) return;
+    if(last_bank != seen_bank || last_slot != seen_slot) { seen_bank = last_bank; seen_slot = last_slot; last_changed_at = System::GetNow(); }
+    if((last_bank == remembered_bank && last_slot == remembered_slot) || System::GetNow() - last_changed_at < 2000 || !card.Ready()) return;
+    f_mkdir("FORGE");
+    static FIL file;
+    if(f_open(&file, "FORGE/LAST.TXT", FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) { remembered_bank = last_bank; remembered_slot = last_slot; return; }
+    char text[6] = {static_cast<char>('0' + last_bank), ' ', 0, 0, '\n', 0}; unsigned n = 2;
+    if(last_slot >= 10) text[n++] = static_cast<char>('0' + last_slot / 10);
+    text[n++] = static_cast<char>('0' + last_slot % 10); text[n++] = '\n';
+    UINT written = 0; f_write(&file, text, n, &written); f_close(&file);
+    remembered_bank = last_bank; remembered_slot = last_slot;
+}
 uint32_t flash_until = 0; bool flash_ok = true;   // panel LED feedback after SD actions
 std::atomic<uint32_t> audio_flash{0};              // audio -> main: 1 = ok, 2 = failed (record refused)
 
@@ -738,6 +769,7 @@ FORGE_COLD void DrawLeds() {
     view.harmony = panel_controller.HarmonyLights();
     view.parts = panel_controller.PartsLights(); view.parts_clock = panel_controller.PartsClock();
     view.sequence = panel_controller.SequenceLights();
+    view.magic = panel_controller.MagicLights();
     view.blink = (now / 250) % 2 == 0; view.slow_blink = (now / 300) % 2 != 0;
     view.flash = now < flash_until ? (flash_ok ? 1 : 0) : -1;
     view.saving = sample_loader.Busy() && !sample_loader.Loading();
@@ -755,7 +787,7 @@ FORGE_COLD void DrawLeds() {
     Pth(forge::panel::kPlayLed, play); Pth(forge::panel::kLoopLed, loop);
     forge::Rgb knobs[4], reverse, forward;
     const uint32_t knob_flags = panel_controller.KnobFlags();
-    forge::ComposeKnobLeds(panel_controller.KnobValues(), panel_controller.KnobState(), view.record_position, knobs, knob_flags);
+    forge::ComposeKnobLeds(panel_controller.KnobValues(), panel_controller.KnobState(), view.record_position, knobs, knob_flags, view.magic);
     const uint32_t knob_state = panel_controller.KnobState();
     forge::Rgb volume = forge::knobs::VolumeColour((knob_state >> 20) & 1u, (knob_state >> 24) / 255.f);
     forge::ComposeMenuKnobLeds(panel_controller.MenuLights(), knobs, volume);   // TAPE's menu page
@@ -1026,6 +1058,7 @@ FORGE_COLD int main() {
     LogRestart();        BootStep(4, step);
     ReadOptions();       BootStep(5, step);
     LoadSlotSettings();  BootStep(6, step);
+    ReadLastPreset();
     // Stock start-up scan (0.5 s, also clears shift-register junk): CHOMPI + PLAY +
     // LOOP held while CHOMPI starts switches it off (charger IC shipping mode).
     forge::power::BootGesture off_gesture;
@@ -1080,6 +1113,13 @@ FORGE_COLD int main() {
     panel_controller.SetInstallGate(&install_gate);
     cpu.Init(hw.seed.AudioSampleRate(), hw.seed.AudioBlockSize());
     if(safe_mode) FlashSafeMode();
+    // 0.17 "wakes up singing": the remembered preset (no loop: nothing plays by itself), then the chime.
+    if(remembered_slot != 0xff) {
+        forge::Request request, apply; request.kind = forge::RequestKind::Recall;
+        request.bank = remembered_bank; request.slot = remembered_slot; request.silent = true;
+        if(forge::RecallRequest(store, request, apply) == forge::Error::None && Queue(apply)) { last_bank = remembered_bank; last_slot = remembered_slot; }
+    }
+    panel_controller.RequestChime();
     hw.StartAudio(AudioCallback);
     BootStep(9, step);   // the rest, up to audio running
     uint32_t battery_check = System::GetNow();
@@ -1103,6 +1143,7 @@ FORGE_COLD int main() {
         RunPanelActions();
         RunSampler();
         WatchCard();
+        WatchLastPreset();
         DrawLeds();
 #ifdef FORGE_TEST_HOOKS
         CollectInspector();
