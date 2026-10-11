@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Choowi's forge</title>
+  <meta name="description" content="Make a sound for CHOMPI with any chatbot, hear it live on CHOMPI, tweak it, keep it. Runs in your browser.">
+  <link rel="icon" href="../forge/assets/choowi.svg">
+  <link rel="stylesheet" href="style.css">
+  <script src="forge-wire.js" defer></script><script src="data.js" defer></script>
+  <script src="editor.js" defer></script><script src="app.js" defer></script>
+</head>
+<body>
+<header>
+  <div>
+    <a class="brand" href="../">forge</a>
+    <div class="dots" aria-hidden="true"><i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="c4"></i><i class="c5"></i><i class="c6"></i><i class="c7"></i><i class="c8"></i><i class="c9"></i></div>
+  </div>
+  <span class="badge">choowi's forge</span>
+</header>
+<main>
+  <div class="intro">
+    <div>
+      <h1>say a sound.<br>choowi forges it.</h1>
+      <p>connect CHOMPI, describe a sound, let any chatbot write it, hear it on CHOMPI, poke at it, keep it. runs in your browser: no install, no key, no account.</p>
+    </div>
+    <img src="../forge/assets/choowi.svg" width="180" alt="Choowi, the magic blacksmith">
+  </div>
+  <div id="notice" role="status" aria-live="polite">Plug in CHOMPI (running Choowi) and press Connect.</div>
+
+  <section class="card" id="connect-card" aria-labelledby="connect-heading">
+    <p class="eyebrow"><i class="step c8">1</i>connect</p><h2 id="connect-heading">Find CHOMPI.</h2>
+    <button id="connect" class="primary wide" type="button">Connect <span aria-hidden="true">✦</span></button>
+    <p class="hint">Your browser asks once for permission to use MIDI devices (including "system exclusive" messages, which is how sounds travel). Chrome or Edge on a computer.</p>
+    <div class="pair">
+      <div><label for="output">Send to</label><select id="output" disabled><option value="">connect first</option></select></div>
+      <div><label for="input">Listen on</label><select id="input" disabled><option value="">connect first</option></select></div>
+    </div>
+    <p id="device" class="hint">Not connected.</p>
+    <button id="skip" class="quiet small" type="button">No CHOMPI here? Make sounds anyway</button>
+  </section>
+
+  <div id="forge" hidden>
+    <div id="audition" class="card audition" aria-label="Audition on CHOMPI">
+      <div class="audition-row">
+        <label class="check"><input id="live" type="checkbox" checked> live on CHOMPI</label>
+        <span id="device-short" class="hint"></span>
+        <button id="stop" type="button" class="small">Stop sound</button>
+      </div>
+      <div id="keys" class="keys" role="group" aria-label="Play a note on CHOMPI"></div>
+    </div>
+    <div class="tabs" role="tablist">
+      <button id="tab-easy" role="tab" aria-selected="true" aria-controls="easy" type="button">easy</button>
+      <button id="tab-tweak" role="tab" aria-selected="false" aria-controls="tweak" type="button">tweak</button>
+    </div>
+    <div class="grid">
+      <section class="card" id="easy" role="tabpanel" aria-labelledby="tab-easy">
+        <p class="eyebrow"><i class="step c6">2</i>say it</p><h2>What should it sound like?</h2>
+        <label for="idea">Your idea</label>
+        <textarea id="idea" rows="3" maxlength="4000" placeholder="warm detuned saw pad, slow filter swell, a little wobble, big reverb" spellcheck="true"></textarea>
+        <button id="make-prompt" class="primary wide" type="button">Copy the prompt <span aria-hidden="true">✦</span></button>
+        <textarea id="prompt-text" rows="3" readonly hidden aria-label="The prompt to copy"></textarea>
+        <p class="eyebrow later"><i class="step c7">3</i>let a chatbot forge it</p>
+        <ol class="hint"><li>Paste the prompt into any chatbot: ChatGPT, Claude, Gemini, whatever's open.</li><li>Copy its whole reply and drop it here.</li></ol>
+        <label for="reply">The chatbot's reply</label>
+        <textarea id="reply" rows="4" maxlength="65536" placeholder="paste the whole reply (the JSON block is enough)" spellcheck="false"></textarea>
+        <button id="use-reply" class="primary wide" type="button">Use this reply <span aria-hidden="true">✦</span></button>
+        <p class="hint">It plays on CHOMPI straight away (live on). Tweak it in the other tab.</p>
+      </section>
+      <section class="card" id="tweak" role="tabpanel" aria-labelledby="tab-tweak">
+        <p class="eyebrow"><i class="step c3">4</i>tweak &amp; keep</p><h2>Poke at it.</h2>
+        <label for="preset">Start from a preset</label><select id="preset"><option value="">pick a starting point</option></select>
+        <fieldset id="editor" disabled>
+          <label for="patch-name">Name</label><input id="patch-name" maxlength="80" required>
+          <label for="routing">Signal path</label><select id="routing"></select>
+          <div class="fold-bar"><p class="group">Settings</p><button id="fold-all" type="button" class="quiet small">open all</button></div>
+          <div id="groups"></div>
+        </fieldset>
+        <div class="button-row"><button id="download" class="primary" type="button" disabled>Save JSON</button><label class="file-button" for="import">Open JSON<input id="import" type="file" accept=".json,application/json"></label></div>
+        <details><summary>Peek at the JSON</summary><pre id="json">No sound yet.</pre></details>
+        <p class="footnote">CHOMPI plays what you hear here until you change it; to keep it on CHOMPI, save it to a slot on the panel (toggle down, hold CHOMPI, presets page, KEY_25, a slot, CHOMPI). Save JSON keeps it on this computer.</p>
+      </section>
+    </div>
+  </div>
+  <footer><span>forge · choowi</span><span>Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club.</span></footer>
+</main>
+</body></html>

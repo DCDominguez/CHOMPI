@@ -74,3 +74,14 @@ details.group-set>summary.group::-webkit-details-marker{display:none}
 details.group-set>summary.group::after{content:"+";font-family:var(--mono);font-size:16px;color:var(--accent)}
 details.group-set[open]>summary.group::after{content:"–"}
 details.group-set[open]{padding-bottom:16px}
+/* Choowi's forge (the site): connect first, the audition bar, the keys, easy / tweak */
+#connect-card{margin-bottom:18px}#connect-card.done{padding:16px 22px}#connect-card.done h2,#connect-card.done .hint:not(#device),#connect-card.done #skip{display:none}
+.audition{position:sticky;top:64px;z-index:1;margin-bottom:18px;padding:14px 18px}
+.audition-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}.audition-row .hint{margin:0;flex:1;min-width:0}
+.keys{display:flex;position:relative;margin-top:12px;height:96px;user-select:none;touch-action:none}
+.key{flex:1;min-width:0;min-height:96px;border-radius:0 0 10px 10px;background:#fff;color:#5a5a66;border:2px solid var(--rule);padding:0 0 6px;display:flex;align-items:end;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:400}
+.key.black{flex:0 0 0;width:0;padding:0;border:0;position:relative;z-index:1}
+.key.black::before{content:"";position:absolute;left:-14px;top:0;width:28px;height:58px;background:#1b1b22;border-radius:0 0 8px 8px}
+.key:active,.key[data-down]{background:var(--spark)}.key.black[data-down]::before{background:var(--spark)}
+.tabs{display:none;gap:8px;margin-bottom:12px}.tabs button{flex:1}.tabs button[aria-selected=true]{background:var(--ink);color:var(--paper)}
+@media(max-width:760px){.tabs{display:flex}.grid>[role=tabpanel]:not(.shown){display:none}.audition{top:58px}.keys{height:80px}.key{min-height:80px}}

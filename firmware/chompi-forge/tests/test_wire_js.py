@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "host")); sys.path.insert(0, str(ROOT / "tests"))
 import forge_host as host
 
-WIRE = ROOT.parents[1] / "docs" / "send" / "forge-wire.js"
+WIRE = ROOT.parents[1] / "docs" / "workshop" / "forge-wire.js"
 NODE = os.environ.get("FORGE_NODE") or shutil.which("node") or next(
     (str(p) for p in (Path.home() / "AppData/Local/hermes/node/node.exe",) if p.exists()), None)
 
