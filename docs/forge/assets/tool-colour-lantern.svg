@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="114" viewBox="0 0 200 190" role="img" aria-label="colour lantern">
+<circle cx="100" cy="104" r="62" fill="#2fbf55" opacity=".22"></circle>
+<path d="M76 40 Q100 10 124 40" fill="none" stroke="#1b1b22" stroke-width="6" stroke-linecap="round"></path>
+<path d="M66 54 L134 50 L138 64 L62 68 Z" fill="#1b1b22"></path>
+<path d="M68 70 L132 66 Q140 110 130 150 L72 154 Q60 112 68 70 Z" fill="#fff6c7" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<path d="M100 86 Q116 108 104 128 Q96 138 90 124 Q86 110 100 86 Z" fill="#2fbf55" stroke="#1b1b22" stroke-width="3"></path>
+<path d="M70 156 L132 152 L134 166 L66 170 Z" fill="#1b1b22"></path>
+</svg>

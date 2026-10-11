@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="114" viewBox="0 0 200 190" role="img" aria-label="sweep brush">
+<path d="M18 150 C60 110 80 108 92 120" fill="none" stroke="#f5c400" stroke-width="12" stroke-linecap="round" opacity=".6"></path>
+<path d="M150 26 L96 120" stroke="#7a4a2a" stroke-width="9" stroke-linecap="round"></path>
+<path d="M88 112 L110 126 L96 172 Q78 176 62 164 Z" fill="#f5c400" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
+<path d="M74 150 L68 166 M84 154 L80 172 M94 156 L92 174" stroke="#1b1b22" stroke-width="3" stroke-linecap="round"></path>
+</svg>

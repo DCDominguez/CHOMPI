@@ -1,4 +1,7 @@
-# Forge for CHOMPI — user manual
+# Forge · Choowi: the user manual
+
+*Choowi is the first firmware of the Forge, a little workshop of custom CHOMPI firmware.
+The family and its rules: [FORGE_FAMILY.md](FORGE_FAMILY.md).*
 
 Firmware **0.19.0** (development builds; experimental community firmware). Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club. Forge turns CHOMPI into a playable synthesizer,
 TAPE-compatible sampler and looper whose sounds you can design on a computer —

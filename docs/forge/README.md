@@ -1,23 +1,16 @@
-# Forge documentation
+<p align="center"><img src="assets/choowi.svg" width="140" alt="Choowi"></p>
 
-Latest: firmware **0.15.1** (review fixes over 0.15's event recorder and projects; see
-[CHANGELOG.md](CHANGELOG.md)). Current validation and limits are in
-[CONTINUE.md](CONTINUE.md); the owner's next session is [HOME_CHECKLIST.md](HOME_CHECKLIST.md)
-then [TEST_SESSION.md](TEST_SESSION.md).
+# the forge docs
 
-Forge is a community firmware project for CHOMPI, built on its Daisy Seed audio
-hardware. Candidate **0.15.1** implements a playable synth (up to seven voices, two oscillators, noise, resonant
-filter with envelope, LFO, glide), a TAPE-compatible sampler with recording, a TAPE-style
-looper, harmony mode, an arpeggiator / bass part on a clock, an event recorder, SD-card
-presets and projects, stereo delay and reverb, live controls, atomic patch
-recall, host-managed JSON presets, and diagnostics. The computer can optionally
-author presets through a local OpenAI/Gemini webapp with a user-supplied API
-key, or through the optional Ollama CLI.
+Everything about **Forge**, the workshop of custom CHOMPI firmware, and **Choowi**, its first
+firmware line, written down. Latest: **Choowi 0.19** (the Tinker Wrench: a synth page on the
+panel); 0.19 is built and tested on the computer, 0.17 is the one checked on CHOMPI so far.
 
-**Software-tested; not yet hardware-verified.** The candidate has not been
-flashed or auditioned on the owner's CHOMPI. Actual model use also remains unverified;
-the adapters have been tested using mock responses. The next acceptance step is
-one consolidated hardware session.
+- **Playing it:** the [user manual](MANUAL.md) or the [illustrated manual](ILLUSTRATED_MANUAL.html) (open in a browser).
+- **The family rules** (names, mascots, tools, colours, voice): [FORGE_FAMILY.md](FORGE_FAMILY.md).
+- **Where the work is right now:** [CONTINUE.md](CONTINUE.md). What changed: [CHANGELOG.md](CHANGELOG.md).
+- **What's been checked on a real CHOMPI:** [TEST_RESULTS.md](TEST_RESULTS.md); the next
+  session's steps: [HOME_CHECKLIST.md](HOME_CHECKLIST.md), then [TEST_SESSION.md](TEST_SESSION.md).
 
 ## Documentation map
 

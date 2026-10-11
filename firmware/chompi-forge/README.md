@@ -1,14 +1,17 @@
-# Forge 0.5 — consolidated test candidate
+<p align="center"><img src="../../docs/forge/assets/choowi.svg" width="140" alt="Choowi"></p>
 
-Experimental community firmware for CHOMPI: a playable synth (up to four voices,
-two oscillators, noise, resonant filter, LFO, glide), a TAPE-compatible sampler
-with recording (up to seven voices), stereo delay and reverb, live patch
-control, device and host presets, and diagnostics. Sampler design:
-[SAMPLING.md](../../docs/forge/SAMPLING.md). Start with the [documentation index](../../docs/forge/README.md).
-See the [project brief](../../docs/forge/PROJECT.md) and
-[current handoff](../../docs/forge/HANDOFF.md),
-[host controller](host/README.md), [protocol](../../docs/forge/PROTOCOL.md), and
-[single test session](../../docs/forge/TEST_SESSION.md).
+# Choowi: the first firmware of the forge
+
+This folder is **Choowi**, the first firmware line in the Forge family of custom CHOMPI
+firmware: the firmware itself (`core/` for the sound and panel, `src/` for the hardware), the
+computer side (`host/`: Forge Bridge, the webapp, the CLI), the presets and the tests.
+
+What it does: the [user manual](../../docs/forge/MANUAL.md). How the family works:
+[FORGE_FAMILY.md](../../docs/forge/FORGE_FAMILY.md). Everything else written down: the
+[docs index](../../docs/forge/README.md), the [protocol](../../docs/forge/PROTOCOL.md), the
+[host guide](host/README.md) and the [test session](../../docs/forge/TEST_SESSION.md).
+
+The folder keeps its old name (`chompi-forge`) so builds, CI and links keep working.
 
 ## Build and test
 

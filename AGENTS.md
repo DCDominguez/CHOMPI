@@ -1,5 +1,10 @@
 # Forge development guidance
 
+Forge is a family of custom CHOMPI firmware; **Choowi** is its first line (this code, in
+`firmware/chompi-forge`). Names, mascots, release tools, colours and voice:
+[docs/forge/FORGE_FAMILY.md](docs/forge/FORGE_FAMILY.md). In docs and commits call the user
+"the owner" (public credit: DeeCee).
+
 Read `docs/forge/CONTINUE.md` first, then HANDOFF, PROJECT and PROTOCOL. CONTINUE
 is the live checkpoint while the instrument milestone is being built. Update it
 at every meaningful checkpoint and before handing off. Record exact checks,

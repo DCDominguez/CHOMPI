@@ -246,7 +246,7 @@ class PatchTests(unittest.TestCase):
         result = reply([tail[0], 2 | 4] + [commit >> (7 * i) & 127 for i in range(4)], [1, 1 | 32, 2])
         self.assertEqual((result["firmware"], result["build"], result["development"], result["dirty"], result["safe_mode"]),
                          (host.FIRMWARE_VERSION, "0f5bb18", False, True, True))
-        self.assertEqual(host.describe_build(result), f"Forge {host.FIRMWARE_VERSION} (build 0f5bb18, uncommitted changes, SAFE MODE)")
+        self.assertEqual(host.describe_build(result), f"Forge · {host.FIRMWARE_LINE} {host.FIRMWARE_VERSION} (build 0f5bb18, uncommitted changes, SAFE MODE)")
         self.assertEqual(result["power"]["battery"], "high")
         self.assertEqual(host.describe_power(result["power"]),
                          "Battery high (green, as SW6 shows) · USB power · charging · install refused: charge first")
@@ -259,7 +259,7 @@ class PatchTests(unittest.TestCase):
         result = host.decode_response(old, 21)
         minor = host.FIRMWARE_VERSION.rsplit(".", 1)[0]            # firmware before 0.15.2 reports only 0.<minor>
         self.assertEqual((result["firmware"], result["build"], result["power"]), (minor, None, None))
-        self.assertEqual(host.describe_build(result), f"Forge {minor}")
+        self.assertEqual(host.describe_build(result), f"Forge · {host.FIRMWARE_LINE} {minor}")
         self.assertIn("hold SW6", host.describe_power(None))
         short = new[:-2] + [0]                                    # one power byte missing
         short[-1] = (128 - sum(short[:-1]) % 128) % 128

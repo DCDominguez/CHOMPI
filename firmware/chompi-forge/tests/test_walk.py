@@ -253,7 +253,7 @@ class SetupCheckTests(unittest.TestCase):
     def test_firmware_line(self):
         # 0.15.2: Check setup names the build; another version, an unknown or uncommitted build warn; safe mode fails.
         good = {"firmware": host.FIRMWARE_VERSION, "build": "0f5bb18", "development": False, "dirty": False, "safe_mode": False}
-        self.assertEqual(audio.firmware_finding(good)[1:3], ("ok", f"Forge {host.FIRMWARE_VERSION} (build 0f5bb18)."))
+        self.assertEqual(audio.firmware_finding(good)[1:3], ("ok", f"Forge · {host.FIRMWARE_LINE} {host.FIRMWARE_VERSION} (build 0f5bb18)."))
         self.assertEqual(audio.firmware_finding({**good, "firmware": "0.15", "build": None, "development": None,
                                                   "dirty": None, "safe_mode": None})[1], "warn")
         self.assertEqual(audio.firmware_finding({**good, "dirty": True})[1], "warn")

@@ -1,4 +1,6 @@
-# Forge changelog
+# Forge · Choowi changelog
+
+Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)); the heading names it.
 
 ## 0.19.0 The synth edit page (tool: Tinker Wrench) — 2026-10-11 (software-tested; not installed yet)
 

@@ -13,6 +13,7 @@ import urllib.request
 PREFIX = [0x7D, 0x46, 0x47, 1]
 # The firmware these tools match; its minor is core/protocol.h kFirmwareMinor (tests/test_consistency.py).
 FIRMWARE_VERSION = "0.19.0"
+FIRMWARE_LINE = "Choowi"   # the Forge family's firmware line (docs/forge/FORGE_FAMILY.md)
 ERRORS = {1: "invalid length", 2: "unsupported version", 3: "checksum mismatch",
           4: "invalid patch or preset address", 5: "unknown operation", 6: "device queue busy",
           7: "that slot is empty (preset, sample or recording)", 8: "SD card missing or storage failed",
@@ -661,12 +662,12 @@ def find_chompi_ports(midi=None):
 
 
 def describe_build(status):
-    """One line for people, e.g. "Forge 0.15.2 (build 0f5bb18, development)"."""
+    """One line for people, e.g. "Forge · Choowi 0.19.0 (build 0f5bb18, development)"."""
     notes = [f"build {status['build']}" if status.get("build") else "build unknown" if status.get("development") is not None else None,
              "development" if status.get("development") else None, "uncommitted changes" if status.get("dirty") else None,
              "SAFE MODE" if status.get("safe_mode") else None]
     notes = [n for n in notes if n]
-    return f"Forge {status['firmware']}" + (f" ({', '.join(notes)})" if notes else "")
+    return f"Forge · {FIRMWARE_LINE} {status['firmware']}" + (f" ({', '.join(notes)})" if notes else "")
 
 
 def decode_response(data, sequence):

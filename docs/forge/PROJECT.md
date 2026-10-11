@@ -2,6 +2,9 @@
 
 ## Goal and user decisions
 
+**Forge is a family of custom CHOMPI firmware; Choowi is its first line** (everything below).
+New firmware lines get a new name and mascot under the Forge tree ([FORGE_FAMILY.md](FORGE_FAMILY.md)).
+
 Forge is an **AI-programmable instrument for CHOMPI**: describe a sound, construct
 a patch from installed sound-generating/processing modules, play the keys or
 MIDI, adjust knobs, save and recall. Effects are one capability, not the whole
