@@ -3,7 +3,18 @@
 Updated 2026-10-11, checkpoint: 0.16.0 (Batch 1 + 2) built and software-tested; next: install on CHOMPI (DC's key press), 3J checks, stress test to failure. Read this first; DC's next session is
 [HOME_CHECKLIST.md](HOME_CHECKLIST.md), then [TEST_SESSION.md](TEST_SESSION.md).
 
-## 2026-10-11 (latest): 0.17.0 magic items 1-3 built (resume here)
+## 2026-10-11 (night): 0.17.1 + 0.18.0 built, Spark chosen (resume here)
+
+- On CHOMPI: 0.17.0 (e7b5e12), magic 1-3 checked (TEST_RESULTS). Built, NOT installed (DC out;
+  Claude Code's permission check refused a virtual CHOMPI press twice, even with DC's chat OK, so
+  installs wait for DC's physical press): 0.17.1 SW5 sweep (80 Hz..8 kHz + resonance) and 0.18.0
+  (chomp rolls, dream mode, roll sparkle, loop ripple). Before / after video of SW5: the before is
+  `reports/cam/filter_before_0170.mp4`; record the after once installed.
+- Brand: Spark (PROJECT.md). Next per DC: magic + Spark branding (webapp mockup in Spark with the
+  virtual screen, dice, characters), then the synth edit page; then the stress test.
+- Development build headroom 26,580 B (RESOURCE_LEDGER): plan before big additions.
+
+## 2026-10-11 (latest): 0.17.0 magic items 1-3 built
 
 - 0.16.0 is on CHOMPI (e7e3f0a; TEST_RESULTS: 12/13, the fail is plan timing). DC: magic batch
   before the stress test. Built (CHANGELOG 0.17.0): last preset + start-up chime, surprise me

@@ -12,7 +12,7 @@ import urllib.request
 
 PREFIX = [0x7D, 0x46, 0x47, 1]
 # The firmware these tools match; its minor is core/protocol.h kFirmwareMinor (tests/test_consistency.py).
-FIRMWARE_VERSION = "0.17.1"
+FIRMWARE_VERSION = "0.18.0"
 ERRORS = {1: "invalid length", 2: "unsupported version", 3: "checksum mismatch",
           4: "invalid patch or preset address", 5: "unknown operation", 6: "device queue busy",
           7: "that slot is empty (preset, sample or recording)", 8: "SD card missing or storage failed",

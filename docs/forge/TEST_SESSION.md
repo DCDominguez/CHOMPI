@@ -1,4 +1,4 @@
-# Forge 0.17.1 — the one consolidated hardware test
+# Forge 0.18.0 — the one consolidated hardware test
 
 Status of the candidate: **software-tested, hardware-unverified.** This is the
 single planned physical session. Work top to bottom. If a stage fails, record
@@ -296,6 +296,19 @@ MANUAL sections 5a and 6. Software-tested only. DC judges the fun.
 | 3.87 | **Surprise me:** menu closed, hold SW1 + SW3 for 1 s, play; keep holding for 5 s, then let go and play | Each roll is a new playable sound (no silence, nothing harsh), knob lights flash colours each time; letting go keeps the last one; the volume is unchanged |
 | 3.88 | **Mutate:** hold SW2 + SW3 for 1 s, play; keep holding for 5 s | The sound changes a little each time (same character), knob lights flash teal; no knob page changed |
 | 3.89 | **Panic still panic:** hold SW4 + SW3 1 s while a chord rings | Silence, the sound unchanged (no roll) |
+
+## 3L. More magic (firmware 0.18)
+
+MANUAL section 5a. Software-tested only.
+
+| # | Do | Pass when |
+| --- | --- | --- |
+| 3.90 | **Chomp to instrument:** record a few seconds of your voice or a sound (toggle up, hold CHOMPI), toggle down, hold SW1 + SW3 for 1 s, play; keep holding for more rolls | Every roll still plays your recording, as a different instrument (chords and arps often); the keys sparkle with each roll |
+| 3.91 | **Dream mode:** Warm Pad, toggle down, menu closed, touch nothing for 2 minutes; then touch any key | After about 2 minutes a quiet slow line plays in the key, its notes glowing purple; the touch stops it at once with no hanging note |
+| 3.92 | **Dream sleeps, and stays out of the way:** leave it dreaming for 3 minutes; then start a loop and wait 2 minutes; then toggle up and wait 2 minutes | It stops by itself after 3 minutes; it never starts while the loop plays or in the record position |
+| 3.93 | **Loop ripple:** record a looper take (LOOP, play, PLAY) | A green ripple runs from the middle key out to both ends as the loop closes |
+
+## 4. Panic and recovery
 
 
 | # | Do | Pass when |

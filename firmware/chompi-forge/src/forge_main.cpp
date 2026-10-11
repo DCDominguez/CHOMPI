@@ -770,10 +770,22 @@ FORGE_COLD void DrawLeds() {
     view.parts = panel_controller.PartsLights(); view.parts_clock = panel_controller.PartsClock();
     view.sequence = panel_controller.SequenceLights();
     view.magic = panel_controller.MagicLights();
+    view.dream = panel_controller.DreamLights();
+    view.dream_level = .5f + .5f * std::sin(now * (6.2831853f / 4000.f));   // a 4 s breath
     view.blink = (now / 250) % 2 == 0; view.slow_blink = (now / 300) % 2 != 0;
     view.flash = now < flash_until ? (flash_ok ? 1 : 0) : -1;
     view.saving = sample_loader.Busy() && !sample_loader.Loading();
     view.looper = looper_state.load(std::memory_order_relaxed);
+    {   // 0.18: a loop (looper first take, or a recorded take) closing starts a 0.5 s ripple
+        static uint32_t last_looper = 0, last_sequence = 0, ripple_at = 0;
+        const uint32_t looper_state = view.looper & 7u, sequence_state = view.sequence & 7u;
+        if((last_looper == static_cast<uint32_t>(forge::Looper::State::FirstTake) && looper_state == static_cast<uint32_t>(forge::Looper::State::Playing))
+           || (last_sequence == static_cast<uint32_t>(forge::seq::Sequencer::State::Recording) && sequence_state == static_cast<uint32_t>(forge::seq::Sequencer::State::Playing)))
+            ripple_at = now ? now : 1;
+        last_looper = looper_state; last_sequence = sequence_state;
+        if(ripple_at && now - ripple_at < 500) view.ripple = static_cast<uint8_t>(1 + (now - ripple_at) * 254 / 500);
+        else ripple_at = 0;
+    }
     view.install = install_gate.Confirmed() ? 2 : install_gate.Armed() ? 1 : 0;
     view.record_position = panel_controller.RecordPosition();
     view.count_in = panel_controller.CountIn();
@@ -986,7 +998,7 @@ FORGE_COLD void HandleFrame(const forge::MidiFrame& frame, uint8_t source) {
 template<typename Midi> void PollMidi(Midi& midi, uint8_t source) {
     midi.Listen();
     forge::MidiFrame frame;
-    for(unsigned i = 0; i < 8 && midi.frames.Pop(frame); ++i) HandleFrame(frame, source);
+    for(unsigned i = 0; i < 8 && midi.frames.Pop(frame); ++i) { HandleFrame(frame, source); panel_controller.NoteActivity(); }
 }
 
 FORGE_COLD void SendResponses() {

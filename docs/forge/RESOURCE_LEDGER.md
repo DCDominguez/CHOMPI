@@ -1,6 +1,10 @@
 # Forge Resource Ledger
 
-**Latest figures:** firmware 0.17.0 (2026-10-11): release **241,028 B** / development
+**Latest figures:** firmware 0.18.0 (2026-10-11): release **248,324 B** / development
+**262,188 B**, headroom **40,444 / 26,580 B** (+7,296 / +7,456 B over 0.17.0: dream mode, chomp
+rolls, light patterns, SW5 sweep). The development build's headroom is now the tighter budget:
+watch it before the effects round-out (and consider moving the Inspector out of SRAM_EXEC).
+Before that, firmware 0.17.0 (2026-10-11): release **241,028 B** / development
 **254,732 B**, headroom **47,740 / 34,036 B** (+5,400 / +5,380 B: the magic batch, mostly the
 roll / mutate tables and the chime; no new RAM reservation beyond a few words of panel state).
 Before that, firmware 0.16.0 (2026-10-11, pinned Arm GCC 10.3-2021.10): release

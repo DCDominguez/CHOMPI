@@ -104,9 +104,51 @@ void ChimePlaysFourNotes() {
     assert(events.back().first == 72 && events.back().second == 0);
     chime.Tick(48, [&](uint8_t, uint8_t) { assert(false); });                     // finished: nothing more
 }
+// 0.18 chomp to instrument: a roll over a sampler patch keeps the sample and rolls around it.
+void ChompRollsKeepTheSample() {
+    magic::Rng r; r.Stir(11);
+    Parameters take = Base(7); take.source = 1; take.sample_mode = 0; take.sample_bank = 2; take.sample_slot = 14;
+    take.sample_start = .1f; take.sample_end = .8f; take.sample_pitch = .55f;
+    unsigned chords = 0, arps = 0;
+    for(int i = 0; i < 300; ++i) {
+        const Parameters p = magic::Roll(take, r);
+        assert(p.Valid() && p.Sampler() && p.sample_slot == 14 && p.sample_bank == 2 && p.sample_start == .1f && p.sample_end == .8f && p.sample_pitch == .55f);
+        chords += harmony::Unpack(p.harmony).enabled; arps += parts::Unpack(p.parts_arp, p.parts_clock).pattern != parts::Pattern::Off;
+    }
+    assert(chords > 140 && chords < 220 && arps > 110 && arps < 190);                 // ~60 % / ~50 %
+    Parameters kit = take; kit.sample_mode = 1;
+    for(int i = 0; i < 100; ++i) {
+        const Parameters p = magic::Roll(kit, r);
+        assert(p.Sampler() && p.sample_mode == 1 && !harmony::Unpack(p.harmony).enabled && parts::Unpack(p.parts_arp, p.parts_clock).pattern == parts::Pattern::Off);
+    }
+}
+
+// 0.18 dream mode: starts after the idle time, plays in the key, any touch ends it with every
+// note released, sleeps after its length until touched again.
+void DreamPlaysInTheKeyAndStops() {
+    magic::Dream d; d.SetTiming(4800, 48000 * 6);
+    magic::Rng r; harmony::State key; key.tonic = 2; key.mode = harmony::Mode::Dorian;      // D dorian
+    int sounding[128] = {}; unsigned ons = 0;
+    auto note = [&](uint8_t n, uint8_t v) { if(v) { ++sounding[n]; ++ons; assert(v == magic::Dream::kVelocity); assert(harmony::InKey(n % 12, key)); } else { --sounding[n]; assert(sounding[n] >= 0); } };
+    for(int i = 0; i < 99; ++i) d.Tick(48, true, true, key, r, note);
+    assert(!d.Active() && ons == 0);                                                 // not yet: 4,752 frames
+    for(int i = 0; i < 48000 * 3 / 48; ++i) d.Tick(48, true, true, key, r, note);
+    assert(d.Active() && ons >= 4 && d.KeyMask() != 0);
+    d.Tick(48, false, true, key, r, note);                                          // a touch
+    assert(!d.Active()); for(int n = 0; n < 128; ++n) assert(sounding[n] == 0);
+    ons = 0;
+    for(int i = 0; i < 48000 * 12 / 48; ++i) d.Tick(48, true, true, key, r, note);   // idle again: dreams 6 s, then sleeps
+    assert(!d.Active() && ons > 4); for(int n = 0; n < 128; ++n) assert(sounding[n] == 0);
+    const unsigned slept = ons;
+    for(int i = 0; i < 48000 * 10 / 48; ++i) d.Tick(48, true, true, key, r, note);
+    assert(ons == slept);                                                            // asleep until touched
+    for(int i = 0; i < 48000 * 2 / 48; ++i) d.Tick(48, true, false, key, r, note);   // not allowed (e.g. looper playing)
+    assert(!d.Active());
+}
 } // namespace
 
 int main() {
     RollsAreValidAndBounded(); RollsArePlayable(); MutationsDriftInsideTheirBounds(); ChimePlaysFourNotes();
-    std::cout << "PASS: surprise-me rolls valid / bounded / playable, mutations bounded, chime\n";
+    ChompRollsKeepTheSample(); DreamPlaysInTheKeyAndStops();
+    std::cout << "PASS: surprise-me rolls valid / bounded / playable, mutations bounded, chime, chomp rolls, dream\n";
 }

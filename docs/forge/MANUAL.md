@@ -1,6 +1,6 @@
 # Forge for CHOMPI — user manual
 
-Firmware **0.17.1** (development builds; experimental community firmware, not an
+Firmware **0.18.0** (development builds; experimental community firmware, not an
 official CHOMPI release). Forge turns CHOMPI into a playable synthesizer,
 TAPE-compatible sampler and looper whose sounds you can design on a computer —
 by hand or by describing them to an AI — and send over USB.
@@ -184,7 +184,19 @@ rolls another every 1.5 s, until you let go on one you like. Your volume, key an
 darker, longer or shorter, a different echo...), so it drifts rather than starts over. Keep
 holding to drift further.
 
+**Chomp to instrument (0.18):** record anything into the mic or line in (section 7), then hold
+**SW1 + SW3**: the roll keeps your recording and builds an instrument around it, often with
+chords in your key and an arpeggio. Every surprise roll also sparkles the keys.
+
 Like it? Save it to a preset slot (section 6). Neither gesture changes a knob page.
+
+**Dream mode (0.18):** leave CHOMPI alone for two minutes (toggle down, menu closed, a playable
+sound, nothing else playing) and it starts dreaming: a quiet, slow line in your key, its notes
+breathing purple on the keys. Touch anything, or send MIDI, and it stops at once; after three
+minutes of dreaming it goes to sleep until you come back. It never dreams in the record position.
+
+**Lights:** when a loop closes (looper or event recorder) a green ripple runs out from the
+middle key.
 
 ---
 

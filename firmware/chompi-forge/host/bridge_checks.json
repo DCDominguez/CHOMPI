@@ -660,6 +660,30 @@
     "group": "3K. Magic (firmware 0.17)"
   },
   {
+    "id": "3.90",
+    "do": "**Chomp to instrument:** record a few seconds of your voice or a sound (toggle up, hold CHOMPI), toggle down, hold SW1 + SW3 for 1 s, play; keep holding for more rolls",
+    "expect": "Every roll still plays your recording, as a different instrument (chords and arps often); the keys sparkle with each roll",
+    "group": "3L. More magic (firmware 0.18)"
+  },
+  {
+    "id": "3.91",
+    "do": "**Dream mode:** Warm Pad, toggle down, menu closed, touch nothing for 2 minutes; then touch any key",
+    "expect": "After about 2 minutes a quiet slow line plays in the key, its notes glowing purple; the touch stops it at once with no hanging note",
+    "group": "3L. More magic (firmware 0.18)"
+  },
+  {
+    "id": "3.92",
+    "do": "**Dream sleeps, and stays out of the way:** leave it dreaming for 3 minutes; then start a loop and wait 2 minutes; then toggle up and wait 2 minutes",
+    "expect": "It stops by itself after 3 minutes; it never starts while the loop plays or in the record position",
+    "group": "3L. More magic (firmware 0.18)"
+  },
+  {
+    "id": "3.93",
+    "do": "**Loop ripple:** record a looper take (LOOP, play, PLAY)",
+    "expect": "A green ripple runs from the middle key out to both ends as the loop closes",
+    "group": "3L. More magic (firmware 0.18)"
+  },
+  {
     "id": "4.1",
     "do": "Hold a long-release chord with echo (use Warm Pad for reverb too); hold SW4 + SW3 for 1 s (panic; SW5 was the panic before 0.10)",
     "expect": "Voices, old echo and reverb tails stop at once",

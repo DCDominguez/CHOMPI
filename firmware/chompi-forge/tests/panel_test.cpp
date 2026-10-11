@@ -670,7 +670,39 @@ void Sweep0171() {
     assert(rig.engine.ApplyPatch(synth) && rig.engine.SweepBoost() == 0.f);              // a new sound: its own resonance
 }
 
+// 0.18: dream mode through the panel (menu position, synth patch, nobody touching), a touch or
+// MIDI ends it; the light patterns for a roll, a closing loop and a dream.
+void Dream018() {
+    Rig rig;
+    Parameters synth; synth.version = 3; synth.synth = true; assert(rig.engine.ApplyPatch(synth));
+    rig.panel.SetDreamTiming(48 * 200, 48000 * 30);
+    rig.hw.toggle_up = true; rig.Block();
+    for(int i = 0; i < 500; ++i) rig.Block();                                        // 0.25 s idle
+    assert(rig.panel.Dreaming());
+    for(int i = 0; i < 4000; ++i) rig.Block();
+    assert(rig.engine.ActiveVoices() > 0);
+    rig.panel.NoteActivity(); rig.Block();                                            // MIDI arrived
+    assert(!rig.panel.Dreaming());
+    for(int i = 0; i < 4800; ++i) rig.Block();
+    assert(rig.engine.ActiveVoices() == 0 || rig.panel.Dreaming());
+    rig.Tap(kWhite[0]); assert(!rig.panel.Dreaming());                               // a key
+    rig.hw.toggle_up = false; for(int i = 0; i < 1000; ++i) rig.Block();
+    assert(!rig.panel.Dreaming());                                                    // record position: never
+    // Lights (menu closed).
+    LedView v; Rgb keys[25], chompi;
+    v.magic = 1u | (3u << 2); ComposeLeds(v, keys, chompi);
+    unsigned lit = 0; for(auto& k : keys) lit += k.r + k.g + k.b > 0.f;
+    assert(lit >= 3 && lit <= 5);                                                     // sparkle
+    v = LedView{}; v.ripple = 1; ComposeLeds(v, keys, chompi);
+    assert(keys[panel::SlotLed(7)].g > .9f && keys[panel::SlotLed(0)].g == 0.f);      // the ripple starts in the middle
+    v.ripple = 230; ComposeLeds(v, keys, chompi);
+    assert(keys[panel::SlotLed(7)].g == 0.f && keys[panel::SlotLed(0)].g > 0.f);      // and reaches the ends
+    v = LedView{}; v.dream = (1u << 25) | (1u << 12); v.dream_level = 1.f; ComposeLeds(v, keys, chompi);
+    assert(keys[panel::SlotLed(7)].b > .7f && keys[panel::SlotLed(7)].r > .4f);       // C4 breathing purple
+}
+
 int main() {
+    Dream018();
     Sweep0171();
     Magic017();
     PanelFeedback016();

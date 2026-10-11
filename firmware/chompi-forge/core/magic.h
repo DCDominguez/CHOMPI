@@ -60,9 +60,21 @@ FORGE_COLD inline Parameters Roll(const Parameters& base, Rng& r) {
     if(r.Chance(.2f)) { p.voices = 1; p.glide = r.Range(.015f, .075f); }   // a gliding mono lead
     else { static const uint8_t poly[3] = {4, 6, 7}; p.voices = poly[r.Pick(3)]; }
     p.level = base.level;
-    // Harmony (25 %) in the player's key; the arp (20 %), never latched, so it stops with the keys.
+    // Chomp to instrument (0.18): rolling over a sampler patch keeps the sample (your recording or
+    // a card slot, its window and pitch) and rolls the instrument around it, with chords and the
+    // arp more often. Kit patches keep their pads and get no chords or arp.
+    const bool sample = base.Sampler(), kit = sample && base.sample_mode == 1;
+    if(sample) {
+        p.source = 1; p.sample_mode = base.sample_mode; p.sample_bank = base.sample_bank; p.sample_slot = base.sample_slot;
+        p.sample_pitch = base.sample_pitch; p.sample_start = base.sample_start; p.sample_end = base.sample_end;
+        p.sample_xfade = base.sample_xfade; p.sample_loop = base.sample_loop; p.sample_gate = base.sample_gate;
+        p.sample_reverse = base.sample_reverse;
+    }
+    const float harmony_chance = kit ? 0.f : sample ? .6f : .25f, arp_chance = kit ? 0.f : sample ? .5f : .2f;
+    // Harmony (25 %; 60 % around a sample) in the player's key; the arp (20 %; 50 % around a
+    // sample), never latched, so it stops with the keys.
     harmony::State h; h.tonic = static_cast<uint8_t>(base.version >= 6 ? (base.harmony & 15u) % 12u : 0u);
-    if(r.Chance(.25f)) {
+    if(r.Chance(harmony_chance)) {
         static const harmony::Mode modes[5] = {harmony::Mode::Major, harmony::Mode::NaturalMinor, harmony::Mode::Dorian,
                                                harmony::Mode::Mixolydian, harmony::Mode::Lydian};
         h.enabled = true; h.mode = modes[r.Pick(5)];
@@ -71,7 +83,7 @@ FORGE_COLD inline Parameters Roll(const Parameters& base, Rng& r) {
     p.harmony = harmony::Pack(h);
     parts::Settings s = base.version >= 7 ? parts::Unpack(base.parts_arp, base.parts_clock) : parts::Settings{};
     s.pattern = parts::Pattern::Off; s.bass = parts::Bass::Off; s.latch = false;
-    if(r.Chance(.2f)) {
+    if(r.Chance(arp_chance)) {
         static const parts::Pattern patterns[3] = {parts::Pattern::Up, parts::Pattern::UpDown, parts::Pattern::Order};
         s.pattern = patterns[r.Pick(3)];
         s.rate = r.Chance(.5f) ? parts::Rate::Eighth : parts::Rate::Sixteenth;
@@ -135,6 +147,71 @@ public:
 private:
     uint32_t t_ = 0;
     bool active_ = false;
+};
+
+// Dream mode (0.18): left alone (no key, knob, MIDI) for 2 minutes with a playable sound and
+// nothing else playing, CHOMPI plays a quiet, slow line in the current key (harmony's tonic and
+// mode, used even while harmony is off), straight to the voices. Any touch ends it at once (all
+// its notes released); after 3 minutes it sleeps until the next touch. Frames at 48 kHz.
+class Dream {
+public:
+    static constexpr unsigned kMaxNotes = 3;
+    static constexpr uint8_t kVelocity = 45;
+    void SetTiming(uint32_t idle, uint32_t length) { idle_after_ = idle; length_ = length; }
+    bool Active() const { return active_; }
+    // Notes it is sounding, one bit per key C3..C5 (bit 0 = C3), folded into that range.
+    uint32_t KeyMask() const {
+        uint32_t m = 0;
+        for(const Held& h : held_) if(h.frames) { int n = h.note; while(n > 72) n -= 12; while(n < 48) n += 12; m |= 1u << (n - 48); }
+        return m;
+    }
+    // `quiet`: nothing touched this block; `allowed`: a playable sound, nothing else playing.
+    template<typename F> void Tick(uint32_t frames, bool quiet, bool allowed, const harmony::State& key, Rng& r, F note) {
+        if(!quiet || !allowed) {
+            if(active_) Stop(note);
+            if(!quiet) { idle_ = 0; asleep_ = false; }
+            return;
+        }
+        if(asleep_) return;
+        if(!active_) {
+            idle_ += frames;
+            if(idle_ < idle_after_) return;
+            active_ = true; elapsed_ = 0; next_ = 0; step_ = 0; degree_ = 7;
+        }
+        elapsed_ += frames;
+        for(Held& h : held_) if(h.frames) { if(h.frames > frames) h.frames -= frames; else { h.frames = 0; note(h.note, 0); } }
+        if(elapsed_ >= length_) { Stop(note); asleep_ = true; return; }
+        if(next_ > frames) { next_ -= frames; return; }
+        next_ = kStep;
+        const bool root = step_++ % 8 == 0;
+        if(!root && r.Chance(.15f)) return;                                   // a breath
+        const uint8_t* scale = harmony::kScale[static_cast<unsigned>(key.mode) % harmony::kModes];
+        int midi;
+        if(root) midi = 48 + key.tonic % 12;
+        else {
+            static const int8_t moves[6] = {-2, -1, -1, 1, 1, 2};
+            degree_ += moves[r.Pick(6)];
+            if(degree_ < 0) degree_ = 1;
+            if(degree_ > 13) degree_ = 12;
+            midi = 60 + key.tonic % 12 + scale[degree_ % 7] + 12 * (degree_ / 7);
+        }
+        Held* slot = &held_[0];
+        for(Held& h : held_) if(!h.frames) { slot = &h; break; }
+        if(slot->frames) note(slot->note, 0);
+        slot->note = static_cast<uint8_t>(midi); slot->frames = root ? 2 * kNote : kNote;
+        note(slot->note, kVelocity);
+    }
+private:
+    static constexpr uint32_t kStep = 48 * 600, kNote = 48 * 900;
+    struct Held { uint8_t note = 0; uint32_t frames = 0; };
+    template<typename F> void Stop(F note) {
+        for(Held& h : held_) if(h.frames) { h.frames = 0; note(h.note, 0); }
+        active_ = false; idle_ = 0;
+    }
+    uint32_t idle_after_ = 48000u * 120u, length_ = 48000u * 180u, idle_ = 0, elapsed_ = 0, next_ = 0, step_ = 0;
+    int degree_ = 7;
+    bool active_ = false, asleep_ = false;
+    Held held_[kMaxNotes];
 };
 
 } // namespace magic

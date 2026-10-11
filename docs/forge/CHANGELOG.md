@@ -1,5 +1,25 @@
 # Forge changelog
 
+## 0.18.0 Magic: chomp to instrument, dream mode, lights with character — 2026-10-11 (software-tested; not installed yet)
+
+PROJECT.md magic batch items 4-6 (DC: "work on magic and spark branding").
+- **Chomp to instrument:** record anything (toggle up, hold CHOMPI), then **surprise me**
+  (SW1 + SW3): the roll keeps your recording (or the card sample a sampler patch plays, with its
+  window and pitch) and rolls the instrument around it: filter, envelopes, LFO, delay, reverb,
+  chords in your key 60 % of the time, an unlatched arp 50 %. Kit patches keep their pads and get
+  no chords or arp.
+- **Dream mode:** left alone for 2 minutes (no key, knob, SW5 or incoming MIDI) in the menu
+  position with the menu closed, a synth or chromatic sampler sound and nothing else playing
+  (looper, recording, event recorder), CHOMPI plays a quiet slow line in the current key
+  (harmony's tonic and mode), straight to the voices, while its notes breathe purple on the
+  keys. Any touch or MIDI ends it at once with every note released; after 3 minutes it sleeps
+  until the next touch. Never in the record position.
+- **Lights with character** (menu closed): every surprise roll sparkles the keys in fresh
+  colours; a looper first take or an event-recorder take closing sends a green ripple out from
+  the middle key.
+- `core/magic.h` (`Roll` sampler-aware, `Dream`), panel `Dream018`, magic `ChompRollsKeepTheSample`
+  / `DreamPlaysInTheKeyAndStops`. Not on CHOMPI yet.
+
 ## 0.17.1 SW5 sweeps like a filter — 2026-10-11 (software-tested; not installed yet)
 
 DC: "why does cutoff just feel like it's lowering the volume". Measured on CHOMPI (C-E-G, the

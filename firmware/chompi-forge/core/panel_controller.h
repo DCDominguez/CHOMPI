@@ -254,6 +254,21 @@ public:
         // 0.17: the start-up chime (main loop asks once the remembered preset is queued).
         if(chime_request_.exchange(false, std::memory_order_relaxed)) chime_.Start();
         chime_.Tick(hardware.frames, [&](uint8_t note, uint8_t velocity) { engine.ChimeNote(note, velocity); });
+        // 0.18 dream mode: quiet = nothing touched (keys, knobs, SW5, MIDI from the main loop);
+        // allowed = menu position, menu closed, a synth or chromatic sampler sound, the looper,
+        // recorder and event recorder not playing.
+        {
+            bool touched = keys != 0 || hardware.tone_down || activity_.exchange(false, std::memory_order_relaxed);
+            for(unsigned i = 0; i < panel::kEncoders; ++i) touched = touched || turns[i] != 0;
+            const Parameters& now = engine.GetParameters();
+            const Looper* lp = engine.GetLooper(); const seq::Sequencer* sq = engine.Sequencer();
+            const bool busy = (lp && (lp->GetState() == Looper::State::Playing || lp->GetState() == Looper::State::FirstTake))
+                || (sq && sq->GetState() != seq::Sequencer::State::Empty && sq->GetState() != seq::Sequencer::State::Stopped)
+                || recorder.Recording() || chime_.Active();
+            const bool allowed = toggle_up && !menu_.Active() && now.synth && !(now.Sampler() && now.sample_mode == 1) && !busy;
+            const harmony::State key = engine.Harmony() ? engine.Harmony()->state : harmony::State{};
+            dream_.Tick(hardware.frames, !touched, allowed, key, rng_, [&](uint8_t note, uint8_t velocity) { engine.ChimeNote(note, velocity); });
+        }
         // TAPE's menu page: the knobs are TAPE's shift layer (MenuControls).
         if(menu_.Active() && menu_.Page() == MenuPage::Samples) MenuControls(hardware, keys, rising, turns, engine);
         else if(HarmonyPage()) HarmonyControls(keys, turns, engine);
@@ -367,6 +382,12 @@ public:
     uint32_t KnobFlags() const { return knob_flags_.load(std::memory_order_relaxed); }
     // 0.17: main loop, once at start-up after the remembered preset is queued.
     void RequestChime() { chime_request_.store(true, std::memory_order_relaxed); }
+    // 0.18: main loop, on any incoming MIDI (wakes CHOMPI from a dream, resets the idle time).
+    void NoteActivity() { activity_.store(true, std::memory_order_relaxed); }
+    void SetDreamTiming(uint32_t idle, uint32_t length) { dream_.SetTiming(idle, length); }
+    bool Dreaming() const { return dream_lights_.load(std::memory_order_relaxed) != 0; }
+    // Dream lights: one bit per key C3..C5 sounding in the dream (bit 25: dreaming).
+    uint32_t DreamLights() const { return dream_lights_.load(std::memory_order_relaxed); }
     // 0.17 magic lights: bits 0-1 the flash (1 surprise, 2 mutate), 2-5 the roll count (colours
     // change each roll), 8-15 the chime's progress 1..255 (0 = not playing).
     uint32_t MagicLights() const { return magic_lights_.load(std::memory_order_relaxed); }
@@ -429,6 +450,7 @@ private:
         knob_flags_.store(flags, std::memory_order_relaxed);
         const uint32_t chime = chime_.Active() ? 1u + static_cast<uint32_t>(chime_.Progress() * 254.f) : 0u;
         magic_lights_.store((magic_flash_ ? magic_kind_ & 3u : 0u) | (magic_count_ & 15u) << 2 | chime << 8, std::memory_order_relaxed);
+        dream_lights_.store(dream_.Active() ? (dream_.KeyMask() | 1u << 25) : 0u, std::memory_order_relaxed);
         const bool tape_menu = menu_.Active() && menu_.Page() == MenuPage::Samples;
         harmony_lights_.store(engine.Harmony() ? harmony::Pack(engine.Harmony()->state, engine.Harmony()->Shift()) : 0u, std::memory_order_relaxed);
         if(const parts::Parts* pp = engine.Parts()) {
@@ -636,7 +658,9 @@ private:
     uint8_t magic_kind_ = 0, magic_count_ = 0;
     magic::Rng rng_;
     magic::Chime chime_;
-    std::atomic<bool> chime_request_{false};
+    magic::Dream dream_;
+    std::atomic<bool> chime_request_{false}, activity_{false};
+    std::atomic<uint32_t> dream_lights_{0};
     // Fires at 1 s held, then every 1.5 s while held; letting go resets.
     template<typename F> static void MagicCombo(bool held, uint32_t& frames, uint32_t block, F fire) {
         if(!held) { frames = 0; return; }
@@ -777,6 +801,9 @@ struct LedView {
     uint32_t parts = 0, parts_clock = 0;          // PanelController::PartsLights / PartsClock (0.14)
     uint32_t sequence = 0;                        // PanelController::SequenceLights (0.15)
     uint32_t magic = 0;                           // PanelController::MagicLights (0.17)
+    uint32_t dream = 0;                           // PanelController::DreamLights (0.18)
+    float dream_level = .5f;                      // the dream's breathing, 0..1 (main loop clock)
+    uint8_t ripple = 0;                           // a loop just closed: the ripple's progress 1..255 (0.18)
 };
 // 0.16: with harmony on, each key glows dim in the colour of the chord it plays now: major
 // orange, minor blue, diminished red, augmented pink, sus4 teal (Shift held: the shifted
@@ -1027,6 +1054,30 @@ FORGE_COLD inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chomp
         const unsigned state = v.sequence & 7u;
         chompi = state == 1 ? ((v.parts_clock & 5u) == 5u ? knobs::colour::orange : Rgb{}) : state == 2 ? knobs::colour::orange
                : state == 3 ? ((v.sequence & 8u) ? knobs::colour::yellow : knobs::Scale(knobs::colour::green, .3f)) : Rgb{};
+    }
+    // 0.18, menu closed: a surprise roll sparkles the keys in fresh colours; a loop or recorded
+    // take closing sends a green ripple out from the middle; a dream breathes its notes in purple.
+    if(!(v.menu & 1u)) {
+        if((v.magic & 3u) == 1u) {
+            const unsigned count = (v.magic >> 2) & 15u;
+            for(uint8_t s = 0; s < 15; ++s) if((s * 7u + count * 5u) % 4u == 0u) keys[panel::SlotLed(s)] = knobs::StepColour(s + count);
+        }
+        if(v.ripple) {
+            const float radius = v.ripple / 255.f * 8.f, fade = 1.f - v.ripple / 255.f;
+            for(uint8_t s = 0; s < 15; ++s) {
+                const float d = (s > 7 ? s - 7.f : 7.f - s) - radius;
+                if(d > -1.f && d < 1.f) keys[panel::SlotLed(s)] = knobs::Scale(knobs::colour::green, fade * (1.f - (d < 0 ? -d : d)));
+            }
+        }
+        if(v.dream >> 25) {
+            for(uint8_t key = 0; key < panel::kButtons; ++key) {
+                const uint8_t note = panel::kKeyNotes[key];
+                if(!note || !((v.dream >> (note - 48)) & 1u)) continue;
+                const uint8_t slot = panel::KeyToSlot(key);
+                const uint8_t led = slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key);
+                if(led < 25) keys[led] = knobs::Scale(knobs::colour::purple, .15f + .6f * v.dream_level);
+            }
+        }
     }
     // 0.17 start-up chime: a rainbow wave runs left to right across the white keys.
     if(const uint32_t chime = (v.magic >> 8) & 255u) {
