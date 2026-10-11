@@ -176,6 +176,12 @@ void LedComposition() {
     play.keys_down = uint64_t(1) << 8;                                 // KEY_2 = slot 1 (empty)
     ComposeLeds(play, keys, chompi);
     const Rgb b = SampleBankColour(1);
+    // 0.19.2: every sample bank has its own colour name (purple, orange, teal, red, lime): no two closer than 0.4.
+    for(uint8_t i = 0; i < 5; ++i) for(uint8_t j = i + 1; j < 5; ++j) {
+        const Rgb x = SampleBankColour(i), y = SampleBankColour(j);
+        assert(std::fabs(x.r - y.r) + std::fabs(x.g - y.g) + std::fabs(x.b - y.b) > .4f);
+    }
+    assert(SampleBankColour(3).r == 1.f && SampleBankColour(3).g < .1f && SampleBankColour(3).b < .1f);   // d: red
     assert(std::fabs(keys[panel::SlotLed(0)].r - b.r * .25f) < 1e-6f && std::fabs(keys[panel::SlotLed(2)].g - b.g * .25f) < 1e-6f);
     assert(keys[panel::SlotLed(1)].r == 1.f && keys[panel::SlotLed(3)].r == 0.f);
     assert(keys[panel::SlotLed(kRamSlot)].r > 0.f && keys[panel::SlotLed(kRamSlot)].b > keys[panel::SlotLed(kRamSlot)].g);

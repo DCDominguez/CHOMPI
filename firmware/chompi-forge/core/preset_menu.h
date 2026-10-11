@@ -318,9 +318,11 @@ FORGE_NOINLINE inline void RenderMenuLeds(uint32_t packed, uint16_t occupancy, b
 }
 // Samples page LEDs. occupancy: file slots of the shown mode/bank; recording:
 // the RAM slot holds a take; live: PackSelection of the playing patch.
-// TAPE's sample bank colours (a-e): purple, orange, teal, dark orange, yellow-green.
+// Sample bank colours (a-e): purple, orange, teal, red, lime. TAPE's, except d: TAPE shows a dark
+// orange next to b's orange; Forge 0.19.2 makes it red so every bank has its own name (the owner:
+// "bank purple" for the default samples, not "bank a").
 inline Rgb SampleBankColour(uint8_t bank) {
-    static const Rgb kBankColours[kSampleBanks] = {{.6f, .1f, 1}, {1, .45f, 0}, {0, .8f, .7f}, {.8f, .25f, 0}, {.6f, 1, 0}};
+    static const Rgb kBankColours[kSampleBanks] = {{.6f, .1f, 1}, {1, .45f, 0}, {0, .8f, .7f}, {1, .08f, .08f}, {.6f, 1, 0}};
     return kBankColours[bank < kSampleBanks ? bank : 0];
 }
 FORGE_COLD inline void RenderSampleLeds(uint32_t packed, uint16_t occupancy, bool card_ready, bool recording, uint32_t live,

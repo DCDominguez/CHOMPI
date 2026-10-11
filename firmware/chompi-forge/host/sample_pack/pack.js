@@ -1,7 +1,8 @@
 "use strict";
 // Choowi's sample pack: two TAPE banks made with Web Audio (OfflineAudioContext), rendered by
-// host/make_sample_pack.py in Chromium. Chromatic bank d plays at its own pitch on middle C
-// (C4, as Forge and TAPE map a chromatic sample); kit bank d is one hit per white key.
+// host/make_sample_pack.py in Chromium, as bank a (purple): Forge's default samples since 0.19.2.
+// The chromatic bank plays at its own pitch on middle C (C4, as Forge and TAPE map a chromatic
+// sample); the kit bank is one hit per white key.
 // Seeded noise, so the same script gives the same sound (Chromium may differ by one 16-bit step). CC0.
 const SR = 48000, C4 = 261.6256;
 
@@ -179,9 +180,9 @@ async function render(build, seconds, rate = SR) {
   }
   return finish(buffer.getChannelData(0));
 }
-async function renderPack() {
+async function renderPack(bank = "a") {
   const files = [];
-  for (const [list, prefix] of [[CHROMATIC, "jammi_d"], [KIT, "cubbi_d"]])
+  for (const [list, prefix] of [[CHROMATIC, `jammi_${bank}`], [KIT, `cubbi_${bank}`]])
     for (let i = 0; i < list.length; i++) {
       const [name, seconds, build, rate] = list[i], samples = await render(build, seconds, rate);
       files.push({file: `${prefix}${i + 1}.wav`, name, seconds: samples.length / SR, wav: wav(samples)});
