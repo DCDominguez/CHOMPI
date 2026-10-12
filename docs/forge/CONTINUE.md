@@ -11,8 +11,12 @@ Updated 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2
   switch-on, stock reads paused while 3.3 / 3.1 V is set, comparator read directly, writes read back
   and the restore retried (give-up after 1 s), bands green / yellow / red (< 3.1 V, fast blink) /
   white, no climbing while charging. `make test` all PASS; release 255,416 B, development 269,980 B.
-- **Hardware check needed:** SW6 colour right after switch-on, while charging (no climb), Inspector
-  page 11 `samples_33` near 0 and `level_checks` counting every 30 s; a long unplugged play for red.
+- **On hardware (build 83b57b8, card install + power cycle):** ed902b8 never ran the check (it
+  waited for an idle bus right after starting the stock read; fixed in 83b57b8). 83b57b8, Inspector
+  page 11 over 94 s: green 14 s after switch-on, level_checks 4 (every 30 s), 0x0C read back 3.3 V
+  then 3.0 V, 0 mismatches / errors, low@3.0 0 of ~4,650, battery_low history 00000000.
+  `samples_33` 12 = paused ticks re-counting the last 3.0 V read (the monitor counts per tick), not
+  3.3 V readings. **Still to see:** no climb over a long charge, yellow / red on a long unplugged play.
 - The hardware has no voltage reading (0x0C: 3.0-3.3 V only), so a percentage is impossible.
 - Test checklist for the owner: https://claude.ai/artifact/Xf2FPWCLEWJLDfYL4HeUcM (private).
 
