@@ -205,6 +205,42 @@ PARTS_SCHEMA = object_schema({
                             "seed": {"type": "integer", "minimum": 0, "maximum": 2047},
                             "send_clock": {"type": "boolean"}})})
 SCHEMA7 = object_schema({**SCHEMA6["properties"], "version": {"type": "integer", "enum": [7]}, "parts": PARTS_SCHEMA})
+# v8 (firmware 0.20, development) = v7 + "fx": the FX section (core/fx.h; docs/forge/CONTINUE.md). Four modules,
+# one effect chosen in each, in a route; Space's amount and character are the delay / reverb modules. On the wire:
+# a word (2 bits per module's choice in module order space, colour, texture, motion; bits 8-9 route) in two
+# bytes (request 96-97), then colour, texture and motion amounts and motion rate, 14 bits each (98-105).
+# FX_BUILT lists the effects this firmware has; the others are reserved (the firmware falls back to the first).
+FX_ROUTES = ("classic", "wear_last", "wash_first", "side_by_side")
+FX_MODULES = ("space", "colour", "texture", "motion")
+FX_CHOICES = {"space": ("echo_room", "cloud", "tape_echo"), "colour": ("saturation", "fold", "crush"),
+              "texture": ("cassette", "broken", "squash"), "motion": ("chorus", "phaser", "tremolo")}
+FX_BUILT = {"space": ("echo_room", "cloud"), "colour": ("saturation",), "texture": ("cassette",), "motion": ("chorus",)}
+FX_AMOUNTS = ("colour_amount", "texture_amount", "motion_amount", "motion_rate")
+FX_DEFAULTS = {"route": "classic", "space": "echo_room", "colour": "saturation", "texture": "cassette", "motion": "chorus",
+               "colour_amount": 0, "texture_amount": 0, "motion_amount": 0, "motion_rate": 0.3}
+FX_SCHEMA = object_schema({"route": {"type": "string", "enum": list(FX_ROUTES)},
+                           **{m: {"type": "string", "enum": list(FX_BUILT[m])} for m in FX_MODULES},
+                           **{k: {"type": "number", "minimum": 0, "maximum": 1} for k in FX_AMOUNTS}})
+SCHEMA8 = object_schema({**SCHEMA7["properties"], "version": {"type": "integer", "enum": [8]}, "fx": FX_SCHEMA})
+
+
+def check_fx(f):
+    if not isinstance(f, dict) or set(f) != set(FX_DEFAULTS) or f["route"] not in FX_ROUTES \
+            or any(f[m] not in FX_BUILT[m] for m in FX_MODULES) \
+            or any(type(f[k]) not in (int, float) or isinstance(f[k], bool) or not math.isfinite(f[k]) or not 0 <= f[k] <= 1
+                   for k in FX_AMOUNTS):
+        raise ValueError("fx: route " + "/".join(FX_ROUTES) + "; " + "; ".join(f"{m} " + "/".join(FX_BUILT[m]) for m in FX_MODULES)
+                         + "; " + ", ".join(FX_AMOUNTS) + " 0-1 (see the v8 schema)")
+
+
+def fx_word(f):
+    return sum(FX_CHOICES[m].index(f[m]) << (2 * i) for i, m in enumerate(FX_MODULES)) | FX_ROUTES.index(f["route"]) << 8
+
+
+def fx_from_status(word, amounts):
+    if word >> 10 or any((word >> (2 * i) & 3) == 3 for i in range(4)): raise ValueError("Invalid fx in status")
+    f = {"route": FX_ROUTES[word >> 8 & 3], **{m: FX_CHOICES[m][word >> (2 * i) & 3] for i, m in enumerate(FX_MODULES)}}
+    return {**f, **{k: round(v / 16383, 4) for k, v in zip(FX_AMOUNTS, amounts)}}
 
 
 def parts_words(p):
@@ -330,11 +366,12 @@ def check_value(path, value, codec):
 
 
 def validate_instrument3(patch):
-    v5 = patch.get("version") in (5, 6, 7)
-    v6 = patch.get("version") in (6, 7)
-    v7 = patch.get("version") == 7
+    v5 = patch.get("version") in (5, 6, 7, 8)
+    v6 = patch.get("version") in (6, 7, 8)
+    v7 = patch.get("version") in (7, 8)
+    v8 = patch.get("version") == 8
     if set(patch) != {"version", "name", "engine", "routing", "modules", *(("knobs",) if v5 else ()), *(("harmony",) if v6 else ()),
-                      *(("parts",) if v7 else ())} \
+                      *(("parts",) if v7 else ()), *(("fx",) if v8 else ())} \
             or type(patch["version"]) is not int:
         raise ValueError("Invalid instrument fields")
     if v6:
@@ -345,6 +382,7 @@ def validate_instrument3(patch):
                 or type(h["inversion"]) is not int or not 0 <= h["inversion"] <= 3 or h["layout"] not in ("static", "real"):
             raise ValueError("harmony: " + ", ".join(HARMONY_DEFAULTS) + " (see the v6 schema)")
     if v7: check_parts(patch["parts"])
+    if v8: check_fx(patch["fx"])
     v4 = patch["version"] >= 4
     if v5 and (not isinstance(patch["knobs"], list) or len(patch["knobs"]) != 4
                or any(not isinstance(k, str) or k not in KNOB_CHOICES for k in patch["knobs"])):
@@ -399,17 +437,20 @@ def v2_cutoff(synth):
 
 
 def upgrade_patch(patch, to=3):
-    """Return a v3-v7 patch with the same delay/output (and v2 synth)
+    """Return a v3-v8 patch with the same delay/output (and v2 synth)
     settings; new modules start neutral (osc2/noise/LFO depths/reverb mix 0,
     filter envelope 0; v4 adds the sampler module, unused until routing selects
-    it; v5 adds knob assignments, all "default"; v6 harmony off; v7 arp/bass off). The filter envelope copies the amp
+    it; v5 adds knob assignments, all "default"; v6 harmony off; v7 arp/bass off; v8 the FX section at today's sound). The filter envelope copies the amp
     envelope's shape at zero depth. The v3 filter is a steeper resonant low-pass
     (12 dB/oct instead of v2's 6 dB/oct), so a v2 cutoff is raised by the waveform's
     harmonic content to keep the brightness (V2_CUTOFF_FACTOR, measured on CHOMPI
     2026-10-11: Saw Bass was half as bright upgraded 1:1)."""
     patch = validate_patch(patch)
-    if to not in (3, 4, 5, 6, 7) or patch["version"] > to: raise ValueError("Upgrade target must be 3-7 and not older")
+    if to not in (3, 4, 5, 6, 7, 8) or patch["version"] > to: raise ValueError("Upgrade target must be 3-8 and not older")
     if patch["version"] == to: return patch
+    if to == 8:
+        v7 = upgrade_patch(patch, 7)
+        return validate_patch({**v7, "version": 8, "fx": dict(FX_DEFAULTS)})
     if to == 7:
         v6 = upgrade_patch(patch, 6)
         return validate_patch({**v6, "version": 7, "parts": json.loads(json.dumps(PARTS_DEFAULTS))})
@@ -478,7 +519,7 @@ def validate_instrument(patch):
 def validate_patch(patch):
     if isinstance(patch, dict) and patch.get("version") == 2:
         return validate_instrument(patch)
-    if isinstance(patch, dict) and patch.get("version") in (3, 4, 5, 6, 7):
+    if isinstance(patch, dict) and patch.get("version") in (3, 4, 5, 6, 7, 8):
         validate_instrument3(patch)
         validate_patch(effect_patch(patch))
         return patch
@@ -571,7 +612,7 @@ def encode_patch(patch, sequence):
             value = (math.log(synth[key] / low) / math.log(high / low) if key == "cutoff_hz"
                      else (synth[key] - low) / (high - low))
             data.extend(word14(int(min(max(value, 0.0), 1.0) * 16383 + 0.5)))
-    elif patch["version"] in (3, 4, 5, 6, 7):
+    elif patch["version"] in (3, 4, 5, 6, 7, 8):
         data[0] = patch["version"]
         modules = patch["modules"]
         route = (ROUTES4 if patch["version"] >= 4 else ROUTES3).index(patch["routing"])
@@ -593,8 +634,11 @@ def encode_patch(patch, sequence):
             data.extend(0 if knob == "default" else KNOB_TARGETS[knob] + 1 for knob in patch["knobs"])
         if patch["version"] >= 6:
             w = harmony_word(patch["harmony"]); data.extend([w & 127, w >> 7 & 127, w >> 14 & 127])
-        if patch["version"] == 7:
+        if patch["version"] >= 7:
             for w in parts_words(patch["parts"]): data.extend([w & 127, w >> 7 & 127, w >> 14 & 127])
+        if patch["version"] == 8:
+            f = patch["fx"]; w = fx_word(f); data.extend([w & 127, w >> 7 & 127])
+            for k in FX_AMOUNTS: data.extend(word14(int(min(max(f[k], 0.0), 1.0) * 16383 + 0.5)))
     return message(1, sequence, data)
 
 
@@ -606,7 +650,7 @@ def encode_value(value, codec):
 
 
 # Status reply length per patch version without the build identity (firmware before 0.15.2).
-STATUS_LENGTHS = {1: 30, 2: 42, 3: 81, 4: 96, 5: 100, 6: 103, 7: 109}
+STATUS_LENGTHS = {1: 30, 2: 42, 3: 81, 4: 96, 5: 100, 6: 103, 7: 109, 8: 119}
 IDENTITY_SIZE = 6
 POWER_SIZE = 3                                              # battery, power flags, charge state (0.15.2)
 STATUS_EXTRA = IDENTITY_SIZE + POWER_SIZE
@@ -717,8 +761,8 @@ def decode_response(data, sequence):
         "feedback": 0.85 * read14(data, 13) / 16383,
         "level": read14(data, 15) / 16383, "bypass": bool(data[17])}}
     offset = 18
-    if data[8] in (3, 4, 5, 6, 7):
-        patch, offset = decode_v3(data, patch["name"]), {3: 69, 4: 84, 5: 88, 6: 91, 7: 97}[data[8]]
+    if data[8] in (3, 4, 5, 6, 7, 8):
+        patch, offset = decode_v3(data, patch["name"]), {3: 69, 4: 84, 5: 88, 6: 91, 7: 97, 8: 107}[data[8]]
     elif data[8] == 2:
         if data[18] > 1 or data[19] > 3:
             raise ValueError("Invalid instrument status")
@@ -799,8 +843,10 @@ def decode_v3(data, name):
         patch["knobs"] = [KNOB_BYTES[b] for b in data[84:88]]   # reply index = request index 83-86 + 1
     if data[8] >= 6:
         patch["harmony"] = harmony_from_word(data[88] | data[89] << 7 | data[90] << 14)   # request 87-89 + 1
-    if data[8] == 7:
+    if data[8] >= 7:
         patch["parts"] = parts_from_words(data[91] | data[92] << 7 | data[93] << 14, data[94] | data[95] << 7 | data[96] << 14)
+    if data[8] == 8:                                                         # request 96-105 + 1
+        patch["fx"] = fx_from_status(data[97] | data[98] << 7, [data[i] | data[i + 1] << 7 for i in (99, 101, 103, 105)])
     return patch
 
 
@@ -961,7 +1007,7 @@ def cli(argv=None):
     commands.add_parser("ports", help="List MIDI ports")
     validate = commands.add_parser("validate"); validate.add_argument("patch")
     upgrade = commands.add_parser("upgrade", help="Convert an older patch file to a newer instrument file (v3 by default, --to 3-7)")
-    upgrade.add_argument("patch"); upgrade.add_argument("out"); upgrade.add_argument("--to", type=int, default=3, choices=(3, 4, 5, 6, 7))
+    upgrade.add_argument("patch"); upgrade.add_argument("out"); upgrade.add_argument("--to", type=int, default=3, choices=(3, 4, 5, 6, 7, 8))
     encode = commands.add_parser("encode", help="Print SysEx bytes without using MIDI")
     encode.add_argument("patch"); encode.add_argument("--sequence", type=int, default=1)
     preset_help = {"store": "Save the device's current sound to an SD preset slot",

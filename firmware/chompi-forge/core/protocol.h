@@ -41,7 +41,7 @@ inline void EncodeIdentity(uint8_t* out) {
 // supply, 16 a reading below 3.0 V, 32 a firmware install would be refused), charge state.
 constexpr size_t kPowerSize = 3;
 constexpr size_t kStatusTail = 12 + kIdentitySize + kPowerSize;   // CPU, counts, minor, identity, power, checksum
-constexpr size_t kV3Request = 69, kV4Request = 84, kV5Request = 88, kV6Request = 91, kMaxRequest = 97;
+constexpr size_t kV3Request = 69, kV4Request = 84, kV5Request = 88, kV6Request = 91, kV7Request = 97, kMaxRequest = 107;
 constexpr size_t kMaxReply = kMaxRequest + kStatusTail;
 // Note, Pedal (CC64), Bend, ModWheel (CC1) and ResetControllers (CC121) are
 // channel-1 performance events: no reply, dropped if queued before an emergency.
@@ -141,10 +141,11 @@ inline const V3Field* V3Fields(size_t& count) {
 // Shared by SysEx requests, status replies and SD preset records.
 inline size_t PatchDataSize(uint8_t version) {
     return version == 1 ? 10 : version == 2 ? 22 : version == 3 ? kV3Request - 8 : version == 4 ? kV4Request - 8
-         : version == 5 ? kV5Request - 8 : version == 6 ? kV6Request - 8 : version == 7 ? kMaxRequest - 8 : 0;
+         : version == 5 ? kV5Request - 8 : version == 6 ? kV6Request - 8 : version == 7 ? kV7Request - 8
+         : version == 8 ? kMaxRequest - 8 : 0;
 }
 FORGE_COLD inline Error DecodePatchData(const uint8_t* data, size_t size, Parameters& out) {
-    if(!size || data[0] < 1 || data[0] > 7) return Error::Version;
+    if(!size || data[0] < 1 || data[0] > 8) return Error::Version;
     if(size != PatchDataSize(data[0])) return Error::Length;
     for(size_t i = 0; i < size; ++i) if(data[i] > 127) return Error::Patch;
     auto at = [data](size_t request_index) { return data + request_index - 7; };
@@ -187,6 +188,11 @@ FORGE_COLD inline Error DecodePatchData(const uint8_t* data, size_t size, Parame
         p.parts_arp = *at(90) | uint32_t(*at(91)) << 7 | uint32_t(*at(92)) << 14;
         p.parts_clock = *at(93) | uint32_t(*at(94)) << 7 | uint32_t(*at(95)) << 14;
     }
+    if(p.version >= 8) {                                                                          // request 96-105
+        p.fx = static_cast<uint16_t>(*at(96) | uint32_t(*at(97)) << 7);
+        p.fx_colour = Read14(at(98)) / 16383.f; p.fx_texture = Read14(at(100)) / 16383.f;
+        p.fx_motion = Read14(at(102)) / 16383.f; p.fx_motion_rate = Read14(at(104)) / 16383.f;
+    }
     if(!p.Valid()) return Error::Patch;      // e.g. sample start not before end
     out = p;
     return Error::None;
@@ -203,7 +209,7 @@ FORGE_COLD inline Error DecodeRequest(const uint8_t* bytes, size_t size, Request
     Request candidate;
     candidate.sequence = Read14(bytes + 5);
     if(bytes[4] == 1) {
-        if(bytes[7] < 1 || bytes[7] > 7) return Error::Version;
+        if(bytes[7] < 1 || bytes[7] > 8) return Error::Version;
         if(size != 8 + PatchDataSize(bytes[7])) return Error::Length;
         const Error error = DecodePatchData(bytes + 7, size - 8, candidate.patch);
         if(error != Error::None) return error;
@@ -313,6 +319,11 @@ FORGE_COLD inline size_t EncodePatchData(const Parameters& p, uint8_t* data) {
     if(p.version >= 7) {
         *at(90) = p.parts_arp & 127; *at(91) = (p.parts_arp >> 7) & 127; *at(92) = (p.parts_arp >> 14) & 127;
         *at(93) = p.parts_clock & 127; *at(94) = (p.parts_clock >> 7) & 127; *at(95) = (p.parts_clock >> 14) & 127;
+    }
+    if(p.version >= 8) {
+        *at(96) = p.fx & 127; *at(97) = (p.fx >> 7) & 127;
+        WriteNormalized(at(98), p.fx_colour); WriteNormalized(at(100), p.fx_texture);
+        WriteNormalized(at(102), p.fx_motion); WriteNormalized(at(104), p.fx_motion_rate);
     }
     return PatchDataSize(p.version);
 }

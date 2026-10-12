@@ -85,6 +85,29 @@ class InstrumentTests(unittest.TestCase):
               with self.assertRaises(forge_ai.ProviderError):
                   forge_ai.generate_patch(provider,"fake-key","model","Soft keys",lambda r,timeout: io.BytesIO(json.dumps(envelope).encode()),kind="instrument")
 
+    def test_v8_fx_roundtrips_through_the_firmware_codec(self):
+        """v8 (0.20 development): the FX block survives the firmware's codec (probe) both ways."""
+        rng = random.Random(8008); packets = []
+        base = host.upgrade_patch(host.load_patch(ROOT / "presets/07-warm-pad.json"), 8)
+        self.assertEqual(base["fx"], host.FX_DEFAULTS)
+        for index in range(60):
+            p = copy.deepcopy(base)
+            p["fx"] = {"route": rng.choice(host.FX_ROUTES), **{m: rng.choice(host.FX_BUILT[m]) for m in host.FX_MODULES},
+                       **{k: rng.choice((0, 1, round(rng.random(), 4))) for k in host.FX_AMOUNTS}}
+            packets.append(host.encode_patch(host.validate_patch(p), index))
+        for packet, reply in zip(packets, probe(*packets)):
+            self.assertEqual(len(packet), 107)
+            self.assertEqual(len(reply), 119 + host.STATUS_EXTRA)
+            self.assertEqual(reply[8:106], packet[7:105])
+            captured = host.decode_response(reply, host.read14(packet, 5))["patch"]
+            self.assertEqual(captured["version"], 8)
+            self.assertEqual(host.encode_patch(captured, host.read14(packet, 5)), packet)
+        for bad in ({"colour": "fold"}, {"route": "sideways"}, {"motion_amount": 1.5}, {"motion_rate": True}, {"extra": 1}):
+            p = copy.deepcopy(base); p["fx"] = {**p["fx"], **bad}
+            with self.assertRaises(ValueError): host.validate_patch(p)
+        p = copy.deepcopy(base); del p["fx"]
+        with self.assertRaises(ValueError): host.validate_patch(p)
+
     def random_v3(self, rng, index):
         p = host.load_patch(ROOT / "presets/07-warm-pad.json")
         p["routing"] = host.ROUTES3[index % 2]

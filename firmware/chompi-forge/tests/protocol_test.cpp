@@ -38,7 +38,7 @@ void ProtocolAndAtomicity() {
         assert(DecodeRequest(packet.data(), size, request) != Error::None);
     packet[16] = 2; packet[17] = Checksum(packet.data(), 17);
     assert(DecodeRequest(packet.data(), packet.size(), request) == Error::Patch);
-    packet = Patch(); packet[7] = 8; packet[17] = Checksum(packet.data(), 17);
+    packet = Patch(); packet[7] = 9; packet[17] = Checksum(packet.data(), 17);
     assert(DecodeRequest(packet.data(), packet.size(), request) == Error::Version);
     packet = Patch(); packet[7] = 3; packet[17] = Checksum(packet.data(), 17);
     assert(DecodeRequest(packet.data(), packet.size(), request) == Error::Length); // v3 needs 69 bytes
@@ -116,14 +116,54 @@ void ProtocolV3() {
     uint8_t cursor_request[14]{}; Header(cursor_request,0x0b,3); cursor_request[7]=6;
     cursor_request[13]=Checksum(cursor_request,13);
     assert(DecodeRequest(cursor_request,14,request)==Error::Opcode);
-    // The largest reply (a v7 status) fits the firmware's USB packet buffer size.
-    response.patch.version = 7;
+    // The largest reply (a v8 status, 0.20) fits the firmware's USB packet buffer size.
+    response.patch.version = 8;
     assert(EncodeResponse(response, 0, 0, reply) == kMaxReply);
     uint8_t envelope[kMaxReply + 2]; envelope[0] = 0xf0; envelope[kMaxReply + 1] = 0xf7;
     for(size_t i = 0; i < kMaxReply; ++i) envelope[i + 1] = reply[i];
     uint8_t usb[((kMaxReply + 2 + 2) / 3) * 4];
     assert(PackUsbSysEx(envelope, sizeof(envelope), usb, sizeof(usb)) == sizeof(usb));
     assert(PackUsbSysEx(envelope, sizeof(envelope), usb, sizeof(usb) - 1) == 0);
+}
+// v8 (0.20) = v7 + the FX section (request 96-105): 107-byte request, 119-byte status. Round trip,
+// the engine applies it (choices, route, Colour / Texture / Motion), a snapshot carries it back,
+// invalid FX words are rejected, and a v7 sound saved with the FX section in use becomes v8.
+void ProtocolV8() {
+    Parameters p; p.version = 8; p.synth = true; p.voices = 4;
+    { parts::Settings s; p.parts_arp = parts::PackArp(s); p.parts_clock = parts::PackClock(s); }
+    p.fx = static_cast<uint16_t>(1u | 0u << 2 | 0u << 4 | 0u << 6 | 2u << 8);   // cloud, routes: Wash first
+    p.fx_colour = .25f; p.fx_texture = .5f; p.fx_motion = .75f; p.fx_motion_rate = .125f;
+    assert(p.Valid());
+    std::vector<uint8_t> request(kMaxRequest); Header(request.data(), 1, 80);
+    assert(EncodePatchData(p, request.data() + 7) == kMaxRequest - 8);
+    request[kMaxRequest - 1] = Checksum(request.data(), kMaxRequest - 1);
+    Request decoded; assert(DecodeRequest(request.data(), request.size(), decoded) == Error::None);
+    assert(decoded.patch.version == 8 && decoded.patch.fx == p.fx);
+    assert(std::fabs(decoded.patch.fx_colour - .25f) < 1e-4f && std::fabs(decoded.patch.fx_texture - .5f) < 1e-4f);
+    assert(std::fabs(decoded.patch.fx_motion - .75f) < 1e-4f && std::fabs(decoded.patch.fx_motion_rate - .125f) < 1e-4f);
+    std::vector<float> l(48002), r(48002); Engine engine; assert(engine.Init(48000.f, l.data(), r.data(), l.size()));
+    Response response; assert(ExecuteRequest(decoded, engine, response) && response.error == Error::None);
+    assert(engine.Choice(fx::Module::Space) == 1 && engine.GetRoute() == fx::Route::WashFirst);
+    assert(std::fabs(engine.Value(Parameter::Motion) - .75f) < 1e-4f && std::fabs(engine.Value(Parameter::Saturation) - .25f) < 1e-4f);
+    uint8_t reply[kMaxReply]; assert(EncodeResponse(response, 0, 0, reply) == kMaxReply && Checksum(reply, kMaxReply) == 0);
+    for(size_t i = 7; i < kMaxRequest - 1; ++i) assert(reply[i + 1] == request[i]);   // the apply echo
+    const Parameters back = engine.Snapshot();
+    assert(back.version == 8 && back.fx == p.fx && std::fabs(back.fx_motion - .75f) < 1e-4f);
+    // Invalid: a choice of 3, a route bit above the field.
+    for(uint16_t bad : {uint16_t(3), uint16_t(3u << 6), uint16_t(1u << 10)}) {
+        auto broken = request; broken[96] = bad & 127; broken[97] = (bad >> 7) & 127;
+        broken[kMaxRequest - 1] = Checksum(broken.data(), kMaxRequest - 1);
+        Request rejected; assert(DecodeRequest(broken.data(), broken.size(), rejected) == Error::Patch);
+    }
+    // An effect this firmware has not built (Colour: fold) falls back to the module's first.
+    Parameters fold = p; fold.fx = static_cast<uint16_t>(1u << 2); assert(fold.Valid() && engine.ApplyPatch(fold));
+    assert(engine.Choice(fx::Module::Colour) == 0);
+    // A v3 sound with Motion turned up saves as v8 (with valid parts words even without the parts).
+    Engine e2; assert(e2.Init(48000.f, l.data(), r.data(), l.size()));
+    Parameters v3; v3.version = 3; v3.synth = true; assert(e2.ApplyPatch(v3));
+    assert(e2.Snapshot().version == 3);
+    assert(e2.Apply({Parameter::Motion, .4f}));
+    const Parameters saved = e2.Snapshot(); assert(saved.version == 8 && saved.Valid() && std::fabs(saved.fx_motion - .4f) < 1e-4f);
 }
 void Framing() {
     MidiFramer parser; MidiFrame frame;
@@ -260,17 +300,17 @@ void ProtocolV7() {
     Parameters p; p.version = 7; p.synth = true; p.voices = 4;
     p.parts_arp = parts::PackArp(s); p.parts_clock = parts::PackClock(s);
     assert(p.Valid());
-    std::vector<uint8_t> request(kMaxRequest); Header(request.data(), 1, 79);
-    assert(EncodePatchData(p, request.data() + 7) == kMaxRequest - 8);
-    request[kMaxRequest - 1] = Checksum(request.data(), kMaxRequest - 1);
+    std::vector<uint8_t> request(kV7Request); Header(request.data(), 1, 79);
+    assert(EncodePatchData(p, request.data() + 7) == kV7Request - 8);
+    request[kV7Request - 1] = Checksum(request.data(), kV7Request - 1);
     Request decoded; assert(DecodeRequest(request.data(), request.size(), decoded) == Error::None);
     assert(decoded.patch.version == 7 && decoded.patch.parts_arp == p.parts_arp && decoded.patch.parts_clock == p.parts_clock);
     std::vector<float> l(48002), r(48002); Engine engine; assert(engine.Init(48000.f, l.data(), r.data(), l.size()));
     parts::Parts parts; parts.Init(48000.f); engine.SetParts(&parts);
     Response response; assert(ExecuteRequest(decoded, engine, response) && response.error == Error::None);
     assert(parts.settings == s && parts.GetClock().Tempo() == 97);
-    uint8_t reply[kMaxReply]; assert(EncodeResponse(response, 0, 0, reply) == kMaxReply && Checksum(reply, kMaxReply) == 0);
-    for(size_t i = 7; i < kMaxRequest - 1; ++i) assert(reply[i + 1] == request[i]);   // the apply echo
+    uint8_t reply[kMaxReply]; assert(EncodeResponse(response, 0, 0, reply) == kV7Request + kStatusTail && Checksum(reply, kV7Request + kStatusTail) == 0);
+    for(size_t i = 7; i < kV7Request - 1; ++i) assert(reply[i + 1] == request[i]);   // the apply echo
     // Invalid parts words are rejected: pattern 6, gate 21, bass octave 3, tempo 39 and 301.
     parts::Settings slow = s; slow.bpm = 39; parts::Settings fast = s; fast.bpm = 301;
     const uint32_t bad[][2] = {{p.parts_arp | 7u, p.parts_clock}, {p.parts_arp | 20u << 8, p.parts_clock}, {p.parts_arp | 3u << 19, p.parts_clock},
@@ -278,7 +318,7 @@ void ProtocolV7() {
     for(const auto& w : bad) {
         auto broken = request;
         for(unsigned k = 0; k < 3; ++k) { broken[90 + k] = (w[0] >> (7 * k)) & 127; broken[93 + k] = (w[1] >> (7 * k)) & 127; }
-        broken[kMaxRequest - 1] = Checksum(broken.data(), kMaxRequest - 1);
+        broken[kV7Request - 1] = Checksum(broken.data(), kV7Request - 1);
         assert(DecodeRequest(broken.data(), broken.size(), decoded) == Error::Patch);
     }
     auto short_v7 = request; short_v7.resize(kV6Request); short_v7[kV6Request - 1] = Checksum(short_v7.data(), kV6Request - 1);
@@ -310,7 +350,7 @@ void StatusResetsCpu() {
     m = status({2}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Patch);
     m = status({1, 0}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Length);
 }
-int main() { ProtocolV3(); ProtocolV5(); ProtocolV6(); ProtocolV7(); StatusResetsCpu();
+int main() { ProtocolV3(); ProtocolV5(); ProtocolV6(); ProtocolV7(); ProtocolV8(); StatusResetsCpu();
     ProtocolAndAtomicity(); Framing(); UsbPacketization();
     std::cout << "PASS: protocol rejection/atomicity, v3 round trip/bounds, v5 knob assignments, status CPU reset, MIDI real-time/resync/fuzz, USB packet endings\n";
 }

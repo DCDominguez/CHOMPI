@@ -150,6 +150,22 @@ public:
         return true;
     }
     uint8_t Choice(fx::Module module) const { return choice_[static_cast<unsigned>(module)]; }
+    // Anything off the pre-FX defaults (a choice, the route, Motion): a saved sound becomes v8.
+    bool FxInUse() const {
+        for(unsigned m = 0; m < fx::kModules; ++m) if(choice_[m]) return true;
+        return route_ != fx::Route::Classic || performance_.motion > 0.f;
+    }
+    // A v8 sound's FX section: choices (an effect this firmware lacks falls back to the module's
+    // first), route, and the Colour / Texture / Motion settings (performance controls).
+    FORGE_COLD void ApplyFx(const Parameters& patch) {
+        for(unsigned m = 0; m < fx::kModules; ++m)
+            if(!SetChoice(static_cast<fx::Module>(m), static_cast<uint8_t>((patch.fx >> (2 * m)) & 3u))) SetChoice(static_cast<fx::Module>(m), 0);
+        SetRoute(static_cast<fx::Route>((patch.fx >> 8) & 3u));
+        performance_.saturation = patch.fx_colour; performance_.warble = patch.fx_texture;
+        performance_.motion = patch.fx_motion; performance_.motion_rate = patch.fx_motion_rate;
+        effects_.Configure(performance_);
+        chorus_.Set(performance_.motion, performance_.motion_rate);
+    }
     void SetRoute(fx::Route route) { if(static_cast<unsigned>(route) < fx::kRoutes) route_ = route; }
     fx::Route GetRoute() const { return route_; }
     // Sampler memory (v4); see sample_table.h. May be set before or after Init.
@@ -338,6 +354,7 @@ public:
             const uint8_t limit = harmony_->state.max_notes;
             harmony_->state = harmony::Unpack(patch.harmony); harmony_->state.max_notes = limit;
         }
+        if(patch.version >= 8) ApplyFx(patch);                  // v8 sounds carry the FX section (0.20)
         if(parts_ && patch.version >= 7) {                      // v7 presets carry the parts
             parts_->settings = parts::Unpack(patch.parts_arp, patch.parts_clock); PartsChanged();
         }
@@ -360,9 +377,19 @@ public:
     FORGE_COLD Parameters Snapshot() const {
         Parameters p = parameters_;
         if(p.version >= 3 && harmony_ && p.version < 6 && harmony_->state.enabled) p.version = 6;
-        if(p.version >= 3 && parts_ && (p.version >= 7 || parts_->Active())) p.version = 7;
+        if(p.version >= 3 && parts_ && p.version < 7 && parts_->Active()) p.version = 7;
+        if(p.version >= 3 && p.version < 8 && FxInUse()) p.version = 8;     // 0.20: the FX section travels with the sound
+        if(p.version >= 7 && !parts_ && !PartsWordsValid(p.parts_arp, p.parts_clock)) {
+            parts::Settings s; p.parts_arp = parts::PackArp(s); p.parts_clock = parts::PackClock(s);
+        }
         if(p.version >= 6 && harmony_) p.harmony = harmony::Pack(harmony_->state);
         if(p.version >= 7 && parts_) { p.parts_arp = parts::PackArp(parts_->settings); p.parts_clock = parts::PackClock(parts_->settings); }
+        if(p.version >= 8) {
+            uint16_t word = static_cast<uint16_t>(static_cast<unsigned>(route_) << 8);
+            for(unsigned m = 0; m < fx::kModules; ++m) word = static_cast<uint16_t>(word | (choice_[m] & 3u) << (2 * m));
+            p.fx = word; p.fx_colour = performance_.saturation; p.fx_texture = performance_.warble;
+            p.fx_motion = performance_.motion; p.fx_motion_rate = performance_.motion_rate;
+        }
         return p;
     }
 #ifdef FORGE_TEST_HOOKS

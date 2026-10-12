@@ -12,8 +12,14 @@ Updated 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2
   synth page or held 4 s; keys, route A#3, before/after F#3 / G#3, knobs SW4 Space / SW1 Colour /
   SW2 Texture / SW3 Motion with hold + turn character, lights, CHOMPI green). Release 239,592 B,
   development 251,252 B.
-- Next: patch v8 (`fx` block: route, four choices, Colour / Texture / Motion amounts, Motion rate)
-  in firmware, host, forge page and chatbot prompt; then the manual; then one listening session.
+- **Patch v8 done** (firmware + Python host; PROTOCOL.md): `fx` word + Colour / Texture / Motion
+  amounts + Motion rate (request 96-105); v8 sets them, v1-v7 leave them; a sound with the FX
+  section in use saves as v8; unbuilt choices fall back to the module's first. Round trip through
+  the firmware codec (forge_probe) in test_instrument. **The public forge page, the local workshop
+  (host/web) and the chatbot prompt stay v7 until 0.20 ships** (0.19.2 firmware rejects v8); add
+  their FX controls at release. Release 240,840 B, development 252,532 B.
+- Next: a short FX section guide for the listening session, then the session itself (install the
+  development build; the owner judges chorus and cloud; webcam for the FX page lights).
 
 ## 2026-10-12 (late night): FX section, Phase 0 done (resume here; branch forge/fx)
 

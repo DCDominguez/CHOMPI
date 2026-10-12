@@ -31,7 +31,7 @@ void WireBoundsAndLog() {
     s.audio.physical_keys=(uint64_t(1)<<39)|1; s.audio.raw_turns[0]=0xffffffffu;
     s.system.uptime_ms=0xffffffffu; s.generation=0xffffffffu;
     uint8_t out[kMaxReply+16];
-    for(unsigned version=1;version<=4;++version) for(uint8_t page=2;page<=7;++page) {
+    for(unsigned version=1;version<=8;++version) for(uint8_t page=2;page<=7;++page) {   // v8 (0.20): the largest patch page
         s.audio.patch.version=version;
         std::fill(out,out+sizeof(out),0xa5);
         const size_t n=EncodeInspector(16383,page,s,log,0,out);

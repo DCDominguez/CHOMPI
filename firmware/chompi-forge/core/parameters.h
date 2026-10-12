@@ -48,6 +48,12 @@ inline float Clamp(float value, float low, float high) {
 constexpr uint8_t kSampleBanks = 5, kSampleSlots = 15, kRamSlot = 14; // slot 15 (index 14) = recording
 // Patch v7 parts words (layout in core/parts.h PackArp / PackClock): pattern < 6, rate < 6,
 // gate step < 20, bass mode < 5, bass octave < 3, tempo 40-300 BPM.
+// v8 FX word: four 2-bit choices (each 0-2) and a 2-bit route; bits 10-13 clear.
+inline bool FxWordValid(uint16_t fx) {
+    if(fx >> 10) return false;
+    for(unsigned m = 0; m < 4; ++m) if(((fx >> (2 * m)) & 3u) == 3u) return false;
+    return true;
+}
 inline bool PartsWordsValid(uint32_t arp, uint32_t clock) {
     const uint32_t bpm = clock & 511u;
     return !(arp >> 21) && !(clock >> 21) && (arp & 7u) < 6 && (arp >> 3 & 7u) < 6 && (arp >> 8 & 31u) < 20
@@ -85,13 +91,20 @@ struct Parameters {
     // Version 7 (0.14) adds the parts (clock, arp, bass): parts::PackArp / PackClock
     // (core/parts.h), two 21-bit words; request bytes 90-92 and 93-95.
     uint32_t parts_arp = 0, parts_clock = 0;
+    // Version 8 (0.20) adds the FX section (core/fx.h): fx = the four modules' choices, 2 bits each in
+    // module order (Space, Colour, Texture, Motion), | route << 8 (request bytes 96-97); then the
+    // Colour (saturation), Texture (warble) and Motion amounts and Motion's rate, 14 bits each (98-105).
+    // Space's amount and character are the delay / reverb fields above.
+    uint16_t fx = 0;
+    float fx_colour = 0.f, fx_texture = 0.f, fx_motion = 0.f, fx_motion_rate = .3f;
 
     bool Sampler() const { return version >= 4 && source == 1; }
     uint8_t MaxVoices() const { return version >= 4 ? 7 : 4; }
 
     FORGE_COLD bool Valid() const {
-        return version >= 1 && version <= 7 && waveform < 4 && !(version == 1 && synth)
+        return version >= 1 && version <= 8 && waveform < 4 && !(version == 1 && synth)
             && (version < 7 || PartsWordsValid(parts_arp, parts_clock))
+            && (version < 8 || (FxWordValid(fx) && Unit(fx_colour) && Unit(fx_texture) && Unit(fx_motion) && Unit(fx_motion_rate)))
             && harmony < (1u << 17) && (harmony & 15u) < 12 && ((harmony >> 4) & 15u) < 9 && ((harmony >> 8) & 7u) < 6
             && Unit(attack) && Unit(decay) && Unit(sustain) && Unit(release) && Unit(cutoff)
             && Unit(mix) && Unit(time) && Unit(feedback) && Unit(level)
