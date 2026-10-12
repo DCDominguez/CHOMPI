@@ -36,8 +36,13 @@ Updated 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2
 - **Phase 0:** `-O3` -> `-O2` in `src/Makefile`: development headroom 18.8 -> 41.9 KB, release
   53.5 KB; on CHOMPI the worst peak went 53.5 -> 55.3 % (RESOURCE_LEDGER table). **Hardware-verified**
   (stress test on both builds); CHOMPI now runs the `-O2` development build (1e6f5aa trial image).
-- Correction to the Dream check below: the encoder labelled "SW4 turned (pitch)" was SW1
-  (encoder id 3 = SW1, `kKnobEncoder`); Dream survives SW1; SW4 was not covered.
+- Encoder ids (checked in `panel_controller.h`): hardware SW1..SW4 = encoder / button 0..3, so
+  id 3 = **SW4** (logical knob 0) and SW3 = id 2. The Dream check's "SW4 turned" label was right.
+  The first CPU stress runs turned id 1 (SW2), so TAPE's saturation / warble / DJ filter were
+  **not** on (delay and reverb were, from the patches); the -O3 / -O2 comparison stands (same scene).
+  Re-run with SW3 (id 2) on -O2 (1e6f5aa): synth 41.5 / 47.7, synth + looper 42.2 / 46.1, sampler
+  53.9 / 59.4, sampler + looper 51.6 / **59.9** % (average / peak). The FX section's budget is
+  therefore ~20 points to stay under ~80 %: measure each Phase 2 effect on CHOMPI.
 
 ## 2026-10-12 (night): battery level fixed in software
 

@@ -13,6 +13,9 @@ every SW3 effect up, 7 held notes; status CPU reset before each), average / peak
 | sampler stress, effects, looper recording | 44.2 / 51.2 | 45.3 / 52.1 |
 
 (`-Os` would give development 223,268 B but slower audio; not used.) SDRAM and RAM unchanged.
+**Correction:** those runs turned SW2, not SW3, so TAPE's saturation / warble / DJ filter were off
+(delay + reverb on); the A/B stands. With them on (SW3 = encoder 2), -O2: synth 41.5 / 47.7, synth +
+looper 42.2 / 46.1, sampler 53.9 / 59.4, sampler + looper 51.6 / **59.9** % average / peak.
 
 Before that, firmware 0.19.2 plus the battery instrumentation (2026-10-12, development
 only): release **252,416 B** (unchanged) / development **268,348 B** (+2,076 B: Inspector page
