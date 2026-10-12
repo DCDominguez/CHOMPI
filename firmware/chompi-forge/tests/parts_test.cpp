@@ -341,7 +341,44 @@ void EngineAndPanel() {
 }
 } // namespace
 
+// 0.19.2 fixes: the phrase's first arp / bass step is never clipped or flammed by a grid step right
+// after it, wherever in the beat the chord lands; once per chord the bass is always the root.
+void PhraseStart0192() {
+    for(unsigned offset_ms = 0; offset_ms < 250; offset_ms += 10) {
+        Parts p; p.Init(48000.f);
+        p.settings.pattern = Pattern::Up; p.settings.rate = Rate::Eighth; p.settings.gate = 10; p.settings.bpm = 120;
+        p.settings.bass = Bass::Root; p.settings.bass_rate = BassRate::Quarter; p.Changed();
+        uint32_t t = 0; Event e[16];
+        while(t < offset_ms * 48) { p.Advance(24); p.Take(e, 16); t += 24; }
+        const uint8_t notes[3] = {60, 64, 67}; p.KeyDown(60, notes, 3, 0, 7, 100, 2);
+        std::vector<uint32_t> arp_on, bass_on;
+        for(uint32_t end = t + 48 * 1600; t < end; t += 24) {
+            p.Advance(24);
+            const unsigned n = p.Take(e, 16);
+            for(unsigned i = 0; i < n; ++i) if(e[i].velocity) (e[i].note >= 60 ? arp_on : bass_on).push_back(t);
+        }
+        assert(arp_on.size() >= 5 && bass_on.size() >= 3);
+        for(size_t i = 1; i < arp_on.size(); ++i) assert(arp_on[i] - arp_on[i - 1] >= 48 * 125 - 48);   // >= half a 1/8
+        for(size_t i = 1; i < bass_on.size(); ++i) assert(bass_on[i] - bass_on[i - 1] >= 48 * 250 - 48); // >= half a 1/4
+    }
+    for(Bass mode : {Bass::Alternate, Bass::Octave}) {
+        Parts p; p.Init(48000.f); p.settings.bass = mode; p.settings.bass_rate = BassRate::Chord; p.Changed();
+        Event e[16]; std::vector<uint8_t> basses;
+        const uint8_t chords[4][3] = {{60, 64, 67}, {57, 60, 64}, {53, 57, 60}, {55, 59, 62}};
+        const int roots[4] = {0, 9, 5, 7};
+        for(unsigned c = 0; c < 4; ++c) {
+            p.KeyDown(static_cast<uint8_t>(48 + c), chords[c], 3, roots[c], 7, 100, 2);
+            for(int b = 0; b < 400; ++b) { p.Advance(24); const unsigned n = p.Take(e, 16); for(unsigned i = 0; i < n; ++i) if(e[i].velocity) basses.push_back(e[i].note); }
+            p.KeyUp(static_cast<uint8_t>(48 + c), chords[c], 3, 2);
+            for(int b = 0; b < 50; ++b) { p.Advance(24); p.Take(e, 16); }
+        }
+        assert(basses.size() == 4);
+        for(unsigned c = 0; c < 4; ++c) assert(basses[c] % 12 == static_cast<unsigned>(roots[c]));   // the root every time
+    }
+}
+
 int main() {
+    PhraseStart0192();
     Packing(); ClockTempoTapAndMidi(); ArpPatterns(); ChordGathering(); GateLatchAndOwnership(); BassModesAndMidi(); EngineAndPanel();
     std::cout << "PASS: parts packing, clock (tempo, tap, MIDI follow/stop/start/timeout), arp patterns/octaves/"
                  "rates/seeded random, gate, latch, panic, shared-pitch ownership, bass modes/rates, MIDI out and clock out, engine (arp, harmony + arp, bass with chords, latch, panic, kit), parts page (keys, knobs, tap, run/stop, lights)\n";

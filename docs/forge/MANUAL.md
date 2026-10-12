@@ -486,7 +486,9 @@ notes outside that range play as usual.
 little as possible from the last one. Turn it off to choose the inversion with SW2.
 **Open spread** lifts the second-lowest note an octave (chords of 3 or more notes). Bigger chords drop notes in this
 order when the voices run out: the 5th first, then the middle extensions; the
-root, 3rd, 7th and top extension stay.
+root, 3rd, 7th and top extension stay. Dominant chords (the secondary dominants and Shift's
+dominants) always keep their 7th, even at triad size. Over a major 3rd an 11th chord leaves the 3rd
+out and a 13th chord the 11th (they would clash), and a ♭9 is used only on dominants.
 
 The settings are part of a **v6 patch** (the forge page's *Harmony* group, a chatbot through it, or
 `forge_host.py`) and are saved with presets stored on CHOMPI. Panic ends held

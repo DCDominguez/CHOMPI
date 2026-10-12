@@ -144,17 +144,28 @@ FORGE_COLD inline Chord Resolve(const Function& f, uint8_t tonic, Mode mode, boo
     return c;
 }
 // The chord's tones for an extension, at most `limit`, ascending semitones above the
-// root. Dropped first: the 5th, then the middle extensions (keeps root, 3rd, 7th and
-// the top extension, which carry the chord's sound).
+// root. Dropped first: the 5th, then the middle extensions from the top down (keeps root, 3rd,
+// 7th, the top extension and the 9th, which carry the chord's sound).
+// 0.19.2 fixes (the owner's harmony review, 2026-10-13):
+// - A dominant (secondary dominants, Shift's dominants and tritone substitutes) keeps its 7th
+//   even at triad size: without it V/IV was the same chord as I, and in minor V/III and V/VI
+//   doubled diatonic chords.
+// - A natural 11th over a major 3rd rubs a minor 9th against it: 11th chords drop the 3rd instead
+//   (the suspended 11th sound), 13th chords drop the 11th. A minor 9th is kept only on dominants.
 FORGE_COLD inline uint8_t Tones(const Chord& c, Extension e, unsigned limit, uint8_t* out) {
     if(limit < 1) return 0;
     if(limit > kMaxNotes) limit = kMaxNotes;
     if(e == Extension::Fifth) { out[0] = 0; if(limit < 2) return 1; out[1] = c.tone[2]; return 2; }
-    const unsigned top = static_cast<unsigned>(e) + 2;                 // Triad: k = 0..2, ..., 13th: 0..6
+    unsigned top = static_cast<unsigned>(e) + 2;                       // Triad: k = 0..2, ..., 13th: 0..6
+    if(c.quality == Quality::Dominant && top < 3) top = 3;
+    const bool major3 = c.tone[1] == 4, dominant = major3 && c.tone[3] == 10;
+    bool skip[7] = {};
+    if(major3 && c.tone[5] == 17 && top >= 5) { if(e == Extension::Eleventh) skip[1] = true; else skip[5] = true; }
+    if(c.tone[4] == 13 && !dominant) skip[4] = true;
     uint8_t order[7]; unsigned n = 0;
-    auto add = [&](unsigned k) { if(k > top) return; for(unsigned i = 0; i < n; ++i) if(order[i] == k) return; order[n++] = static_cast<uint8_t>(k); };
+    auto add = [&](unsigned k) { if(k > top || skip[k]) return; for(unsigned i = 0; i < n; ++i) if(order[i] == k) return; order[n++] = static_cast<uint8_t>(k); };
     add(0); add(1); add(3); add(top);
-    for(unsigned k = top; k >= 4; --k) add(k);
+    for(unsigned k = 4; k <= top; ++k) add(k);
     add(2);
     bool use[7] = {};
     for(unsigned i = 0; i < n && i < limit; ++i) use[order[i]] = true;

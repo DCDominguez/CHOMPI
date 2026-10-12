@@ -229,15 +229,27 @@ public:
         // the owner's CHOMPI played the first steps of a half-built chord, 2026-10-11); then on the grid.
         if(restart_) {
             if(gather_ > frames) gather_ -= frames;
-            else { gather_ = 0; restart_ = false; if(ArpOn() && order_count_) ArpStep(tick); if(BassOn()) BassStep(tick); }
+            else {
+                gather_ = 0; restart_ = false;
+                if(ArpOn() && order_count_) ArpStep(tick);
+                if(BassOn()) BassStep(tick);
+                // 0.19.2 fix: the phrase's first step lands off the grid; a grid step less than half a
+                // step after it would clip it or flam into it, so that one is skipped.
+                arp_hold_ = .5f * tick * kRateTicks[static_cast<unsigned>(settings.rate)];
+                const uint8_t bt = kBassTicks[static_cast<unsigned>(settings.bass_rate)];
+                bass_hold_ = .5f * tick * bt;
+            }
+        } else {
+            arp_hold_ = arp_hold_ > static_cast<float>(frames) ? arp_hold_ - static_cast<float>(frames) : 0.f;
+            bass_hold_ = bass_hold_ > static_cast<float>(frames) ? bass_hold_ - static_cast<float>(frames) : 0.f;
         }
         for(unsigned t = 0; t < ticks; ++t) {
             const uint32_t at = clock_.Ticks() - ticks + t + 1;
             if(sending) Midi(0xf8);
             if(restart_) continue;                    // still gathering the chord: no grid steps yet
-            if(ArpOn() && order_count_ && at % kRateTicks[static_cast<unsigned>(settings.rate)] == 0) ArpStep(tick);
+            if(ArpOn() && order_count_ && at % kRateTicks[static_cast<unsigned>(settings.rate)] == 0 && arp_hold_ <= 0.f) ArpStep(tick);
             const uint8_t bt = kBassTicks[static_cast<unsigned>(settings.bass_rate)];
-            if(BassOn() && bt && at % bt == 0) BassStep(tick);
+            if(BassOn() && bt && at % bt == 0 && bass_hold_ <= 0.f) BassStep(tick);
         }
         if(!restart_ && BassOn() && settings.bass_rate == BassRate::Chord && bass_change_) BassStep(tick);
         if(BassOn() && !set_count_ && bass_count_) StopBass();
@@ -323,7 +335,9 @@ private:
         bass_change_ = false;
         if(!set_count_) return;
         const uint8_t base = static_cast<uint8_t>(12 * (settings.bass_octave + 2) + root_);   // C1 / C2 / C3 octave
-        const bool odd = bass_step_++ & 1u;
+        // 0.19.2 fix: once per chord, the bass is always the root (alternating there made every
+        // second chord's bass its fifth or octave, like an inversion).
+        const bool odd = (bass_step_++ & 1u) && settings.bass_rate != BassRate::Chord;
         bass_count_ = 1; bass_[0] = base;
         switch(settings.bass) {
             case Bass::Root: case Bass::Off: break;
@@ -360,7 +374,7 @@ private:
     uint8_t keys_[128] = {}, set_sources_[128] = {};   // per key / set note: a bit per source holding it
     unsigned set_count_ = 0, order_count_ = 0, step_ = 0, held_ = 0, bass_step_ = 0, bass_count_ = 0, last_ticks_ = 0;
     uint32_t random_ = 0x12345678u, drops_ = 0, now_ = 0;
-    float arp_left_ = 0.f, bass_left_ = 0.f;
+    float arp_left_ = 0.f, bass_left_ = 0.f, arp_hold_ = 0.f, bass_hold_ = 0.f;   // hold: no grid step yet (frames)
     uint8_t arp_note_ = 0, root_ = 0, fifth_ = 7, velocity_ = 100, source_ = 2;
     bool restart_ = false, bass_change_ = false, sending_ = false;
     static constexpr unsigned kGatherFrames = 720;   // 15 ms at 48 kHz
