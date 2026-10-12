@@ -84,13 +84,16 @@ Rename `CHOMPI_TAPEv2_0_bin.old` back to `CHOMPI_TAPEv2_0.bin`, rename or remove
 ## 3. Power and battery
 
 - **On/off: the power switch.** Charging still works with it off.
-- **Charging:** plug USB into a wall charger or computer. A wall charger is faster. When using a power bank, charge with CHOMPI switched off. Only white means full: green and yellow are approximate battery indications, affected by charging and playing.
+- **Charging:** plug USB into a wall charger or computer. A wall charger is faster. When using a power bank, charge with CHOMPI switched off. Only white means full. While charging, the colour does not climb (charging lifts the voltage): it turns white when the charge is done.
 - **Battery over USB (0.15.2):** `python host/forge_host.py battery` (from
   `firmware/chompi-forge`, CHOMPI on USB) prints the level, its SW6 colour, USB power,
   charging and whether a firmware install is allowed; the bridge's Connect CHOMPI
   shows it too. Stock TAPE does not report it: use SW6.
 - **Battery level:** hold the **SW6** knob down for 2 s — its light shows
-  **white** = full (charge done, on the charger), **green/yellow** = rough voltage flags around 3.3 V. Release to hide it.
+  **white** = full (charge done, on the charger), **green** = fine (above about 3.3 V; most of the
+  charge), **yellow** = getting low (3.1-3.3 V), **red** = nearly empty (below 3.1 V). CHOMPI can't
+  measure a percentage: the charger chip only compares the battery with a few voltages. The first
+  reading is taken at switch-on, then every 30 s. Release to hide it.
 - **Low battery:** the knob and CHOMPI lights flash amber for 15 s, then CHOMPI
   shuts itself down. Plugging in during the flashing cancels it. After this shutdown the switch
   alone won't wake it — **plug in USB**.
@@ -99,7 +102,7 @@ Rename `CHOMPI_TAPEv2_0_bin.old` back to `CHOMPI_TAPEv2_0.bin`, rename or remove
   back (expected from the charger chip; not yet tried on Forge).
 - **Reliable power:** use a USB-C charger or a charged battery. If CHOMPI stays dark after an install or restart, plug in a strong USB-C charger, switch off, wait 5 s, then switch on.
 - **Warning (0.12):** while the battery is yellow and CHOMPI is not on a strong
-  charger, the **SW6 light blinks yellow twice every 4 s**; when a reading drops
+  charger, the **SW6 light blinks yellow twice every 4 s**; when it is red or a reading drops
   below the shut-off mark it **blinks fast** — charge now. Nothing blinks on a
   USB-C charger (it is charging). *Check setup* reports the same, and firmware
   installs are refused then (section 2).

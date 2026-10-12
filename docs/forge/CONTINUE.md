@@ -3,7 +3,20 @@
 Updated 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2-rc1; `main` carries it, Pages serves the forge page). The owner's CHOMPI runs development build 69c5727. Read the newest section below first; older sections are history (HOME_CHECKLIST and TEST_SESSION are kept for the record).
 
 
-## 2026-10-12 (evening): Dream and looper checked on hardware (resume here)
+## 2026-10-12 (night): battery level fixed in software (resume here)
+
+- The owner: **no new features for now; fixes and stability first, battery accuracy above all.**
+- **Implemented and software-tested, not hardware-verified:** `core/power.h LevelCheck` replaces
+  the stock `BMCMediumBattCheck` (BATTERY_READINGS "Forge 0.19.2 level check"): first reading at
+  switch-on, stock reads paused while 3.3 / 3.1 V is set, comparator read directly, writes read back
+  and the restore retried (give-up after 1 s), bands green / yellow / red (< 3.1 V, fast blink) /
+  white, no climbing while charging. `make test` all PASS; release 255,416 B, development 269,980 B.
+- **Hardware check needed:** SW6 colour right after switch-on, while charging (no climb), Inspector
+  page 11 `samples_33` near 0 and `level_checks` counting every 30 s; a long unplugged play for red.
+- The hardware has no voltage reading (0x0C: 3.0-3.3 V only), so a percentage is impossible.
+- Test checklist for the owner: https://claude.ai/artifact/Xf2FPWCLEWJLDfYL4HeUcM (private).
+
+## 2026-10-12 (evening): Dream and looper checked on hardware
 
 - **Installed:** development build 69c5727 (includes the chime fix) on the owner's CHOMPI.
 - **Dream, hardware-verified** (scripted panel injection + Inspector voice counts, 17/17; the owner

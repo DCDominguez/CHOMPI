@@ -4,6 +4,16 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
 
 ## 0.19.2 Secret modes, the forge site, bank purple (small tool: Whatzit) — 2026-10-12 (release candidate; on CHOMPI as build b462bea; checks in TEST_RESULTS)
 
+- **Battery level fixed (after release candidate 2; implemented and software-tested, not yet
+  hardware-verified).** Forge's own check (`core/power.h LevelCheck`) replaces the stock one
+  (BATTERY_READINGS problems 1-4): the first reading at switch-on instead of yellow for 30 s; the
+  stock 20 ms reads pause while the 3.3 / 3.1 V threshold is set, so those readings no longer
+  reach the 3.0 V history the shut-off protection uses; the comparator is read directly once the
+  threshold has settled; every threshold write is checked and the 3.0 V restore retried (a check
+  that can't finish gives up after 1 s and the reads resume). Colours: green above 3.3 V, yellow
+  3.1-3.3 V, **red below 3.1 V** (with the fast warning blink), white charge done. While charging
+  the colour can drop but not climb (charging lifts the voltage). The MP2722 has no voltage
+  reading, only a 3.0-3.3 V comparator, so a percentage is not possible.
 - **Battery reading instrumentation (development builds only; software-tested, not
   hardware-verified).** `make firmware-dev` now answers Inspector page 11: the raw charger
   registers 0x11-0x16, the stock 8-reading histories, the level check's state, read-backs of the

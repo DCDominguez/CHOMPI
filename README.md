@@ -104,7 +104,7 @@ pair of ears.
 - **in the release candidate, being checked now:** the TAPE functions' final run, harmony's
   hidden modes, dream mode unplugged, the forge page with a real CHOMPI.
 - **known issues:** on some power banks CHOMPI stops charging while it's switched on (charge it
-  switched off); the battery colour on SW6 is a rough voltage check, only white means full.
+  switched off); the battery colour on SW6 is a voltage band (green fine, yellow getting low, red nearly empty), only white means full.
 - **still up to you:** how it sounds, how it feels, how fun the magic is.
 
 Every check and result is written down in [TEST_RESULTS.md](docs/forge/TEST_RESULTS.md).

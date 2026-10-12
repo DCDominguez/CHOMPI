@@ -30,7 +30,7 @@ inline Colour BatteryColour(Battery level) {
         case Battery::Full: return {1.f, 1.f, 1.f};          // white: charged, on the charger
         case Battery::High: return {0.f, 1.f, 0.f};          // green: above the 3.3 V check
         case Battery::Medium: return {1.f, .95f, .05f};      // yellow: below 3.3 V
-        case Battery::Low: return {1.f, 0.f, 0.f};           // red (upstream never reports it yet)
+        case Battery::Low: return {1.f, 0.f, 0.f};           // red: below 3.1 V (0.19.2 LevelCheck)
         default: return {0.f, 0.f, 0.f};
     }
 }
@@ -125,13 +125,106 @@ public:
 private:
     uint32_t held_ = 0;
 };
+// 0.19.2 fix: Forge's own green / yellow / red check, in place of the stock BMCMediumBattCheck
+// (docs/forge/BATTERY_READINGS.md, problems 1-4 and the colours). The MP2722 has no voltage
+// reading: it only compares the battery with one threshold, register 0x0C, 3.0 / 3.1 / 3.2 / 3.3 V.
+// So the level is a band: green above 3.3 V, yellow 3.1-3.3 V, red below 3.1 V; most of a cell's
+// charge sits above 3.3 V, so green means "not getting low", not "full".
+// - The first check runs at once after power-on (stock: yellow for the first 30 s), then every 30 s.
+// - While a check's threshold (3.3 / 3.1 V) is set, the stock 20 ms reads pause (Paused()), so no
+//   reading against it reaches the 3.0 V history the protection uses (stock: one to three every 30 s).
+// - The comparator is read directly (register 0x16) once the threshold has settled, not whichever
+//   buffered read happens to be there.
+// - Every threshold write is checked (written, then read back); the 3.0 V restore is retried each
+//   tick. A check that cannot finish within kGiveUpMs ends anyway and the stock reads resume (the
+//   protection needs them).
+// - Charging lifts the battery's voltage: while charging the level can drop but not rise, until the
+//   charger reports charge done (white, stock) or USB is unplugged.
+class LevelCheck {
+public:
+    static constexpr uint32_t kPeriodMs = 30000, kSettleMs = 40, kGiveUpMs = 1000, kRetryMs = 1000;
+    static constexpr uint8_t k30 = 0b01010001, k31 = 0b01010101, k33 = 0b01011101;   // register 0x0C
+    enum class State : uint8_t { Idle, At33, At31, Restore };
+    // Io: bool Write(uint8_t value) (0x0C written and read back equal); bool Low(bool& low)
+    // (register 0x16 bit 4 read). `idle`: no stock DMA read in flight. Returns the level to show.
+    template<class Io> Battery Tick(uint32_t now, bool idle, Battery current, bool charging, Io& io) {
+        if(state_ != State::Idle && now - began_ >= kGiveUpMs) {
+            restore_pending_ = !io.Write(k30);
+            if(restore_pending_) ++failures_;
+            ++given_up_; Finish(now); result_ = Battery::Unknown;
+            return current;
+        }
+        bool low = false;
+        switch(state_) {
+            case State::Idle:
+                if(!idle) return current;
+                if(restore_pending_) {                  // a check gave up: keep setting 3.0 V back, reads running
+                    if(io.Write(k30)) restore_pending_ = false; else ++failures_;
+                    return current;
+                }
+                // Next check: 30 s after a level, 1 s after a check that gave none (reads run meanwhile).
+                if(current == Battery::Full || (tried_ && now - last_ < (measured_ ? kPeriodMs : kRetryMs))) return current;
+                began_ = at_ = now;
+                if(io.Write(k33)) state_ = State::At33; else Fail();
+                return current;
+            case State::At33:
+                if(now - at_ < kSettleMs || !idle) return current;
+                if(!io.Low(low)) { Fail(); return current; }
+                if(!low) { result_ = Battery::High; state_ = State::Restore; }
+                else if(io.Write(k31)) { at_ = now; state_ = State::At31; }
+                else { result_ = Battery::Medium; Fail(); }
+                return current;
+            case State::At31:
+                if(now - at_ < kSettleMs || !idle) return current;
+                if(!io.Low(low)) { result_ = Battery::Medium; Fail(); return current; }
+                result_ = low ? Battery::Low : Battery::Medium; state_ = State::Restore;
+                return current;
+            case State::Restore:
+                if(!idle) return current;
+                if(!io.Write(k30)) { ++failures_; return current; }
+                Finish(now);
+                return Apply(current, charging);
+        }
+        return current;
+    }
+    // The charger hand-over needs a status read now: set 3.0 V back and try again in a second.
+    template<class Io> void Abort(uint32_t now, Io& io) {
+        if(state_ == State::Idle) return;
+        restore_pending_ = !io.Write(k30);
+        if(restore_pending_) ++failures_;
+        Finish(now); result_ = Battery::Unknown;
+        if(measured_) last_ = now - kPeriodMs + kRetryMs;
+    }
+    bool Paused() const { return state_ != State::Idle; }      // the stock 20 ms reads wait
+    State GetState() const { return state_; }
+    uint32_t Checks() const { return checks_; }
+    uint32_t Failures() const { return failures_; }
+    uint32_t GivenUp() const { return given_up_; }
+private:
+    void Fail() { ++failures_; state_ = State::Restore; }
+    void Finish(uint32_t now) { state_ = State::Idle; last_ = now; tried_ = true; }
+    Battery Apply(Battery current, bool charging) {
+        const Battery r = result_; result_ = Battery::Unknown;
+        if(r == Battery::Unknown || current == Battery::Full) return current;
+        ++checks_;
+        // Battery order: Full, High, Medium, Low (a smaller value is fuller).
+        if(charging && measured_ && static_cast<uint8_t>(r) < static_cast<uint8_t>(current)) return current;
+        measured_ = true;
+        return r;
+    }
+    State state_ = State::Idle;
+    Battery result_ = Battery::Unknown;
+    bool measured_ = false, tried_ = false, restore_pending_ = false;
+    uint32_t began_ = 0, at_ = 0, last_ = 0, checks_ = 0, failures_ = 0, given_up_ = 0;
+};
+
 // A warning on SW6 before the stock protection acts (on a weak supply it gives none):
-// Low = battery yellow (below 3.3 V) and not on a strong supply; Critical = a reading
-// below the 3.0 V mark too, the protection is near. Nothing on a strong supply (it charges).
+// Low = battery yellow (below 3.3 V) and not on a strong supply; Critical = red (below 3.1 V,
+// 0.19.2) or a reading below the 3.0 V mark, the protection is near. Nothing on a strong supply (it charges).
 enum class Warning : uint8_t { None, Low, Critical };
 inline Warning BatteryWarning(Battery level, const Readings& r) {
     if(r.usb_good == 0xff && r.legacy == 0 && r.input_limit == 0) return Warning::None;
-    if(r.battery_low != 0) return Warning::Critical;
+    if(r.battery_low != 0 || level == Battery::Low) return Warning::Critical;
     return level == Battery::Medium || level == Battery::Low ? Warning::Low : Warning::None;
 }
 // Low: two short blinks every 4 s; Critical: 4 Hz. In the stock lockout's yellow.

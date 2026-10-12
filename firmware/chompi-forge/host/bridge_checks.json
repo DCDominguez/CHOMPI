@@ -830,7 +830,7 @@
   {
     "id": "8.2",
     "do": "Hold the SW6 (volume) knob pressed for 2 s, then let go; also give it a short press",
-    "expect": "While held after 2 s its light shows the battery: white = charged (on the charger), green = good, yellow = low (below ~3.3 V). Dark again on release. A short press switches SW6 to input gain (light blue → red, TAPE); a second short press goes back to volume",
+    "expect": "While held after 2 s its light shows the battery: white = charged (on the charger), green = good, yellow = getting low (below ~3.3 V), red = nearly empty (below ~3.1 V). Dark again on release. A short press switches SW6 to input gain (light blue → red, TAPE); a second short press goes back to volume",
     "group": "8. Power and battery (firmware 0.8)"
   },
   {

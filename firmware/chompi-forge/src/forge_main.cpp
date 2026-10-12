@@ -157,6 +157,7 @@ FORGE_COLD void LogRestart() {
     f_write(&file, line, n, &written);
     f_close(&file);
 }
+forge::power::LevelCheck level_check;           // 0.19.2: the battery level (core/power.h)
 // The charger readings behind the stock battery protection and the install check (core/power.h).
 forge::power::Readings ChargerReadings() {
     forge::power::Readings r;
@@ -278,7 +279,7 @@ FORGE_COLD void FillBattery(forge::power::BatteryDiag& b) {
     for(unsigned i = 0; i < 6; ++i) b.reg[i] = hw.mp_buff_[i];
     b.battery_low = hw.batt_low_bounce; b.usb_good = hw.vin_gd_bounce;
     b.legacy = hw.legacy_cable_bounce; b.input_limit = hw.iindpm_stat_bounce;
-    b.level = static_cast<uint8_t>(hw.GetBatteryLevel()); b.check_state = hw.batt_check_state;
+    b.level = static_cast<uint8_t>(hw.GetBatteryLevel()); b.check_state = static_cast<uint8_t>(level_check.GetState());
     b.read_ready = hw.read_ready;
 }
 void InspectorEvent(forge::InspectorEventKind kind, uint8_t id, uint32_t value) {
@@ -567,6 +568,31 @@ void SendPanelMidi() {
         usb_pending = m; usb_waiting = true; usb_since = System::GetNow();
     }
 }
+// 0.19.2: Forge's battery level check (core/power.h LevelCheck) in place of the stock
+// BMCMediumBattCheck. Blocking I2C, main loop only, called only with no stock DMA read in flight.
+// The stock read sets the register pointer back to 0x11 before every read.
+struct ChargerIo {
+    bool Write(uint8_t value) {
+        uint8_t tx[2] = {0x0c, value}, reg = 0x0c, back = 0;
+        const bool ok = hw.i2c.TransmitBlocking(0x3f, tx, 2, 5) == I2CHandle::Result::OK
+                     && hw.i2c.TransmitBlocking(0x3f, &reg, 1, 5) == I2CHandle::Result::OK
+                     && hw.i2c.ReceiveBlocking(0x3f, &back, 1, 5) == I2CHandle::Result::OK;
+#ifdef FORGE_TEST_HOOKS
+        if(value != forge::power::LevelCheck::k31)
+            battery_monitor.ReadBackDone(value == forge::power::LevelCheck::k33 ? forge::power::ReadBack::After33
+                                                                               : forge::power::ReadBack::After30, ok, back);
+#endif
+        return ok && back == value;
+    }
+    bool Low(bool& low) {
+        uint8_t reg = 0x16, value = 0;
+        const bool ok = hw.i2c.TransmitBlocking(0x3f, &reg, 1, 5) == I2CHandle::Result::OK
+                     && hw.i2c.ReceiveBlocking(0x3f, &value, 1, 5) == I2CHandle::Result::OK;
+        low = (value >> 4) & 1u;
+        return ok;
+    }
+};
+ChargerIo charger_io;
 void DrawLeds(); void SendResponses(); void TransmitPending(); void RunSampler();
 // TAPE's USB/charger hand-over after a power event (plug/unplug, charge state).
 forge::power::ChargerUsb charger_usb;
@@ -574,6 +600,7 @@ bool usb_lines_to_daisy = true;
 void ServiceChargerUsb(uint32_t now) {
     const auto a = charger_usb.Poll(now, hw.mpc_int.Read(), hw.read_ready, hw.mp_buff_[0], hw.mp_buff_[1]);
     if(a.read) {
+        level_check.Abort(now, charger_io);                 // its read must compare against 3.0 V
 #ifdef FORGE_TEST_HOOKS
         battery_monitor.ReadStarted();
 #endif
@@ -1217,19 +1244,24 @@ FORGE_COLD int main() {
             if(battery_monitor.PeriodicDue(now, hw.read_ready)) ReadBackThreshold(forge::power::ReadBack::Periodic);
             battery_monitor.ReadStarted();
 #endif
-            hw.BMCPerformCheck();
+            if(!level_check.Paused()) hw.BMCPerformCheck();   // 0.19.2: no reads while a 3.3 / 3.1 V check is set
             const auto lockout = lockout_guard.Update(ChargerReadings());
-            if(lockout != forge::power::Lockout::None) { LogLockout(lockout); hw.LowBatteryLockoutCheck(); }
-#ifdef FORGE_TEST_HOOKS
+            if(lockout != forge::power::Lockout::None) { level_check.Abort(now, charger_io); LogLockout(lockout); hw.LowBatteryLockoutCheck(); }
             else {
-                const uint8_t before = hw.batt_check_state;
-                hw.BMCMediumBattCheck();
-                const auto readback = battery_monitor.LevelCheck(before, hw.batt_check_state);
-                if(readback != forge::power::ReadBack::None) ReadBackThreshold(readback);
-            }
+                // 0.19.2: Forge's level check (core/power.h LevelCheck) in place of BMCMediumBattCheck.
+                // Charging = CHG_STAT 1-4 (reg 0x13 bits 7-5); the stock read keeps FULL (white).
+                const uint8_t chg = (hw.mp_buff_[2] >> 5) & 7u;
+                const uint32_t checks = level_check.Checks() + level_check.GivenUp();
+                const auto level = level_check.Tick(now, hw.read_ready, static_cast<forge::power::Battery>(hw.GetBatteryLevel()),
+                                                    chg >= 1 && chg <= 4, charger_io);
+                if(level != static_cast<forge::power::Battery>(hw.GetBatteryLevel()))
+                    hw.batt_level = static_cast<decltype(hw.batt_level)>(level);
+#ifdef FORGE_TEST_HOOKS
+                battery_monitor.LevelState(level_check.Paused(), level_check.Checks() + level_check.GivenUp() != checks);
 #else
-            else hw.BMCMediumBattCheck();
+                (void)checks;
 #endif
+            }
             battery_check = now;
         }
         if(!stable && now >= forge::restart::kStableMs) { forge::restart::RanStably(startup_guard); stable = true; }

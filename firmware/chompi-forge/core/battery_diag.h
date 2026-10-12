@@ -45,6 +45,9 @@ public:
         else d_.low_run_30 = 0;
     }
     void ReadStarted() { read_33_ = d_.expect_33; }
+    // 0.19.2: Forge's LevelCheck (core/power.h) in place of the stock check. `probing`: a 3.3 / 3.1 V
+    // threshold is set (the stock reads pause, so samples_33 should stay near 0); `done`: a check ended.
+    void LevelState(bool probing, bool done) { d_.expect_33 = probing; if(done) ++d_.level_checks; }
     // The stock check's state before and after BMCMediumBattCheck: which read-back is due now.
     ReadBack LevelCheck(uint8_t before, uint8_t after) {
         if(before == 0 && after == 1) { d_.expect_33 = true; return ReadBack::After33; }

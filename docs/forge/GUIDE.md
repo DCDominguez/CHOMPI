@@ -486,7 +486,8 @@ the card and report it.
 **Battery:**
 
 - Hold **SW6** down for 2 s to see the battery: **white** = charged (on the charger), **green**
-  = good, **yellow** = low.
+  = good, **yellow** = getting low, **red** = nearly empty. While charging it doesn't climb; it
+  turns white when full.
 - The SW6 light blinking yellow means the battery is low; blinking fast means charge now.
 - When it runs out, the knob and CHOMPI lights flash amber for 15 s, then CHOMPI switches off.
   Plugging in during the flashing cancels it. After that, plug in USB to wake it.
@@ -539,4 +540,4 @@ Download `choowi-0.19.2-rc2-card.zip` from the [download page](https://github.co
 
 Any arriving MIDI stops dream mode. No API key is needed on the forge page.
 
-**Power reminder:** When using a power bank, charge with CHOMPI switched off. SW6 green and yellow are approximate battery indications; only white means full.
+**Power reminder:** When using a power bank, charge with CHOMPI switched off. SW6 green, yellow and red are voltage bands, not a percentage; only white means full.

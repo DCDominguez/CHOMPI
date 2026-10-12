@@ -748,7 +748,7 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
   <div class="grid2">
     <div class="col">
       <p>The power switch turns CHOMPI on and off. Some power banks do not charge while CHOMPI is on; charge switched off for now. A USB-C wall charger is faster than a computer.</p>
-      <p><b>Battery level:</b> hold <span class="k">SW6</span> for 2 s. Only <b>white</b> means full. Green and yellow are rough voltage flags, not a charge gauge; the 3.3 V check runs about every 30 s and varies with charging or playing.</p>
+      <p><b>Battery level:</b> hold <span class="k">SW6</span> for 2 s. Only <b>white</b> means full. <b>Green</b> = fine (above about 3.3 V, most of the charge), <b>yellow</b> = getting low, <b>red</b> = nearly empty. They are voltage bands, not a percentage: checked at switch-on, then every 30 s; while charging the colour does not climb until it turns white.</p>
       <p><b>Over USB:</b> <code>python host/forge_host.py battery</code> prints the level, USB power, charging and whether a firmware install is allowed. Connect CHOMPI in the bridge shows it too.</p>
     </div>
     <div class="col">

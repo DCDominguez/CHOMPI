@@ -47,6 +47,27 @@ What Forge reports over USB (`forge_host.py battery`, `core/power.h SupplyFlags`
 `batt_low_bounce != 0` (any of the last 8 readings low); "weak_supply" = legacy or IINDPM seen;
 "charging" = CHG_STAT 1-4.
 
+## Forge 0.19.2 level check (after release candidate 2)
+
+Implemented and software-tested (`tests/power_test.cpp` LevelCheckBands / LevelCheckFailures),
+**not yet hardware-verified**. `core/power.h LevelCheck` replaces `BMCMediumBattCheck` in
+`forge_main.cpp` (the stock file is untouched; its 20 ms read, histories, FULL and protection stay):
+
+- Problem 1: the first check runs at switch-on, then every 30 s (1 s after a check that gave no level).
+- Problem 2: while 3.3 or 3.1 V is set the stock 20 ms reads are not started, so no reading
+  against them reaches `batt_low_bounce`. The charger hand-over's read aborts a check first.
+- Problem 3: the comparator (0x16 bit 4) is read by a blocking read 40 ms after the threshold
+  write, only when no stock DMA read is in flight.
+- Problem 4: every 0x0C write is read back; the 3.0 V restore is retried each 20 ms; a check that
+  can't finish within 1 s gives up, the reads resume, and 3.0 V keeps being retried.
+- Bands: green >= 3.3 V, yellow 3.1-3.3 V, red < 3.1 V (warning blinks fast), white charge done.
+  While charging (CHG_STAT 1-4) a result above the current level is ignored.
+- What the hardware can't do: register 0x0C offers only 3.0 / 3.1 / 3.2 / 3.3 V (bits 3-2), so
+  nothing distinguishes 3.3 V from full. VSYS_MIN (up to 3.76 V) has a status bit too, but it
+  sets the power path; not used.
+- Inspector page 11 (development): `check_state` is now LevelCheck's state (0 idle, 1 at 3.3 V,
+  2 at 3.1 V, 3 restoring); `samples_33` should stay near 0; `level_checks` counts finished checks.
+
 ## Problems in the reading itself (code)
 
 1. **Yellow for the first 30 s after every power-on.** `batt_level` starts as `MEDIUM`

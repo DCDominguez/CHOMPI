@@ -1023,7 +1023,7 @@ def cli(argv=None):
             status = exchange(message(2, secrets.randbelow(16384)), *names, args.timeout)
         except TimeoutError:
             raise RuntimeError("CHOMPI did not answer: it runs stock firmware (TAPE), not Forge. "
-                               "Hold SW6 for 2 s on CHOMPI: white = charged, green = good, yellow = low.") from None
+                               "Hold SW6 for 2 s on CHOMPI: white = charged, green = good, yellow = getting low, red = nearly empty.") from None
         if args.json: print(json.dumps({"firmware": status["firmware"], "build": status["build"], "power": status["power"]}, indent=2))
         else: print(describe_build(status)); print(describe_power(status["power"]))
     elif args.command == "ai":

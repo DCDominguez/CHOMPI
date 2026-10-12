@@ -223,9 +223,119 @@ void BatteryInstrumentation() {
     assert(m.PeriodicDue(0xffffffffu, true) && m.PeriodicDue(1500, true));            // the millisecond clock wraps
 }
 
+// 0.19.2 fix: Forge's battery level check (core/power.h LevelCheck) on a simulated MP2722:
+// register 0x0C picks the BATT_LOW threshold, register 0x16 bit 4 reports battery < threshold.
+struct FakeCharger {
+    float volts = 3.8f;
+    uint8_t reg0c = LevelCheck::k30;
+    int fail_writes = 0, fail_reads = 0;        // the next N writes / reads fail
+    unsigned writes = 0;
+    float Threshold() const {
+        return reg0c == LevelCheck::k33 ? 3.3f : reg0c == LevelCheck::k31 ? 3.1f : 3.0f;
+    }
+    bool Write(uint8_t value) { ++writes; if(fail_writes > 0) { --fail_writes; return false; } reg0c = value; return true; }
+    bool Low(bool& low) { if(fail_reads > 0) { --fail_reads; return false; } low = volts < Threshold(); return true; }
+};
+// Run 20 ms ticks for `ms`; returns the level and how many ticks a 3.3 / 3.1 V threshold was set
+// while the check said the stock reads could run (must stay 0).
+static Battery Run(LevelCheck& c, FakeCharger& f, uint32_t& now, uint32_t ms, Battery level, bool charging = false,
+                   unsigned* leaks = nullptr) {
+    for(uint32_t end = now + ms; now < end; now += 20) {
+        if(!c.Paused() && f.reg0c != LevelCheck::k30 && leaks) ++*leaks;
+        level = c.Tick(now, true, level, charging, f);
+    }
+    return level;
+}
+void LevelCheckBands() {
+    {   // At power-on the first check runs at once (stock: yellow for 30 s), then every 30 s.
+        LevelCheck c; FakeCharger f; uint32_t now = 0; unsigned leaks = 0;
+        Battery level = Run(c, f, now, 200, Battery::Medium, false, &leaks);
+        assert(level == Battery::High && !c.Paused() && f.reg0c == LevelCheck::k30 && c.Checks() == 1 && leaks == 0);
+        f.volts = 3.2f;
+        level = Run(c, f, now, 29000, level, false, &leaks);
+        assert(level == Battery::High && c.Checks() == 1);                         // not yet
+        level = Run(c, f, now, 2000, level, false, &leaks);
+        assert(level == Battery::Medium && c.Checks() == 2 && leaks == 0);         // 3.1-3.3 V: yellow
+        f.volts = 3.05f;
+        level = Run(c, f, now, 31000, level, false, &leaks);
+        assert(level == Battery::Low && f.reg0c == LevelCheck::k30 && leaks == 0); // below 3.1 V: red
+    }
+    {   // Charging lifts the voltage: the level does not rise while charging, it can drop.
+        LevelCheck c; FakeCharger f; uint32_t now = 0; f.volts = 3.2f;
+        Battery level = Run(c, f, now, 200, Battery::Medium);
+        assert(level == Battery::Medium);
+        f.volts = 4.1f;                                                            // plugged in, charging
+        level = Run(c, f, now, 61000, level, true);
+        assert(level == Battery::Medium && c.Checks() == 3);
+        f.volts = 3.0f;
+        level = Run(c, f, now, 31000, level, true);
+        assert(level == Battery::Low);                                             // a drop shows
+        f.volts = 3.9f;
+        level = Run(c, f, now, 31000, level, false);
+        assert(level == Battery::High);                                            // unplugged: it rises
+        LevelCheck first; FakeCharger g; g.volts = 4.1f; uint32_t t = 0;           // first check on USB: taken
+        assert(Run(first, g, t, 200, Battery::Medium, true) == Battery::High);
+    }
+    {   // Charge done (white) is the stock read's: no checks while Full.
+        LevelCheck c; FakeCharger f; uint32_t now = 0;
+        assert(Run(c, f, now, 61000, Battery::Full) == Battery::Full && f.writes == 0);
+    }
+    {   // A busy bus (a stock DMA read in flight) delays the check; nothing is written meanwhile.
+        LevelCheck c; FakeCharger f;
+        for(uint32_t now = 0; now < 500; now += 20) assert(c.Tick(now, false, Battery::Medium, false, f) == Battery::Medium);
+        assert(f.writes == 0 && !c.Paused());
+    }
+}
+void LevelCheckFailures() {
+    {   // The restore to 3.0 V is retried every tick until it sticks.
+        LevelCheck c; FakeCharger f; uint32_t now = 0; f.volts = 3.5f;
+        Battery level = Run(c, f, now, 60, Battery::Medium);                       // 3.3 V set, settling
+        assert(c.Paused() && f.reg0c == LevelCheck::k33);
+        f.fail_writes = 3;
+        level = Run(c, f, now, 200, level);
+        assert(!c.Paused() && f.reg0c == LevelCheck::k30 && level == Battery::High && c.Failures() == 3);
+    }
+    {   // If it never sticks, the check gives up after 1 s and the stock reads resume.
+        LevelCheck c; FakeCharger f; uint32_t now = 0;
+        Run(c, f, now, 60, Battery::Medium);
+        f.fail_writes = 1000;
+        Battery level = Run(c, f, now, 1100, Battery::Medium);
+        assert(!c.Paused() && c.GivenUp() == 1 && level == Battery::Medium);
+        level = Run(c, f, now, 800, level);                                         // reads run, no new check yet
+        assert(!c.Paused() && c.GivenUp() == 1);
+        f.fail_writes = 0;                                                          // the bus recovers
+        level = Run(c, f, now, 400, level);
+        assert(f.reg0c == LevelCheck::k30 && level == Battery::High);              // 3.0 V back, then a level
+    }
+    {   // A failed first write: the threshold is set back, no level from it.
+        LevelCheck c; FakeCharger f; uint32_t now = 0; f.fail_writes = 1;
+        Battery level = Run(c, f, now, 100, Battery::Medium);
+        assert(!c.Paused() && f.reg0c == LevelCheck::k30 && level == Battery::Medium && c.Checks() == 0);
+    }
+    {   // A failed comparator read: no level, threshold restored.
+        LevelCheck c; FakeCharger f; uint32_t now = 0; f.fail_reads = 1;
+        Battery level = Run(c, f, now, 200, Battery::Medium);
+        assert(!c.Paused() && f.reg0c == LevelCheck::k30 && level == Battery::Medium);
+    }
+    {   // The charger hand-over's read aborts a check: 3.0 V back at once, retried a second later.
+        LevelCheck c; FakeCharger f; uint32_t now = 0; f.volts = 3.5f;
+        Battery level = Run(c, f, now, 200, Battery::Medium);
+        while(!c.Paused() && now < 40000) { level = c.Tick(now, true, level, false, f); now += 20; }   // next check starts
+        assert(c.Paused());
+        c.Abort(now, f);
+        assert(!c.Paused() && f.reg0c == LevelCheck::k30);
+        const uint32_t checks = c.Checks();
+        level = Run(c, f, now, 1500, level);
+        assert(c.Checks() == checks + 1 && level == Battery::High);
+    }
+    // Red is the near-empty warning on SW6 too.
+    Readings pc; pc.input_limit = 0xff;
+    assert(BatteryWarning(Battery::Low, pc) == Warning::Critical);
+}
+
 int main() {
-    BatteryInstrumentation();
+    BatteryInstrumentation(); LevelCheckBands(); LevelCheckFailures();
     BootGestureOff(); Colours(); ChargerHandover(); StatusDecode(); RestartReason(); SafeMode(); OptionsFile(); InstallPower(); LockoutDip();
     std::cout << "PASS: power off gesture, battery colours, charger/USB hand-over (edges, timeout, wrap), status decode, restart reason, safe mode, options.json,"
-                 " stock battery lockout, install power check, low-battery warning, supply flags, battery instrumentation\n";
+                 " stock battery lockout, install power check, low-battery warning, supply flags, battery instrumentation, level check (bands, charging, failures)\n";
 }
