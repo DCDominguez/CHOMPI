@@ -1,7 +1,36 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2-rc1; `main` carries it, Pages serves the forge page). The owner's CHOMPI runs development build 69c5727. Read the newest section below first; older sections are history (HOME_CHECKLIST and TEST_SESSION are kept for the record).
+Updated 2026-10-13: overnight functions test done (newest section). 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2-rc1; `main` carries it, Pages serves the forge page). The owner's CHOMPI runs development build 69c5727. Read the newest section below first; older sections are history (HOME_CHECKLIST and TEST_SESSION are kept for the record).
 
+
+## 2026-10-13 (overnight): functions test (branch forge/fx; CHOMPI runs 55f77b6)
+
+- **Run:** `D:	ools\chompi-sessiontest.py` (harness `ftest_harness.py`: panel injection +
+  Inspector, webcam stills and clips, UMC audio with level / clipping / spectral checks). Report,
+  stills, clips (mp4 with sound) and audio: `firmware/chompi-forge/reports/functions_test/20261013-0442/`.
+  **40 PASS · 4 FAIL · 15 INFO.**
+- **Real failures, fixed in ceef237 (software-tested; NOT installed or hardware-verified yet):**
+  fold far too loud (RMS -5.5 dBFS, 4597 clipped samples): level now 0.8 / sqrt(drive); PLAY + LOOP
+  undo missed because the two presses land tens of ms apart: a pair within 100 ms takes back the
+  first key's action (grace area for the new pass).
+- **Test errors, not firmware:** recorder arm (the test tapped CHOMPI; arming is F#4, as the manual says);
+  sampler bank b "very quiet" (the chromatic run reused the stress preset's ~1 % loop window; the kit's
+  notes may hit empty bank b slots), to be judged by ear.
+- **Camera-inconclusive (the owner checks by eye):** page-change flash, harmony on/off ring flash, held FX
+  knob showing the character in white. The flashes last 0.5-0.6 s, but the test's delays plus camera
+  latency missed them or auto exposure washed them out; one still shows the camera shifted.
+- **Passed on hardware:** sound, panic, knob pages and reset, the four combos, Dream start / stop, harmony
+  chords / octave / dominant 7th / Shift D7 / faint previews, arp, looper take / close / overdub / clear,
+  all eleven other FX audible without clipping, custom order, side by side, synth page, presets list.
+  Saturation is ~10 dB louder than dry (TAPE parity; left).
+- **The owner's reports:** battery: no shut-offs since the level-check fix, stays green. Colours: several
+  were misread on the panel (teal on keys looks green, orange on keys looks peach, pink only appears in
+  harmonic / melodic minor, teal only while Shift is held); the manual now has a colour-appearance table.
+- **Test sheet** (private artifact) updated: every scripted check listed for the owner to repeat, with the
+  overnight result per item.
+- Next: install ceef237 (owner's CHOMPI press or a power cycle), verify undo with natural timing and the
+  fold level; the owner's by-eye items; then the web app (v8 FX, offline), redundant-controls pass, docs
+  and manual, release candidate 3.
 
 ## 2026-10-13: light pass and overdub undo (branch forge/fx; CHOMPI runs 28b7ea6)
 
