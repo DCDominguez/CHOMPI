@@ -11,9 +11,15 @@
 namespace forge {
 namespace secret {
 
-enum class Mode : uint8_t { Off, BloomUp, BloomDown, BloomRandom, Conversation };
-constexpr unsigned kModes = 5;
+// SW3 on the harmony page steps through these (3 bits on the light flags: keep it at 8 or fewer).
+enum class Mode : uint8_t { Off, BloomUp, BloomDown, BloomRandom, TalkEcho, TalkCall, TalkSparkle, TalkGroove };
+constexpr unsigned kModes = 8;
 inline bool Blooms(Mode m) { return m == Mode::BloomUp || m == Mode::BloomDown || m == Mode::BloomRandom; }
+inline bool Talks(Mode m) { return m >= Mode::TalkEcho && m <= Mode::TalkGroove; }
+// Conversations' motif families (the owner, 2026-10-12: groups of motifs that belong together).
+enum class Family : uint8_t { Echo, Call, Sparkle, Groove };
+constexpr unsigned kFamilies = 4, kMotifs = 3;
+inline Family FamilyOf(Mode m) { return static_cast<Family>(Talks(m) ? static_cast<unsigned>(m) - static_cast<unsigned>(Mode::TalkEcho) : 0); }
 
 struct Rand {                                   // xorshift32, as magic::Rng
     uint32_t s = 0x2545F491u;
@@ -66,79 +72,106 @@ private:
 };
 
 // Chord Conversations: a chord is let go, a bar passes in silence, and Choowi answers with a short
-// phrase built from that chord's tones in the key: rising, falling or a little rhythm. One note at a
-// time (one voice); any key cuts it off.
+// motif from the chosen family, built on that chord's tones in the key. Each family has three related
+// motifs; the same one never plays twice in a row, except that about one answer in three develops the
+// last motif on the new chord, so a run of answers hangs together. One note at a time (one voice);
+// any key cuts it off.
+//
+// A motif step: `tone` picks a chord tone (0 = lowest, -1 = highest, -2 = the one below...; kRest = a
+// rest), `octave` moves it by octaves, `scale` then moves it by steps of the key (neighbour and
+// passing notes), `len` is in 1/16 notes at the tempo, `vel` the velocity.
+struct MotifStep { int8_t tone, octave, scale; uint8_t len, vel; };
+constexpr int8_t kRest = 99;
+constexpr unsigned kMotifSteps = 6;
+struct Motif { uint8_t count; MotifStep step[kMotifSteps]; };
+// [family][motif]. Echo: the top notes come back, softer each time. Call: little melodies (a rising
+// arpeggio to the octave, a falling run landing on the third, a turn around the third). Sparkle: high
+// and quick (a grace note, a trill, broken octaves). Groove: low and rhythmic, with rests.
+constexpr Motif kMotifTable[kFamilies][kMotifs] = {
+    {{3, {{-1, 0, 0, 2, 80}, {-1, 0, 0, 2, 62}, {-1, 0, 0, 4, 46}}},
+     {3, {{-1, 0, 0, 2, 80}, {-2, 0, 0, 2, 64}, {-1, 0, 0, 4, 48}}},
+     {4, {{-1, 0, 0, 1, 82}, {-2, 0, 0, 1, 70}, {-3, 0, 0, 1, 60}, {-4, 0, 0, 4, 50}}}},
+    {{4, {{0, 0, 0, 2, 84}, {1, 0, 0, 2, 84}, {2, 0, 0, 2, 86}, {0, 1, 0, 4, 72}}},
+     {5, {{-1, 0, 0, 1, 84}, {-1, 0, -1, 1, 80}, {-1, 0, -2, 1, 78}, {-1, 0, -3, 1, 76}, {1, 0, 0, 4, 68}}},
+     {5, {{1, 0, 0, 1, 82}, {1, 0, 1, 1, 78}, {1, 0, 0, 1, 80}, {1, 0, -1, 1, 76}, {0, 0, 0, 4, 66}}}},
+    {{3, {{-1, 1, 1, 1, 64}, {-1, 1, 0, 3, 84}, {0, 2, 0, 4, 70}}},
+     {5, {{-1, 1, 0, 1, 82}, {-1, 1, 1, 1, 74}, {-1, 1, 0, 1, 80}, {-1, 1, 1, 1, 72}, {-1, 1, 0, 4, 66}}},
+     {5, {{0, 1, 0, 1, 80}, {0, 2, 0, 1, 72}, {2, 1, 0, 1, 80}, {2, 2, 0, 1, 72}, {1, 2, 0, 4, 64}}}},
+    {{5, {{0, 0, 0, 1, 90}, {kRest, 0, 0, 1, 0}, {0, 0, 0, 1, 78}, {2, 0, 0, 2, 86}, {0, 1, 0, 3, 74}}},
+     {5, {{0, -1, 0, 2, 92}, {2, -1, 0, 1, 80}, {0, 0, 0, 1, 84}, {kRest, 0, 0, 2, 0}, {0, -1, 0, 2, 76}}},
+     {5, {{kRest, 0, 0, 1, 0}, {2, 0, 0, 2, 88}, {2, 0, 0, 1, 74}, {1, 0, 0, 2, 82}, {0, 0, 0, 4, 70}}}}};
 class Conversation {
 public:
-    static constexpr unsigned kMaxPhrase = 6;
+    static constexpr unsigned kMaxPhrase = kMotifSteps;
     // The chord just ended: remember it and start the pause.
-    FORGE_COLD void ChordEnded(const harmony::Voiced& v, const harmony::State& key, uint32_t sixteenth, Rand& r) {
+    FORGE_COLD void ChordEnded(const harmony::Voiced& v, const harmony::State& key, Family family, uint32_t sixteenth, Rand& r) {
         if(!v.count) return;
         Stop();
-        Build(v, key, r);
+        Build(v, key, family, r);
         sixteenth_ = sixteenth ? sixteenth : 1;
         wait_ = 16 * sixteenth_;                      // one bar
         armed_ = count_ > 0;
     }
     // A key: no answer now, and a sounding answer note stops (returned through `stop`).
     template<typename F> void Interrupt(F stop) { if(sounding_) stop(sounding_); sounding_ = 0; armed_ = false; at_ = count_; }
-    // `play(note, velocity)`: velocity 0 ends a note.
+    // `play(note, velocity)`: velocity 0 ends a note. A rest (note 0) sounds nothing for its length.
     template<typename F> void Advance(uint32_t frames, F play) {
         while(armed_ && frames) {
             if(wait_ > frames) { wait_ -= frames; return; }
             frames -= wait_;
             if(sounding_) { play(sounding_, 0); sounding_ = 0; }
             if(at_ >= count_) { armed_ = false; return; }
-            sounding_ = phrase_[at_]; play(sounding_, static_cast<uint8_t>(at_ + 1 == count_ ? 70 : 84));
+            if(phrase_[at_]) { sounding_ = phrase_[at_]; play(sounding_, velocity_[at_]); }
             wait_ = length_[at_] * sixteenth_; ++at_;
         }
     }
     void Stop() { armed_ = false; at_ = count_ = 0; }
     bool Speaking() const { return armed_; }
     unsigned Length() const { return count_; }
-    uint8_t Note(unsigned i) const { return i < count_ ? phrase_[i] : 0; }
+    uint8_t Note(unsigned i) const { return i < count_ ? phrase_[i] : 0; }   // 0 = a rest
     uint8_t Steps(unsigned i) const { return i < count_ ? length_[i] : 0; }
+    uint8_t Velocity(unsigned i) const { return i < count_ ? velocity_[i] : 0; }
     uint8_t Sounding() const { return sounding_; }
+    unsigned LastMotif() const { return last_motif_; }
 private:
-    // Phrase notes: the chord's tones (in the chord's register, an octave up when it sits low), with a
-    // scale step between some of them, so every note belongs to the key or the chord.
-    FORGE_COLD void Build(const harmony::Voiced& v, const harmony::State& key, Rand& r) {
+    FORGE_COLD void Build(const harmony::Voiced& v, const harmony::State& key, Family family, Rand& r) {
         uint8_t tones[harmony::kMaxNotes]; unsigned n = 0;
         for(unsigned i = 0; i < v.count && n < harmony::kMaxNotes; ++i) tones[n++] = v.note[i];
         for(unsigned i = 1; i < n; ++i) for(unsigned j = i; j > 0 && tones[j - 1] > tones[j]; --j) { const uint8_t t = tones[j]; tones[j] = tones[j - 1]; tones[j - 1] = t; }
-        const int lift = tones[0] < 60 ? 12 : 0;
-        const unsigned shape = r.Pick(3);             // 0 rising, 1 falling, 2 a little rhythm
+        const unsigned f = static_cast<unsigned>(family) % kFamilies;
+        unsigned motif;
+        if(last_family_ == f && r.Pick(3) == 0) motif = last_motif_;                          // develop the last idea
+        else if(last_family_ == f) motif = (last_motif_ + 1 + r.Pick(kMotifs - 1)) % kMotifs;   // a different one
+        else motif = r.Pick(kMotifs);
+        last_family_ = f; last_motif_ = motif;
+        const int lift = tones[0] < 60 ? 12 : 0;                                               // answer above a low chord
+        const Motif& m = kMotifTable[f][motif];
         count_ = 0; at_ = 0;
-        auto add = [&](int note, uint8_t steps) {
-            if(count_ >= kMaxPhrase) return;
-            while(note > harmony::kHighest) note -= 12;
-            while(note < harmony::kLowest) note += 12;
-            phrase_[count_] = static_cast<uint8_t>(note); length_[count_] = steps; ++count_;
-        };
-        if(shape == 2) {                              // short-short-long on two chord tones, then home
-            const int a = tones[n > 1 ? 1 : 0] + lift, b = tones[n - 1] + lift;
-            add(a, 1); add(a, 1); add(b, 2); add(tones[0] + lift + 12, 4);
-            return;
-        }
-        const unsigned take = n < 4 ? n : 4;
-        for(unsigned i = 0; i < take; ++i) {
-            const unsigned k = shape == 0 ? i : take - 1 - i;
-            add(tones[k] + lift, i + 1 == take ? 4 : 2);
-            if(i == 0 && take > 1) {                  // one passing step in the key between the first two
-                const int next = tones[shape == 0 ? 1 : take - 2] + lift;
-                const int pass = ScaleBetween(tones[k] + lift, next, key);
-                if(pass >= 0) add(pass, 1);
+        for(unsigned i = 0; i < m.count && count_ < kMaxPhrase; ++i) {
+            const MotifStep& st = m.step[i];
+            phrase_[count_] = 0; length_[count_] = st.len; velocity_[count_] = st.vel;
+            if(st.tone != kRest) {
+                const int last = static_cast<int>(n) - 1;
+                const int index = st.tone >= 0 ? (st.tone < last ? st.tone : last) : (last + 1 + st.tone >= 0 ? last + 1 + st.tone : 0);
+                int note = ScaleStep(tones[index] + lift + 12 * st.octave, st.scale, key);
+                while(note > harmony::kHighest) note -= 12;
+                while(note < harmony::kLowest) note += 12;
+                phrase_[count_] = static_cast<uint8_t>(note);
             }
+            ++count_;
         }
     }
-    static int ScaleBetween(int from, int to, const harmony::State& key) {
-        const int dir = to > from ? 1 : -1;
-        for(int note = from + dir; note != to; note += dir)
-            if(harmony::InKey(static_cast<unsigned>((note % 12 + 12) % 12), key)) return note;
-        return -1;
+    // `steps` notes of the key up (+) or down (-) from `note`.
+    static int ScaleStep(int note, int steps, const harmony::State& key) {
+        const int dir = steps > 0 ? 1 : -1;
+        for(int left = steps > 0 ? steps : -steps; left > 0; --left) {
+            int guard = 0;
+            do { note += dir; } while(!harmony::InKey(static_cast<unsigned>((note % 12 + 12) % 12), key) && ++guard < 12);
+        }
+        return note;
     }
-    uint8_t phrase_[kMaxPhrase] = {}, length_[kMaxPhrase] = {};
-    unsigned count_ = 0, at_ = 0;
+    uint8_t phrase_[kMaxPhrase] = {}, length_[kMaxPhrase] = {}, velocity_[kMaxPhrase] = {};
+    unsigned count_ = 0, at_ = 0, last_family_ = kFamilies, last_motif_ = 0;
     uint32_t wait_ = 0, sixteenth_ = 1;
     uint8_t sounding_ = 0;
     bool armed_ = false;

@@ -138,7 +138,7 @@ public:
         if(velocity && looper_) looper_->NoteStarted();      // an armed looper starts recording
         if(seq_ && source != seq::kSource && seq_->Capturing()) seq_->RecordNote(note, velocity);   // event recorder (0.15)
         if(velocity && SlotMode() && Kit()) { const int pad = Synth::KitSlot(note); if(pad >= 0) focus_ = static_cast<uint8_t>(pad); }
-        if(velocity && secret_ == secret::Mode::Conversation) StopTalk();   // a key cuts Choowi off
+        if(velocity && secret::Talks(secret_)) StopTalk();   // a key cuts Choowi off
         if(harmony_ && (velocity ? HarmonyOn() && harmony_->Maps(note) : harmony_->Holds(note, source)))
             return HarmonyNote(note, velocity, source, played, released);
         if(parts_ && (PartsOn() || !velocity) && PartsKey(note, &note, 1, -1, 7, velocity, source)) {
@@ -180,8 +180,8 @@ public:
             } else {
                 for(unsigned i = 0; i < n; ++i) if(parameters_.synth) synth_.Note(out[i], i < off ? 0 : velocity, source);
             }
-            if(!velocity && secret_ == secret::Mode::Conversation && n && HarmonySilent())   // 0.19.2 Chord Conversations
-                talk_.ChordEnded(harmony_->LastVoiced(), harmony_->state, Sixteenth(), rand_);
+            if(!velocity && secret::Talks(secret_) && n && HarmonySilent())   // 0.19.2 Chord Conversations
+                talk_.ChordEnded(harmony_->LastVoiced(), harmony_->state, secret::FamilyOf(secret_), Sixteenth(), rand_);
             if(released) *released = off;
             return n;
         }

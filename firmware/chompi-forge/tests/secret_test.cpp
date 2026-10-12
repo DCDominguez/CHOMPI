@@ -79,12 +79,13 @@ void BloomInEngine() {
 }
 
 void Conversations() {
-    Rig rig; rig.engine.SetSecret(secret::Mode::Conversation);
+    Rig rig; rig.engine.SetSecret(secret::Mode::TalkCall);
     const uint32_t step = secret::Sixteenth(48000.f, 120.f);
     rig.engine.Note(60, 100, 2); rig.Run(4800); rig.engine.Note(60, 0, 2);
     secret::Conversation& talk = rig.engine.Talk();
     assert(talk.Speaking() && talk.Length() >= 3 && talk.Length() <= secret::Conversation::kMaxPhrase);
     for(unsigned i = 0; i < talk.Length(); ++i) {                                // every note is the chord's or the key's
+        if(!talk.Note(i)) continue;                                                // a rest
         const unsigned pc = talk.Note(i) % 12;
         assert(InKey(pc, rig.player.state) || pc == 0 || pc == 4 || pc == 7 || pc == 11);
         assert(talk.Note(i) >= kLowest && talk.Note(i) <= kHighest);
@@ -100,6 +101,39 @@ void Conversations() {
     rig.engine.Note(64, 100, 2); assert(talk.Sounding() == 0 && !talk.Speaking());
     rig.engine.Note(64, 0, 2);
     rig.engine.Panic(); assert(!talk.Speaking());
+}
+
+// The motif families: every note is the chord's or the key's, Groove rests, Sparkle sits high and
+// Groove low, and an answer repeats the last motif only as a "develop" (about one in three).
+void MotifFamilies() {
+    secret::Rand r; State key; key.tonic = 0; key.mode = Mode::Major;
+    Voiced cmaj7; cmaj7.count = 4; cmaj7.note[0] = 60; cmaj7.note[1] = 64; cmaj7.note[2] = 67; cmaj7.note[3] = 71;
+    double mean[secret::kFamilies] = {};
+    bool rested[secret::kFamilies] = {};
+    for(unsigned f = 0; f < secret::kFamilies; ++f) {
+        secret::Conversation talk; unsigned repeats = 0, previous = 99, total = 0, notes = 0;
+        for(int i = 0; i < 300; ++i) {
+            talk.ChordEnded(cmaj7, key, static_cast<secret::Family>(f), 6000, r);
+            assert(talk.Length() >= 3 && talk.Length() <= secret::Conversation::kMaxPhrase);
+            for(unsigned k = 0; k < talk.Length(); ++k) {
+                assert(talk.Steps(k) >= 1 && talk.Steps(k) <= 4);
+                if(!talk.Note(k)) { rested[f] = true; continue; }
+                assert(InKey(talk.Note(k) % 12, key) && talk.Note(k) >= kLowest && talk.Note(k) <= kHighest);
+                assert(talk.Velocity(k) >= 40 && talk.Velocity(k) <= 100);
+                total += talk.Note(k); ++notes;
+            }
+            if(talk.LastMotif() == previous) ++repeats;
+            previous = talk.LastMotif();
+        }
+        mean[f] = double(total) / notes;
+        assert(repeats > 60 && repeats < 140);                                     // ~100 of 300: develop, not chance repeats
+    }
+    assert(rested[static_cast<unsigned>(secret::Family::Groove)] && !rested[static_cast<unsigned>(secret::Family::Echo)]);
+    assert(mean[static_cast<unsigned>(secret::Family::Sparkle)] > mean[static_cast<unsigned>(secret::Family::Echo)] + 6);
+    assert(mean[static_cast<unsigned>(secret::Family::Groove)] < mean[static_cast<unsigned>(secret::Family::Call)]);
+    // Echo answers with the chord's top note, Call's first motif climbs to the octave.
+    secret::Conversation echo; echo.ChordEnded(cmaj7, key, secret::Family::Echo, 6000, r); assert(echo.Note(0) == 71);
+    assert(secret::FamilyOf(secret::Mode::TalkSparkle) == secret::Family::Sparkle && !secret::Talks(secret::Mode::BloomUp));
 }
 
 void Mischief() {
@@ -139,14 +173,15 @@ void Panel() {
     rig.hw.keys |= uint64_t(1) << panel::kFxBefore; for(int i = 0; i < 2001; ++i) rig.Block();
     rig.hw.keys &= ~(uint64_t(1) << panel::kFxBefore); rig.Block();
     assert(rig.panel.HarmonyPage() && rig.engine.Secret() == secret::Mode::Off);
-    const secret::Mode order[] = {secret::Mode::BloomUp, secret::Mode::BloomDown, secret::Mode::BloomRandom, secret::Mode::Conversation, secret::Mode::Conversation};
+    const secret::Mode order[] = {secret::Mode::BloomUp, secret::Mode::BloomDown, secret::Mode::BloomRandom, secret::Mode::TalkEcho,
+                                  secret::Mode::TalkCall, secret::Mode::TalkSparkle, secret::Mode::TalkGroove, secret::Mode::TalkGroove};
     for(secret::Mode m : order) {                                                  // SW3: three clicks per step, stops at the end
         rig.hw.turns[panel::kKnobEncoder[3]] = 3; rig.Block(); assert(rig.engine.Secret() == m);
         assert(((rig.panel.KnobFlags() >> 19) & 7u) == static_cast<unsigned>(m) && ((rig.panel.KnobFlags() >> 7) & 1u));
     }
     Rgb rings[4]; ComposeHarmonyKnobLeds(Pack(rig.player.state), rings, rig.panel.KnobFlags());
-    assert(rings[3].r == knobs::StepColour(4).r && rings[3].g == knobs::StepColour(4).g);   // Conversations: the 5th step colour
-    rig.hw.turns[panel::kKnobEncoder[3]] = -12; rig.Block(); assert(rig.engine.Secret() == secret::Mode::Off);
+    assert(rings[3].r == knobs::StepColour(7).r && rings[3].g == knobs::StepColour(7).g);   // Groove: the 8th step colour (blue)
+    rig.hw.turns[panel::kKnobEncoder[3]] = -24; rig.Block(); assert(rig.engine.Secret() == secret::Mode::Off);
     // Close the menu and hold a chord (C4).
     rig.hw.keys = 0; for(int i = 0; i < 10; ++i) rig.Block();
     rig.engine.Note(60, 100, 2); rig.Run(240);
@@ -166,8 +201,8 @@ void Panel() {
 } // namespace
 
 int main() {
-    BloomUnit(); BloomInEngine(); Conversations(); Mischief(); Panel();
-    std::cout << "PASS: secret modes: bloom order/timing/cancel, conversations (bar pause, one voice, in key, cut off), "
+    BloomUnit(); BloomInEngine(); Conversations(); MotifFamilies(); Mischief(); Panel();
+    std::cout << "PASS: secret modes: bloom order/timing/cancel, conversations (bar pause, one voice, in key, cut off, 4 motif families), "
                  "mischief (5 bends, home, no stuck notes), panel (SW3 picks, SW1+SW3 bends with a chord, rolls without)\n";
     return 0;
 }

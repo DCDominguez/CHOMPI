@@ -47,6 +47,13 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
   (`/api/midi/send|status|stop|reply`, forge_host's wire format, including the acknowledged-patch
   match); it opens no MIDI port. Tested in the browser end-to-end through the firmware's decoder
   (`forge_probe`) with a stand-in for Web MIDI; not yet with a real CHOMPI in Chrome.
+- **Conversations get motif families** (the owner: groups of motifs that go together, varied but
+  not too random): SW3's steps after Bloom are now four Conversations: **Echo** (red: the top notes
+  come back, softer), **Call** (pink: a rising arpeggio, a falling run, a turn), **Sparkle** (purple:
+  high grace notes, a trill, broken octaves) and **Groove** (blue: low and rhythmic, with rests).
+  Each family has three motifs (a table in `core/secret.h`); the same motif never plays twice in a
+  row except as a "develop" (about one answer in three repeats the last motif on the new chord).
+  Every note stays a chord tone or a step in the key. +456 B release. Tests: `MotifFamilies`.
 - **Harmony's secret modes** (the owner's ideas; `core/secret.h`, test `secret_test`): on the
   harmony page SW3's turn picks off / Chord Bloom up, down, random / Chord Conversations (step
   colours; not saved, off at power-on). **Bloom:** a chord's notes arrive one per 1/16 at the

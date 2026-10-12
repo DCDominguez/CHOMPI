@@ -1055,8 +1055,9 @@ inline void ComposeHarmonyKnobLeds(uint32_t packed, Rgb (&rings)[4], uint32_t fl
     if((flags >> 4) & 1u) rings[0] = knobs::StepColour(static_cast<unsigned>(s.mode));
     if((flags >> 5) & 1u) rings[1] = knobs::StepColour(ExtensionStep(s.extension));
     if((flags >> 6) & 1u) rings[2] = knobs::StepColour(s.inversion);
-    // 0.19.2: SW3 turned shows the secret mode (off white, Bloom up green, down yellow, random orange,
-    // Conversations red); while one is on, SW3 glows its colour dimly over the open / close light.
+    // 0.19.2: SW3 turned shows the secret mode (off white, Bloom up green, down yellow, random orange;
+    // Conversations: Echo red, Call pink, Sparkle purple, Groove blue); while one is on, SW3 glows its
+    // colour dimly over the open / close light.
     const unsigned secret_mode = (flags >> 19) & 7u;
     if((flags >> 7) & 1u) rings[3] = knobs::StepColour(secret_mode);
     else if(secret_mode) rings[3] = knobs::Scale(knobs::StepColour(secret_mode), s.open ? 1.f : .35f);
