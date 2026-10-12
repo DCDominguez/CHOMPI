@@ -2,15 +2,18 @@
 
 Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)); the heading names it.
 
-## 0.20 (development, branch forge/fx) — not released
+## 0.19.2 Secret modes, the forge site, bank purple (small tool: Whatzit) — 2026-10-12 (release candidate; on CHOMPI as build b462bea; checks in TEST_RESULTS)
+
+### Development line (branch forge/fx, not released; the version number for it is still open)
 
 - **The FX section:** four modules (Space, Colour, Texture, Motion), three effects each, in a route; the
   FX menu page; patch v8. See [FX.md](FX.md).
 - **Overdub undo:** tap PLAY + LOOP together to take the last overdub back (one level, loops up to ~41 s).
 - **Lights:** the ring LEDs colour-matched to the keys; fainter harmony chord previews; FX page levels.
 - **Build:** `-O2` instead of `-O3` (23 KB of code space for ~1 point of CPU).
+- **Any FX order:** hold A#3 on the FX page and tap the modules in order; B3 side by side.
 
-## 0.19.2 Secret modes, the forge site, bank purple (small tool: Whatzit) — 2026-10-12 (release candidate; on CHOMPI as build b462bea; checks in TEST_RESULTS)
+### 0.19.2
 
 - **Harmony, arp and bass fixes (after release candidate 2; implemented and software-tested, not yet
   hardware-verified; the owner's review, 2026-10-13).** Dominant chords (secondary dominants, Shift's

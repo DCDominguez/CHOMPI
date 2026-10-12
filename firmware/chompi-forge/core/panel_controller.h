@@ -516,8 +516,17 @@ private:
                 f |= (engine.Choice(static_cast<fx::Module>(m)) & 3u) << (2 * m);
                 amounts |= static_cast<uint32_t>(Clamp(engine.Value(FxAmount(m)), 0.f, 1.f) * 255.f + .5f) << (8 * m);
             }
-            f |= (static_cast<uint32_t>(engine.GetRoute()) & 3u) << 8 | (engine.FxBeforeLoop() ? 1u << 10 : 0u) | (FxPage() ? 1u << 31 : 0u);
+            const int preset = engine.Preset();
+            f |= (static_cast<uint32_t>(preset < 0 ? 0 : preset) & 3u) << 8 | (engine.FxBeforeLoop() ? 1u << 10 : 0u) | (FxPage() ? 1u << 31 : 0u)
+               | (preset < 0 ? 1u << 15 : 0u) | (engine.SideBySide() ? 1u << 16 : 0u) | (route_held_ ? 1u << 17 : 0u);
             for(unsigned m = 0; m < fx::kModules; ++m) if(engine.Value(FxAmount(m)) > 0.f) f |= 1u << (11 + m);   // module on
+            f |= static_cast<uint32_t>(fx_knob_down_ & 15u) << 26;                                                // knobs held: character
+            uint32_t chars = 0;
+            const Parameter character[4] = {Parameter::Time, Parameter::ColourCharacter, Parameter::TextureCharacter, Parameter::MotionRate};
+            for(unsigned k = 0; k < 4; ++k) chars |= static_cast<uint32_t>(Clamp(engine.Value(character[k]), 0.f, 1.f) * 255.f + .5f) << (8 * k);
+            fx_chars_.store(chars, std::memory_order_relaxed);
+            fx::Module order[fx::kModules]; PreviewOrder(engine, order);                                         // each module's place
+            for(unsigned i = 0; i < fx::kModules; ++i) f |= static_cast<uint32_t>(i) << (18 + 2 * static_cast<unsigned>(order[i]));
             fx_lights_.store(f, std::memory_order_relaxed); fx_knobs_.store(amounts, std::memory_order_relaxed);
         }
         const bool tape_menu = menu_.Active() && menu_.Page() == MenuPage::Samples;
@@ -769,10 +778,19 @@ private:
     // 0.20 FX page (docs/forge/CONTINUE.md): white keys in groups of three choose each module's
     // effect (C3-E3 Space, F3-A3 Colour, C4-E4 Texture, F4-A4 Motion), A#3 steps the route, F#3 / G#3
     // put the effects before / after the looper. Effects not built yet are refused (key stays dim).
+    // The order (0.20): tap A#3 = the next preset (Classic, Wear last, Wash first); hold A#3 and tap the
+    // modules (any key of a group) in the order you want them, let go = that order (modules not tapped
+    // follow in their order); B3 = side by side (the reverb hears the signal before the delay) on / off.
     FORGE_COLD void FxKey(uint8_t note, Engine& engine) {
+        if(note == fx::kRouteKey) { route_held_ = true; taps_ = 0; return; }
         for(uint8_t m = 0; m < fx::kModules; ++m) for(uint8_t c = 0; c < fx::kChoices; ++c)
-            if(note == fx::kKeys[m][c]) { engine.SetChoice(static_cast<fx::Module>(m), c); return; }
-        if(note == fx::kRouteKey) engine.SetRoute(static_cast<fx::Route>((static_cast<unsigned>(engine.GetRoute()) + 1) % fx::kRoutes));
+            if(note == fx::kKeys[m][c]) {
+                if(route_held_) { bool seen = false; for(unsigned i = 0; i < taps_; ++i) seen |= tapped_[i] == static_cast<fx::Module>(m);
+                                  if(!seen && taps_ < fx::kModules) tapped_[taps_++] = static_cast<fx::Module>(m); }
+                else engine.SetChoice(static_cast<fx::Module>(m), c);
+                return;
+            }
+        if(note == fx::kSideKey) engine.SetSideBySide(!engine.SideBySide());
         else if(note == fx::kBeforeLoopKey) engine.SetFxBeforeLoop(true);
         else if(note == fx::kAfterLoopKey) engine.SetFxBeforeLoop(false);
     }
@@ -784,9 +802,28 @@ private:
         static const Parameter p[4] = {Parameter::Space, Parameter::Saturation, Parameter::Warble, Parameter::Motion};
         return p[knob & 3];
     }
+    // The order A#3 would set now: the tapped modules first, then the rest in their current order.
+    void PreviewOrder(const Engine& engine, fx::Module (&order)[fx::kModules]) const {
+        unsigned n = 0;
+        if(route_held_) for(unsigned i = 0; i < taps_; ++i) order[n++] = tapped_[i];
+        for(fx::Module m : engine.Order()) {
+            bool seen = false; for(unsigned i = 0; i < n; ++i) seen |= order[i] == m;
+            if(!seen && n < fx::kModules) order[n++] = m;
+        }
+    }
     FORGE_COLD void FxControls(uint64_t keys, const int16_t (&turns)[panel::kEncoders], Engine& engine) {
+        if(route_held_ && !((keys >> kRouteButton) & 1u)) {                  // A#3 let go
+            if(taps_) { fx::Module order[fx::kModules]; PreviewOrder(engine, order); engine.SetOrder(order); }
+            else {
+                const int preset = engine.Preset(); const bool side = engine.SideBySide();
+                engine.SetRoute(static_cast<fx::Route>(preset < 0 ? 0 : (preset + 1) % 3)); engine.SetSideBySide(side);
+            }
+            route_held_ = false; taps_ = 0;
+        }
+        fx_knob_down_ = 0;
         for(unsigned knob = 0; knob < 4; ++knob) {
             const bool down = (keys >> panel::kKnobEncoder[knob]) & 1u;
+            if(down) fx_knob_down_ |= 1u << knob;
             const int t = turns[panel::kKnobEncoder[knob]];
             if(!t) continue;
             turn_view_[knob] = panel::kTurnViewFrames;
@@ -798,6 +835,15 @@ private:
         }
     }
     std::atomic<uint32_t> fx_lights_{0}, fx_knobs_{0};
+    static constexpr unsigned kRouteButton = 21;                            // A#3's switch (KEY_20)
+    std::atomic<uint32_t> fx_chars_{0};                                     // the characters, 8 bits each
+    uint8_t fx_knob_down_ = 0;
+public:
+    uint32_t FxCharacters() const { return fx_chars_.load(std::memory_order_relaxed); }
+private:
+    bool route_held_ = false;
+    fx::Module tapped_[fx::kModules] = {};
+    unsigned taps_ = 0;
     uint8_t synth_page_[4] = {};
     bool audition_ = false;
     std::atomic<uint32_t> synth_lights_{0}, synth_knobs_{0};
@@ -1218,7 +1264,8 @@ inline void ComposeSynthKnobLeds(uint32_t s, uint32_t values, Rgb (&rings)[4], u
 // 0.20 FX page (the owner's light review, 2026-10-13): each module's three keys in its colour (Space
 // white, Colour green, Texture yellow, Motion pink: colours that stay apart on the LEDs). The chosen key
 // is full while its module is on (amount above 0), soft while off; the other two are a faint glow.
-// A#3 the route in its own colours (Classic orange, Wear last blue, Wash first purple, Side by side red);
+// A#3 the order's preset (Classic orange, Wear last blue, Wash first purple; white: your own order, and while
+// A#3 is held the groups show the order by brightness, first brightest); B3 red while side by side is on;
 // F#3 / G#3 teal where the effects sit around the looper, the other dark; KEY_21 / KEY_22 dim.
 FORGE_COLD inline void RenderFxLeds(uint32_t f, Rgb (&keys)[25]) {
     using namespace knobs::colour;
@@ -1237,8 +1284,14 @@ FORGE_COLD inline void RenderFxLeds(uint32_t f, Rgb (&keys)[25]) {
         for(unsigned c = 0; c < fx::kChoices; ++c)
             lit(fx::kKeys[m][c], knobs::Scale(colours[m], c != chosen ? .05f : on ? 1.f : .25f));
     }
-    static const Rgb routes[fx::kRoutes] = {orange, blue, purple, red};
-    lit(fx::kRouteKey, routes[(f >> 8) & 3u]);
+    if((f >> 17) & 1u) {                                                   // A#3 held: the order by brightness
+        static const float place[fx::kModules] = {1.f, .45f, .18f, .07f};
+        for(unsigned m = 0; m < fx::kModules; ++m) for(unsigned c = 0; c < fx::kChoices; ++c)
+            lit(fx::kKeys[m][c], knobs::Scale(colours[m], place[(f >> (18 + 2 * m)) & 3u]));
+    }
+    static const Rgb presets[3] = {orange, blue, purple};
+    lit(fx::kRouteKey, (f >> 15) & 1u || (f >> 17) & 1u ? white : presets[((f >> 8) & 3u) % 3]);   // white: custom (or editing)
+    lit(fx::kSideKey, (f >> 16) & 1u ? red : knobs::Scale(red, .05f));
     const bool before = (f >> 10) & 1u;
     lit(fx::kBeforeLoopKey, before ? teal : Rgb{}); lit(fx::kAfterLoopKey, before ? Rgb{} : teal);
     lit(61, Rgb{.08f, .08f, .08f}); lit(63, Rgb{.08f, .08f, .08f});
@@ -1246,13 +1299,16 @@ FORGE_COLD inline void RenderFxLeds(uint32_t f, Rgb (&keys)[25]) {
 // FX page rings: each knob in its module's colour (as the keys) and always its amount, also while it turns
 // (the owner, 2026-10-13: a full flash on turning hid whether the effect grew or faded). Off: a dim glow;
 // the first click up: a clear step; then brighter to full, squared so the steps look even to the eye.
-inline void ComposeFxKnobLeds(uint32_t amounts, Rgb (&rings)[4], uint32_t flags = 0) {
+// While a knob is held (hold + turn = character) its ring shows the character instead, in white, the
+// same dim-to-bright way (the owner: no light while turning for character). `held`: bits 0-3.
+inline void ComposeFxKnobLeds(uint32_t amounts, Rgb (&rings)[4], uint32_t flags = 0, uint32_t characters = 0, uint32_t held = 0) {
     using namespace knobs::colour;
     (void)flags;
     const Rgb colours[4] = {white, green, yellow, pink};
     for(unsigned k = 0; k < 4; ++k) {
-        const float v = ((amounts >> (8 * k)) & 255u) / 255.f;
-        rings[k] = knobs::Scale(colours[k], v <= 0.f ? .1f : .25f + .75f * v * v);
+        const bool character = (held >> k) & 1u;
+        const float v = (((character ? characters : amounts) >> (8 * k)) & 255u) / 255.f;
+        rings[k] = knobs::Scale(character ? white : colours[k], v <= 0.f ? .1f : .25f + .75f * v * v);
     }
 }
 inline void ComposePartsKnobLeds(uint32_t packed, uint32_t clock, Rgb (&rings)[4], uint32_t flags = 0) {

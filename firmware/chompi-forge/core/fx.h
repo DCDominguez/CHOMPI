@@ -24,10 +24,41 @@ constexpr Module kOrder[kRoutes][kModules] = {
     {Module::Colour, Module::Texture, Module::Space, Module::Motion},     // Wash first: the wash moves
     {Module::Colour, Module::Motion, Module::Texture, Module::Space},     // Side by side
 };
+// Any order (0.20, the owner: "can we set it so the user can select the order"): the modules run in
+// series, each on the one before's output, in one of the 24 orders; the presets above are shortcuts.
+// An order travels as its index 0-23 (a Lehmer code over the Classic order, so Classic is 0).
+constexpr Module kClassic[kModules] = {Module::Colour, Module::Motion, Module::Texture, Module::Space};
+inline unsigned ClassicRank(Module m) { for(unsigned i = 0; i < kModules; ++i) if(kClassic[i] == m) return i; return 0; }
+inline bool ValidOrder(const Module (&o)[kModules]) {
+    bool seen[kModules] = {};
+    for(Module m : o) { const unsigned i = static_cast<unsigned>(m); if(i >= kModules || seen[i]) return false; seen[i] = true; }
+    return true;
+}
+inline uint8_t OrderIndex(const Module (&o)[kModules]) {
+    unsigned index = 0; bool used[kModules] = {};
+    for(unsigned i = 0; i < kModules; ++i) {
+        const unsigned r = ClassicRank(o[i]); unsigned smaller = 0;
+        for(unsigned j = 0; j < r; ++j) if(!used[j]) ++smaller;
+        index = index * (kModules - i) + smaller; used[r] = true;
+    }
+    return static_cast<uint8_t>(index);
+}
+inline bool OrderFromIndex(unsigned index, Module (&o)[kModules]) {
+    if(index >= 24) return false;
+    unsigned digit[kModules] = {};
+    for(unsigned i = kModules; i-- > 0;) { const unsigned radix = kModules - i; digit[i] = index % radix; index /= radix; }
+    bool used[kModules] = {};
+    for(unsigned i = 0; i < kModules; ++i) {
+        unsigned k = digit[i];
+        for(unsigned r = 0; r < kModules; ++r) if(!used[r]) { if(k == 0) { o[i] = kClassic[r]; used[r] = true; break; } --k; }
+    }
+    return true;
+}
 // Choices per module, in key order.
 // The FX page's keys (MIDI notes of the panel keys): each module's three choices, in key order.
 constexpr uint8_t kKeys[kModules][kChoices] = {{48, 50, 52}, {53, 55, 57}, {60, 62, 64}, {65, 67, 69}};
 constexpr uint8_t kRouteKey = 58, kBeforeLoopKey = 54, kAfterLoopKey = 56;   // A#3, F#3, G#3
+constexpr uint8_t kSideKey = 59;                                                // B3: side by side on / off
 enum class SpaceChoice : uint8_t { EchoRoom, Cloud, TapeEcho };
 enum class ColourChoice : uint8_t { Saturation, Fold, Crush };
 enum class TextureChoice : uint8_t { Cassette, Broken, Squash };

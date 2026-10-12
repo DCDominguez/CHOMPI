@@ -90,7 +90,7 @@ Every payload byte is 7-bit. Words are little-endian base 128. Sequence is
 | 91, 92 | v7 arp word bits 7–13, 14–20 |
 | 93, 94, 95 | v7 clock word bits 0–6, 7–13, 14–20 |
 | 96 | v7 checksum; v8 FX word bits 0–6 |
-| 97 | v8 FX word bits 7–13 (bits 10–13 zero) |
+| 97 | v8 FX word bits 7–13 |
 | 98, 99 | v8 Colour amount (saturation), N14 |
 | 100, 101 | v8 Texture amount (warble / cassette), N14 |
 | 102, 103 | v8 Motion amount, N14 |
@@ -130,10 +130,11 @@ identical to v6.
 v8 (firmware 0.20, development; `core/fx.h`, host `forge_host.fx_word`) = v7 + the FX section:
 four modules with one effect chosen in each, run in a route after the DJ filter. FX word bits
 0–1 Space (0 echo + room, 1 cloud, 2 tape echo), 2–3 Colour (0 saturation, 1 fold, 2 crush),
-4–5 Texture (0 cassette, 1 broken, 2 squash), 6–7 Motion (0 chorus, 1 phaser, 2 tremolo), 8–9
-route (0 Classic: Colour, Motion, Texture, Space; 1 Wear last: Texture after Space; 2 Wash first:
-Space before Motion; 3 Side by side: the reverb hears the signal before the delay). A choice of 3
-or bits 10–13 set are error 4. An effect the firmware has not built yet falls back to its
+4–5 Texture (0 cassette, 1 broken, 2 squash), 6–7 Motion (0 chorus, 1 phaser, 2 tremolo), 8–12
+the order (the modules in series, each on the one before's output) as an index 0–23: a Lehmer code
+over the Classic order Colour, Motion, Texture, Space (Classic = 0; `fx::OrderIndex`, host
+`fx_order_index`); 13 side by side (the reverb hears the signal before the delay). A choice of 3 or an
+order index of 24 or more is error 4. An effect the firmware has not built yet falls back to its
 module's first (0.20 builds all twelve). Space's
 amount and character are the v3 delay / reverb fields. The amounts and Motion's rate are device
 performance controls (as TAPE's knobs): a v8 patch sets them, v1–v7 patches leave them and the

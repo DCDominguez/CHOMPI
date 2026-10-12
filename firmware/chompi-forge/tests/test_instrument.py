@@ -92,7 +92,8 @@ class InstrumentTests(unittest.TestCase):
         self.assertEqual(base["fx"], host.FX_DEFAULTS)
         for index in range(60):
             p = copy.deepcopy(base)
-            p["fx"] = {"route": rng.choice(host.FX_ROUTES), **{m: rng.choice(host.FX_BUILT[m]) for m in host.FX_MODULES},
+            order = list(host.FX_MODULES); rng.shuffle(order)
+            p["fx"] = {"order": order, "side_by_side": rng.random() < .5, **{m: rng.choice(host.FX_BUILT[m]) for m in host.FX_MODULES},
                        **{k: rng.choice((0, 1, round(rng.random(), 4))) for k in host.FX_AMOUNTS}}
             packets.append(host.encode_patch(host.validate_patch(p), index))
         for packet, reply in zip(packets, probe(*packets)):
@@ -102,7 +103,9 @@ class InstrumentTests(unittest.TestCase):
             captured = host.decode_response(reply, host.read14(packet, 5))["patch"]
             self.assertEqual(captured["version"], 8)
             self.assertEqual(host.encode_patch(captured, host.read14(packet, 5)), packet)
-        for bad in ({"colour": "glitter"}, {"route": "sideways"}, {"motion_amount": 1.5}, {"motion_rate": True}, {"extra": 1}):
+        self.assertEqual(sorted(host.fx_order_index(host.fx_order_from_index(i)) for i in range(24)), list(range(24)))
+        self.assertEqual(host.fx_order_index(list(host.FX_CLASSIC)), 0)
+        for bad in ({"colour": "glitter"}, {"order": ["space", "space", "colour", "motion"]}, {"order": ["space"]}, {"side_by_side": 1}, {"motion_amount": 1.5}, {"motion_rate": True}, {"extra": 1}):
             p = copy.deepcopy(base); p["fx"] = {**p["fx"], **bad}
             with self.assertRaises(ValueError): host.validate_patch(p)
         p = copy.deepcopy(base); del p["fx"]

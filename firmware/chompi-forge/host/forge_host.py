@@ -207,41 +207,67 @@ PARTS_SCHEMA = object_schema({
 SCHEMA7 = object_schema({**SCHEMA6["properties"], "version": {"type": "integer", "enum": [7]}, "parts": PARTS_SCHEMA})
 # v8 (firmware 0.20, development) = v7 + "fx": the FX section (core/fx.h; docs/forge/CONTINUE.md). Four modules,
 # one effect chosen in each, in a route; Space's amount and character are the delay / reverb modules. On the wire:
-# a word (2 bits per module's choice in module order space, colour, texture, motion; bits 8-9 route) in two
+# a word (2 bits per module's choice in module order space, colour, texture, motion; bits 8-12 the order's
+# index 0-23, a Lehmer code over the Classic order; bit 13 side by side) in two
 # bytes (request 96-97), then colour, texture and motion amounts, motion rate, colour and texture character,
 # 14 bits each (98-109).
 # FX_BUILT lists the effects this firmware has; the others are reserved (the firmware falls back to the first).
-FX_ROUTES = ("classic", "wear_last", "wash_first", "side_by_side")
 FX_MODULES = ("space", "colour", "texture", "motion")
+FX_CLASSIC = ("colour", "motion", "texture", "space")                   # the order before the FX section
+FX_PRESETS = {"classic": FX_CLASSIC, "wear_last": ("colour", "motion", "space", "texture"),
+              "wash_first": ("colour", "texture", "space", "motion")}
 FX_CHOICES = {"space": ("echo_room", "cloud", "tape_echo"), "colour": ("saturation", "fold", "crush"),
               "texture": ("cassette", "broken", "squash"), "motion": ("chorus", "phaser", "tremolo")}
 FX_BUILT = FX_CHOICES                                                   # all twelve (Phase 2, 0.20)
 FX_AMOUNTS = ("colour_amount", "texture_amount", "motion_amount", "motion_rate", "colour_character", "texture_character")
-FX_DEFAULTS = {"route": "classic", "space": "echo_room", "colour": "saturation", "texture": "cassette", "motion": "chorus",
+FX_DEFAULTS = {"order": list(FX_CLASSIC), "side_by_side": False,
+               "space": "echo_room", "colour": "saturation", "texture": "cassette", "motion": "chorus",
                "colour_amount": 0, "texture_amount": 0, "motion_amount": 0, "motion_rate": 0.3,
                "colour_character": 0, "texture_character": 0}
-FX_SCHEMA = object_schema({"route": {"type": "string", "enum": list(FX_ROUTES)},
+FX_SCHEMA = object_schema({"order": {"type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": True,
+                                     "items": {"type": "string", "enum": list(FX_MODULES)},
+                                     "description": "The modules in signal order; each processes the one before's output"},
+                           "side_by_side": {"type": "boolean", "description": "The reverb hears the signal before the delay"},
                            **{m: {"type": "string", "enum": list(FX_BUILT[m])} for m in FX_MODULES},
                            **{k: {"type": "number", "minimum": 0, "maximum": 1} for k in FX_AMOUNTS}})
 SCHEMA8 = object_schema({**SCHEMA7["properties"], "version": {"type": "integer", "enum": [8]}, "fx": FX_SCHEMA})
 
 
+def fx_order_index(order):
+    index, left = 0, list(FX_CLASSIC)
+    for i, m in enumerate(order):
+        r = left.index(m); index = index * (4 - i) + r; left.pop(r)
+    return index
+
+
+def fx_order_from_index(index):
+    if not 0 <= index < 24: raise ValueError("Invalid fx order in status")
+    digits = []
+    for radix in (1, 2, 3, 4): digits.insert(0, index % radix); index //= radix
+    left = list(FX_CLASSIC)
+    return [left.pop(d) for d in digits]
+
+
 def check_fx(f):
-    if not isinstance(f, dict) or set(f) != set(FX_DEFAULTS) or f["route"] not in FX_ROUTES \
+    if not isinstance(f, dict) or set(f) != set(FX_DEFAULTS) or not isinstance(f["order"], list) \
+            or sorted(f["order"]) != sorted(FX_MODULES) or type(f["side_by_side"]) is not bool \
             or any(f[m] not in FX_BUILT[m] for m in FX_MODULES) \
             or any(type(f[k]) not in (int, float) or isinstance(f[k], bool) or not math.isfinite(f[k]) or not 0 <= f[k] <= 1
                    for k in FX_AMOUNTS):
-        raise ValueError("fx: route " + "/".join(FX_ROUTES) + "; " + "; ".join(f"{m} " + "/".join(FX_BUILT[m]) for m in FX_MODULES)
+        raise ValueError("fx: order = the four modules " + "/".join(FX_MODULES) + " each once, side_by_side true/false; "
+                         + "; ".join(f"{m} " + "/".join(FX_BUILT[m]) for m in FX_MODULES)
                          + "; " + ", ".join(FX_AMOUNTS) + " 0-1 (see the v8 schema)")
 
 
 def fx_word(f):
-    return sum(FX_CHOICES[m].index(f[m]) << (2 * i) for i, m in enumerate(FX_MODULES)) | FX_ROUTES.index(f["route"]) << 8
+    return (sum(FX_CHOICES[m].index(f[m]) << (2 * i) for i, m in enumerate(FX_MODULES)) | fx_order_index(f["order"]) << 8
+            | int(f["side_by_side"]) << 13)
 
 
 def fx_from_status(word, amounts):
-    if word >> 10 or any((word >> (2 * i) & 3) == 3 for i in range(4)): raise ValueError("Invalid fx in status")
-    f = {"route": FX_ROUTES[word >> 8 & 3], **{m: FX_CHOICES[m][word >> (2 * i) & 3] for i, m in enumerate(FX_MODULES)}}
+    if word >> 14 or any((word >> (2 * i) & 3) == 3 for i in range(4)): raise ValueError("Invalid fx in status")
+    f = {"order": fx_order_from_index(word >> 8 & 31), "side_by_side": bool(word >> 13 & 1),
+         **{m: FX_CHOICES[m][word >> (2 * i) & 3] for i, m in enumerate(FX_MODULES)}}
     return {**f, **{k: round(v / 16383, 4) for k, v in zip(FX_AMOUNTS, amounts)}}
 
 

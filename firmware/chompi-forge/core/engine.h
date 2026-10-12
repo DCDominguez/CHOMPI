@@ -161,21 +161,43 @@ public:
     // Anything off the pre-FX defaults (a choice, the route, Motion): a saved sound becomes v8.
     bool FxInUse() const {
         for(unsigned m = 0; m < fx::kModules; ++m) if(choice_[m]) return true;
-        return route_ != fx::Route::Classic || performance_.motion > 0.f;
+        return fx::OrderIndex(order_) != 0 || side_by_side_ || performance_.motion > 0.f;
     }
     // A v8 sound's FX section: choices (an effect this firmware lacks falls back to the module's
     // first), route, and the Colour / Texture / Motion settings (performance controls).
     FORGE_COLD void ApplyFx(const Parameters& patch) {
         for(unsigned m = 0; m < fx::kModules; ++m)
             if(!SetChoice(static_cast<fx::Module>(m), static_cast<uint8_t>((patch.fx >> (2 * m)) & 3u))) SetChoice(static_cast<fx::Module>(m), 0);
-        SetRoute(static_cast<fx::Route>((patch.fx >> 8) & 3u));
+        fx::Module order[fx::kModules];
+        if(fx::OrderFromIndex((patch.fx >> 8) & 31u, order)) SetOrder(order);
+        side_by_side_ = (patch.fx >> 13) & 1u;
         performance_.saturation = patch.fx_colour; performance_.warble = patch.fx_texture;
         performance_.motion = patch.fx_motion; performance_.motion_rate = patch.fx_motion_rate;
         performance_.colour_character = patch.fx_colour_character; performance_.texture_character = patch.fx_texture_character;
         ConfigureFx();
     }
-    void SetRoute(fx::Route route) { if(static_cast<unsigned>(route) < fx::kRoutes) route_ = route; }
-    fx::Route GetRoute() const { return route_; }
+    // A preset order (Side by side = Classic with the reverb in parallel).
+    void SetRoute(fx::Route route) {
+        if(static_cast<unsigned>(route) >= fx::kRoutes) return;
+        for(unsigned i = 0; i < fx::kModules; ++i) order_[i] = fx::kOrder[static_cast<unsigned>(route)][i];
+        side_by_side_ = route == fx::Route::SideBySide;
+    }
+    // Any of the 24 orders; refused unless it names each module once.
+    bool SetOrder(const fx::Module (&order)[fx::kModules]) {
+        if(!fx::ValidOrder(order)) return false;
+        for(unsigned i = 0; i < fx::kModules; ++i) order_[i] = order[i];
+        return true;
+    }
+    const fx::Module (&Order() const)[fx::kModules] { return order_; }
+    void SetSideBySide(bool on) { side_by_side_ = on; }
+    bool SideBySide() const { return side_by_side_; }
+    // The preset this order is (Classic, Wear last, Wash first; Side by side when Classic in parallel), else
+    // Classic's route when custom: lights and tests use Preset() for the custom case.
+    fx::Route GetRoute() const { const int p = Preset(); return p == 0 && side_by_side_ ? fx::Route::SideBySide : static_cast<fx::Route>(p < 0 ? 0 : p); }
+    int Preset() const {
+        for(unsigned r = 0; r < 3; ++r) { bool same = true; for(unsigned i = 0; i < fx::kModules; ++i) same &= order_[i] == fx::kOrder[r][i]; if(same) return static_cast<int>(r); }
+        return -1;
+    }
     // Sampler memory (v4); see sample_table.h. May be set before or after Init.
     void SetSamples(const SampleTable* table) { synth_.SetSamples(table); }
     void ReleaseSampleVoices(bool include_recording) { synth_.ReleaseSampleVoices(include_recording); }
@@ -393,7 +415,7 @@ public:
         if(p.version >= 6 && harmony_) p.harmony = harmony::Pack(harmony_->state);
         if(p.version >= 7 && parts_) { p.parts_arp = parts::PackArp(parts_->settings); p.parts_clock = parts::PackClock(parts_->settings); }
         if(p.version >= 8) {
-            uint16_t word = static_cast<uint16_t>(static_cast<unsigned>(route_) << 8);
+            uint16_t word = static_cast<uint16_t>(static_cast<unsigned>(fx::OrderIndex(order_)) << 8 | (side_by_side_ ? 1u << 13 : 0u));
             for(unsigned m = 0; m < fx::kModules; ++m) word = static_cast<uint16_t>(word | (choice_[m] & 3u) << (2 * m));
             p.fx = word; p.fx_colour = performance_.saturation; p.fx_texture = performance_.warble;
             p.fx_motion = performance_.motion; p.fx_motion_rate = performance_.motion_rate;
@@ -458,9 +480,8 @@ public:
         // filter, saturation, warble, then delay and reverb, as before; Motion at zero is skipped).
         const bool tape = effects_.Active();
         if(tape) effects_.Filter(left, right);
-        const fx::Module* order = fx::kOrder[static_cast<unsigned>(route_)];
         for(unsigned stage = 0; stage < fx::kModules; ++stage) {
-            switch(order[stage]) {
+            switch(order_[stage]) {
                 case fx::Module::Colour: ColourStage(left, right, tape); break;
                 case fx::Module::Texture: TextureStage(left, right, tape); break;
                 case fx::Module::Motion: Motion(left, right); break;
@@ -517,8 +538,8 @@ private:
         Smooth(reverb_mix_, reverb_target);
         if(reverb_target > 0.f || reverb_mix_ > 1e-4f) {
             if(!reverb_active_) { reverb_.Clear(); diffuser_.Rest(); reverb_active_ = true; }
-            float in_left = route_ == fx::Route::SideBySide ? left : mixed_left;
-            float in_right = route_ == fx::Route::SideBySide ? right : mixed_right;
+            float in_left = side_by_side_ ? left : mixed_left;
+            float in_right = side_by_side_ ? right : mixed_right;
             if(cloud_) diffuser_.Process(in_left, in_right);
             float wet_left, wet_right;
             reverb_.Process(in_left, in_right, wet_left, wet_right);
@@ -788,7 +809,8 @@ private:
     fx::Chorus chorus_;
     fx::Diffuser diffuser_;
     uint8_t choice_[fx::kModules]{};
-    fx::Route route_ = fx::Route::Classic;
+    fx::Module order_[fx::kModules] = {fx::Module::Colour, fx::Module::Motion, fx::Module::Texture, fx::Module::Space};
+    bool side_by_side_ = false;
     bool cloud_ = false, motion_on_ = false;
     float echo_ = 1.f;
     // FX section Phase 2

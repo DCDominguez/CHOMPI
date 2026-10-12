@@ -50,9 +50,9 @@ inline float Clamp(float value, float low, float high) {
 constexpr uint8_t kSampleBanks = 5, kSampleSlots = 15, kRamSlot = 14; // slot 15 (index 14) = recording
 // Patch v7 parts words (layout in core/parts.h PackArp / PackClock): pattern < 6, rate < 6,
 // gate step < 20, bass mode < 5, bass octave < 3, tempo 40-300 BPM.
-// v8 FX word: four 2-bit choices (each 0-2) and a 2-bit route; bits 10-13 clear.
+// v8 FX word: four 2-bit choices (each 0-2), the order's index 0-23 in bits 8-12, side by side in bit 13.
 inline bool FxWordValid(uint16_t fx) {
-    if(fx >> 10) return false;
+    if(fx >> 14 || ((fx >> 8) & 31u) >= 24) return false;
     for(unsigned m = 0; m < 4; ++m) if(((fx >> (2 * m)) & 3u) == 3u) return false;
     return true;
 }
@@ -94,7 +94,8 @@ struct Parameters {
     // (core/parts.h), two 21-bit words; request bytes 90-92 and 93-95.
     uint32_t parts_arp = 0, parts_clock = 0;
     // Version 8 (0.20) adds the FX section (core/fx.h): fx = the four modules' choices, 2 bits each in
-    // module order (Space, Colour, Texture, Motion), | route << 8 (request bytes 96-97); then the
+    // module order (Space, Colour, Texture, Motion), | the order's index (0-23, fx::OrderIndex) << 8 |
+    // side by side << 13 (request bytes 96-97); then the
     // Colour (saturation), Texture (warble) and Motion amounts, Motion's rate, then the Colour and Texture
     // characters, 14 bits each (98-109).
     // Space's amount and character are the delay / reverb fields above.

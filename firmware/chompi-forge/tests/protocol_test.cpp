@@ -131,7 +131,8 @@ void ProtocolV3() {
 void ProtocolV8() {
     Parameters p; p.version = 8; p.synth = true; p.voices = 4;
     { parts::Settings s; p.parts_arp = parts::PackArp(s); p.parts_clock = parts::PackClock(s); }
-    p.fx = static_cast<uint16_t>(1u | 0u << 2 | 0u << 4 | 0u << 6 | 2u << 8);   // cloud, routes: Wash first
+    // cloud; the order Wash first (Colour, Texture, Space, Motion) by its index; side by side
+    p.fx = static_cast<uint16_t>(1u | static_cast<unsigned>(fx::OrderIndex(fx::kOrder[2])) << 8 | 1u << 13);
     p.fx_colour = .25f; p.fx_texture = .5f; p.fx_motion = .75f; p.fx_motion_rate = .125f;
     p.fx_colour_character = .375f; p.fx_texture_character = .625f;
     assert(p.Valid());
@@ -145,14 +146,20 @@ void ProtocolV8() {
     assert(std::fabs(decoded.patch.fx_colour_character - .375f) < 1e-4f && std::fabs(decoded.patch.fx_texture_character - .625f) < 1e-4f);
     std::vector<float> l(48002), r(48002); Engine engine; assert(engine.Init(48000.f, l.data(), r.data(), l.size()));
     Response response; assert(ExecuteRequest(decoded, engine, response) && response.error == Error::None);
-    assert(engine.Choice(fx::Module::Space) == 1 && engine.GetRoute() == fx::Route::WashFirst);
+    assert(engine.Choice(fx::Module::Space) == 1 && engine.Preset() == 2 && engine.SideBySide());
+    {   // every order round-trips through its index; Classic is 0; 24 and up are refused
+        for(unsigned i = 0; i < 24; ++i) { fx::Module o[fx::kModules]; assert(fx::OrderFromIndex(i, o) && fx::ValidOrder(o) && fx::OrderIndex(o) == i); }
+        assert(fx::OrderIndex(fx::kClassic) == 0);
+        fx::Module o[fx::kModules]; assert(!fx::OrderFromIndex(24, o));
+        Parameters bad = p; bad.fx = static_cast<uint16_t>(24u << 8); assert(!bad.Valid());
+    }
     assert(std::fabs(engine.Value(Parameter::Motion) - .75f) < 1e-4f && std::fabs(engine.Value(Parameter::Saturation) - .25f) < 1e-4f);
     uint8_t reply[kMaxReply]; assert(EncodeResponse(response, 0, 0, reply) == kMaxReply && Checksum(reply, kMaxReply) == 0);
     for(size_t i = 7; i < kMaxRequest - 1; ++i) assert(reply[i + 1] == request[i]);   // the apply echo
     const Parameters back = engine.Snapshot();
     assert(back.version == 8 && back.fx == p.fx && std::fabs(back.fx_motion - .75f) < 1e-4f);
     // Invalid: a choice of 3, a route bit above the field.
-    for(uint16_t bad : {uint16_t(3), uint16_t(3u << 6), uint16_t(1u << 10)}) {
+    for(uint16_t bad : {uint16_t(3), uint16_t(3u << 6), uint16_t(25u << 8)}) {
         auto broken = request; broken[96] = bad & 127; broken[97] = (bad >> 7) & 127;
         broken[kMaxRequest - 1] = Checksum(broken.data(), kMaxRequest - 1);
         Request rejected; assert(DecodeRequest(broken.data(), broken.size(), rejected) == Error::Patch);

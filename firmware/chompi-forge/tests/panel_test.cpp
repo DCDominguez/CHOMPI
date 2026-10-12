@@ -807,8 +807,17 @@ void FxPage020() {
     press(50); assert(rig.engine.Choice(fx::Module::Space) == 1);                // D3: cloud again
     press(65); assert(rig.engine.Choice(fx::Module::Motion) == 0);               // F4: chorus
     assert(rig.engine.ActiveVoices() == voices_before);                          // the keys play no notes here
-    press(58); assert(rig.engine.GetRoute() == fx::Route::WearLast);             // A#3: next route
-    press(58); press(58); press(58); assert(rig.engine.GetRoute() == fx::Route::Classic);   // and round
+    press(58); assert(rig.engine.GetRoute() == fx::Route::WearLast);             // A#3 tapped: next preset
+    press(58); press(58); assert(rig.engine.GetRoute() == fx::Route::Classic);   // three presets, and round
+    // Hold A#3 and tap Texture, Space (any key of the group): Texture, Space, then Colour, Motion.
+    rig.Key(key_of(58), true); press(62); press(48); press(62);                  // a second tap of a module counts once
+    { uint32_t f = rig.panel.FxLights(); assert((f >> 17) & 1u && ((f >> (18 + 2 * 2)) & 3u) == 0 && ((f >> (18 + 2 * 0)) & 3u) == 1); }
+    assert(rig.engine.Choice(fx::Module::Texture) == 0 && rig.engine.Choice(fx::Module::Space) == 1);   // taps choose nothing
+    rig.Key(key_of(58), false); rig.Block();
+    { const auto& o = rig.engine.Order(); assert(o[0] == fx::Module::Texture && o[1] == fx::Module::Space && o[2] == fx::Module::Colour && o[3] == fx::Module::Motion); }
+    assert(rig.engine.Preset() < 0 && ((rig.panel.FxLights() >> 15) & 1u));      // custom: A#3 white
+    press(58); assert(rig.engine.GetRoute() == fx::Route::Classic);               // a tap from custom: Classic
+    press(59); assert(rig.engine.SideBySide()); press(59); assert(!rig.engine.SideBySide());   // B3: side by side
     press(56); assert(!rig.engine.FxBeforeLoop()); press(54); assert(rig.engine.FxBeforeLoop());   // G#3 / F#3
     // Knobs: SW3 (logical 3) = Motion amount; hold SW3 + turn = its rate; SW4 (logical 0) = Space.
     rig.hw.turns[panel::kKnobEncoder[3]] = 10; rig.Block();
@@ -846,6 +855,16 @@ void FxPage020() {
         auto level = [](float amount, uint32_t flags) { Rgb r[4]; ComposeFxKnobLeds(static_cast<uint32_t>(amount * 255.f + .5f), r, flags); return r[0].r; };
         assert(level(0.f, 0) < level(.03f, 0) && level(.03f, 0) < level(.5f, 0) && level(.5f, 0) < level(1.f, 0) && level(1.f, 0) == 1.f);
         assert(level(.2f, 1u << 4) == level(.2f, 0));
+        Rgb r[4]; ComposeFxKnobLeds(255u << 24, r, 0, 51u << 24, 1u << 3);      // SW3 held: its character (.2), white
+        assert(r[3].r == r[3].g && r[3].g == r[3].b && r[3].r < .3f);
+        ComposeFxKnobLeds(255u << 24, r, 0, 51u << 24, 0); assert(r[3].r == 1.f && r[3].g < .5f);   // let go: the amount, pink
+    }
+    {   // on CHOMPI: holding SW1 publishes it, and its character value
+        rig.Key(panel::kKnobEncoder[1], true); rig.Block();
+        assert((rig.panel.FxLights() >> 26) & 2u);
+        rig.Key(panel::kKnobEncoder[1], false); rig.Block();
+        assert(!((rig.panel.FxLights() >> 26) & 15u));
+        assert(((rig.panel.FxCharacters() >> 8) & 255u) == static_cast<uint32_t>(rig.engine.Value(Parameter::ColourCharacter) * 255.f + .5f));
     }                    // the rings follow the amounts
     // Out of the menu, the FX flag clears and the play lights return.
     rig.Key(panel::kChompiKey, false); rig.Block();
