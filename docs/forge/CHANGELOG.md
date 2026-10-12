@@ -47,6 +47,11 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
   (`/api/midi/send|status|stop|reply`, forge_host's wire format, including the acknowledged-patch
   match); it opens no MIDI port. Tested in the browser end-to-end through the firmware's decoder
   (`forge_probe`) with a stand-in for Web MIDI; not yet with a real CHOMPI in Chrome.
+- **The start-up chime always sounds** (the owner: no chime). Waking up as the pass-through (no
+  remembered preset, e.g. a freshly emptied card) left the chime silent: it plays through the sound's
+  synth voices and the pass-through has none (a sample still loading did the same). It now falls back
+  to a small built-in bell (`core/bell.h`, four decaying sine voices with a bell partial, mixed before
+  the effects, running only while it sounds). Test `ChimeAlwaysSounds`. +1,152 B release.
 - **Dream, redone** (the owner: a toggle, an ambient auto-drone with the lights dancing): **SW4 + SW1**
   held 1 s starts or stops it (a key or panic stops it too). It follows the sound: **Drone** for
   pad-like sounds or looping samples (slow overlapping chords from the key's progressions, a high

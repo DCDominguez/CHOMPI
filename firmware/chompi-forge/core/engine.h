@@ -8,6 +8,7 @@
 #include "harmony.h"
 #include "parts.h"
 #include "secret.h"
+#include "bell.h"
 #include "sequencer.h"
 #include "tape_fx.h"
 
@@ -39,7 +40,7 @@ public:
         if(!std::isfinite(sample_rate) || sample_rate < 1000.f
            || sample_rate > 192000.f || !left || !right || left == right
            || capacity < static_cast<size_t>(sample_rate) + 2) return false;
-        sample_rate_ = sample_rate;
+        sample_rate_ = sample_rate; bell_.Init(sample_rate);
         left_ = left;
         right_ = right;
         capacity_ = capacity;
@@ -292,7 +293,11 @@ public:
     // The start-up chime (0.17): straight to the voices, past harmony, the arp, the looper's
     // arm and the event recorder, so a preset's latched arp cannot start from it.
     // Out of line (0.19.2): the chime, the nap and Dream all call it; inlined, each grew by a copy of Synth::Note.
-    FORGE_COLD void ChimeNote(uint8_t note, uint8_t velocity) { if(parameters_.synth) synth_.Note(note, velocity, 2); }
+    // 0.19.2: when the sound can't play it (the pass-through, or a sample still loading) the built-in bell does.
+    FORGE_COLD void ChimeNote(uint8_t note, uint8_t velocity) {
+        if(parameters_.synth && synth_.CanSound()) synth_.Note(note, velocity, 2);
+        else bell_.Note(note, velocity);
+    }
     void SetSweepBoost(float boost) { synth_.SetSweepBoost(boost); }
     float SweepBoost() const { return synth_.SweepBoost(); }
     // Called only by the audio owner, between blocks. Validate before mutation;
@@ -391,6 +396,7 @@ public:
         // so the worst case stays within the CPU budget (docs/forge/LOOPING.md).
         if(looper_) synth_.SetVoiceCap(looper_->Writing() ? kLooperVoiceCap : 7);
         if(parameters_.synth) synth_.Process(left, right);
+        if(bell_.Active()) { const float b = bell_.Next(); left += b; right += b; }   // 0.19.2 the chime's fallback
         left += monitor_l; right += monitor_r;
         if(looper_ && !fx_before_loop_) looper_->Process(left, right);     // effects after the loop
         effects_.Process(left, right);                                      // TAPE: filter, saturation, warble
@@ -530,7 +536,7 @@ private:
     }
     void Silence() {
         synth_.Silence();
-        bloom_.Clear(); talk_.Stop();
+        bloom_.Clear(); talk_.Stop(); bell_.Clear();
         if(harmony_) harmony_->Clear();
         if(parts_) { parts_->Clear(); parts::Event e[parts::Parts::kEvents]; parts_->Take(e, parts::Parts::kEvents); }   // MIDI offs queued
         if(seq_) seq_->Silenced();                               // its notes are gone; the loop keeps playing (MANUAL 8c)
@@ -581,6 +587,7 @@ private:
     secret::Bloom bloom_;
     secret::Conversation talk_;
     secret::Rand rand_;
+    Bell bell_;                                            // the chime's fallback voice (0.19.2)
     uint32_t Sixteenth() const { return secret::Sixteenth(sample_rate_, parts_ ? parts_->GetClock().Bpm() : 120.f); }
     bool HarmonySilent() const { unsigned n = 0; for(uint8_t s = 0; s < harmony::Player::kSources; ++s) n += harmony_->Sounding(s); return n == 0; }
     seq::Sequencer* seq_ = nullptr;

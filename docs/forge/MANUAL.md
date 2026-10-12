@@ -270,7 +270,8 @@ never overwritten. No firmware update needed (it uses the normal store request).
 **CHOMPI wakes up singing (0.17):** it remembers the last preset you recalled or saved and
 loads it when switched on (a save counts from 0.19.2) (its recorded loop stays quiet until you recall the slot), then plays
 a little chime through it while a rainbow runs across the keys. Before any preset has been
-used it starts in the pass-through mode, as before.
+used (or on a card without `FORGE/LAST.TXT`) it starts in the pass-through mode, as before; the
+chime then plays on a small built-in bell, as it does while a sample sound is still loading (0.19.2).
 TAPE's own presets are not used by Forge.
 
 ---

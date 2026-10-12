@@ -241,9 +241,33 @@ void DreamShow() {
     rig.hw.keys = 0; rig.Block(); assert(!rig.panel.DreamPlaying() && rig.engine.ActiveVoices() == 0);
 }
 
+// 0.19.2: the start-up chime always sounds. Waking up as the pass-through (no instrument: no
+// remembered preset) or on a sample that has not loaded, it plays on the built-in bell; on a synth
+// sound it plays through the sound's own voices as before.
+void ChimeAlwaysSounds() {
+    auto chime = [](const Parameters& p, unsigned& voices) {
+        Rig rig; assert(rig.engine.ApplyPatch(p));
+        rig.panel.RequestChime();
+        float peak = 0.f; voices = 0;
+        for(int b = 0; b < 3000; ++b) {                                             // 1.5 s
+            rig.panel.Block(rig.hw, rig.engine, rig.recorder, rig.sink); rig.engine.Block(24);
+            for(int i = 0; i < 24; ++i) { float a, c; rig.engine.Process(0, 0, a, c); peak = std::max(peak, std::fabs(a)); }
+            voices = std::max(voices, rig.engine.ActiveVoices());
+        }
+        return peak;
+    };
+    unsigned voices;
+    Parameters through; through.version = 1; through.synth = false; through.mix = 0.f; through.level = 1.f;
+    assert(chime(through, voices) > 0.02f && voices == 0);                          // the bell, not the synth
+    Parameters unloaded; unloaded.version = 4; unloaded.synth = true; unloaded.source = 1; unloaded.sample_mode = 0; unloaded.level = 1.f; unloaded.mix = 0.f;
+    assert(chime(unloaded, voices) > 0.02f && voices == 0);                         // empty sample slot: the bell
+    Parameters synth; synth.version = 4; synth.synth = true; synth.voices = 4; synth.level = 1.f; synth.mix = 0.f;
+    assert(chime(synth, voices) > 0.02f && voices >= 2);                            // the sound's own voices
+}
+
 int main() {
-    BloomUnit(); BloomInEngine(); Conversations(); MotifFamilies(); Mischief(); Panel(); DreamShow();
+    BloomUnit(); BloomInEngine(); Conversations(); MotifFamilies(); Mischief(); Panel(); DreamShow(); ChimeAlwaysSounds();
     std::cout << "PASS: secret modes: bloom order/timing/cancel, conversations (bar pause, one voice, in key, cut off, 4 motif families), "
-                 "mischief (5 bends, home, no stuck notes), panel (SW3 picks, SW1+SW3 bends with a chord, rolls without), Dream (styles, in key, voices, SW4+SW1, key / panic stop)\n";
+                 "mischief (5 bends, home, no stuck notes), panel (SW3 picks, SW1+SW3 bends with a chord, rolls without), Dream (styles, in key, voices, SW4+SW1, key / panic stop), the chime's bell fallback\n";
     return 0;
 }

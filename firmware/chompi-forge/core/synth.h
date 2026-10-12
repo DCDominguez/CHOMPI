@@ -125,6 +125,13 @@ public:
     void SetSamples(const SampleTable* table) { table_ = table; }
     // False while the main loop rewrites file slots (SampleHandoff): only the recording plays.
     void SetSampleFilesAvailable(bool available) { files_available_ = available; }
+    // 0.19.2: can a note sound right now? (a chromatic sampler patch whose sample has not loaded cannot)
+    bool CanSound() const {
+        if(!sampler_ || kit_) return true;
+        if(!table_) return false;
+        const SampleSlot& s = table_->slots[sample_slot_];
+        return s.frames && s.channels && s.loaded.load(std::memory_order_acquire) > 0 && (sample_slot_ == kRamSlot || files_available_);
+    }
     // 0.19.2 loop chords (TAPE page SW1, third state): a held chord's looping notes repeat together.
     void SetChordLoop(bool on) { chord_loop_ = on; if(!on) for(auto& v : voices_) v.parked = v.looped = false; }
     bool ChordLoopOn() const { return chord_loop_; }
