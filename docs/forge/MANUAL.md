@@ -483,7 +483,8 @@ applies to notes arriving over MIDI; Static maps only C3–C5 (keys or MIDI), an
 notes outside that range play as usual.
 
 **Voice leading** (on by default) picks each chord's inversion so it moves as
-little as possible from the last one. Turn it off to choose the inversion with SW2.
+little as possible from the last one, within the register of the key you press: the upper
+keys play the same smooth shapes an octave higher. Turn it off to choose the inversion with SW2.
 **Open spread** lifts the second-lowest note an octave (chords of 3 or more notes). Bigger chords drop notes in this
 order when the voices run out: the 5th first, then the middle extensions; the
 root, 3rd, 7th and top extension stay. Dominant chords (the secondary dominants and Shift's
