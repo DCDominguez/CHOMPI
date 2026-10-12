@@ -25,6 +25,9 @@ constexpr Module kOrder[kRoutes][kModules] = {
 };
 // Choices per module, in key order. Phase 1 builds the first of each plus Space's cloud and
 // Motion's chorus; the others are Phase 2 (selecting them is refused until they exist).
+// The FX page's keys (MIDI notes of the panel keys): each module's three choices, in key order.
+constexpr uint8_t kKeys[kModules][kChoices] = {{48, 50, 52}, {53, 55, 57}, {60, 62, 64}, {65, 67, 69}};
+constexpr uint8_t kRouteKey = 58, kBeforeLoopKey = 54, kAfterLoopKey = 56;   // A#3, F#3, G#3
 enum class SpaceChoice : uint8_t { EchoRoom, Cloud, TapeEcho };
 enum class ColourChoice : uint8_t { Saturation, Fold, Crush };
 enum class TextureChoice : uint8_t { Cassette, Broken, Squash };

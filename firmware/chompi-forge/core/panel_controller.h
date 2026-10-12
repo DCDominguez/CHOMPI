@@ -182,13 +182,14 @@ public:
         battery_view_.store(volume_held_ >= kBatteryHoldFrames, std::memory_order_relaxed);
         keys_down_.store(static_cast<uint32_t>(keys), std::memory_order_relaxed);   // all 25 note keys are switches 0-31
         for(unsigned key = 0; key < panel::kButtons; ++key) if(panel::kKeyNotes[key]) {
-            const bool harmony_page = HarmonyPage(), parts_page = PartsPage(), synth_page = SynthPage();   // before the key may change the page
+            const bool harmony_page = HarmonyPage(), parts_page = PartsPage(), synth_page = SynthPage(), fx_page = FxPage();   // before the key may change the page
             if(((rising >> key) & 1u) && !menu_.Key(static_cast<uint8_t>(key), true))
                 PlayKey(engine, panel::kKeyNotes[key], 127);   // TAPE: full velocity
             else if(((rising >> key) & 1u) && harmony_page && HarmonyPage() && engine.Harmony())
                 engine.Harmony()->state.tonic = static_cast<uint8_t>(panel::kKeyNotes[key] % 12);   // harmony page: the key's note is the tonic
             else if(((rising >> key) & 1u) && parts_page && PartsPage() && engine.Parts()) PartsKey(panel::kKeyNotes[key], engine);
             else if(((rising >> key) & 1u) && synth_page && SynthPage()) SynthKey(panel::kKeyNotes[key], engine);
+            else if(((rising >> key) & 1u) && fx_page && FxPage()) FxKey(panel::kKeyNotes[key], engine);
             if((falling >> key) & 1u) {
                 menu_.Key(static_cast<uint8_t>(key), false); PlayKey(engine, panel::kKeyNotes[key], 0);
             }
@@ -224,7 +225,8 @@ public:
         // 0.16: keep holding KEY_21 another second: straight on to the parts page.
         if(fx_key_parts_) {
             if(!((keys >> panel::kFxBefore) & 1u)) fx_key_parts_ = false;
-            else if((fx_key_frames_ += hardware.frames) >= 3 * panel::kPresetsHoldFrames) { if(PartsPage()) menu_.ShowPage(MenuPage::Synth); fx_key_parts_ = false; }
+            else if((fx_key_frames_ += hardware.frames) >= 4 * panel::kPresetsHoldFrames) { if(SynthPage()) menu_.ShowPage(MenuPage::Fx); fx_key_parts_ = false; }   // 0.20: on to the FX page at 4 s
+            else if(fx_key_frames_ >= 3 * panel::kPresetsHoldFrames && PartsPage()) menu_.ShowPage(MenuPage::Synth);
             else if(fx_key_frames_ >= 2 * panel::kPresetsHoldFrames && HarmonyPage()) menu_.ShowPage(MenuPage::Parts);   // 0.19: on to the synth page at 3 s
         }
         if(fx_key_armed_ && ((falling >> panel::kFxBefore) & 1u)) { if(tape_page) engine.SetFxBeforeLoop(true); fx_key_armed_ = false; }
@@ -288,6 +290,7 @@ public:
         else if(HarmonyPage()) HarmonyControls(keys, turns, engine);
         else if(PartsPage()) PartsControls(keys, turns, engine);
         else if(SynthPage()) SynthControls(keys, turns, engine);
+        else if(FxPage()) FxControls(keys, turns, engine);
         else {
             // SW5 (virtual: 2 = one click, 1 = held).
             const bool tone_down = hardware.tone_down || virtual_tone_ != 0;
@@ -390,6 +393,9 @@ public:
     bool HarmonyPage() const { return menu_.Active() && menu_.Page() == MenuPage::Harmony; }
     bool PartsPage() const { return menu_.Active() && menu_.Page() == MenuPage::Parts; }
     bool SynthPage() const { return menu_.Active() && menu_.Page() == MenuPage::Synth; }
+    bool FxPage() const { return menu_.Active() && menu_.Page() == MenuPage::Fx; }
+    uint32_t FxLights() const { return fx_lights_.load(std::memory_order_relaxed); }    // FxPack (0.20)
+    uint32_t FxKnobs() const { return fx_knobs_.load(std::memory_order_relaxed); }      // the module amounts, 8 bits each
     // 0.19 synth page lights: bits 0-1 osc 1 wave, 2-3 osc 2 wave, 4-6 interval choice (7 = other),
     // 7-8 LFO shape, 9 mod wheel, 10-11 voices (0 four, 1 seven, 2 mono, 3 other), 12 audition held,
     // 13 a synth sound is loaded, 14-17 knob pages (one bit each), 24 the page's knobs.
@@ -503,6 +509,15 @@ private:
                 values |= static_cast<uint32_t>(Clamp(engine.Value(SynthTarget(k, synth_page_[k])), 0.f, 1.f) * 255.f + .5f) << (8 * k);
             }
             synth_lights_.store(s, std::memory_order_relaxed); synth_knobs_.store(values, std::memory_order_relaxed);
+        }
+        {   // 0.20 FX page
+            uint32_t f = 0, amounts = 0;
+            for(unsigned m = 0; m < fx::kModules; ++m) {
+                f |= (engine.Choice(static_cast<fx::Module>(m)) & 3u) << (2 * m);
+                amounts |= static_cast<uint32_t>(Clamp(engine.Value(FxAmount(m)), 0.f, 1.f) * 255.f + .5f) << (8 * m);
+            }
+            f |= (static_cast<uint32_t>(engine.GetRoute()) & 3u) << 8 | (engine.FxBeforeLoop() ? 1u << 10 : 0u) | (FxPage() ? 1u << 31 : 0u);
+            fx_lights_.store(f, std::memory_order_relaxed); fx_knobs_.store(amounts, std::memory_order_relaxed);
         }
         const bool tape_menu = menu_.Active() && menu_.Page() == MenuPage::Samples;
         harmony_lights_.store(engine.Harmony() ? harmony::Pack(engine.Harmony()->state, engine.Harmony()->Shift()) : 0u, std::memory_order_relaxed);
@@ -750,6 +765,35 @@ private:
             }
         }
     }
+    // 0.20 FX page (docs/forge/CONTINUE.md): white keys in groups of three choose each module's
+    // effect (C3-E3 Space, F3-A3 Colour, C4-E4 Texture, F4-A4 Motion), A#3 steps the route, F#3 / G#3
+    // put the effects before / after the looper. Effects not built yet are refused (key stays dim).
+    FORGE_COLD void FxKey(uint8_t note, Engine& engine) {
+        for(uint8_t m = 0; m < fx::kModules; ++m) for(uint8_t c = 0; c < fx::kChoices; ++c)
+            if(note == fx::kKeys[m][c]) { engine.SetChoice(static_cast<fx::Module>(m), c); return; }
+        if(note == fx::kRouteKey) engine.SetRoute(static_cast<fx::Route>((static_cast<unsigned>(engine.GetRoute()) + 1) % fx::kRoutes));
+        else if(note == fx::kBeforeLoopKey) engine.SetFxBeforeLoop(true);
+        else if(note == fx::kAfterLoopKey) engine.SetFxBeforeLoop(false);
+    }
+    // The four knobs are the four modules (SW4 Space, SW1 Colour, SW2 Texture, SW3 Motion: logical knob
+    // order). Turn = amount; hold + turn = the chosen effect's character (Space: delay time and room /
+    // cloud size together, as SW3 page 1; Motion: rate; Colour and Texture get theirs in Phase 2).
+    static Parameter FxAmount(unsigned knob) {
+        static const Parameter p[4] = {Parameter::Space, Parameter::Saturation, Parameter::Warble, Parameter::Motion};
+        return p[knob & 3];
+    }
+    FORGE_COLD void FxControls(uint64_t keys, const int16_t (&turns)[panel::kEncoders], Engine& engine) {
+        for(unsigned knob = 0; knob < 4; ++knob) {
+            const bool down = (keys >> panel::kKnobEncoder[knob]) & 1u;
+            const int t = turns[panel::kKnobEncoder[knob]];
+            if(!t) continue;
+            turn_view_[knob] = panel::kTurnViewFrames;
+            if(!down) { const Parameter a = FxAmount(knob); engine.Apply({a, engine.Value(a) + t * .03f}); continue; }
+            if(knob == 0) { engine.Apply({Parameter::Time, engine.Value(Parameter::Time) + t * .03f}); engine.Apply({Parameter::ReverbSize, engine.Value(Parameter::Time)}); }
+            else if(knob == 3) engine.Apply({Parameter::MotionRate, engine.Value(Parameter::MotionRate) + t * .03f});
+        }
+    }
+    std::atomic<uint32_t> fx_lights_{0}, fx_knobs_{0};
     uint8_t synth_page_[4] = {};
     bool audition_ = false;
     std::atomic<uint32_t> synth_lights_{0}, synth_knobs_{0};
@@ -919,6 +963,7 @@ struct LedView {
     uint8_t dream_colour = 0;                     // Dream's chord colour step (0.19.2)
     float dream_glow[25] = {};                    // per key C3..C5: Dream's fading trails, 0..1 (main loop)
     uint32_t synth = 0;                           // PanelController::SynthLights (0.19)
+    uint32_t fx = 0;                              // PanelController::FxLights (0.20; bit 31 = the FX page is open)
     float dream_level = .5f;                      // the dream's breathing, 0..1 (main loop clock)
     uint8_t ripple = 0;                           // a loop just closed: the ripple's progress 1..255 (0.18)
 };
@@ -1166,6 +1211,40 @@ inline void ComposeSynthKnobLeds(uint32_t s, uint32_t values, Rgb (&rings)[4], u
         if((flags >> k) & 1u) rings[k] = c;                       // page change flash
     }
 }
+// 0.20 FX page: each module's three keys in its colour (SW3's page colours: Space white, Colour
+// green, Texture yellow, Motion orange), the chosen one bright, the others dim (very dim: not built
+// yet); A#3 the route's step colour; F#3 / G#3 where the effects sit around the looper (white = here);
+// KEY_21 / KEY_22 dim.
+FORGE_COLD inline void RenderFxLeds(uint32_t f, Rgb (&keys)[25]) {
+    using namespace knobs::colour;
+    for(auto& led : keys) led = Rgb{};
+    auto lit = [&](uint8_t note, Rgb c) {
+        for(uint8_t key = 0; key < panel::kButtons; ++key) if(panel::kKeyNotes[key] == note) {
+            const uint8_t slot = panel::KeyToSlot(key);
+            const uint8_t led = slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key);
+            if(led < 25) keys[led] = c;
+        }
+    };
+    const Rgb colours[fx::kModules] = {white, green, yellow, orange};
+    for(unsigned m = 0; m < fx::kModules; ++m) {
+        const unsigned chosen = (f >> (2 * m)) & 3u;
+        for(unsigned c = 0; c < fx::kChoices; ++c)
+            lit(fx::kKeys[m][c], c == chosen ? colours[m] : knobs::Scale(colours[m], fx::Built(static_cast<fx::Module>(m), static_cast<uint8_t>(c)) ? .12f : .03f));
+    }
+    lit(fx::kRouteKey, knobs::StepColour((f >> 8) & 3u));
+    const bool before = (f >> 10) & 1u;
+    lit(fx::kBeforeLoopKey, before ? white : Rgb{.08f, .08f, .08f}); lit(fx::kAfterLoopKey, before ? Rgb{.08f, .08f, .08f} : white);
+    lit(61, Rgb{.08f, .08f, .08f}); lit(63, Rgb{.08f, .08f, .08f});
+}
+// FX page rings: each knob in its module's colour, brighter with the amount; turning shows it full.
+inline void ComposeFxKnobLeds(uint32_t amounts, Rgb (&rings)[4], uint32_t flags = 0) {
+    using namespace knobs::colour;
+    const Rgb colours[4] = {white, green, yellow, orange};
+    for(unsigned k = 0; k < 4; ++k) {
+        const float v = ((amounts >> (8 * k)) & 255u) / 255.f;
+        rings[k] = knobs::Scale(colours[k], (flags >> (4 + k)) & 1u ? 1.f : .15f + .85f * v);
+    }
+}
 inline void ComposePartsKnobLeds(uint32_t packed, uint32_t clock, Rgb (&rings)[4], uint32_t flags = 0) {
     const parts::Settings s = parts::Unpack(packed, parts::kDefaultBpm);
     const Rgb white{1.f, 1.f, 1.f}, dim{.08f, .08f, .08f};
@@ -1176,7 +1255,9 @@ inline void ComposePartsKnobLeds(uint32_t packed, uint32_t clock, Rgb (&rings)[4
     rings[3] = knobs::StepColour(static_cast<unsigned>(s.bass_rate) & 3u);
 }
 FORGE_COLD inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chompi) {
-    if((v.menu & 1u) && ((v.menu >> 1) & 7u) == 7u)
+    if((v.menu & 1u) && ((v.fx >> 31) & 1u))
+        RenderFxLeds(v.fx, keys);
+    else if((v.menu & 1u) && ((v.menu >> 1) & 7u) == 7u)
         RenderHarmonyLeds(v.harmony, keys);
     else if((v.menu & 1u) && ((v.menu >> 1) & 7u) == 6u)
         RenderPartsLeds(v.parts, v.parts_clock, v.sequence, keys);
@@ -1205,7 +1286,8 @@ FORGE_COLD inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chomp
         // 0.16: the open menu page: TAPE's teal, presets blue, harmony purple, parts orange
         // (dimmer while CHOMPI is up with a save / copy / erase pending).
         const unsigned mode = (v.menu >> 1) & 7u;
-        const Rgb page = mode == 7u ? knobs::colour::purple : mode == 6u ? knobs::colour::orange : mode == 5u ? knobs::colour::pink
+        const Rgb page = (v.fx >> 31) & 1u ? knobs::colour::green                    // 0.20 FX page
+                       : mode == 7u ? knobs::colour::purple : mode == 6u ? knobs::colour::orange : mode == 5u ? knobs::colour::pink
                        : (v.menu >> 21) & 1u ? knobs::colour::teal : knobs::colour::blue;
         chompi = (v.keys_down >> panel::kChompiKey) & 1u ? page : knobs::Scale(page, .35f);
     }

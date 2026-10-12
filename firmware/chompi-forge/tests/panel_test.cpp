@@ -752,7 +752,8 @@ void SynthPage019() {
     assert(keys[panel::SlotLed(2)].r == 1.f && keys[panel::SlotLed(2)].b > .5f);  // E3 pink
     assert(keys[panel::SlotLed(10)].g > .9f && keys[panel::SlotLed(10)].b < .1f); // F4 yellow
     assert(chompi.r == 1.f && chompi.b > .5f);                                    // pink page
-    // KEY_21 cycles back to harmony.
+    // KEY_21 goes on to the FX page (0.20), then back to harmony.
+    rig.Tap(panel::kFxBefore); assert(rig.panel.FxPage());
     rig.Tap(panel::kFxBefore); assert(rig.panel.HarmonyPage());
     rig.Tap(panel::kFxBefore); assert(rig.panel.PartsPage());
     rig.Tap(panel::kFxBefore); assert(rig.panel.SynthPage());
@@ -782,8 +783,64 @@ void DjFilterNeverSilent() {
     assert(std::fabs(rms(.5f) - 1.f) < .01f); // centre: untouched
 }
 
+// 0.20 FX page: reached by holding KEY_21 4 s (or tapping it from the synth page); white keys choose
+// each module's effect (unbuilt ones refused), A#3 steps the route, F#3 / G#3 place the effects around
+// the looper; the four knobs are the module amounts, hold + turn the character; lights and CHOMPI green.
+void FxPage020() {
+    Rig rig;
+    std::vector<float> fxm(Engine::FxFloats()); assert(rig.engine.SetFxMemory(fxm.data(), fxm.size()));
+    Parameters synth; synth.version = 3; synth.synth = true; assert(rig.engine.ApplyPatch(synth));
+    rig.hw.toggle_up = true; rig.Block();
+    rig.Key(panel::kChompiKey, true);
+    rig.Key(panel::kPage, true); rig.Key(panel::kPage, false);                    // TAPE's page
+    rig.Key(panel::kFxBefore, true); for(int i = 0; i < 8010; ++i) rig.Block();   // held 4 s
+    assert(rig.panel.FxPage() && !rig.panel.SynthPage());
+    rig.Key(panel::kFxBefore, false); assert(rig.panel.FxPage());
+    auto key_of = [](uint8_t note) { for(uint8_t k = 0; k < panel::kButtons; ++k) if(panel::kKeyNotes[k] == note) return k; return uint8_t(0); };
+    auto press = [&](uint8_t note) { rig.Tap(key_of(note)); };
+    const uint32_t voices_before = rig.engine.ActiveVoices();
+    press(50); assert(rig.engine.Choice(fx::Module::Space) == 1);                // D3: cloud
+    press(52); assert(rig.engine.Choice(fx::Module::Space) == 1);                // E3: tape echo, not built yet
+    press(55); assert(rig.engine.Choice(fx::Module::Colour) == 0);               // G3: fold, not built yet
+    press(65); assert(rig.engine.Choice(fx::Module::Motion) == 0);               // F4: chorus
+    assert(rig.engine.ActiveVoices() == voices_before);                          // the keys play no notes here
+    press(58); assert(rig.engine.GetRoute() == fx::Route::WearLast);             // A#3: next route
+    press(58); press(58); press(58); assert(rig.engine.GetRoute() == fx::Route::Classic);   // and round
+    press(56); assert(!rig.engine.FxBeforeLoop()); press(54); assert(rig.engine.FxBeforeLoop());   // G#3 / F#3
+    // Knobs: SW3 (logical 3) = Motion amount; hold SW3 + turn = its rate; SW4 (logical 0) = Space.
+    rig.hw.turns[panel::kKnobEncoder[3]] = 10; rig.Block();
+    assert(std::fabs(rig.engine.Value(Parameter::Motion) - .3f) < 1e-4f);
+    const float rate = rig.engine.Value(Parameter::MotionRate);
+    rig.Key(panel::kKnobEncoder[3], true); rig.hw.turns[panel::kKnobEncoder[3]] = 5; rig.Block(); rig.Key(panel::kKnobEncoder[3], false);
+    assert(std::fabs(rig.engine.Value(Parameter::MotionRate) - (rate + .15f)) < 1e-4f && std::fabs(rig.engine.Value(Parameter::Motion) - .3f) < 1e-4f);
+    rig.hw.turns[panel::kKnobEncoder[1]] = 10; rig.Block();                      // SW1 = Colour (saturation)
+    assert(std::fabs(rig.engine.Value(Parameter::Saturation) - .3f) < 1e-4f);
+    rig.hw.turns[panel::kKnobEncoder[2]] = 10; rig.Block();                      // SW2 = Texture (warble)
+    assert(std::fabs(rig.engine.Value(Parameter::Warble) - .3f) < 1e-4f);
+    // Lights: D3 bright white (cloud), C3 dim, E3 very dim (not built); F4 bright orange; CHOMPI green.
+    rig.Block();
+    LedView v; v.menu = rig.panel.MenuPacked(); v.fx = rig.panel.FxLights(); v.keys_down = uint64_t(1) << panel::kChompiKey;
+    assert((v.fx >> 31) & 1u);
+    Rgb keys[25], chompi; ComposeLeds(v, keys, chompi);
+    assert(keys[panel::SlotLed(1)].r == 1.f && keys[panel::SlotLed(1)].b == 1.f);   // D3 white
+    assert(keys[panel::SlotLed(0)].r > .1f && keys[panel::SlotLed(0)].r < .2f);     // C3 dim
+    assert(keys[panel::SlotLed(2)].r < .05f);                                     // E3 very dim
+    assert(keys[panel::SlotLed(10)].r == 1.f && keys[panel::SlotLed(10)].g > .5f && keys[panel::SlotLed(10)].b < .3f);   // F4 orange
+    assert(chompi.g == 1.f && chompi.r == 0.f);                                   // green page
+    Rgb rings[4]; ComposeFxKnobLeds(rig.panel.FxKnobs(), rings);
+    assert(rings[3].r > rings[0].r * .5f && rings[1].g > .3f);                    // the rings follow the amounts
+    // Out of the menu, the FX flag clears and the play lights return.
+    rig.Key(panel::kChompiKey, false); rig.Block();
+    assert(!((rig.panel.FxLights() >> 31) & 1u) && !rig.panel.FxPage());
+    // The menu reopens on the FX page; KEY_21 goes on to harmony.
+    rig.Key(panel::kChompiKey, true); assert(rig.panel.FxPage());
+    rig.Tap(panel::kFxBefore); assert(rig.panel.HarmonyPage());
+    rig.Key(panel::kChompiKey, false);
+}
+
 int main() {
     DjFilterNeverSilent();
+    FxPage020();
     SynthPage019();
     Dream018();
     Sweep0171();
@@ -791,5 +848,5 @@ int main() {
     PanelFeedback016();
     KnobPages(); BatteryHold(); MenuKnobLayer(); OptionsAndMidiOut();
     KeysKnobsAndOverrides(); MenuAndRecordingThroughTheController(); LedComposition(); DevelopmentOpcodes(); LooperThroughThePanel(); LooperVoiceCap(); LooperSaveGesture();
-    std::cout << "PASS: panel controller keys/knobs/overrides, menu + recording via injection, LED composition, dev opcodes, looper via panel/MIDI, knob pages/LEDs/v5 assignment, SW6 battery hold, 0.16 panel feedback\n";
+    std::cout << "PASS: panel controller keys/knobs/overrides, menu + recording via injection, LED composition, dev opcodes, looper via panel/MIDI, knob pages/LEDs/v5 assignment, SW6 battery hold, 0.16 panel feedback, 0.20 FX page\n";
 }

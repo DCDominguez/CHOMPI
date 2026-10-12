@@ -833,6 +833,7 @@ FORGE_COLD void DrawLeds() {
     view.magic = panel_controller.MagicLights();
     view.dream = panel_controller.DreamLights();
     view.synth = panel_controller.SynthLights();
+    view.fx = panel_controller.FxLights();
     view.dream_level = .5f + .5f * std::sin(now * (6.2831853f / 4000.f));   // a 4 s breath
     view.dream_colour = panel_controller.DreamColour();
     {   // 0.19.2 Dream: each key it plays glows and fades over ~1.5 s, leaving trails
@@ -874,7 +875,10 @@ FORGE_COLD void DrawLeds() {
     forge::ComposeMenuKnobLeds(panel_controller.MenuLights(), knobs, volume);   // TAPE's menu page
     if((view.menu & 1u) && ((view.menu >> 1) & 7u) == 7u) forge::ComposeHarmonyKnobLeds(view.harmony, knobs, knob_flags);   // harmony page
     if((view.menu & 1u) && ((view.menu >> 1) & 7u) == 6u) forge::ComposePartsKnobLeds(view.parts, view.parts_clock, knobs, knob_flags);   // parts page
-    if((view.menu & 1u) && ((view.menu >> 1) & 7u) == 5u) forge::ComposeSynthKnobLeds(view.synth, panel_controller.SynthKnobs(), knobs, knob_flags);   // synth page (0.19)
+    if((view.menu & 1u) && ((view.menu >> 1) & 7u) == 5u) {
+        if((view.fx >> 31) & 1u) forge::ComposeFxKnobLeds(panel_controller.FxKnobs(), knobs, knob_flags);   // FX page (0.20)
+        else forge::ComposeSynthKnobLeds(view.synth, panel_controller.SynthKnobs(), knobs, knob_flags);    // synth page (0.19)
+    }
     if(((view.dream >> 26) & 1u) && !(view.menu & 1u)) {   // 0.19.2 Dream: the rings and CHOMPI breathe in the chord's colours
         for(unsigned k = 0; k < 4; ++k) {
             const float wave = .5f + .5f * std::sin(now * (6.2831853f / 4000.f) + 1.57f * k);

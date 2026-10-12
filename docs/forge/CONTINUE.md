@@ -3,6 +3,18 @@
 Updated 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2-rc1; `main` carries it, Pages serves the forge page). The owner's CHOMPI runs development build 69c5727. Read the newest section below first; older sections are history (HOME_CHECKLIST and TEST_SESSION are kept for the record).
 
 
+## Phase 1 progress (branch forge/fx; nothing installed on CHOMPI yet)
+
+- Done, software-tested (make test all PASS; fx_test golden bit-identical with Classic; UBSan trap
+  PASS; ASan not available locally): `core/fx.h` (model, Chorus, Diffuser), engine stages and
+  routes, cloud (diffuser + longer darker reverb, delay faded out), Motion = chorus (performance
+  controls Motion / MotionRate), 33 KB `.d2_bss` FX memory, **the FX menu page** (KEY_21 after the
+  synth page or held 4 s; keys, route A#3, before/after F#3 / G#3, knobs SW4 Space / SW1 Colour /
+  SW2 Texture / SW3 Motion with hold + turn character, lights, CHOMPI green). Release 239,592 B,
+  development 251,252 B.
+- Next: patch v8 (`fx` block: route, four choices, Colour / Texture / Motion amounts, Motion rate)
+  in firmware, host, forge page and chatbot prompt; then the manual; then one listening session.
+
 ## 2026-10-12 (late night): FX section, Phase 0 done (resume here; branch forge/fx)
 
 - **Plan agreed with the owner** (development line, Choowi 0.20): a small multi-effect section in
