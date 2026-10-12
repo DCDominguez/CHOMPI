@@ -29,9 +29,9 @@ Updated 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2
   - Every module is off at amount 0 (Motion starts at 0); no "off" choice.
   - **FX page:** 4th in the KEY_21 cycle (harmony -> parts -> synth -> FX), CHOMPI light **green**.
     White keys in keyboard groups, coloured as SW3's page colours: C3-E3 Space (white), F3-A3 Colour
-    (green), C4-E4 Texture (yellow), F4-A4 Motion (orange); chosen bright, others dim. A black key
-    steps the route (white/green/yellow/orange); A#3 / C#4 effects after / before the looper (as
-    on the presets page); C#4 / D#4 keep page navigation. B3, B4, C5 free. SW4 + SW2 combo stays free.
+    (green), C4-E4 Texture (yellow), F4-A4 Motion (orange); chosen bright, others dim. A#3 steps the
+    route (white/green/yellow/orange); F#3 / G#3 effects before / after the looper (C#4 can't: it
+    is the page key here); C#4 / D#4 keep page navigation. B3, B4, C5 free. SW4 + SW2 combo stays free.
   - Effects-only (line-in) patches keep delay on SW4/SW1/SW2 in Phase 1.
 - **Phase 0:** `-O3` -> `-O2` in `src/Makefile`: development headroom 18.8 -> 41.9 KB, release
   53.5 KB; on CHOMPI the worst peak went 53.5 -> 55.3 % (RESOURCE_LEDGER table). **Hardware-verified**
