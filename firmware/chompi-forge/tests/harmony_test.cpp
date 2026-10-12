@@ -134,12 +134,12 @@ void Voicing() {
         for(unsigned i = 0; i < v.count; ++i) { assert(v.note[i] >= kLowest && v.note[i] <= kHighest); if(i) assert(v.note[i] > v.note[i - 1]); }
     }
     // Voice leading: C -> F -> G -> C keeps common tones and moves by small steps.
-    State s; Voiced prev = Place(60, t, n, 0, false);
+    State s; Voiced prev = Place(48, t, n, 0, false);                         // the lower register (C3)
     unsigned total = 0;
     for(unsigned d : {3u, 4u, 0u, 5u, 1u, 4u, 0u}) {
         const Chord next = Resolve(Degree(d), 0, Mode::Major, false);
         uint8_t nt[kMaxNotes]; const uint8_t nn = Tones(next, Extension::Triad, kMaxNotes, nt);
-        const Voiced led = Lead(48 + next.root, nt, nn, false, prev);
+        const Voiced led = Lead(48 + next.root, nt, nn, false, prev, 48);
         const Voiced block = Place(48 + next.root, nt, nn, 0, false);
         assert(Movement(prev, led) <= Movement(prev, block));
         std::set<unsigned> common; for(unsigned i = 0; i < prev.count; ++i) for(unsigned j = 0; j < led.count; ++j) if(prev.note[i] == led.note[j]) common.insert(prev.note[i]);
@@ -152,9 +152,24 @@ void Voicing() {
     // C -> F (led): C stays, E -> F, G -> A.
     const Chord f = Resolve(Degree(3), 0, Mode::Major, false);
     uint8_t ft[kMaxNotes]; const uint8_t fn = Tones(f, Extension::Triad, kMaxNotes, ft);
-    assert((Notes(Lead(53, ft, fn, false, Place(60, t, n, 0, false))) == std::vector<unsigned>{60, 65, 69}));
+    assert((Notes(Lead(53, ft, fn, false, Place(48, t, n, 0, false), 48)) == std::vector<unsigned>{48, 53, 57}));
     // Deterministic: the same input gives the same voicing.
-    assert(Notes(Lead(53, ft, fn, false, Place(60, t, n, 0, false))) == Notes(Lead(53, ft, fn, false, Place(60, t, n, 0, false))));
+    assert(Notes(Lead(53, ft, fn, false, Place(48, t, n, 0, false), 48)) == Notes(Lead(53, ft, fn, false, Place(48, t, n, 0, false), 48)));
+    // 0.19.2: the register is the key's. After a C4 chord, F in the lower register stays down there
+    // (it used to be pulled up to C4 F4 A4), and the upper keys sound an octave up.
+    assert(Notes(Lead(53, ft, fn, false, Place(60, t, n, 0, false), 48))[0] <= 59);
+    {
+        Player p; p.state.enabled = true; uint8_t out[16];
+        auto play = [&](uint8_t key) { p.KeyDown(key, 0, out); const Voiced v = p.LastVoiced(); p.KeyUp(key, 0, out); return v; };
+        const Voiced c3 = play(48), c4 = play(60), back = play(48), g4 = play(67), g3 = play(55);
+        assert(Notes(c3) == (std::vector<unsigned>{48, 52, 55}) && Notes(c4) == (std::vector<unsigned>{60, 64, 67}));   // exactly an octave up
+        assert(Notes(back) == Notes(c3));
+        for(unsigned i = 0; i < g3.count; ++i) assert(g4.note[i] == g3.note[i] + 12 || g3.count != g4.count);   // G4 = G3 an octave up
+        assert(g3.count == g4.count && g4.note[0] == g3.note[0] + 12);
+        p.state.layout = Layout::Real; p.Clear();
+        const Voiced r3 = play(48), r4 = play(60), r5 = play(72), r3b = play(48);
+        assert(Notes(r4) == (std::vector<unsigned>{60, 64, 67}) && Notes(r5) == (std::vector<unsigned>{72, 76, 79}) && Notes(r3b) == Notes(r3));
+    }
 }
 
 // Note ownership: random key presses/releases on every source, with harmony settings

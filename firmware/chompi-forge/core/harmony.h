@@ -216,12 +216,19 @@ inline unsigned Movement(const Voiced& from, const Voiced& to) {
 // Voice leading: of every inversion at the root's octave and one either side, the
 // voicing that moves least from `previous` (ties: the earlier candidate, so the
 // result is deterministic). Common tones cost nothing, so they are kept.
-FORGE_COLD inline Voiced Lead(int root_note, const uint8_t* tones, uint8_t count, bool open, const Voiced& previous) {
+// 0.19.2 fix (the owner, 2026-10-13: "only 1 octave across the whole keyboard"): a voicing's lowest
+// note must stay in the pressed key's register, `base` (that octave's C) from a 4th below to its top.
+// Player also moves `previous` into that register first, so a change of register plays the same smooth
+// shape an octave up or down instead of being pulled back next to the last chord. Root position at the
+// root's own octave is always allowed.
+FORGE_COLD inline Voiced Lead(int root_note, const uint8_t* tones, uint8_t count, bool open, const Voiced& previous, int base) {
     Voiced best; unsigned best_cost = ~0u;
     for(int shift = 0; shift < 3; ++shift) {
         const int octave = shift == 0 ? 0 : shift == 1 ? -12 : 12;
         for(unsigned r = 0; r < count; ++r) {
             const Voiced v = Place(root_note + octave, tones, count, r, open);
+            const bool home = shift == 0 && r == 0;
+            if(!home && v.count && (v.note[0] < base - 5 || v.note[0] > base + 11)) continue;
             const unsigned cost = Movement(previous, v);
             if(cost < best_cost) { best_cost = cost; best = v; }
         }
@@ -278,7 +285,15 @@ public:
             root_note = key - key % 12 + c.root;
             if(root_note > key + 6) root_note -= 12;                    // a Shift that moves the root: the nearer octave
         }
-        const Voiced v = !state.block && last_.count ? Lead(root_note, tones, count, state.open, last_)
+        const int base = state.layout == Layout::Real ? key - key % 12 : 48 + 12 * f.octave;   // the key's register
+        Voiced from = last_;                                            // the last chord, moved into this register
+        if(from.count && base != last_base_) {
+            const int move = base - last_base_;
+            unsigned k = 0;
+            for(unsigned i = 0; i < from.count; ++i) { const int x = from.note[i] + move; if(x >= 0 && x <= 127) from.note[k++] = static_cast<uint8_t>(x); }
+            from.count = static_cast<uint8_t>(k);
+        }
+        const Voiced v = !state.block && from.count ? Lead(root_note, tones, count, state.open, from, base)
                                                      : Place(root_note, tones, count, state.inversion, state.open);
         unsigned n = 0;
         if(h->used) n = Release(*h, out);                               // retrigger: let go of the old notes first
@@ -289,7 +304,7 @@ public:
             if(refs_[source][v.note[i]]++ == 0) out_on_[started++] = v.note[i];
         }
         for(unsigned i = 0; i < started; ++i) out[n + i] = out_on_[i];
-        last_ = v; last_chord_ = c; ++changes_;
+        last_ = v; last_chord_ = c; last_base_ = base; ++changes_;
         newest_ = static_cast<uint8_t>(h - held_);
         released_ = static_cast<uint8_t>(n);
         return n + started;
@@ -337,7 +352,7 @@ public:
         return const_cast<Player*>(this)->Find(key, source) != nullptr;
     }
     // Panic, a structural patch change: forget everything (the synth is silenced).
-    void Clear() { for(auto& h : held_) h = Held{}; for(auto& s : refs_) for(auto& r : s) r = 0; shift_ = false; last_ = Voiced{}; bent_ = false; }
+    void Clear() { for(auto& h : held_) h = Held{}; for(auto& s : refs_) for(auto& r : s) r = 0; shift_ = false; last_ = Voiced{}; last_base_ = 48; bent_ = false; }
     const Voiced& LastVoiced() const { return last_; }
     const Chord& LastChord() const { return last_chord_; }
     bool Shift() const { return shift_; }
@@ -368,6 +383,7 @@ private:
     uint8_t refs_[kSources][128] = {};
     uint8_t out_on_[kMaxNotes] = {};
     Voiced last_ = {};
+    int last_base_ = 48;                       // the register (C of its octave) of the last chord
     Chord last_chord_ = {};
     bool shift_ = false;
     uint8_t released_ = 0;
