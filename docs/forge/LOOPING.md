@@ -9,6 +9,9 @@ Implementation notes:
   (one level). Each pass saves the frames it overwrites, before their first write, into the loop
   memory's spare half (an arc around the loop, since the head moves a frame at a time either way), so
   loops up to half the capacity (~41 s) can be undone; the restore runs 1,024 frames per block.
+  Late pairs (ceef237): people press the two keys tens of ms apart, so a pair formed within 100 ms
+  (kLateFrames) takes back the first key's single action: PLAY's pause resumes; LOOP's new pass is cancelled
+  (its first frames sit in a 100 ms grace area at the end of the memory) and the older pass stays undoable.
   Holding the combination 2 s still clears; on an empty looper it still arms. `tests/looper_test.cpp` OverdubUndo.
 - Code: `core/looper.h` (engine, gestures, CC buttons), `core/engine.h`
   (signal chain, panic, CC 24/26/27, voice cap), `core/panel_controller.h`

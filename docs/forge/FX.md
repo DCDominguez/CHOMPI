@@ -14,7 +14,7 @@ nothing changed, CHOMPI sounds exactly as 0.19.2 (checked bit for bit in `tests/
 | **Motion** (orange) | chorus (F4) · phaser (G4) · tremolo (A4) | SW3 | rate (chorus 0.08–2 Hz, phaser 0.05–1.3 Hz, tremolo 0.3–10 Hz) |
 
 - **Tape echo:** the delay's head wobbles slowly and each repeat comes back darker and gently saturated.
-- **Fold:** a wavefolder, glassy then metallic as it drives harder. **Crush:** fewer bits (12 down to 3).
+- **Fold:** a wavefolder, glassy then metallic as it drives harder; its level falls as 1/sqrt(drive), so it stays near the dry level (it clipped before ceef237). **Crush:** fewer bits (12 down to 3).
 - **Broken:** the sound drops out for moments at random, like failing tape. **Squash:** a heavy, pumping compressor.
 - **Phaser:** four swept all-pass stages with feedback. **Tremolo:** the level pulses, the sides in opposite phase (at full depth it pans).
 

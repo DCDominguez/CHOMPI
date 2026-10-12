@@ -432,7 +432,7 @@ red; 75 % at power-on, as TAPE); short-press again for the volume. Up to about
 | Tap **PLAY** while playing | Pause / resume |
 | Hold **PLAY** 2 s while paused | Back to the start |
 | Hold **PLAY + LOOP** 2 s | Clear the loop |
-| Tap **PLAY + LOOP** together (with a loop) | **Undo the last overdub** (0.20, one level): the loop goes back to how it was before that overdub. Works for loops up to about 41 s |
+| Tap **PLAY + LOOP** together (with a loop) | **Undo the last overdub** (0.20, one level): the loop goes back to how it was before that overdub. The two keys needn't land at exactly the same moment: press them within about a tenth of a second and whatever the first key started (a pause, a new overdub pass) is taken back too. Works for loops up to about 41 s |
 | PLAY + LOOP with no loop, then play a key | Armed: recording starts with the first note |
 | **SW5** push and turn / click | Playing: loop speed (below zero = reverse) / back to 1×. Paused: scrub. A plain turn is always the filter cutoff, and it filters the loop too (0.16) |
 

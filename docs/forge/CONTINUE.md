@@ -26,6 +26,11 @@ Updated 2026-10-13: overnight functions test done (newest section). 2026-10-12: 
 - **The owner's reports:** battery: no shut-offs since the level-check fix, stays green. Colours: several
   were misread on the panel (teal on keys looks green, orange on keys looks peach, pink only appears in
   harmonic / melodic minor, teal only while Shift is held); the manual now has a colour-appearance table.
+- **Recheck 05:05 (fixed camera, continuous frames; `D:	ools\chompi-sessiontest_recheck*.py`, reports
+  20261013-0505 / -0506):** page-change flash PASS (page 1 -> 2: a lighter green ~0.6 s, then page 2's value
+  colour; page 1's own value colour is green, so the scripted verdict needs the time series); harmony on / off
+  PASS (all four rings green, then red). Held FX knob still inconclusive (white on press; dim levels unreliable
+  on camera). The install of 5254152 was blocked by the session's permission check: still to do with the owner.
 - **Test sheet** (private artifact) updated: every scripted check listed for the owner to repeat, with the
   overnight result per item.
 - Next: install ceef237 (owner's CHOMPI press or a power cycle), verify undo with natural timing and the
