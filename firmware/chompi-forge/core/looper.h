@@ -21,6 +21,10 @@ namespace forge {
 //         playing -> pause; paused -> resume on release (unless held).
 //   Hold PLAY 2 s while paused: back to the start. Hold PLAY + LOOP 2 s: clear.
 //   PLAY + LOOP while empty: armed; the next note starts the first take.
+//   PLAY + LOOP tapped together (released before 2 s) with a loop: undo the last overdub pass
+//   (one level, 0.20). Each pass saves the frames it overwrites, as it overwrites them, into the
+//   loop memory's spare half, so a loop up to half the capacity (~41 s) can be undone; the restore
+//   runs kRestoreFrames per block (no audio stall).
 // Presses wait 10 ms so two keys pressed together count as a combination.
 class Looper {
 public:
@@ -49,7 +53,7 @@ public:
             play_down_ = false;
             // Paused before this press: resume on release, unless held to jump or used in a combination.
             if(was_paused_ && state_ == State::Paused && !jumped_ && !combo_used_) Resume(false);
-            if(!loop_down_) combo_used_ = false;
+            if(!loop_down_) { if(undo_combo_) Undo(); undo_combo_ = armed_now_ = false; combo_used_ = false; }
         }
     }
     void Loop(bool down) {
@@ -57,17 +61,19 @@ public:
         else if(!down && loop_down_) {
             if(pending_loop_) { pending_loop_ = false; if(!play_down_ && !combo_used_) LoopPress(); }
             loop_down_ = false;
-            if(!play_down_) combo_used_ = false;
+            if(!play_down_) { if(undo_combo_) Undo(); undo_combo_ = armed_now_ = false; combo_used_ = false; }
         }
     }
     // Once per audio block: resolves key combinations, hold gestures and scrubbing.
     void Tick(uint32_t frames) {
         since_press_ += frames;
         if(play_down_ || loop_down_) held_ += frames;            // since the latest press
+        if(restoring_) RestoreSome();
         if(play_down_ && loop_down_) {
             pending_play_ = pending_loop_ = false;
-            if(!combo_used_ && state_ == State::Empty) { state_ = State::Armed; combo_used_ = true; }
-            if(held_ >= hold_ && state_ != State::Empty && state_ != State::Armed && !clearing_) { Clear(); combo_used_ = true; }
+            if(!combo_used_ && state_ == State::Empty) { state_ = State::Armed; combo_used_ = true; armed_now_ = true; }
+            if(!combo_used_) { combo_used_ = true; undo_combo_ = true; }               // with a loop: undo on release
+            if(held_ >= hold_ && state_ != State::Empty && state_ != State::Armed && !clearing_) { Clear(); undo_combo_ = false; }
         } else if(since_press_ >= combo_) {
             if(pending_play_) { pending_play_ = false; PlayPress(); }
             if(pending_loop_) { pending_loop_ = false; LoopPress(); }
@@ -140,6 +146,9 @@ public:
     bool Empty() const { return state_ == State::Empty || state_ == State::Armed; }
     bool HasLoop() const { return length_ > 0 && !clearing_; }
     bool Overdubbing() const { return overdub_ && state_ == State::Playing; }
+    bool CanUndo() const { return undo_count_ > 0 && !restoring_; }        // a pass to take back
+    bool Restoring() const { return restoring_; }
+    uint32_t Undos() const { return undos_; }
     // Saving the loop to a sample slot: the audio owner locks it (refused while
     // recording or overdubbing, or when empty); while locked the loop plays but
     // cannot be overdubbed, re-recorded or cleared. The main loop unlocks.
@@ -175,6 +184,7 @@ private:
     }
     FORGE_INLINE void Dub(uint32_t i, float l, float r) {
         int16_t* f = memory_ + 2 * static_cast<size_t>(i);
+        if(undo_on_) Save(i, f);
         f[0] = ToInt(SoftLimit(f[0] * (feedback_ / 32768.f) + l));
         f[1] = ToInt(SoftLimit(f[1] * (feedback_ / 32768.f) + r));
     }
@@ -197,7 +207,7 @@ private:
             f[0] = static_cast<int16_t>(f[0] * g); f[1] = static_cast<int16_t>(f[1] * g);
         }
         length_ = take_; index_ = 0; frac_ = 0.f; speed_ = speed_target_; gain_ = 1.f;
-        overdub_ = overdub; state_ = State::Playing;
+        undo_count_ = 0; restoring_ = false; overdub_ = false; SetOverdub(overdub); state_ = State::Playing;
     }
     void PlayPress() {
         switch(state_) {
@@ -215,15 +225,47 @@ private:
             case State::Empty: StartTake(); break;
             case State::Armed: state_ = State::Empty; break;
             case State::FirstTake: CloseTake(true); break;
-            case State::Playing: overdub_ = !overdub_; break;
+            case State::Playing: if(!restoring_) SetOverdub(!overdub_); break;
             case State::Paused: Resume(true); break;
         }
     }
-    void Resume(bool overdub) { if(length_ && !clearing_) { state_ = State::Playing; overdub_ = overdub; } }
+    void Resume(bool overdub) { if(length_ && !clearing_) { state_ = State::Playing; SetOverdub(overdub); } }
+    // ---- one-level overdub undo (0.20) ----
+    // A pass starts (overdub off -> on): forget the last snapshot; save into the spare half if it fits.
+    void SetOverdub(bool on) {
+        if(on && !overdub_) { undo_on_ = !restoring_ && length_ && length_ <= capacity_ / 2; undo_count_ = 0; }
+        overdub_ = on;
+    }
+    // The frames a pass overwrites form one arc (the head moves a frame at a time, either way):
+    // [undo_start_, undo_start_ + undo_count_) around the loop. Each is saved before its first write.
+    FORGE_INLINE void Save(uint32_t i, const int16_t* f) {
+        if(undo_count_ >= length_) return;                                   // the whole loop is saved
+        const uint32_t end = undo_start_ + undo_count_ < length_ ? undo_start_ + undo_count_ : undo_start_ + undo_count_ - length_;
+        if(undo_count_ && i != end && i != (undo_start_ ? undo_start_ - 1 : length_ - 1)) return;   // inside the arc: saved
+        if(!undo_count_ || i != end) undo_start_ = i;                        // the first frame, or growing backwards
+        int16_t* u = memory_ + 2 * (static_cast<size_t>(capacity_ / 2) + i);
+        u[0] = f[0]; u[1] = f[1]; ++undo_count_;
+    }
+    // Undo: overdub off and the saved frames back, kRestoreFrames per block. One level: then nothing to undo.
+    void Undo() {
+        if(Locked() || clearing_ || !length_ || !undo_count_ || restoring_) return;
+        overdub_ = false; undo_on_ = false;
+        restoring_ = true; restore_at_ = 0; ++undos_;
+    }
+    void RestoreSome() {
+        for(uint32_t k = 0; k < kRestoreFrames && restore_at_ < undo_count_; ++k, ++restore_at_) {
+            uint32_t i = undo_start_ + restore_at_; if(i >= length_) i -= length_;
+            int16_t* f = memory_ + 2 * static_cast<size_t>(i);
+            const int16_t* u = memory_ + 2 * (static_cast<size_t>(capacity_ / 2) + i);
+            f[0] = u[0]; f[1] = u[1];
+        }
+        if(restore_at_ >= undo_count_) { restoring_ = false; undo_count_ = 0; }
+    }
     void Reset() {
         state_ = State::Empty; length_ = take_ = 0; index_ = 0; frac_ = 0.f;
         speed_ = 1.f; scrub_ = scrub_turns_ = 0.f; scrub_clock_ = 0; gain_ = 0.f;
         overdub_ = clearing_ = false; SetTone(1.f);
+        undo_on_ = restoring_ = false; undo_count_ = 0;
     }
 
     int16_t* memory_ = nullptr;
@@ -237,6 +279,10 @@ private:
     float rate_ = 48000.f, tone_ = 1.f, g_ = 0.f, h_ = 1.f, lp_[2] = {}, bp_[2] = {};
     bool play_down_ = false, loop_down_ = false, pending_play_ = false, pending_loop_ = false;
     bool combo_used_ = false, jumped_ = false, was_paused_ = false;
+    // One-level overdub undo (0.20)
+    static constexpr uint32_t kRestoreFrames = 1024;   // per block while restoring (~4 KB of SDRAM)
+    bool undo_on_ = false, restoring_ = false, undo_combo_ = false, armed_now_ = false;
+    uint32_t undo_start_ = 0, undo_count_ = 0, restore_at_ = 0, undos_ = 0;
     std::atomic<bool> locked_{false};
 };
 

@@ -5,6 +5,11 @@ software-tested** (steps 1–4 of section 5); nothing is hardware-verified.
 TEST_SESSION 3E (3.42–3.51) and 6.2d cover it.
 
 Implementation notes:
+- **Overdub undo (0.20, the owner):** PLAY + LOOP tapped together takes the last overdub pass back
+  (one level). Each pass saves the frames it overwrites, before their first write, into the loop
+  memory's spare half (an arc around the loop, since the head moves a frame at a time either way), so
+  loops up to half the capacity (~41 s) can be undone; the restore runs 1,024 frames per block.
+  Holding the combination 2 s still clears; on an empty looper it still arms. `tests/looper_test.cpp` OverdubUndo.
 - Code: `core/looper.h` (engine, gestures, CC buttons), `core/engine.h`
   (signal chain, panic, CC 24/26/27, voice cap), `core/panel_controller.h`
   (keys, SW5 context, menu, LEDs), `core/preset_menu.h` (loop as copy

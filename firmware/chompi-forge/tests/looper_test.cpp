@@ -267,11 +267,82 @@ void NewTakeAtUnitySpeedAndLoopTone() {
 }
 } // namespace
 
+// 0.20 one-level overdub undo: PLAY + LOOP tapped together takes the last overdub pass back, bit for bit
+// (forwards and in reverse), restored in chunks; one level; a loop over half the memory has no undo;
+// holding the combination 2 s still clears; a new take or a clear forgets the snapshot.
+void OverdubUndo() {
+    auto loop_of = [](Rig& rig) { const int16_t* d = rig.looper.Data(); return std::vector<int16_t>(d, d + 2 * rig.looper.Length()); };
+    auto combo_tap = [](Rig& rig) {
+        rig.looper.Play(true); rig.looper.Loop(true); rig.Silence(4 * kBlock);
+        rig.looper.Loop(false); rig.looper.Play(false); rig.Silence(kBlock);
+    };
+    auto settle = [](Rig& rig) { for(int i = 0; i < 4000 && rig.looper.Restoring(); ++i) rig.Silence(kBlock); };
+    {   // forwards
+        Rig rig;                                                    // 4 s of memory: undo for loops up to 2 s
+        Record(rig, 48000, [](uint64_t t) { return Sine(t, 220.f, .3f); });   // a 1 s loop, plain playback
+        const auto before = loop_of(rig);
+        assert(!rig.looper.CanUndo());
+        rig.Tap(false);                                             // LOOP: overdub on
+        assert(rig.looper.Overdubbing());
+        rig.Run(70000, [](uint64_t t) { return Sine(t, 660.f, .2f); });       // more than a lap
+        rig.Tap(false);                                             // overdub off
+        assert(loop_of(rig) != before && rig.looper.CanUndo());
+        combo_tap(rig);
+        assert(!rig.looper.Overdubbing() && rig.looper.GetState() == Looper::State::Playing);
+        settle(rig);
+        assert(loop_of(rig) == before);                             // bit for bit
+        assert(!rig.looper.CanUndo() && rig.looper.Undos() == 1);   // one level
+        combo_tap(rig); settle(rig); assert(loop_of(rig) == before && rig.looper.Undos() == 1);
+        // Undo while still overdubbing: the pass stops and goes back.
+        rig.Tap(false); rig.Run(20000, [](uint64_t t) { return Sine(t, 330.f, .2f); });
+        combo_tap(rig); settle(rig);
+        assert(!rig.looper.Overdubbing() && loop_of(rig) == before);
+    }
+    {   // in reverse (the head walks backwards: the saved arc grows downwards)
+        Rig rig;
+        Record(rig, 30000, [](uint64_t t) { return Sine(t, 300.f, .3f); });
+        const auto before = loop_of(rig);
+        rig.looper.SetSpeed(-1.f); rig.Silence(9600);
+        rig.Tap(false); rig.Run(45000, [](uint64_t t) { return Sine(t, 500.f, .25f); }); rig.Tap(false);
+        assert(loop_of(rig) != before);
+        combo_tap(rig); settle(rig);
+        assert(loop_of(rig) == before);
+    }
+    {   // the restore is spread over blocks (no stall), then playback goes on
+        Rig rig(8 * 48000);
+        Record(rig, 3 * 48000 + 24000, [](uint64_t t) { return Sine(t, 200.f, .3f); });   // 3.5 s, under half of 8 s
+        rig.Tap(false); rig.Run(4 * 48000, [](uint64_t t) { return Sine(t, 400.f, .2f); }); rig.Tap(false);
+        assert(rig.looper.CanUndo());
+        combo_tap(rig);
+        assert(rig.looper.Restoring());                             // 168k frames at 1024 per block: still going
+        settle(rig); assert(!rig.looper.Restoring());
+    }
+    {   // a loop longer than half the memory: no undo (and nothing breaks)
+        Rig rig;
+        Record(rig, 3 * 48000, [](uint64_t t) { return Sine(t, 220.f, .3f); });
+        rig.Tap(false); rig.Run(20000, [](uint64_t t) { return Sine(t, 440.f, .2f); }); rig.Tap(false);
+        assert(!rig.looper.CanUndo());
+        const auto after = loop_of(rig);
+        combo_tap(rig); settle(rig); assert(loop_of(rig) == after && rig.looper.Undos() == 0);
+    }
+    {   // holding the combination 2 s still clears; a cleared looper has nothing to undo
+        Rig rig;
+        Record(rig, 48000, [](uint64_t t) { return Sine(t, 220.f, .3f); });
+        rig.Tap(false); rig.Run(10000, [](uint64_t t) { return Sine(t, 440.f, .2f); }); rig.Tap(false);
+        rig.looper.Play(true); rig.looper.Loop(true); rig.Silence(2 * 48000 + 4800); rig.looper.Loop(false); rig.looper.Play(false);
+        rig.Silence(9600);
+        assert(rig.looper.Empty() && !rig.looper.CanUndo() && rig.looper.Undos() == 0);
+        // and on an empty looper the tap still arms (no undo)
+        combo_tap(rig); assert(rig.looper.GetState() == Looper::State::Armed && rig.looper.Undos() == 0);
+    }
+}
+
 int main() {
+    OverdubUndo();
     FirstTakeSeamAndPlayback(); LoopClosesIntoOverdubAndFeedback(); PlayWithoutOverdubLeavesTheLoopAlone();
     PauseResumeJumpAndClear(); CombinationsDoNotTriggerSingleKeys(); VarispeedReverseAndScrub();
     AutoCloseAndShortTakes(); PanicIsImmediateAndKeepsTheLoop(); LimiterKeepsOverdubsBounded(); CcButtons(); RandomUse();
     NewTakeAtUnitySpeedAndLoopTone();
     std::cout << "PASS: looper first take/seam, overdub/feedback, play without dub, pause/resume/jump/clear, combinations/arm, "
-                 "varispeed/reverse/scrub, auto-close, panic, limiter, CC buttons, random use, new take at 1x, loop tone\n";
+                 "varispeed/reverse/scrub, auto-close, panic, limiter, CC buttons, random use, overdub undo, new take at 1x, loop tone\n";
 }
