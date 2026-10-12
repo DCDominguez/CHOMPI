@@ -164,7 +164,22 @@ template<typename E> void EffectUnit(E& e, float amount, float character, float 
     for(int i = 0; i < 96000; ++i) { float l = .3f, r = .3f; if(!e.Neutral()) e.Process(l, r); }
     assert(e.Neutral());                                                    // settles back off
 }
+// Fold keeps roughly the input's level (it clipped at 70 % on CHOMPI before the compensation).
+void FoldLevel() {
+    for(float amount : {.3f, .7f, 1.f}) {
+        fx::Fold f; f.Set(amount, 0.f);
+        double in = 0.0, out = 0.0;
+        for(int i = 0; i < 96000; ++i) {
+            const float x = .3f * std::sin(6.2831853f * 220.f * static_cast<float>(i) / 48000.f);
+            float l = x, r = x; f.Process(l, r);
+            if(i > 9600) { in += x * x; out += l * l; }
+        }
+        const double db = 10.0 * std::log10(out / in);
+        assert(db > -9.0 && db < 6.0);
+    }
+}
 void Phase2Units() {
+    FoldLevel();
     { fx::Fold f; EffectUnit(f, .7f, .5f); }
     { fx::Crush c; EffectUnit(c, .8f, .6f); }
     { fx::Squash q; q.Init(48000.f); EffectUnit(q, .8f, .3f); }

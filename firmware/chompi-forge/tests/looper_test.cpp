@@ -298,6 +298,31 @@ void OverdubUndo() {
         combo_tap(rig); settle(rig);
         assert(!rig.looper.Overdubbing() && loop_of(rig) == before);
     }
+    {   // people press the two keys tens of ms apart (functions test, 2026-10-13): either first, 40 ms
+        // ahead, and the undo still takes back the last pass with the loop playing on.
+        for(bool play_first : {true, false}) {
+            Rig rig;
+            Record(rig, 48000, [](uint64_t t) { return Sine(t, 220.f, .3f); });
+            const auto before = loop_of(rig);
+            rig.Tap(false); rig.Run(60000, [](uint64_t t) { return Sine(t, 660.f, .2f); }); rig.Tap(false);
+            rig.Silence(24000);
+            if(play_first) { rig.looper.Play(true); rig.Silence(1920); rig.looper.Loop(true); }
+            else { rig.looper.Loop(true); rig.Run(1920, [](uint64_t t) { return Sine(t, 880.f, .3f); }); rig.looper.Play(true); }
+            rig.Silence(4 * kBlock); rig.looper.Loop(false); rig.looper.Play(false); rig.Silence(kBlock);
+            settle(rig);
+            assert(rig.looper.GetState() == Looper::State::Playing && !rig.looper.Overdubbing());
+            assert(loop_of(rig) == before);
+        }
+        // and in reverse with LOOP first (the grace arc grows downwards)
+        Rig rig;
+        Record(rig, 30000, [](uint64_t t) { return Sine(t, 300.f, .3f); });
+        const auto before = loop_of(rig);
+        rig.looper.SetSpeed(-1.f); rig.Silence(9600);
+        rig.Tap(false); rig.Run(40000, [](uint64_t t) { return Sine(t, 500.f, .25f); }); rig.Tap(false);
+        rig.looper.Loop(true); rig.Run(1920, [](uint64_t t) { return Sine(t, 700.f, .3f); }); rig.looper.Play(true);
+        rig.Silence(4 * kBlock); rig.looper.Loop(false); rig.looper.Play(false); rig.Silence(kBlock);
+        settle(rig); assert(loop_of(rig) == before);
+    }
     {   // in reverse (the head walks backwards: the saved arc grows downwards)
         Rig rig;
         Record(rig, 30000, [](uint64_t t) { return Sine(t, 300.f, .3f); });

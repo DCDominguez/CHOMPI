@@ -117,7 +117,7 @@ Forge keeps TAPE's panel workflow (firmware 0.10). The toggle has two positions:
 | Control | Normal play | In the menu (toggle down + hold CHOMPI) |
 | --- | --- | --- |
 | 25 keys (C3–C5) | Play notes (full velocity, as TAPE) | The menu opens on the page you left it on, at first **TAPE's page** (section 7: sample slots, KEY_21 / KEY_22 taps place the effects). Hold KEY_22 1 s: Forge's **presets page** (white keys pick slots, black keys are save / copy / erase / bank). Hold KEY_21 1 s: the **harmony page**, then tap KEY_21 to cycle **harmony → parts → synth → harmony**. KEY_22 goes back to TAPE's page |
-| CHOMPI key | Toggle **up** + hold = record (after a 1.5 s count-in). Toggle **down**, a quick tap: the event recorder's record / stop / play (section 8c) | Toggle **down** + hold = open the menu; press = confirm |
+| CHOMPI key | Toggle **up** + hold = record (after a 1.5 s count-in). Toggle **down**, a quick tap: the event recorder's close / stop / play once it has a take or is armed (arm it with F#4 on the parts page; section 8c) | Toggle **down** + hold = open the menu; press = confirm |
 | SW4, SW1, SW2, SW3 | Turn: the knob's current page. Press and release: next page. Hold 1.5 s: reset that control | SW4 turns the bank |
 | SW4 + SW3 held 1 s | **Panic** (stops all sound) | — |
 | SW1 + SW2 held 1 s | **Harmony on / off** (0.16; all knob lights flash green = on, red = off) | — |
@@ -146,6 +146,22 @@ results (green/red flash).
 **One colour rule (0.16).** Wherever you pick from a list or step through pages, the
 first choice is **white**, then **green, yellow, orange, red, pink, purple, blue, teal**.
 Page 2 of a knob is green, the 2nd chord size is green, 2 arp octaves are green, and so on.
+
+**How the colours look on CHOMPI (0.20).** The keys and the knob rings use two kinds of LED, and
+some colours look alike; these are the ones that were easy to mix up when checking the panel:
+
+| Colour | On a key | On a knob ring | Easy to confuse with |
+| --- | --- | --- | --- |
+| teal | blue-green, can read as **green** | blue-green | green |
+| orange | **peach** | orange | yellow (keys), red (rings before 0.20) |
+| yellow | yellow | warm, slightly amber yellow | orange |
+| pink | pink | pink | purple |
+| purple | violet | violet | blue, pink |
+| white | white | white (pinkish before 0.20) | — |
+
+A colour that isn't there may also just not occur: in harmony mode **pink** (augmented chords) only
+appears in harmonic or melodic minor, and **teal** (sus4) only while you hold Shift (C5). Dim lights
+change colour a little; the brighter a light, the truer its colour.
 
 ---
 
@@ -448,7 +464,11 @@ lights flash green (on) or red (off).
 **The keys show the chords (0.16):** with harmony on, each key glows dim in the colour of
 the chord it plays: **orange** major, **blue** minor, **red** diminished, **pink**
 augmented, **teal** sus4. In the Static layout C5 (Shift) glows dim white; hold it and the
-keys change colour to show the shifted chords.
+keys change colour to show the shifted chords. In a major key you'll see mostly orange and blue
+with one red key per octave (vii); **pink only appears in harmonic and melodic minor** (the III
+chord, e.g. C–E–G♯ in A minor, on the E keys), and **teal only while Shift is held** (the major
+chords turn sus4). The glow is faint on purpose (0.20): with every key lit, brighter glows ran
+into each other.
 
 **Open the harmony page:** toggle down, hold CHOMPI (TAPE's menu page), then
 **hold KEY_21 for 1 s** (the CHOMPI light turns purple). A tap on KEY_22 goes back to TAPE's page. On the harmony
@@ -573,6 +593,56 @@ Edits change the sound you are playing; save it as a preset (section 6) to keep 
 sounds (Dry, Slap, Long echoes) have no oscillators: the keys light dim red.
 
 ---
+
+## 8e. The FX section — firmware 0.20
+
+Four effect **modules** run one after another on everything CHOMPI plays: **Space**, **Colour**,
+**Texture** and **Motion**. Each module has **three effects**; one is chosen in each, and each module
+has an amount (off at zero) and a character. With every amount at zero CHOMPI sounds exactly as
+before the FX section.
+
+| Module | Effects (FX page keys) | Turn the knob: amount | Hold the knob + turn: character |
+| --- | --- | --- | --- |
+| **Space** (white) | **echo + room** (C3) · **cloud** (D3) · **tape echo** (E3) | **SW4** (the same as SW3 page 1) | delay time and room / cloud size |
+| **Colour** (green) | **saturation** (F3) · **fold** (G3) · **crush** (A3) | **SW1** (the same as SW3 page 2) | fold: bias (more even harmonics) · crush: lower sample rate |
+| **Texture** (yellow) | **cassette** (C4) · **broken** (D4) · **squash** (E4) | **SW2** | cassette: hiss and worn highs · broken: longer dropouts, then stutters · squash: slower release |
+| **Motion** (pink) | **chorus** (F4) · **phaser** (G4) · **tremolo** (A4) | **SW3** | speed |
+
+- **Echo + room**: the delay and reverb you know. **Cloud**: a huge, smeared, slowly blooming wash, no
+  distinct echoes. **Tape echo**: repeats that wobble, darken and saturate as they fade.
+- **Saturation**: TAPE's drive. **Fold**: a wavefolder, glassy then metallic. **Crush**: fewer bits, grit to lo-fi.
+- **Cassette**: TAPE's warble (wow and flutter), with hiss and worn highs as its character. **Broken**:
+  the sound drops out at random, like failing tape. **Squash**: a heavy, pumping compressor.
+- **Chorus**: wide and lush. **Phaser**: a slow sweeping swirl. **Tremolo**: the level pulses, left and
+  right in turn (at full depth it pans).
+
+**Open the FX page:** toggle down, hold CHOMPI, then tap **KEY_21** past the synth page (harmony →
+parts → synth → **FX**), or hold KEY_21 for 4 s from TAPE's page. The CHOMPI light turns **green**.
+On the FX page the keys play nothing:
+
+- **White keys** pick each module's effect (the table). The chosen key is **bright** while its module
+  is on (amount above zero), **soft** while it is off; the other two keys glow faintly.
+- **The knob rings** show each module's amount in its colour, **dim (off) to bright (full)**; hold a knob
+  and its ring shows the **character** instead, in **white**.
+- **The order.** The modules run in series, each working on the one before's sound, so the order changes
+  how they affect each other (a chorus before the reverb gives a moving sound in a wash; after it, the
+  whole wash moves).
+  - **Tap A#3** for the next preset order: **Classic** (orange: Colour, Motion, Texture, Space: the order
+    before 0.20) → **Wear last** (blue: Texture last, so the echoes and wash get worn too) → **Wash first**
+    (purple: Space before Motion, so the motion moves the whole wash).
+  - **Hold A#3 and tap the modules in the order you want** (any key of a module's group), then let go.
+    Modules you didn't tap follow in their order. A#3 lights **white** for your own order, and while you
+    hold it the groups show the order by brightness, first brightest.
+  - **B3**: **side by side** on / off (red): the reverb hears your sound before the delay instead of the
+    echoes, for cleaner echoes and a separate wash.
+- **F#3 / G#3**: the effects before / after the looper (teal: the one in use).
+
+**Taking an effect out:** turn its module's knob to zero (its ring dims, its key goes soft); a module at
+zero is bypassed wherever it sits in the order.
+
+**Saved with your sound.** Save a preset while the FX section is in use and it comes back when you
+recall it (patch version 8). Sounds saved before keep whatever effects are set, as TAPE's saturation
+always did. A preset saved with effects shows as empty on firmware before 0.20.
 
 ## 8c. Event recorder and projects — firmware 0.15
 

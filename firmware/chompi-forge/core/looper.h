@@ -24,7 +24,10 @@ namespace forge {
 //   PLAY + LOOP tapped together (released before 2 s) with a loop: undo the last overdub pass
 //   (one level, 0.20). Each pass saves the frames it overwrites, as it overwrites them, into the
 //   loop memory's spare half, so a loop up to half the capacity (~41 s) can be undone; the restore
-//   runs kRestoreFrames per block (no audio stall).
+//   runs kRestoreFrames per block (no audio stall). People press two keys tens of ms apart (the
+//   functions test, 2026-10-13), so the first key's action is taken back when the pair forms within
+//   kLateFrames: PLAY's pause resumes; LOOP's new overdub pass is cancelled (its first frames, kept in
+//   a small grace area at the end of the memory, go back) and the older pass stays undoable.
 // Presses wait 10 ms so two keys pressed together count as a combination.
 class Looper {
 public:
@@ -69,7 +72,10 @@ public:
         since_press_ += frames;
         if(play_down_ || loop_down_) held_ += frames;            // since the latest press
         if(restoring_) RestoreSome();
+        since_single_ += frames;
+        if(grace_ && (grace_left_ = grace_left_ > frames ? grace_left_ - frames : 0) == 0) CommitGrace();
         if(play_down_ && loop_down_) {
+            if(!combo_used_ && since_single_ <= kLateFrames && single_ != 0) TakeBackSingle();
             pending_play_ = pending_loop_ = false;
             if(!combo_used_ && state_ == State::Empty) { state_ = State::Armed; combo_used_ = true; armed_now_ = true; }
             if(!combo_used_) { combo_used_ = true; undo_combo_ = true; }               // with a loop: undo on release
@@ -207,9 +213,10 @@ private:
             f[0] = static_cast<int16_t>(f[0] * g); f[1] = static_cast<int16_t>(f[1] * g);
         }
         length_ = take_; index_ = 0; frac_ = 0.f; speed_ = speed_target_; gain_ = 1.f;
-        undo_count_ = 0; restoring_ = false; overdub_ = false; SetOverdub(overdub); state_ = State::Playing;
+        undo_count_ = 0; restoring_ = false; grace_ = false; overdub_ = false; SetOverdub(overdub); state_ = State::Playing;
     }
     void PlayPress() {
+        single_ = 1; since_single_ = 0; single_state_ = state_;
         switch(state_) {
             case State::FirstTake: CloseTake(false); break;
             case State::Playing:
@@ -221,6 +228,7 @@ private:
     }
     void LoopPress() {
         if(Locked()) return;                            // being saved: no overdub / new take
+        single_ = 2; since_single_ = 0; single_state_ = state_;
         switch(state_) {
             case State::Empty: StartTake(); break;
             case State::Armed: state_ = State::Empty; break;
@@ -233,12 +241,61 @@ private:
     // ---- one-level overdub undo (0.20) ----
     // A pass starts (overdub off -> on): forget the last snapshot; save into the spare half if it fits.
     void SetOverdub(bool on) {
-        if(on && !overdub_) { undo_on_ = !restoring_ && length_ && length_ <= capacity_ / 2; undo_count_ = 0; }
+        if(on && !overdub_) {
+            undo_on_ = !restoring_ && length_ && length_ + kGraceFrames <= capacity_ / 2;
+            if(undo_on_ && undo_count_) { grace_ = true; grace_left_ = kGraceFrames; grace_count_ = 0; }   // keep the older pass a moment
+            else { grace_ = false; undo_count_ = 0; }
+        }
         overdub_ = on;
+    }
+    // A grace frame's slot: its signed distance from the pass's first frame, modulo the grace size (an
+    // arc of at most kGraceFrames frames never collides, whichever way the head moved).
+    int16_t* GraceSlot(uint32_t i) {
+        uint32_t forward = i >= grace_anchor_ ? i - grace_anchor_ : i + length_ - grace_anchor_;
+        long d = forward > length_ / 2 ? static_cast<long>(forward) - static_cast<long>(length_) : static_cast<long>(forward);
+        const uint32_t slot = static_cast<uint32_t>(((d % static_cast<long>(kGraceFrames)) + kGraceFrames) % kGraceFrames);
+        return memory_ + 2 * (static_cast<size_t>(capacity_ - kGraceFrames) + slot);
+    }
+    // The grace ran out: the new pass is the one to undo now; its first frames move to the undo area.
+    void CommitGrace() {
+        grace_ = false; undo_count_ = 0;
+        for(uint32_t k = 0; k < grace_count_; ++k) {
+            uint32_t i = grace_start_ + k; if(i >= length_) i -= length_;
+            const int16_t* g = GraceSlot(i);
+            int16_t* u = memory_ + 2 * (static_cast<size_t>(capacity_ / 2) + i);
+            u[0] = g[0]; u[1] = g[1];
+        }
+        undo_start_ = grace_start_; undo_count_ = grace_count_;
+    }
+    // The pair formed just after a single key's action: take that action back.
+    void TakeBackSingle() {
+        if(single_ == 1 && single_state_ == State::Playing && state_ == State::Paused) state_ = State::Playing;
+        if(single_ == 2 && grace_) {                                         // cancel the new pass: its frames back
+            for(uint32_t k = 0; k < grace_count_; ++k) {
+                uint32_t i = grace_start_ + k; if(i >= length_) i -= length_;
+                const int16_t* g = GraceSlot(i);
+                int16_t* f = memory_ + 2 * static_cast<size_t>(i);
+                f[0] = g[0]; f[1] = g[1];
+            }
+            grace_ = false; overdub_ = false; undo_on_ = false;
+        } else if(single_ == 2 && single_state_ == State::Playing && overdub_ && !grace_) overdub_ = false;   // a fresh pass without an older one
+        single_ = 0;
     }
     // The frames a pass overwrites form one arc (the head moves a frame at a time, either way):
     // [undo_start_, undo_start_ + undo_count_) around the loop. Each is saved before its first write.
     FORGE_INLINE void Save(uint32_t i, const int16_t* f) {
+        if(grace_) {
+            if(grace_count_ >= kGraceFrames) { CommitGrace(); }
+            else {
+                const uint32_t end = grace_start_ + grace_count_ < length_ ? grace_start_ + grace_count_ : grace_start_ + grace_count_ - length_;
+                if(grace_count_ && i != end && i != (grace_start_ ? grace_start_ - 1 : length_ - 1)) return;
+                if(!grace_count_) grace_anchor_ = i;
+                if(!grace_count_ || i != end) grace_start_ = i;
+                int16_t* g = GraceSlot(i);                                   // one write, either direction
+                g[0] = f[0]; g[1] = f[1]; ++grace_count_;
+                return;
+            }
+        }
         if(undo_count_ >= length_) return;                                   // the whole loop is saved
         const uint32_t end = undo_start_ + undo_count_ < length_ ? undo_start_ + undo_count_ : undo_start_ + undo_count_ - length_;
         if(undo_count_ && i != end && i != (undo_start_ ? undo_start_ - 1 : length_ - 1)) return;   // inside the arc: saved
@@ -248,6 +305,7 @@ private:
     }
     // Undo: overdub off and the saved frames back, kRestoreFrames per block. One level: then nothing to undo.
     void Undo() {
+        if(grace_) CommitGrace();                                            // the pass ran past the grace: undo it
         if(Locked() || clearing_ || !length_ || !undo_count_ || restoring_) return;
         overdub_ = false; undo_on_ = false;
         restoring_ = true; restore_at_ = 0; ++undos_;
@@ -265,7 +323,7 @@ private:
         state_ = State::Empty; length_ = take_ = 0; index_ = 0; frac_ = 0.f;
         speed_ = 1.f; scrub_ = scrub_turns_ = 0.f; scrub_clock_ = 0; gain_ = 0.f;
         overdub_ = clearing_ = false; SetTone(1.f);
-        undo_on_ = restoring_ = false; undo_count_ = 0;
+        undo_on_ = restoring_ = grace_ = false; undo_count_ = 0; single_ = 0;
     }
 
     int16_t* memory_ = nullptr;
@@ -281,6 +339,11 @@ private:
     bool combo_used_ = false, jumped_ = false, was_paused_ = false;
     // One-level overdub undo (0.20)
     static constexpr uint32_t kRestoreFrames = 1024;   // per block while restoring (~4 KB of SDRAM)
+    static constexpr uint32_t kGraceFrames = 4800, kLateFrames = 4800;   // 100 ms at 48 kHz
+    bool grace_ = false;
+    uint32_t grace_left_ = 0, grace_start_ = 0, grace_count_ = 0, grace_anchor_ = 0, since_single_ = 1u << 30;
+    uint8_t single_ = 0;                               // the last single action: 1 PLAY, 2 LOOP
+    State single_state_ = State::Empty;
     bool undo_on_ = false, restoring_ = false, undo_combo_ = false, armed_now_ = false;
     uint32_t undo_start_ = 0, undo_count_ = 0, restore_at_ = 0, undos_ = 0;
     std::atomic<bool> locked_{false};

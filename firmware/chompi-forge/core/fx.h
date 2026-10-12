@@ -198,9 +198,11 @@ public:
     void Process(float& l, float& r) {
         mix_ += .002f * ((on_ ? 1.f : 0.f) - mix_);
         drive_ += .002f * (drive_target_ - drive_); bias_ += .002f * (bias_target_ - bias_);
-        const float centre = Shape(bias_);
-        l += mix_ * (.8f * (Shape(drive_ * l + bias_) - centre) - l);
-        r += mix_ * (.8f * (Shape(drive_ * r + bias_) - centre) - r);
+        // A folder's output swings near full scale whatever the input level (the functions test, 2026-10-13:
+        // +16 dB and clipping at 70 %), so it is scaled down by the square root of the drive.
+        const float centre = Shape(bias_), level = .8f / std::sqrt(drive_);
+        l += mix_ * (level * (Shape(drive_ * l + bias_) - centre) - l);
+        r += mix_ * (level * (Shape(drive_ * r + bias_) - centre) - r);
     }
 private:
     static float Shape(float x) { float t = (x + 1.f) * .25f; t -= Floor(t); const float d = t - .5f; return 1.f - 4.f * (d < 0.f ? -d : d); }
