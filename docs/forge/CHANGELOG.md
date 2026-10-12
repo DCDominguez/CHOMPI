@@ -4,6 +4,13 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
 
 ## 0.19.2 Secret modes, the forge site, bank purple (small tool: Whatzit) — 2026-10-12 (release candidate; on CHOMPI as build b462bea; checks in TEST_RESULTS)
 
+- **Harmony, arp and bass fixes (after release candidate 2; implemented and software-tested, not yet
+  hardware-verified; the owner's review, 2026-10-13).** Dominant chords (secondary dominants, Shift's
+  dominants and tritone substitutes) keep their 7th at triad size: V/IV no longer equals I, and in
+  minor V/III and V/VI no longer double diatonic chords. 11th chords over a major 3rd drop the 3rd
+  (no more natural 11th rubbing against it), 13th chords keep the 9th and drop the 11th, and a minor
+  9th is kept only on dominants. The arp's and bass's first step of a phrase is no longer clipped or
+  doubled by a grid step right after it. Bass alternate / octave at "once per chord" play the root.
 - **Battery level fixed (after release candidate 2; implemented and software-tested, not yet
   hardware-verified).** Forge's own check (`core/power.h LevelCheck`) replaces the stock one
   (BATTERY_READINGS problems 1-4): the first reading at switch-on instead of yellow for 30 s; the

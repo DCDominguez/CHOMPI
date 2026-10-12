@@ -37,8 +37,9 @@ void Identity() {
         for(unsigned k = 0; k < 7; ++k) assert(InScale((c.root + c.tone[k]) % 12, tonic, mode));
         for(unsigned e = 0; e < kExtensions; ++e) {
             uint8_t t[kMaxNotes]; const unsigned n = Tones(c, static_cast<Extension>(e), kMaxNotes, t);
+            // At most these; a minor 9th on a non-dominant chord is left out (0.19.2), one fewer.
             static const unsigned expect[kExtensions] = {3, 4, 5, 5, 5, 2};
-            assert(n == expect[e] && t[0] == 0);
+            assert((n == expect[e] || (n + 1 == expect[e] && e >= 2)) && t[0] == 0);
             for(unsigned i = 1; i < n; ++i) assert(t[i] > t[i - 1]);
         }
     }
@@ -54,7 +55,23 @@ void Identity() {
     assert((pcs(0, Mode::Major, 0, Extension::Fifth) == std::vector<unsigned>{0, 7}));
     // Drop rules: 11th and 13th keep root, 3rd, 7th and the top extension; the 5th goes first.
     assert((pcs(0, Mode::Major, 1, Extension::Eleventh) == std::vector<unsigned>{2, 5, 0, 4, 7}));      // Dm11: D F C E G (no A)
-    assert((pcs(0, Mode::Major, 4, Extension::Thirteenth) == std::vector<unsigned>{7, 11, 5, 0, 4}));   // G13: G B F C E
+    assert((pcs(0, Mode::Major, 4, Extension::Thirteenth) == std::vector<unsigned>{7, 11, 5, 9, 4}));   // G13: G B F A E (0.19.2: the 9th, no 11th)
+    // 0.19.2 (the owner's harmony review): no natural 11th over a major 3rd, no minor 9th off a dominant,
+    // dominants keep their 7th at triad size.
+    assert((pcs(0, Mode::Major, 0, Extension::Eleventh) == std::vector<unsigned>{0, 7, 11, 2, 5}));      // C11: C G B D F (no E)
+    assert((pcs(0, Mode::Major, 0, Extension::Thirteenth) == std::vector<unsigned>{0, 4, 11, 2, 9}));    // Cmaj13: C E B D A (no F)
+    assert((pcs(0, Mode::Major, 2, Extension::Ninth) == std::vector<unsigned>{4, 7, 11, 2}));            // iii9: E G B D (no F)
+    assert((pcs(0, Mode::Major, 4, Extension::Triad) == std::vector<unsigned>{7, 11, 2}));               // diatonic V stays a triad
+    assert((pcs(5, Mode::Lydian, 0, Extension::Eleventh) == std::vector<unsigned>{5, 9, 4, 7, 11}));     // F Lydian I11 keeps the #11 (B) and the 3rd
+    {
+        auto triad = [](uint8_t key, unsigned tonic, Mode m, bool shift) { return PitchClasses(Resolve(StaticFunction(key), static_cast<uint8_t>(tonic), m, shift), Extension::Triad); };
+        assert((triad(68, 0, Mode::Major, false) == std::vector<unsigned>{0, 4, 7, 10}));                // V/IV = C7, not C (= I)
+        assert((triad(56, 9, Mode::NaturalMinor, false) == std::vector<unsigned>{0, 4, 7, 10}));         // A minor V/VI = C7, not III
+        assert((triad(51, 9, Mode::NaturalMinor, false) == std::vector<unsigned>{7, 11, 2, 5}));         // A minor V/III = G7, not VII
+        assert((triad(55, 0, Mode::Major, true) == std::vector<unsigned>{1, 5, 8, 11}));                 // Shift on V: Db7, not Db (= bII)
+        const Chord v4 = Resolve(StaticFunction(68), 0, Mode::Major, false);
+        assert((PitchClasses(v4, Extension::Triad, 3) == std::vector<unsigned>{0, 4, 10}));              // 3 voices: the 5th goes, the 7th stays
+    }
     const Chord g = Resolve(Degree(4), 0, Mode::Major, false);
     assert((PitchClasses(g, Extension::Ninth, 4) == std::vector<unsigned>{7, 11, 5, 9}));              // 4 voices: no 5th
     assert((PitchClasses(g, Extension::Seventh, 3) == std::vector<unsigned>{7, 11, 5}));
@@ -235,9 +252,9 @@ void EngineAndPanel() {
         for(unsigned i = rel; i < n; ++i) { f_natural |= pl[i] % 12 == 5; f_sharp |= pl[i] % 12 == 6; }
         assert(n == 3 && f_natural && !f_sharp);
         e.Note(50, 0, 1); run(400);
-        assert(e.Note(72, 100, 1) == 0 && e.Note(50, 100, 1, pl, &rel) == 3);      // held Shift: ii -> V/V (D F# A)
-        bool sharp = false; for(unsigned i = rel; i < 3; ++i) sharp |= pl[i] % 12 == 6;
-        assert(sharp);
+        assert(e.Note(72, 100, 1) == 0 && e.Note(50, 100, 1, pl, &rel) == 4);      // held Shift: ii -> V/V = D7 (0.19.2: a dominant keeps its 7th)
+        bool sharp = false, seventh = false; for(unsigned i = rel; i < 4; ++i) { sharp |= pl[i] % 12 == 6; seventh |= pl[i] % 12 == 0; }
+        assert(sharp && seventh);
         e.Note(50, 0, 1); e.Note(72, 0, 1); assert(!player.Shift()); run(400);
     }
     // The panel: one key = the chord on MIDI out, notes on then off.
