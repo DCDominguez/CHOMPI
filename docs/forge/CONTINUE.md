@@ -15,6 +15,24 @@ Updated 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2
   older patches load as today's sound. Hold SW3 + turn is taken (delay time / warble / resonance).
 - **Phases:** 0 make room (done) - 1 the frame + chorus + cloud - 2 the other effects; each ends
   with one listening session (the owner judges the sound).
+- **UX pass (agreed with the owner, 2026-10-12), supersedes the list above where they differ:**
+  - The **DJ filter leaves the modules**: a fixed performance filter, SW3 page 3 as today.
+    **Texture** = cassette (today's warble + hiss + wear) / broken (dropouts) / **squash** (pumping comp).
+  - **Classic route = today's order**: DJ filter -> Colour -> Motion -> Texture -> Space (Motion at 0
+    = today's sound). Others: Wear last (Texture after Space), Wash first (Space before Motion),
+    Side by side (Space effects in parallel).
+  - **SW3 live pages stay three** (Space, Colour, DJ filter). On the **FX menu page the four knobs are
+    the four modules** (SW4 Space, SW1 Colour, SW2 Texture, SW3 Motion: order follows the key groups).
+  - **One knob rule:** turn = amount, hold + turn = the chosen effect's character (echo time / cloud
+    size / tape wobble; colour tone; DJ resonance unchanged). Warble -> Texture cassette amount (old
+    sounds load into it).
+  - Every module is off at amount 0 (Motion starts at 0); no "off" choice.
+  - **FX page:** 4th in the KEY_21 cycle (harmony -> parts -> synth -> FX), CHOMPI light **green**.
+    White keys in keyboard groups, coloured as SW3's page colours: C3-E3 Space (white), F3-A3 Colour
+    (green), C4-E4 Texture (yellow), F4-A4 Motion (orange); chosen bright, others dim. A black key
+    steps the route (white/green/yellow/orange); A#3 / C#4 effects after / before the looper (as
+    on the presets page); C#4 / D#4 keep page navigation. B3, B4, C5 free. SW4 + SW2 combo stays free.
+  - Effects-only (line-in) patches keep delay on SW4/SW1/SW2 in Phase 1.
 - **Phase 0:** `-O3` -> `-O2` in `src/Makefile`: development headroom 18.8 -> 41.9 KB, release
   53.5 KB; on CHOMPI the worst peak went 53.5 -> 55.3 % (RESOURCE_LEDGER table). **Hardware-verified**
   (stress test on both builds); CHOMPI now runs the `-O2` development build (1e6f5aa trial image).
