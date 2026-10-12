@@ -517,6 +517,7 @@ private:
                 amounts |= static_cast<uint32_t>(Clamp(engine.Value(FxAmount(m)), 0.f, 1.f) * 255.f + .5f) << (8 * m);
             }
             f |= (static_cast<uint32_t>(engine.GetRoute()) & 3u) << 8 | (engine.FxBeforeLoop() ? 1u << 10 : 0u) | (FxPage() ? 1u << 31 : 0u);
+            for(unsigned m = 0; m < fx::kModules; ++m) if(engine.Value(FxAmount(m)) > 0.f) f |= 1u << (11 + m);   // module on
             fx_lights_.store(f, std::memory_order_relaxed); fx_knobs_.store(amounts, std::memory_order_relaxed);
         }
         const bool tape_menu = menu_.Active() && menu_.Page() == MenuPage::Samples;
@@ -976,12 +977,12 @@ struct LedView {
 FORGE_COLD inline Rgb ChordColour(uint8_t note, const harmony::State& s, bool shift) {
     using namespace knobs::colour;
     const harmony::Function f = s.layout == harmony::Layout::Static ? harmony::StaticFunction(note) : harmony::RealFunction(note, s.tonic, s.mode);
-    if(f.kind == harmony::Kind::ShiftKey) return shift ? white : Rgb{.25f, .25f, .25f};
+    if(f.kind == harmony::Kind::ShiftKey) return shift ? white : Rgb{.1f, .1f, .1f};
     const harmony::Chord c = harmony::Resolve(f, s.tonic, s.mode, shift);
     if(c.kind == harmony::Kind::None) return Rgb{};
     const uint8_t third = c.tone[1], fifth = c.tone[2];
     const Rgb colour = third == 5 ? teal : third == 3 ? (fifth == 6 ? red : med_blue) : fifth == 8 ? pink : orange;
-    return knobs::Scale(colour, .3f);
+    return knobs::Scale(colour, .12f);   // 0.20: a faint glow (all 25 keys lit at .3 bled into each other)
 }
 // Menu closed (TAPE NormalPage): a key lights white while held. With a sampler patch,
 // kit mode shows the bank's occupied slots dim in the bank colour (the recording key
@@ -1214,10 +1215,11 @@ inline void ComposeSynthKnobLeds(uint32_t s, uint32_t values, Rgb (&rings)[4], u
         if((flags >> k) & 1u) rings[k] = c;                       // page change flash
     }
 }
-// 0.20 FX page: each module's three keys in its colour (SW3's page colours: Space white, Colour
-// green, Texture yellow, Motion orange), the chosen one bright, the others dim (very dim: not built
-// yet); A#3 the route's step colour; F#3 / G#3 where the effects sit around the looper (white = here);
-// KEY_21 / KEY_22 dim.
+// 0.20 FX page (the owner's light review, 2026-10-13): each module's three keys in its colour (Space
+// white, Colour green, Texture yellow, Motion pink: colours that stay apart on the LEDs). The chosen key
+// is full while its module is on (amount above 0), soft while off; the other two are a faint glow.
+// A#3 the route in its own colours (Classic teal, Wear last blue, Wash first purple, Side by side red);
+// F#3 / G#3 teal where the effects sit around the looper, the other dark; KEY_21 / KEY_22 dim.
 FORGE_COLD inline void RenderFxLeds(uint32_t f, Rgb (&keys)[25]) {
     using namespace knobs::colour;
     for(auto& led : keys) led = Rgb{};
@@ -1228,21 +1230,23 @@ FORGE_COLD inline void RenderFxLeds(uint32_t f, Rgb (&keys)[25]) {
             if(led < 25) keys[led] = c;
         }
     };
-    const Rgb colours[fx::kModules] = {white, green, yellow, orange};
+    const Rgb colours[fx::kModules] = {white, green, yellow, pink};
     for(unsigned m = 0; m < fx::kModules; ++m) {
         const unsigned chosen = (f >> (2 * m)) & 3u;
+        const bool on = (f >> (11 + m)) & 1u;
         for(unsigned c = 0; c < fx::kChoices; ++c)
-            lit(fx::kKeys[m][c], c == chosen ? colours[m] : knobs::Scale(colours[m], fx::Built(static_cast<fx::Module>(m), static_cast<uint8_t>(c)) ? .12f : .03f));
+            lit(fx::kKeys[m][c], knobs::Scale(colours[m], c != chosen ? .05f : on ? 1.f : .25f));
     }
-    lit(fx::kRouteKey, knobs::StepColour((f >> 8) & 3u));
+    static const Rgb routes[fx::kRoutes] = {teal, blue, purple, red};
+    lit(fx::kRouteKey, routes[(f >> 8) & 3u]);
     const bool before = (f >> 10) & 1u;
-    lit(fx::kBeforeLoopKey, before ? white : Rgb{.08f, .08f, .08f}); lit(fx::kAfterLoopKey, before ? Rgb{.08f, .08f, .08f} : white);
+    lit(fx::kBeforeLoopKey, before ? teal : Rgb{}); lit(fx::kAfterLoopKey, before ? Rgb{} : teal);
     lit(61, Rgb{.08f, .08f, .08f}); lit(63, Rgb{.08f, .08f, .08f});
 }
-// FX page rings: each knob in its module's colour, brighter with the amount; turning shows it full.
+// FX page rings: each knob in its module's colour (as the keys), brighter with the amount; turning shows it full.
 inline void ComposeFxKnobLeds(uint32_t amounts, Rgb (&rings)[4], uint32_t flags = 0) {
     using namespace knobs::colour;
-    const Rgb colours[4] = {white, green, yellow, orange};
+    const Rgb colours[4] = {white, green, yellow, pink};
     for(unsigned k = 0; k < 4; ++k) {
         const float v = ((amounts >> (8 * k)) & 255u) / 255.f;
         rings[k] = knobs::Scale(colours[k], (flags >> (4 + k)) & 1u ? 1.f : .15f + .85f * v);

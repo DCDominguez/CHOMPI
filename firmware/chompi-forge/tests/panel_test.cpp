@@ -549,12 +549,13 @@ void PanelFeedback016() {
     hs = harmony::State{}; hs.enabled = true;
     Rgb play[25]; RenderPlayLeds(0, 0, 0, false, play, harmony::Pack(hs));
     auto at = [&](uint8_t slot) { return play[panel::SlotLed(slot)]; };
-    assert(at(0).r > .25f && at(0).g > .1f && at(0).b < .1f);       // C3: I major
-    assert(at(1).b > .25f && at(1).r == 0.f);                        // D3: ii minor
-    assert(at(6).r > .25f && at(6).g == 0.f && at(6).b == 0.f);      // B3: vii diminished
-    assert(at(14).r == .25f && at(14).g == .25f);                    // C5: Shift
+    // 0.20: a faint glow (.12), so all 25 lit keys don't bleed into each other.
+    assert(at(0).r > .1f && at(0).g > .05f && at(0).b < .05f);      // C3: I major
+    assert(at(1).b > .1f && at(1).r == 0.f);                         // D3: ii minor
+    assert(at(6).r > .1f && at(6).g == 0.f && at(6).b == 0.f);       // B3: vii diminished
+    assert(at(14).r == .1f && at(14).g == .1f);                      // C5: Shift
     RenderPlayLeds(0, 0, 0, false, play, harmony::Pack(hs, true));
-    assert(at(1).r > .25f && at(1).b < .1f && at(14).r == 1.f);
+    assert(at(1).r > .1f && at(1).b < .05f && at(14).r == 1.f);
     RenderPlayLeds(uint64_t(1) << kWhite[1], 0, 0, false, play, harmony::Pack(hs)); assert(at(1).r == 1.f && at(1).g == 1.f);   // held: white
     RenderPlayLeds(0, 1u | 2u, 0, false, play, harmony::Pack(hs)); assert(at(1).r == 0.f && at(1).b == 0.f);   // kit: no chords
 
@@ -822,18 +823,25 @@ void FxPage020() {
     rig.Key(panel::kKnobEncoder[1], true); rig.hw.turns[panel::kKnobEncoder[1]] = 4; rig.Block(); rig.Key(panel::kKnobEncoder[1], false);
     rig.Key(panel::kKnobEncoder[2], true); rig.hw.turns[panel::kKnobEncoder[2]] = 6; rig.Block(); rig.Key(panel::kKnobEncoder[2], false);
     assert(std::fabs(rig.engine.Value(Parameter::ColourCharacter) - .12f) < 1e-4f && std::fabs(rig.engine.Value(Parameter::TextureCharacter) - .18f) < 1e-4f);
-    // Lights: D3 bright white (cloud), C3 and E3 dim; F4 bright orange; CHOMPI green.
+    // Lights (0.20 light review): D3 full white (cloud, Space on), C3 / E3 a faint glow; F4 full pink
+    // (chorus, Motion on); A#3 teal (Classic); F#3 teal (effects before the looper), G#3 dark; CHOMPI green.
     rig.Block();
     LedView v; v.menu = rig.panel.MenuPacked(); v.fx = rig.panel.FxLights(); v.keys_down = uint64_t(1) << panel::kChompiKey;
     assert((v.fx >> 31) & 1u);
     Rgb keys[25], chompi; ComposeLeds(v, keys, chompi);
-    assert(keys[panel::SlotLed(1)].r == 1.f && keys[panel::SlotLed(1)].b == 1.f);   // D3 white
-    assert(keys[panel::SlotLed(0)].r > .1f && keys[panel::SlotLed(0)].r < .2f);     // C3 dim
-    assert(keys[panel::SlotLed(2)].r > .1f && keys[panel::SlotLed(2)].r < .2f);   // E3 dim
-    assert(keys[panel::SlotLed(10)].r == 1.f && keys[panel::SlotLed(10)].g > .5f && keys[panel::SlotLed(10)].b < .3f);   // F4 orange
+    auto led_of = [&](uint8_t note) { const uint8_t k = key_of(note), slot = panel::KeyToSlot(k); return keys[slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(k)]; };
+    assert(led_of(50).r == 1.f && led_of(50).b == 1.f);                          // D3 white
+    assert(led_of(48).r > .03f && led_of(48).r < .08f && led_of(52).r < .08f);    // C3, E3 faint
+    assert(led_of(65).r == 1.f && led_of(65).g < .5f && led_of(65).b > .5f);       // F4 pink
+    assert(led_of(58).g > .9f && led_of(58).r < .2f);                             // A#3 teal: Classic
+    assert(led_of(54).g > .9f && led_of(56).r == 0.f && led_of(56).g == 0.f);     // F#3 teal, G#3 dark
     assert(chompi.g == 1.f && chompi.r == 0.f);                                   // green page
+    // A module turned to zero: its chosen key goes soft.
+    rig.hw.turns[panel::kKnobEncoder[3]] = -40; rig.Block(); rig.Block();
+    v.fx = rig.panel.FxLights(); ComposeLeds(v, keys, chompi);
+    assert(led_of(65).r > .2f && led_of(65).r < .3f);                             // F4 soft: Motion off
     Rgb rings[4]; ComposeFxKnobLeds(rig.panel.FxKnobs(), rings);
-    assert(rings[3].r > rings[0].r * .5f && rings[1].g > .3f);                    // the rings follow the amounts
+    assert(rings[1].g > .3f && rings[3].r < .2f && rings[3].b < rings[3].r * 1.f);   // Colour up; Motion (pink) at zero: dim                    // the rings follow the amounts
     // Out of the menu, the FX flag clears and the play lights return.
     rig.Key(panel::kChompiKey, false); rig.Block();
     assert(!((rig.panel.FxLights() >> 31) & 1u) && !rig.panel.FxPage());
