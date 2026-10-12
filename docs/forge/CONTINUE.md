@@ -3,6 +3,29 @@
 Updated 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2-rc1; `main` carries it, Pages serves the forge page). The owner's CHOMPI runs development build 69c5727. Read the newest section below first; older sections are history (HOME_CHECKLIST and TEST_SESSION are kept for the record).
 
 
+## 2026-10-13: light pass and overdub undo (branch forge/fx; CHOMPI runs 28b7ea6)
+
+- **Webcam method:** `D:	ools\chompi-session\cam.py` (OpenCV, manual exposure -8: no LED bleed; the
+  camera now sits upright, no flip), `light_survey.py` (51 states: play, knob pages, SW5 / SW6, sampler,
+  harmony, magic, Dream, looper, recorder, record position, every menu page), `fx_lights.py` (FX page),
+  `led_measure.py` (LED colour ratios), `contact.py` / `compare.py` (sheets, before / after).
+- **Found:** the through-hole LEDs (rings, CHOMPI, PLAY / LOOP, transport, SW6) render green ~30 % weaker
+  than the keys (ring orange looked red, yellow orange, white magenta); harmony's chord previews (.3 on
+  every key) bled; FX page Texture / Motion alike, black keys meaningless, off looked like on.
+- **Fixed and hardware-checked on camera (v1 -> v4):** ring trim of red / blue .86, eased in with
+  brightness (orange G/R 0.50 -> 0.69 = the keys; white neutral); chord previews .12; FX page Motion
+  pink, chosen full / off .25 / others .05, route orange / blue / purple / red, before / after teal,
+  rings rest at .3. Remaining: the FX Texture ring reads warm yellow (amber), acceptable.
+- **Not yet explained (functions test):** knob page-change flash colours (expected page 2 green, saw the
+  value colours); harmony on/off, surprise and mutate flashes not caught on camera (may fire at 1 s
+  while held).
+- **Overdub undo** (2806746): PLAY + LOOP tapped together, one level, loops <= ~41 s. Software-tested.
+- Default samples: Choowi's pack copied to **bank b (orange)** on the owner's card (bank purple holds
+  28 other samples, left alone).
+- After some installs Windows shows CHOMPI twice (a ghost "CHOMPI 3"); a USB replug clears it.
+- Next (the owner's order): full functions test against the spec -> web app (v8 FX) -> docs / manual ->
+  release candidate 3.
+
 ## Phase 1 progress (branch forge/fx; nothing installed on CHOMPI yet)
 
 - Done, software-tested (make test all PASS; fx_test golden bit-identical with Classic; UBSan trap
