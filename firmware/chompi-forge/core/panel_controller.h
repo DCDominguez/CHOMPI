@@ -1243,13 +1243,16 @@ FORGE_COLD inline void RenderFxLeds(uint32_t f, Rgb (&keys)[25]) {
     lit(fx::kBeforeLoopKey, before ? teal : Rgb{}); lit(fx::kAfterLoopKey, before ? Rgb{} : teal);
     lit(61, Rgb{.08f, .08f, .08f}); lit(63, Rgb{.08f, .08f, .08f});
 }
-// FX page rings: each knob in its module's colour (as the keys), brighter with the amount; turning shows it full.
+// FX page rings: each knob in its module's colour (as the keys) and always its amount, also while it turns
+// (the owner, 2026-10-13: a full flash on turning hid whether the effect grew or faded). Off: a dim glow;
+// the first click up: a clear step; then brighter to full, squared so the steps look even to the eye.
 inline void ComposeFxKnobLeds(uint32_t amounts, Rgb (&rings)[4], uint32_t flags = 0) {
     using namespace knobs::colour;
+    (void)flags;
     const Rgb colours[4] = {white, green, yellow, pink};
     for(unsigned k = 0; k < 4; ++k) {
         const float v = ((amounts >> (8 * k)) & 255u) / 255.f;
-        rings[k] = knobs::Scale(colours[k], (flags >> (4 + k)) & 1u ? 1.f : .3f + .7f * v);   // .3 at zero: enough to show the colour
+        rings[k] = knobs::Scale(colours[k], v <= 0.f ? .1f : .25f + .75f * v * v);
     }
 }
 inline void ComposePartsKnobLeds(uint32_t packed, uint32_t clock, Rgb (&rings)[4], uint32_t flags = 0) {
