@@ -31,7 +31,7 @@ Keep a backup of your SD card.
 ## 2. Installing and updating
 
 ### Install and update from the SD card (the easy way)
-Download **`choowi-0.19.2-card.zip`** from the [0.19.2 release candidate](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc1). Read **README-FIRST** before copying the kit to the card’s top folder. It contains `FORGE.bin`, Choowi’s bank purple samples and the illustrated tutorial as `MANUAL.html`. Keep your card backup; a kit sample filename can replace an existing sample. A standalone `FORGE.bin` is also available for firmware-only updates.
+Download **`choowi-0.19.2-rc2-card.zip`** from the [0.19.2 release candidate](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc2). Read **README-FIRST** before copying the kit to the card’s top folder. It contains `FORGE.bin`, Choowi’s bank purple samples and the illustrated tutorial as `MANUAL.html`. Keep your card backup; a kit sample filename can replace an existing sample. A standalone `FORGE.bin` is also available for firmware-only updates.
 Nothing to install on the computer.
 
 1. Back up the card (copy everything to the computer).

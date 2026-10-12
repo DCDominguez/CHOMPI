@@ -4,7 +4,7 @@
 
 This folder is **Choowi**, the first firmware line in the Forge family of custom CHOMPI
 firmware. Current release: **Choowi 0.19.2, release candidate**
-([release page](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc1)).
+([release page](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc2)).
 
 | Folder | What's in it |
 | --- | --- |

@@ -74,7 +74,7 @@ recorder, presets, the sound workshop) is Choowi's foundation. The full story is
 
 No apps, no accounts. Just the SD card.
 
-1. **Download [`choowi-0.19.2-card.zip`](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc1)**
+1. **Download [`choowi-0.19.2-rc2-card.zip`](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc2)**
    (release candidate): the firmware, Choowi's sounds and the illustrated manual.
 2. **Charge CHOMPI** until the battery light is green or white (hold SW6 for 2 seconds).
 3. **Back up the SD card** (copy everything to your computer), then delete its sample files

@@ -1,7 +1,7 @@
 # Forge handoff
 
 **Now (2026-10-12):** **Choowi 0.19.2 release candidate** is published
-([choowi-0.19.2-rc1](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc1)); the owner's
+([choowi-0.19.2-rc2](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc2)); the owner's
 CHOMPI runs development build b462bea. The repo is `myth-world/Forge`; `main` carries the release
 and serves GitHub Pages from `docs/`; work continues on `forge/foundation`.
 Read [CONTINUE.md](CONTINUE.md) first: it is the live checkpoint (claim levels, open bugs,

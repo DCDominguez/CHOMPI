@@ -24,7 +24,7 @@ read and maintain [CONTINUE.md](CONTINUE.md) at each checkpoint.
 
 ## Current milestone: Choowi 0.19.2 → final release (2026-10-12)
 
-**Released as a candidate:** [choowi-0.19.2-rc1](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc1)
+**Released as a candidate:** [choowi-0.19.2-rc2](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc2)
 (the card zip: firmware, bank purple sounds, the manual), with the forge page live at
 myth-world.github.io/Forge/workshop. Before the final release: the owner's TAPE checks, dream mode
 unplugged, the secret modes by ear, the first real-CHOMPI run of the forge page, then fixes from

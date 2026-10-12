@@ -4,7 +4,7 @@
 
 Everything about **Forge**, the workshop of custom CHOMPI firmware, and **Choowi**, its first
 firmware line, written down. Current release: **Choowi 0.19.2, release candidate**
-([download](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc1): the card zip has
+([download](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc2): the card zip has
 the firmware, Choowi's own sounds and the illustrated manual).
 
 - **Playing it:** the [guide](GUIDE.md) ("how do I…?"), the [illustrated manual](ILLUSTRATED_MANUAL.html)

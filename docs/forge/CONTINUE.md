@@ -2,6 +2,17 @@
 
 Updated 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2-rc1; `main` carries it, Pages serves the forge page). The owner's CHOMPI runs development build b462bea. Read the newest section below first; older sections are history (HOME_CHECKLIST and TEST_SESSION are kept for the record).
 
+
+## 2026-10-12 (latest): release candidate 2 published (resume here)
+
+- **Published:** https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc2 (pre-release; `main`
+  at 22a3d52). Assets: release `FORGE.bin` 253,264 B, `choowi-0.19.2-rc2-card.zip`, samples, manual,
+  NOTICES. New since rc1: Conversations motif families, loop chords (SW1 on TAPE's page), Dream redone
+  (SW4 + SW1, ambient auto-drone with lights; the idle player is Nap), the chime's bell fallback.
+  rc1 stays on the releases page. Doc links point to rc2.
+- On the owner's CHOMPI: development build 0410f31 (everything but the chime fix; 22a3d52 is built and
+  waiting while the owner tests). Next: the owner's notes from this round of play, then fixes for the
+  final release; the TAPE checks; dream/nap unplugged; a shut-off with the battery log.
 ## 2026-10-12: Choowi 0.19.2 release candidate published (resume here)
 
 - **Published** (the owner's go): https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc1

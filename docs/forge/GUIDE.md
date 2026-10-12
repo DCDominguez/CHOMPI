@@ -528,7 +528,7 @@ More: [manual, section 12](MANUAL.md#12-troubleshooting) and
 
 ## how do I install Choowi?
 
-Download `choowi-0.19.2-card.zip` from the [download page](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc1), back up the card and read **README-FIRST**. Copy the kit contents to the top folder, with no other filename containing `.bin` left for the bootloader to find. The kit supplies firmware, bank purple samples and `MANUAL.html`. Use a strong USB-C charger for installation. See [the full install instructions](MANUAL.md#2-installing-and-updating).
+Download `choowi-0.19.2-rc2-card.zip` from the [download page](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc2), back up the card and read **README-FIRST**. Copy the kit contents to the top folder, with no other filename containing `.bin` left for the bootloader to find. The kit supplies firmware, bank purple samples and `MANUAL.html`. Use a strong USB-C charger for installation. See [the full install instructions](MANUAL.md#2-installing-and-updating).
 
 ## how do I make a sound on the forge page?
 
