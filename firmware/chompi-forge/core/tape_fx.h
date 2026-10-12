@@ -150,14 +150,17 @@ public:
         active_ = true;                          // re-evaluated once everything settles
     }
     // All neutral and settled: one flag test per sample (inlined); the work is out of line.
-    void Process(float& l, float& r) { if(active_) ProcessActive(l, r); }
+    void Process(float& l, float& r) { if(active_) { Filter(l, r); Colour(l, r); Texture(l, r); Settle(); } }
     void Output(float& l, float& r) { if(active_) OutputActive(l, r); }
-private:
-    // Idle stages are skipped, the DJ filter clears once when it goes neutral, smoothers
-    // stop when settled.
-    FORGE_NOINLINE void ProcessActive(float& l, float& r) {
+    // The stages one by one, for the FX section's routes (0.20; core/fx.h): call them only while
+    // Active(), each once per sample in the route's order, then Settle(). Process() = the TAPE order.
+    // Idle stages are skipped, the DJ filter clears once when it goes neutral, smoothers stop when settled.
+    bool Active() const { return active_; }
+    FORGE_NOINLINE void Filter(float& l, float& r) {                     // the DJ filter
         if(!dj_.Neutral()) { dj_.Process(l, r); dj_active_ = true; }
         else if(dj_active_) { dj_.Clear(); dj_active_ = false; }
+    }
+    FORGE_NOINLINE void Colour(float& l, float& r) {                     // saturation
         if(saturation_ != saturation_target_) {
             OnePole(saturation_, saturation_target_, .001f);
             if(std::fabs(saturation_ - saturation_target_) < 1e-5f) saturation_ = saturation_target_;
@@ -166,11 +169,16 @@ private:
         if(saturation_ > 1.f) {
             l = SoftClip(saturation_ * l) * saturation_gain_; r = SoftClip(saturation_ * r) * saturation_gain_;
         }
-        const bool warble = !warble_.Neutral();
-        if(warble) warble_.Process(l, r);
-        if(!dj_active_ && !warble && saturation_ == 1.f && saturation_target_ == 1.f
+    }
+    void Texture(float& l, float& r) {                                   // the warble (cassette)
+        warble_on_ = !warble_.Neutral();
+        if(warble_on_) warble_.Process(l, r);
+    }
+    void Settle() {
+        if(!dj_active_ && !warble_on_ && saturation_ == 1.f && saturation_target_ == 1.f
            && compressor_ == 0.f && compressor_target_ == 0.f) active_ = false;
     }
+private:
     FORGE_NOINLINE void OutputActive(float& l, float& r) {
         if(compressor_ != compressor_target_) {
             OnePole(compressor_, compressor_target_, .001f);
@@ -186,7 +194,7 @@ private:
     Warble warble_;
     Compressor left_, right_;
     float saturation_ = 1.f, saturation_target_ = 1.f, saturation_gain_ = 1.f, compressor_ = 0.f, compressor_target_ = 0.f;
-    bool dj_active_ = false, active_ = false;
+    bool dj_active_ = false, active_ = false, warble_on_ = false;
     float threshold_ = .25f, ratio_ = 1.f, makeup_ = .9f, pregain_ = 1.f;
 };
 } // namespace tape

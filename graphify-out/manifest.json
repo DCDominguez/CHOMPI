@@ -36,9 +36,9 @@
     "semantic_hash": "73e809f9769eb81f2a137b5bf9d8b9a4"
   },
   "firmware/chompi-forge/core/engine.h": {
-    "mtime": 1791778994.6263237,
-    "seen": 1791779283.8327541,
-    "ast_hash": "ca4272b0b8bef66fdc95946acfc61e3d",
+    "mtime": 1791813246.5989113,
+    "seen": 1791813625.4735372,
+    "ast_hash": "5feafbe36ae15759550372eec3aa1aa9",
     "semantic_hash": ""
   },
   "firmware/chompi-forge/core/file_transfer.h": {
@@ -90,10 +90,10 @@
     "semantic_hash": ""
   },
   "firmware/chompi-forge/core/parameters.h": {
-    "mtime": 1791569193.1751068,
-    "seen": 1791744327.7784767,
-    "ast_hash": "1faf21155f06bc4a767b266a15c166b0",
-    "semantic_hash": "1faf21155f06bc4a767b266a15c166b0"
+    "mtime": 1791813158.9928474,
+    "seen": 1791813625.4735372,
+    "ast_hash": "077580d4280c20080c28174446e55993",
+    "semantic_hash": ""
   },
   "firmware/chompi-forge/core/parts.h": {
     "mtime": 1791712698.3535094,
@@ -192,9 +192,9 @@
     "semantic_hash": ""
   },
   "firmware/chompi-forge/core/tape_fx.h": {
-    "mtime": 1791766417.2154746,
-    "seen": 1791766565.828436,
-    "ast_hash": "7edccb9ea051b8992cc07c2d7f044cc8",
+    "mtime": 1791813158.9928474,
+    "seen": 1791813625.4735372,
+    "ast_hash": "af89a0ab3d5d8b04c17635b406c22c9c",
     "semantic_hash": ""
   },
   "firmware/chompi-forge/core/usb_packets.h": {
@@ -420,9 +420,9 @@
     "semantic_hash": "2e4b3e9edadd0d53a2fad658a1196aa6"
   },
   "firmware/chompi-forge/src/forge_main.cpp": {
-    "mtime": 1791807939.8413684,
-    "seen": 1791811502.6695635,
-    "ast_hash": "dc380d4ffe436d46172b041697d80598",
+    "mtime": 1791813413.5837703,
+    "seen": 1791813625.4735372,
+    "ast_hash": "b7f92e7f0ba16b20ee5bd9388bceb979",
     "semantic_hash": ""
   },
   "firmware/chompi-forge/tests/bridge_browser_e2e.py": {
@@ -654,9 +654,9 @@
     "semantic_hash": ""
   },
   "docs/forge/CONTINUE.md": {
-    "mtime": 1791811473.7247012,
-    "seen": 1791811502.6695635,
-    "ast_hash": "55870f996b69141a4ba923656b9674c2",
+    "mtime": 1791812607.4805944,
+    "seen": 1791813625.4735372,
+    "ast_hash": "b1560cf6e1ff6d632ac3f903e2aa2172",
     "semantic_hash": ""
   },
   "docs/forge/DEVELOPMENT.md": {
@@ -1221,6 +1221,18 @@
     "mtime": 1791778993.581958,
     "seen": 1791779283.8327541,
     "ast_hash": "2334c9009d4d535cf34db82c99b6fd14",
+    "semantic_hash": ""
+  },
+  "firmware/chompi-forge/core/fx.h": {
+    "mtime": 1791812887.8611455,
+    "seen": 1791813625.4735372,
+    "ast_hash": "d4641f4e6b7c58659501e3c36796a46b",
+    "semantic_hash": ""
+  },
+  "firmware/chompi-forge/tests/fx_test.cpp": {
+    "mtime": 1791813426.293856,
+    "seen": 1791813625.4735372,
+    "ast_hash": "fe63abc5d60276d6cb4ae7a42bf9b732",
     "semantic_hash": ""
   }
 }

@@ -26,7 +26,9 @@ enum class Parameter : uint8_t { Mix, Time, Feedback, Level, Bypass, Cutoff, Res
                                  Osc2Level, Osc2Detune, Noise, Glide, ReverbSize, ReverbDamping, SampleXfade,
                                  // Performance controls (TAPE's knobs; device state, not in patches): see Performance.
                                  Speed, VoiceGain, Pan, Space, Saturation, Warble, DjFilter, DjResonance, Compressor,
-                                 InputGain, Count };
+                                 InputGain,
+                                 // FX section (0.20): the Motion module's amount and rate (its chorus today).
+                                 Motion, MotionRate, Count };
 // First performance control; ids from here on are never on the wire.
 constexpr Parameter kFirstPerformance = Parameter::Speed;
 inline bool IsPerformance(Parameter p) { return p >= kFirstPerformance && p < Parameter::Count; }
@@ -199,6 +201,7 @@ struct Performance {
     float dj_filter = .5f, dj_resonance = 0.f;   // .5 = open; below low-pass, above high-pass
     float compressor = 0.f;    // menu SW6
     float input_gain = .75f;   // SW6 page 2: mic x5 / line x3 scaled by this (TAPE)
+    float motion = 0.f, motion_rate = .3f;   // FX section (0.20): Motion amount (off at 0) and rate
     float* Field(Parameter p) {
         switch(p) {
             case Parameter::Speed: return &speed;
@@ -210,6 +213,8 @@ struct Performance {
             case Parameter::DjResonance: return &dj_resonance;
             case Parameter::Compressor: return &compressor;
             case Parameter::InputGain: return &input_gain;
+            case Parameter::Motion: return &motion;
+            case Parameter::MotionRate: return &motion_rate;
             default: return nullptr;
         }
     }

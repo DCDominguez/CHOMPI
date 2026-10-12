@@ -123,6 +123,10 @@ void InstallFaultHandler() {
 }
 // TAPE's warble line (8 KB): ordinary .bss, zeroed at start-up, so no image space.
 float warble_memory[2 * forge::tape::Warble::kLength];
+// FX section (0.20): the chorus line and cloud's diffuser, 33 KB of D2 SRAM (otherwise idle; the
+// engine clears what it uses before reading it). Engine::FxFloats() = 4096 + 4236 floats.
+constexpr size_t kFxFloats = 8448;
+float __attribute__((section(".d2_bss"))) fx_memory[kFxFloats];
 uint32_t dropped_commands = 0, rejected_messages = 0; // main-loop owned
 
 // Device presets on the SD card (main loop only) and the TAPE-style panel menu
@@ -1189,6 +1193,7 @@ FORGE_COLD int main() {
     }
     SetPthLedFloat(0, 0.f, 0.05f, 0.1f);
     fill_led_data();
+    engine.SetFxMemory(fx_memory, kFxFloats);   // FX section: off without it (Motion silent, cloud undiffused)
     BootStep(8, step);   // sampler, looper, engine
     LoadOptions();
     engine.SetSlotSettings(&slot_settings);

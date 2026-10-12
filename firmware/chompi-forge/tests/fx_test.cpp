@@ -17,10 +17,12 @@ namespace {
 struct Rig {
     std::vector<float> l = std::vector<float>(48002), r = std::vector<float>(48002), rv = std::vector<float>(Reverb::Required(48000));
     std::vector<float> warble = std::vector<float>(2 * tape::Warble::kLength);
+    std::vector<float> fxm = std::vector<float>(Engine::FxFloats(), 77.f);   // stale, as D2 SRAM at boot
     Engine engine;
     Rig() {
         assert(engine.Init(48000.f, l.data(), r.data(), l.size(), rv.data(), rv.size()));
         engine.SetWarbleMemory(warble.data());
+        assert(!engine.SetFxMemory(fxm.data(), fxm.size() - 1) && engine.SetFxMemory(fxm.data(), fxm.size()));
     }
 };
 uint64_t Fingerprint(Rig& rig, uint32_t blocks) {
@@ -38,8 +40,9 @@ uint64_t Fingerprint(Rig& rig, uint32_t blocks) {
 }
 // Every pre-FX effect on: a v3 synth sound with delay and reverb, then TAPE's saturation, warble,
 // DJ filter (low-pass) and output compressor turned up; a chord held, then released into the tails.
-uint64_t Scene() {
-    Rig rig;
+uint64_t Scene(fx::Route route = fx::Route::Classic, float motion = 0.f, uint8_t space = 0) {
+    Rig rig; rig.engine.SetRoute(route); assert(rig.engine.SetChoice(fx::Module::Space, space));
+    if(motion > 0.f) assert(rig.engine.Apply({Parameter::Motion, motion}));
     Parameters p; p.version = 3; p.synth = true; p.voices = 4; p.osc2_level = .6f; p.noise = .1f;
     p.mix = .3f; p.feedback = .45f; p.time = .35f; p.reverb_mix = .4f; p.reverb_size = .8f; p.reverb_damping = .4f; p.level = .5f;
     assert(rig.engine.ApplyPatch(p));
@@ -102,6 +105,44 @@ void DiffuserUnit() {
     assert(spread > 200);                                                   // one click becomes a haze
     float big = 1e30f, nan = std::nanf(""); d.Process(big, nan);            // garbage in: no crash
 }
+
+// Routes and choices in the engine: every route its own sound and bounded, Motion audible, unbuilt
+// effects refused, cloud a longer tail with the echoes faded out.
+void EngineFx() {
+    const uint64_t classic = Scene();
+    // Wash first only moves Motion: with Motion at zero it is Classic; the other routes differ.
+    const uint64_t wear = Scene(fx::Route::WearLast), wash = Scene(fx::Route::WashFirst), side = Scene(fx::Route::SideBySide);
+    assert(wash == classic && wear != classic && side != classic && wear != side);
+    assert(Scene(fx::Route::WashFirst, .7f) != Scene(fx::Route::Classic, .7f));
+    assert(Scene(fx::Route::Classic, .7f) != classic);                       // Motion (chorus) on
+    assert(Scene(fx::Route::Classic, 0.f, 1) != classic);                    // cloud
+    Rig rig;
+    for(uint8_t c : {1, 2}) assert(!rig.engine.SetChoice(fx::Module::Colour, c) && !rig.engine.SetChoice(fx::Module::Texture, c));
+    assert(!rig.engine.SetChoice(fx::Module::Space, 2) && !rig.engine.SetChoice(fx::Module::Motion, 1) && !rig.engine.SetChoice(fx::Module::Motion, 3));
+    assert(rig.engine.Choice(fx::Module::Space) == 0 && rig.engine.SetChoice(fx::Module::Space, 1) && rig.engine.Choice(fx::Module::Space) == 1);
+    // Cloud vs echo + room: a short chord, then the tail 1-3 s later; cloud's is longer, and with the
+    // reverb off cloud passes no echoes at all.
+    auto tail = [](uint8_t space, float reverb) {
+        Rig t; assert(t.engine.SetChoice(fx::Module::Space, space));
+        Parameters p; p.version = 3; p.synth = true; p.voices = 4; p.release = 0.f; p.sustain = 1.f;
+        p.mix = .5f; p.feedback = .6f; p.time = .2f; p.reverb_mix = reverb; p.reverb_size = .5f; p.level = 1.f;
+        assert(t.engine.ApplyPatch(p));
+        for(uint8_t n : {60, 64, 67}) t.engine.Note(n, 110, 0);
+        double energy = 0.0;
+        for(int b = 0; b < 8000; ++b) {
+            if(b == 200) for(uint8_t n : {60, 64, 67}) t.engine.Note(n, 0, 0);
+            t.engine.Block(24);
+            for(int i = 0; i < 24; ++i) {
+                float a, c; t.engine.Process(0.f, 0.f, a, c);
+                assert(std::isfinite(a) && std::fabs(a) <= 1.f);
+                if(b > 2400) energy += a * a + c * c;
+            }
+        }
+        return energy;
+    };
+    assert(tail(1, .5f) > 2.0 * tail(0, .5f));
+    assert(tail(1, 0.f) < 1e-6 && tail(0, 0.f) > 1e-3);
+}
 }
 
 int main() {
@@ -109,6 +150,7 @@ int main() {
     std::cout << "fx golden " << std::hex << golden << std::dec << "\n";
     assert(golden == Scene());                                             // deterministic
     assert(golden == 0x1f4ac63c29d80babull);                              // the pre-FX chain (e245ee6)
-    ChorusUnit(); DiffuserUnit();
-    std::cout << "PASS: FX section: golden (Classic route, new modules at zero = the pre-FX chain), chorus, diffuser\n";
+    assert(Engine::FxFloats() <= 8448);                                    // forge_main.cpp kFxFloats
+    ChorusUnit(); DiffuserUnit(); EngineFx();
+    std::cout << "PASS: FX section: golden (Classic route, new modules at zero = the pre-FX chain), chorus, diffuser, routes, Motion, cloud (longer tail, no echoes), unbuilt choices refused\n";
 }

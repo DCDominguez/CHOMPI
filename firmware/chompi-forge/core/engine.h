@@ -11,6 +11,7 @@
 #include "bell.h"
 #include "sequencer.h"
 #include "tape_fx.h"
+#include "fx.h"
 
 namespace forge {
 // Sampler voices while the looper writes. 6 keeps "7 sampler voices + overdub"
@@ -78,7 +79,7 @@ public:
         if(!parameters_.Apply(command)) return false;
         const Parameter p = command.parameter;
         if(p == Parameter::ReverbSize || p == Parameter::ReverbDamping) {
-            if(has_reverb_) reverb_.Configure(parameters_.reverb_size, parameters_.reverb_damping);
+            ConfigureReverb();
         } else if(p != Parameter::Mix && p != Parameter::Time && p != Parameter::Feedback && p != Parameter::Level
                   && p != Parameter::Bypass && p != Parameter::ReverbMix)
             synth_.Configure(parameters_);   // filter, envelope, LFO, oscillator, sampler controls
@@ -133,6 +134,24 @@ public:
     uint8_t FocusPad() const { return focus_; }
     // TAPE's warble needs 2 * tape::Warble::kLength floats of zeroed memory (off without).
     void SetWarbleMemory(float* memory) { effects_.SetWarbleMemory(memory); }
+    // FX section (0.20, core/fx.h): the chorus line and cloud's diffuser share one block of
+    // FxFloats() (D2 SRAM on firmware). Without it Motion stays off and cloud has no diffusion.
+    static size_t FxFloats() { return 2 * fx::Chorus::kLength + fx::Diffuser::Required(); }
+    FORGE_COLD bool SetFxMemory(float* memory, size_t floats) {
+        if(!memory || floats < FxFloats()) return false;
+        chorus_.Init(memory, sample_rate_); chorus_.Set(performance_.motion, performance_.motion_rate);
+        return diffuser_.Init(memory + 2 * fx::Chorus::kLength, static_cast<uint32_t>(floats - 2 * fx::Chorus::kLength), sample_rate_);
+    }
+    // The effect chosen in a module (fx::*Choice, key order). Refused until that effect is built.
+    FORGE_COLD bool SetChoice(fx::Module module, uint8_t choice) {
+        if(!fx::Built(module, choice)) return false;
+        choice_[static_cast<unsigned>(module)] = choice;
+        if(module == fx::Module::Space) { cloud_ = choice == static_cast<uint8_t>(fx::SpaceChoice::Cloud); ConfigureReverb(); }
+        return true;
+    }
+    uint8_t Choice(fx::Module module) const { return choice_[static_cast<unsigned>(module)]; }
+    void SetRoute(fx::Route route) { if(static_cast<unsigned>(route) < fx::kRoutes) route_ = route; }
+    fx::Route GetRoute() const { return route_; }
     // Sampler memory (v4); see sample_table.h. May be set before or after Init.
     void SetSamples(const SampleTable* table) { synth_.SetSamples(table); }
     void ReleaseSampleVoices(bool include_recording) { synth_.ReleaseSampleVoices(include_recording); }
@@ -314,7 +333,7 @@ public:
 #endif
         synth_.SetSweepBoost(0.f);                              // a new sound starts with its own resonance
         synth_.Configure(parameters_);
-        if(has_reverb_) reverb_.Configure(parameters_.reverb_size, parameters_.reverb_damping);
+        ConfigureReverb();
         if(harmony_ && patch.version >= 6) {                    // v6 presets carry harmony mode
             const uint8_t limit = harmony_->state.max_notes;
             harmony_->state = harmony::Unpack(patch.harmony); harmony_->state.max_notes = limit;
@@ -399,11 +418,37 @@ public:
         if(bell_.Active()) { const float b = bell_.Next(); left += b; right += b; }   // 0.19.2 the chime's fallback
         left += monitor_l; right += monitor_r;
         if(looper_ && !fx_before_loop_) looper_->Process(left, right);     // effects after the loop
-        effects_.Process(left, right);                                      // TAPE: filter, saturation, warble
+        // FX section (0.20): the DJ filter, then the modules in the route's order (Classic = TAPE's
+        // filter, saturation, warble, then delay and reverb, as before; Motion at zero is skipped).
+        const bool tape = effects_.Active();
+        if(tape) effects_.Filter(left, right);
+        const fx::Module* order = fx::kOrder[static_cast<unsigned>(route_)];
+        for(unsigned stage = 0; stage < fx::kModules; ++stage) {
+            switch(order[stage]) {
+                case fx::Module::Colour: if(tape) effects_.Colour(left, right); break;
+                case fx::Module::Texture: if(tape) effects_.Texture(left, right); break;
+                case fx::Module::Motion: Motion(left, right); break;
+                case fx::Module::Space: SpaceStage(left, right); break;
+            }
+        }
+        if(tape) effects_.Settle();
+        Smooth(level_, parameters_.level);
+        float mixed_left = left, mixed_right = right;
+        if(looper_ && fx_before_loop_) looper_->Process(mixed_left, mixed_right);   // the loop records what you hear
+        out_left = level_ * mixed_left; out_right = level_ * mixed_right;
+        effects_.Output(out_left, out_right);                               // TAPE's output compressor
+        out_left = Sanitize(out_left);
+        out_right = Sanitize(out_right);
+    }
+private:
+    // Space: delay, then reverb (cloud: the diffuser in front, the reverb set longer and darker, the
+    // delay faded out). Side by side: the reverb hears the signal before the delay, not after it.
+    void SpaceStage(float& left, float& right) {
         Smooth(mix_, parameters_.bypass ? 0.f : parameters_.mix);
         Smooth(feedback_, parameters_.feedback * 0.85f);
-        Smooth(level_, parameters_.level);
         Smooth(time_, DelaySamples());
+        const float echo_target = cloud_ ? 0.f : 1.f;
+        if(echo_ != echo_target) { Smooth(echo_, echo_target); if(std::fabs(echo_ - echo_target) < 1e-5f) echo_ = echo_target; }
         float read = static_cast<float>(write_) - time_;
         if(read < 0.f) read += static_cast<float>(capacity_);
         const size_t index = static_cast<size_t>(read);
@@ -416,28 +461,35 @@ public:
         left_[write_] = left + feedback_ * delayed_left;
         right_[write_] = right + feedback_ * delayed_right;
         write_ = (write_ + 1) % capacity_;
-        float mixed_left = (1.f - mix_) * left + mix_ * delayed_left;
-        float mixed_right = (1.f - mix_) * right + mix_ * delayed_right;
-        // Reverb (v3 only). Skipped entirely while its mix is zero; restarting it
-        // clears stale history in O(1).
+        const float mix = mix_ * echo_;                                     // echo_ is exactly 1 unless cloud
+        float mixed_left = (1.f - mix) * left + mix * delayed_left;
+        float mixed_right = (1.f - mix) * right + mix * delayed_right;
         const float reverb_target = has_reverb_ && parameters_.version >= 3 ? parameters_.reverb_mix : 0.f;
         Smooth(reverb_mix_, reverb_target);
         if(reverb_target > 0.f || reverb_mix_ > 1e-4f) {
-            if(!reverb_active_) { reverb_.Clear(); reverb_active_ = true; }
+            if(!reverb_active_) { reverb_.Clear(); diffuser_.Rest(); reverb_active_ = true; }
+            float in_left = route_ == fx::Route::SideBySide ? left : mixed_left;
+            float in_right = route_ == fx::Route::SideBySide ? right : mixed_right;
+            if(cloud_) diffuser_.Process(in_left, in_right);
             float wet_left, wet_right;
-            reverb_.Process(mixed_left, mixed_right, wet_left, wet_right);
+            reverb_.Process(in_left, in_right, wet_left, wet_right);
             mixed_left += reverb_mix_ * (wet_left - mixed_left);
             mixed_right += reverb_mix_ * (wet_right - mixed_right);
         } else {
             reverb_active_ = false; reverb_mix_ = 0.f;
         }
-        if(looper_ && fx_before_loop_) looper_->Process(mixed_left, mixed_right);   // the loop records what you hear
-        out_left = level_ * mixed_left; out_right = level_ * mixed_right;
-        effects_.Output(out_left, out_right);                               // TAPE's output compressor
-        out_left = Sanitize(out_left);
-        out_right = Sanitize(out_right);
+        left = mixed_left; right = mixed_right;
     }
-private:
+    void Motion(float& left, float& right) {
+        if(!chorus_.Neutral()) { chorus_.Process(left, right); motion_on_ = true; }
+        else if(motion_on_) { chorus_.Rest(); motion_on_ = false; }
+    }
+    // Cloud: the patch's size and damping pushed into a longer (2-10 s), darker range.
+    void ConfigureReverb() {
+        if(!has_reverb_) return;
+        if(cloud_) reverb_.Configure(.55f + .45f * parameters_.reverb_size, .45f + .4f * parameters_.reverb_damping);
+        else reverb_.Configure(parameters_.reverb_size, parameters_.reverb_damping);
+    }
     FORGE_NOINLINE bool ApplyPerformance(Command command) {
         if(!std::isfinite(command.value)) return false;
         const float v = Clamp(command.value, 0.f, 1.f);
@@ -455,6 +507,7 @@ private:
         *field = v;
         PushPerformance();
         effects_.Configure(performance_);
+        chorus_.Set(performance_.motion, performance_.motion_rate);
         return true;
     }
     // Kit pads carry their own pitch, gain and pan, so the shared ones stay neutral there.
@@ -542,7 +595,7 @@ private:
         if(seq_) seq_->Silenced();                               // its notes are gone; the loop keeps playing (MANUAL 8c)
         // O(1) tail suppression: old delay cells are not read until overwritten.
         flushed_ = capacity_;
-        reverb_.Clear();
+        reverb_.Clear(); diffuser_.Rest(); chorus_.Rest(); motion_on_ = false;
     }
     // A chord's notes fit the patch's voices (at most harmony::kMaxNotes).
     uint8_t ChordVoices() const {
@@ -620,5 +673,12 @@ private:
     float mix_ = 0.f, feedback_ = 0.f, level_ = 0.f, time_ = 0.f, reverb_mix_ = 0.f;
     Reverb reverb_;
     bool ready_ = false, has_reverb_ = false, reverb_active_ = false;
+    // FX section (0.20)
+    fx::Chorus chorus_;
+    fx::Diffuser diffuser_;
+    uint8_t choice_[fx::kModules]{};
+    fx::Route route_ = fx::Route::Classic;
+    bool cloud_ = false, motion_on_ = false;
+    float echo_ = 1.f;
 };
 } // namespace forge
