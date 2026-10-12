@@ -2,7 +2,7 @@ CXX ?= c++
 HOST_FLAGS = -std=c++14 -Wall -Wextra -Werror -pedantic -pthread
 HEADERS = $(wildcard core/*.h)
 .PHONY: test sanitize firmware firmware-dev libdaisy browser-test bench
-test: build/core_test build/protocol_test build/synth_test build/v3_test build/preset_test build/sampler_test build/panel_test build/inspector_test build/looper_test build/file_transfer_test build/power_test build/slot_settings_test build/harmony_test build/parts_test build/sequencer_test build/knob_audio_test build/magic_test build/secret_test build/starter_patches.txt build/forge_probe
+test: build/core_test build/protocol_test build/synth_test build/v3_test build/preset_test build/sampler_test build/panel_test build/inspector_test build/looper_test build/file_transfer_test build/power_test build/slot_settings_test build/harmony_test build/parts_test build/sequencer_test build/knob_audio_test build/magic_test build/secret_test build/fx_test build/starter_patches.txt build/forge_probe
 	./build/core_test
 	./build/protocol_test
 	./build/synth_test
@@ -21,6 +21,7 @@ test: build/core_test build/protocol_test build/synth_test build/v3_test build/p
 	./build/knob_audio_test
 	./build/magic_test
 	./build/secret_test
+	./build/fx_test
 	python3 -m unittest discover -s tests -p 'test_*.py' -v
 build/slot_settings_test: tests/slot_settings_test.cpp $(HEADERS)
 	mkdir -p build
@@ -37,6 +38,9 @@ build/sequencer_test: tests/sequencer_test.cpp $(HEADERS)
 build/secret_test: tests/secret_test.cpp $(HEADERS)
 	mkdir -p build
 	$(CXX) $(HOST_FLAGS) -DFORGE_TEST_HOOKS -O2 tests/secret_test.cpp -o $@
+build/fx_test: tests/fx_test.cpp $(HEADERS)
+	mkdir -p build
+	$(CXX) $(HOST_FLAGS) -O2 tests/fx_test.cpp -o $@
 build/magic_test: tests/magic_test.cpp $(HEADERS)
 	mkdir -p build
 	$(CXX) $(HOST_FLAGS) -O2 tests/magic_test.cpp -o $@
@@ -86,6 +90,8 @@ sanitize:
 	mkdir -p build
 	$(CXX) $(HOST_FLAGS) -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer tests/core_test.cpp -o build/core_test_sanitize
 	./build/core_test_sanitize
+	$(CXX) $(HOST_FLAGS) -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer tests/fx_test.cpp -o build/fx_test_sanitize
+	./build/fx_test_sanitize
 	$(CXX) $(HOST_FLAGS) -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer tests/protocol_test.cpp -o build/protocol_test_sanitize
 	./build/protocol_test_sanitize
 	$(CXX) $(HOST_FLAGS) -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer tests/synth_test.cpp -o build/synth_test_sanitize
