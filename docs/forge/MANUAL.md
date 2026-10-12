@@ -120,6 +120,7 @@ Forge keeps TAPE's panel workflow (firmware 0.10). The toggle has two positions:
 | SW1 + SW2 held 1 s | **Harmony on / off** (0.16; all knob lights flash green = on, red = off) | — |
 | SW1 + SW3 held 1 s | **Surprise me** (0.17): a new sound; keep holding for another every 1.5 s (knob lights flash colours) | — |
 | SW2 + SW3 held 1 s | **Mutate** (0.17): the sound drifts a little; keep holding to drift further (knob lights flash teal) | — |
+| SW4 + SW1 held 1 s | **Dream** (0.19.2): an ambient piece that plays by itself, lights dancing; again (or a key) stops it | — |
 | SW5 | Turn: filter cutoff, about 80 Hz to 8 kHz with resonance rising as it closes (0.17.1), and the loop's tone with it (0.16). Push and turn (with a loop): loop speed, scrub when paused. Click: loop speed back to 1× | — |
 | SW6 | Turn: volume. Short press: switch to input gain (light blue → red) and back. Hold 2 s: battery light | — |
 | PLAY (KEY_27), LOOP (KEY_28) | Looper (section 8) | Overdub feedback − / + |
@@ -200,29 +201,30 @@ chords in your key and an arpeggio (harmony about 6 rolls in 10, the arp about 1
 
 Like it? Save it to a preset slot (section 6). Neither gesture changes a knob page.
 
-**Dream mode (0.18):** leave CHOMPI alone and it starts playing by itself, quietly.
+**Dream (0.19.2): an ambient auto-drone.** Hold **SW4 + SW1** for a second (menu closed) and CHOMPI
+plays an ambient piece by itself, a light show to watch while it plays. Hold **SW4 + SW1** again
+to stop it; a key or panic (SW4 + SW3) stops it too. It plays through the sound you have, so it
+follows the sound:
 
-*When it starts:* after **2 minutes with nothing happening**, as long as all of these hold:
-- the toggle is **down** (never in the record position) and the **menu is closed**;
-- the sound is a **synth** or a **chromatic sample** (not a kit);
-- the **looper** isn't playing or recording its first take, the **event recorder** isn't
-  armed, recording or playing, and nothing is being **recorded**.
+| Your sound | Dream plays |
+| --- | --- |
+| Long, pad-like (slow attack, or sustain with a long release), or a looping sample | **Drone**: slow overlapping chords, 8-14 s each, with a soft high note glinting now and then |
+| Short, plucky or keys | **Shimmer**: little clusters of chord tones drifting over two octaves, then a breath |
+| A drum kit | **Patter**: sparse, soft hits |
 
-*What counts as "something happening"* (each one restarts the 2 minutes): any key, a knob
-turned or pressed, SW5, and **any MIDI arriving**, over USB or the MIDI jack. That includes a
-computer talking to CHOMPI (the forge page connected, Forge Bridge, a DAW sending clock), so on
-a computer it may never start: test it unplugged or on a charger.
+The chords come from **your key** (harmony's key and mode, used even with harmony off; C major if
+never set), through one of a few gentle progressions picked when it starts, and never use more
+notes than the sound's voices. **The lights dance:** each note lights its key in the chord's
+colours and fades slowly, the knob rings and the CHOMPI light breathe in the chord's colour, and
+the colours move with the chords. Change the sound (a preset, a surprise roll) before you start
+Dream for a different piece.
 
-*What it plays:* a slow line in **your key**, harmony's key and mode (they're used even with
-harmony off; C major if never set): a note every 0.6 s, now and then a rest, each note about a
-second long, wandering by small steps through the scale around middle C, with the key's root
-low under it every eighth note. At most three notes at once, quietly (velocity 45), through the
-sound you have. The keys it plays **breathe purple**.
-
-*When it stops:* touch anything (or MIDI arrives) and it stops at once, mid-note; the 2 minutes
-start again. After **3 minutes** of dreaming it goes to sleep: silent, and it won't dream again
-until you've touched something. Opening the menu, flipping the toggle up or starting the looper
-also stops it.
+**Nap (0.18, was "dream mode"):** leave CHOMPI alone for **2 minutes** and it hums a slow line to
+itself: a note every 0.6 s, wandering through your key around middle C, quietly (velocity 45),
+the keys breathing purple. It needs the toggle **down**, the menu closed, a synth or chromatic
+sample sound, and the looper and recorders idle. Any key, knob, SW5 or **MIDI arriving** wakes it
+and restarts the 2 minutes (so a computer talking to CHOMPI can keep it awake); after 3 minutes it
+falls asleep until you come back. No nap while Dream plays.
 
 **Lights:** when a loop closes (looper or event recorder) a green ripple runs out from the
 middle key.

@@ -291,7 +291,8 @@ public:
     unsigned ActiveVoices() const { return synth_.Active(); }
     // The start-up chime (0.17): straight to the voices, past harmony, the arp, the looper's
     // arm and the event recorder, so a preset's latched arp cannot start from it.
-    void ChimeNote(uint8_t note, uint8_t velocity) { if(parameters_.synth) synth_.Note(note, velocity, 2); }
+    // Out of line (0.19.2): the chime, the nap and Dream all call it; inlined, each grew by a copy of Synth::Note.
+    FORGE_COLD void ChimeNote(uint8_t note, uint8_t velocity) { if(parameters_.synth) synth_.Note(note, velocity, 2); }
     void SetSweepBoost(float boost) { synth_.SetSweepBoost(boost); }
     float SweepBoost() const { return synth_.SweepBoost(); }
     // Called only by the audio owner, between blocks. Validate before mutation;

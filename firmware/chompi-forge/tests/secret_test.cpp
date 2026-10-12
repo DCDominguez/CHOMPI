@@ -200,9 +200,50 @@ void Panel() {
 }
 } // namespace
 
+// 0.19.2 Dream (toggled): the sound picks the style; notes stay in the key and within the voices;
+// chords move; SW4 + SW1 starts and stops it, a key or panic stops it; no nap while it plays.
+void DreamShow() {
+    Parameters pad; pad.version = 4; pad.synth = true; pad.voices = 4; pad.attack = .3f; pad.sustain = .8f; pad.release = .5f;
+    Parameters pluck = pad; pluck.attack = .0045f; pluck.sustain = 0.f; pluck.release = .08f;
+    Parameters kit = pad; kit.source = 1; kit.sample_mode = 1;
+    Parameters loop = pluck; loop.source = 1; loop.sample_loop = true;
+    assert(dream::StyleFor(pad) == dream::Style::Drone && dream::StyleFor(pluck) == dream::Style::Shimmer);
+    assert(dream::StyleFor(kit) == dream::Style::Patter && dream::StyleFor(loop) == dream::Style::Drone);
+    State key; key.tonic = 2; key.mode = Mode::Dorian;                              // D dorian
+    for(const Parameters* p : {&pad, &pluck, &kit}) {
+        magic::Rng r; dream::Show show; show.Start(*p, r);
+        std::set<unsigned> colours; unsigned on = 0, sounding = 0, most = 0;
+        auto note = [&](uint8_t n, uint8_t v) {
+            if(v) { ++on; ++sounding; if(p != &kit) assert(InKey(n % 12, key)); assert(n >= 36 && n <= 108 && v <= 100); }
+            else if(sounding) --sounding;
+            most = std::max(most, sounding);
+        };
+        for(int i = 0; i < 60 * 2000; ++i) { show.Tick(24, key, r, note); if(i % 2000 == 0) colours.insert(show.Colour()); }   // 60 s
+        assert(on >= 8 && most <= p->voices && colours.size() >= 3);
+        show.Stop(note); assert(!show.Active() && sounding == 0 && show.KeyMask() == 0);
+    }
+    // The panel: SW4 + SW1 held 1 s starts it, held again stops it; a key stops it; panic stops it.
+    Rig rig; assert(rig.engine.ApplyPatch(pad)); rig.player.state.enabled = false;
+    auto combo = [&]() { rig.hw.keys = (uint64_t(1) << panel::kKnobEncoder[0]) | (uint64_t(1) << panel::kKnobEncoder[1]);
+                         for(int i = 0; i < 2010; ++i) { rig.Block(); }
+                         rig.hw.keys = 0; rig.Block(); rig.Block(); };
+    combo(); assert(rig.panel.DreamPlaying() && ((rig.panel.DreamLights() >> 26) & 1u));
+    unsigned voices = 0; for(int i = 0; i < 6000; ++i) { rig.Block(); voices = std::max(voices, rig.engine.ActiveVoices()); }
+    assert(voices >= 2 && rig.panel.DreamLights() & 0x1FFFFFFu);                    // a 3-note drone chord, keys lit
+    combo(); assert(!rig.panel.DreamPlaying()); rig.Run(48000 * 6); assert(rig.engine.ActiveVoices() == 0);
+    combo(); assert(rig.panel.DreamPlaying());
+    rig.hw.keys = uint64_t(1) << 15; rig.Block(); rig.hw.keys = 0; rig.Block();      // a white key
+    assert(!rig.panel.DreamPlaying());
+    rig.Run(48000 * 6); assert(rig.engine.ActiveVoices() == 0);
+    combo(); assert(rig.panel.DreamPlaying());
+    rig.hw.keys = (uint64_t(1) << panel::kKnobEncoder[0]) | (uint64_t(1) << panel::kKnobEncoder[3]);
+    for(int i = 0; i < 2010; ++i) rig.Block();                                     // SW4 + SW3: panic
+    rig.hw.keys = 0; rig.Block(); assert(!rig.panel.DreamPlaying() && rig.engine.ActiveVoices() == 0);
+}
+
 int main() {
-    BloomUnit(); BloomInEngine(); Conversations(); MotifFamilies(); Mischief(); Panel();
+    BloomUnit(); BloomInEngine(); Conversations(); MotifFamilies(); Mischief(); Panel(); DreamShow();
     std::cout << "PASS: secret modes: bloom order/timing/cancel, conversations (bar pause, one voice, in key, cut off, 4 motif families), "
-                 "mischief (5 bends, home, no stuck notes), panel (SW3 picks, SW1+SW3 bends with a chord, rolls without)\n";
+                 "mischief (5 bends, home, no stuck notes), panel (SW3 picks, SW1+SW3 bends with a chord, rolls without), Dream (styles, in key, voices, SW4+SW1, key / panic stop)\n";
     return 0;
 }

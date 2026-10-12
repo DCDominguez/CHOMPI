@@ -47,6 +47,17 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
   (`/api/midi/send|status|stop|reply`, forge_host's wire format, including the acknowledged-patch
   match); it opens no MIDI port. Tested in the browser end-to-end through the firmware's decoder
   (`forge_probe`) with a stand-in for Web MIDI; not yet with a real CHOMPI in Chrome.
+- **Dream, redone** (the owner: a toggle, an ambient auto-drone with the lights dancing): **SW4 + SW1**
+  held 1 s starts or stops it (a key or panic stops it too). It follows the sound: **Drone** for
+  pad-like sounds or looping samples (slow overlapping chords from the key's progressions, a high
+  glint now and then), **Shimmer** for plucky ones (drifting clusters of chord tones, breaths),
+  **Patter** for kits (sparse soft hits); never more notes than the patch's voices. Lights: each
+  note's key glows in the chord's colours and fades (~1.5 s trails); the knob rings and the CHOMPI
+  light breathe in the chord colour. `core/dream.h`, test `DreamShow`. The idle player (2 minutes
+  untouched) is now **Nap**, unchanged, and quiet while Dream plays.
+- **Smaller firmware:** `Engine::ChimeNote` out of line (the chime, the nap and Dream each carried an
+  inlined copy of `Synth::Note`): the nap's ticker 5.4 KB → 0.8 KB, the chime's 2 KB → 0.2 KB. With
+  Dream added the release build went from 257,056 to **252,112 B**, development to 268,036 B.
 - **Loop chords** (the owner): SW1's press on TAPE's page now steps auto-loop off → loop (white) →
   **loop chords** (purple). Plain loop keeps TAPE's behaviour, where each held note loops on its own
   period (in a harmony chord that ripples). Loop chords: when the slowest (lowest) held looping note

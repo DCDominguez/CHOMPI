@@ -36,9 +36,9 @@
     "semantic_hash": "73e809f9769eb81f2a137b5bf9d8b9a4"
   },
   "firmware/chompi-forge/core/engine.h": {
-    "mtime": 1791775979.7743587,
-    "seen": 1791776388.4857025,
-    "ast_hash": "7c8750e96cd54f2bb46c03f23dbf9801",
+    "mtime": 1791778028.6275153,
+    "seen": 1791778333.8164515,
+    "ast_hash": "71dd20b1e8ee7babbef2894ed3ce7d54",
     "semantic_hash": ""
   },
   "firmware/chompi-forge/core/file_transfer.h": {
@@ -84,9 +84,9 @@
     "semantic_hash": "cbb13981dc7a3751a6eb413032ce38a9"
   },
   "firmware/chompi-forge/core/panel_controller.h": {
-    "mtime": 1791775979.7753584,
-    "seen": 1791776388.4857025,
-    "ast_hash": "d4eda2f96986e2a0f218221a969a1324",
+    "mtime": 1791777703.0874774,
+    "seen": 1791778333.8164515,
+    "ast_hash": "ff03e863d43800dbe5217e89a63b2bfd",
     "semantic_hash": ""
   },
   "firmware/chompi-forge/core/parameters.h": {
@@ -420,9 +420,9 @@
     "semantic_hash": "2e4b3e9edadd0d53a2fad658a1196aa6"
   },
   "firmware/chompi-forge/src/forge_main.cpp": {
-    "mtime": 1791742019.261297,
-    "seen": 1791744327.7784767,
-    "ast_hash": "d19868eab11b11de4e034a2ea6d12688",
+    "mtime": 1791777703.088477,
+    "seen": 1791778333.8164515,
+    "ast_hash": "fb5dd66740b270fd17b2f72873b32f29",
     "semantic_hash": ""
   },
   "firmware/chompi-forge/tests/bridge_browser_e2e.py": {
@@ -642,9 +642,9 @@
     "semantic_hash": ""
   },
   "docs/forge/CHANGELOG.md": {
-    "mtime": 1791776348.2797894,
-    "seen": 1791776388.4857025,
-    "ast_hash": "c9396205650338ec48ce09c7ff4f30a0",
+    "mtime": 1791778293.59175,
+    "seen": 1791778333.8164515,
+    "ast_hash": "735a3f6725187bf951e4af50308766d5",
     "semantic_hash": ""
   },
   "docs/forge/COMPATIBILITY.md": {
@@ -708,9 +708,9 @@
     "semantic_hash": ""
   },
   "docs/forge/MANUAL.md": {
-    "mtime": 1791776348.276789,
-    "seen": 1791776388.4857025,
-    "ast_hash": "099c406b254553d3bb3a20f761a2ebe4",
+    "mtime": 1791778293.3780959,
+    "seen": 1791778333.8164515,
+    "ast_hash": "1ae864f4e4270ae253103f5f92d44838",
     "semantic_hash": ""
   },
   "docs/forge/PONYTAIL.md": {
@@ -840,9 +840,9 @@
     "semantic_hash": ""
   },
   "docs/forge/ILLUSTRATED_MANUAL.html": {
-    "mtime": 1791776348.2787888,
-    "seen": 1791776388.4857025,
-    "ast_hash": "55f5845c803b6d3507da9bf5f07fcff8",
+    "mtime": 1791778274.6160975,
+    "seen": 1791778333.8164515,
+    "ast_hash": "9d04001257920ae289502374a9b778ce",
     "semantic_hash": ""
   },
   "docs/forge/UX_REVIEW.md": {
@@ -912,9 +912,9 @@
     "semantic_hash": ""
   },
   "docs/forge/GUIDE.md": {
-    "mtime": 1791760078.5548942,
-    "seen": 1791766565.828436,
-    "ast_hash": "57461026afdf62c1939060a335084844",
+    "mtime": 1791778274.6141002,
+    "seen": 1791778333.8164515,
+    "ast_hash": "abb64936b93fa98ae6e40ba860033207",
     "semantic_hash": ""
   },
   "docs/forge/assets/avatar.svg": {
@@ -1020,9 +1020,9 @@
     "semantic_hash": ""
   },
   "firmware/chompi-forge/tests/secret_test.cpp": {
-    "mtime": 1791775072.862539,
-    "seen": 1791775334.8739104,
-    "ast_hash": "7f45cbbb34aaebbe40be046b870ca6f4",
+    "mtime": 1791777771.6845186,
+    "seen": 1791778333.8164515,
+    "ast_hash": "8a6ddc38cf59a4009fea9356b8691bec",
     "semantic_hash": ""
   },
   "firmware/chompi-forge/tests/test_wire_js.py": {
@@ -1209,6 +1209,12 @@
     "mtime": 1791767464.958562,
     "seen": 1791775334.8739104,
     "ast_hash": "594fe7a95052a95814eb2739d4623966",
+    "semantic_hash": ""
+  },
+  "firmware/chompi-forge/core/dream.h": {
+    "mtime": 1791778028.6285155,
+    "seen": 1791778333.8164515,
+    "ast_hash": "c87cfeab6007df346196bd20d1f85976",
     "semantic_hash": ""
   }
 }

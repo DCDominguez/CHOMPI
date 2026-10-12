@@ -5,6 +5,7 @@
 #include "file_transfer.h"
 #include "knob_layout.h"
 #include "magic.h"
+#include "dream.h"
 #include "options.h"
 #include "power.h"
 #include "preset_menu.h"
@@ -270,9 +271,17 @@ public:
             const bool busy = (lp && (lp->GetState() == Looper::State::Playing || lp->GetState() == Looper::State::FirstTake))
                 || (sq && sq->GetState() != seq::Sequencer::State::Empty && sq->GetState() != seq::Sequencer::State::Stopped)
                 || recorder.Recording() || chime_.Active();
-            const bool allowed = toggle_up && !menu_.Active() && now.synth && !(now.Sampler() && now.sample_mode == 1) && !busy;
+            const bool allowed = toggle_up && !menu_.Active() && now.synth && !(now.Sampler() && now.sample_mode == 1) && !busy
+                && !show_.Active();                                                  // 0.19.2: no nap while Dream plays
             const harmony::State key = engine.Harmony() ? engine.Harmony()->state : harmony::State{};
             dream_.Tick(hardware.frames, !touched, allowed, key, rng_, [&](uint8_t note, uint8_t velocity) { engine.ChimeNote(note, velocity); });
+            // 0.19.2 Dream (toggled with SW4 + SW1): a note key stops it; otherwise it plays on.
+            if(show_.Active()) {
+                bool key_pressed = false;
+                for(unsigned k = 0; k < panel::kButtons; ++k) if(panel::kKeyNotes[k] && ((rising >> k) & 1u)) key_pressed = true;
+                if(key_pressed) StopDream(engine);
+                else show_.Tick(hardware.frames, key, rng_, [&](uint8_t note, uint8_t velocity) { engine.ChimeNote(note, velocity); });
+            }
         }
         // TAPE's menu page: the knobs are TAPE's shift layer (MenuControls).
         if(menu_.Active() && menu_.Page() == MenuPage::Samples) MenuControls(hardware, keys, rising, turns, engine);
@@ -312,9 +321,18 @@ public:
             const bool combo = hold_[0].down && hold_[3].down;
             if(combo) {
                 combo_frames_ += hardware.frames;
-                if(combo_frames_ >= panel::kPanicHoldFrames && !hold_[0].used) { engine.Panic(); hold_[0].used = hold_[3].used = true; }
+                if(combo_frames_ >= panel::kPanicHoldFrames && !hold_[0].used) { StopDream(engine); engine.Panic(); hold_[0].used = hold_[3].used = true; }
             } else combo_frames_ = 0;
             // 0.16: SW1 + SW2 held 1 s = harmony on / off without the menu (all rings flash green / red).
+            // 0.19.2 Dream: SW4 + SW1 held 1 s starts or stops it (once per hold).
+            const bool dream_combo = hold_[0].down && hold_[1].down && !hold_[2].down && !hold_[3].down;
+            if(dream_combo) {
+                const uint32_t before = dream_combo_frames_; dream_combo_frames_ += hardware.frames;
+                if(before < panel::kMagicHoldFrames && dream_combo_frames_ >= panel::kMagicHoldFrames) {
+                    hold_[0].used = hold_[1].used = true;
+                    if(show_.Active()) StopDream(engine); else show_.Start(engine.GetParameters(), rng_);
+                }
+            } else dream_combo_frames_ = 0;
             const bool harmony_combo = hold_[1].down && hold_[2].down;
             if(harmony_combo) {
                 harmony_combo_frames_ += hardware.frames;
@@ -347,7 +365,7 @@ public:
                 if(down) {
                     if(!h.down) h = KnobHold{}, h.down = true; else h.frames += hardware.frames;
                     if(increment) h.turned = true;
-                    if(!h.used && !h.turned && !combo && !harmony_combo && !roll_combo && !mutate_combo && h.frames >= panel::kResetHoldFrames && !menu_.Active()) {
+                    if(!h.used && !h.turned && !combo && !harmony_combo && !roll_combo && !mutate_combo && !dream_combo && h.frames >= panel::kResetHoldFrames && !menu_.Active()) {
                         engine.ResetControl(target); h.used = true; reset_flash_[knob] = 48 * 300;
                     }
                 } else if(h.down) {
@@ -403,7 +421,10 @@ public:
     void NoteActivity() { activity_.store(true, std::memory_order_relaxed); }
     void SetDreamTiming(uint32_t idle, uint32_t length) { dream_.SetTiming(idle, length); }
     bool Dreaming() const { return dream_lights_.load(std::memory_order_relaxed) != 0; }
-    // Dream lights: one bit per key C3..C5 sounding in the dream (bit 25: dreaming).
+    // Dream lights: one bit per key C3..C5 sounding (bit 25: the nap, bit 26: Dream, 0.19.2); its chord colour.
+    uint8_t DreamColour() const { return dream_colour_.load(std::memory_order_relaxed); }
+    bool DreamPlaying() const { return show_.Active(); }
+    const dream::Show& DreamShow() const { return show_; }
     uint32_t DreamLights() const { return dream_lights_.load(std::memory_order_relaxed); }
     // 0.17 magic lights: bits 0-1 the flash (1 surprise, 2 mutate), 2-5 the roll count (colours
     // change each roll), 8-15 the chime's progress 1..255 (0 = not playing).
@@ -468,7 +489,8 @@ private:
         knob_flags_.store(flags, std::memory_order_relaxed);
         const uint32_t chime = chime_.Active() ? 1u + static_cast<uint32_t>(chime_.Progress() * 254.f) : 0u;
         magic_lights_.store((magic_flash_ ? magic_kind_ & 3u : 0u) | (magic_count_ & 15u) << 2 | chime << 8, std::memory_order_relaxed);
-        dream_lights_.store(dream_.Active() ? (dream_.KeyMask() | 1u << 25) : 0u, std::memory_order_relaxed);
+        dream_lights_.store(show_.Active() ? (show_.KeyMask() | 1u << 26) : dream_.Active() ? (dream_.KeyMask() | 1u << 25) : 0u, std::memory_order_relaxed);
+        dream_colour_.store(show_.Colour(), std::memory_order_relaxed);
         {   // 0.19 synth page
             uint32_t interval = 7;
             for(uint32_t i = 0; i < 6; ++i) if(static_cast<int>(p.osc2_semitones) - 24 == Intervals()[i]) interval = i;
@@ -749,6 +771,10 @@ private:
     magic::Dream dream_;
     std::atomic<bool> chime_request_{false}, activity_{false};
     std::atomic<uint32_t> dream_lights_{0};
+    std::atomic<uint8_t> dream_colour_{0};
+    dream::Show show_;                            // 0.19.2 Dream (toggled); dream_ above is now the nap
+    uint32_t dream_combo_frames_ = 0;
+    FORGE_COLD void StopDream(Engine& engine) { show_.Stop([&](uint8_t note, uint8_t velocity) { engine.ChimeNote(note, velocity); }); }
     // Fires at 1 s held, then every 1.5 s while held; letting go resets.
     template<typename F> static void MagicCombo(bool held, uint32_t& frames, uint32_t block, F fire) {
         if(!held) { frames = 0; return; }
@@ -889,7 +915,9 @@ struct LedView {
     uint32_t parts = 0, parts_clock = 0;          // PanelController::PartsLights / PartsClock (0.14)
     uint32_t sequence = 0;                        // PanelController::SequenceLights (0.15)
     uint32_t magic = 0;                           // PanelController::MagicLights (0.17)
-    uint32_t dream = 0;                           // PanelController::DreamLights (0.18)
+    uint32_t dream = 0;                           // PanelController::DreamLights (0.18; bit 26 Dream, 0.19.2)
+    uint8_t dream_colour = 0;                     // Dream's chord colour step (0.19.2)
+    float dream_glow[25] = {};                    // per key C3..C5: Dream's fading trails, 0..1 (main loop)
     uint32_t synth = 0;                           // PanelController::SynthLights (0.19)
     float dream_level = .5f;                      // the dream's breathing, 0..1 (main loop clock)
     uint8_t ripple = 0;                           // a loop just closed: the ripple's progress 1..255 (0.18)
@@ -1203,7 +1231,15 @@ FORGE_COLD inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chomp
                 if(d > -1.f && d < 1.f) keys[panel::SlotLed(s)] = knobs::Scale(knobs::colour::green, fade * (1.f - (d < 0 ? -d : d)));
             }
         }
-        if(v.dream >> 25) {
+        if((v.dream >> 26) & 1u) {                // 0.19.2 Dream: notes light in the chord's colours and fade slowly
+            for(uint8_t key = 0; key < panel::kButtons; ++key) {
+                const uint8_t note = panel::kKeyNotes[key];
+                if(!note || note < 48 || note > 72 || v.dream_glow[note - 48] < .02f) continue;
+                const uint8_t slot = panel::KeyToSlot(key);
+                const uint8_t led = slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key);
+                if(led < 25) keys[led] = knobs::Scale(knobs::StepColour(v.dream_colour + (note % 3)), .08f + .92f * v.dream_glow[note - 48]);
+            }
+        } else if(v.dream >> 25) {
             for(uint8_t key = 0; key < panel::kButtons; ++key) {
                 const uint8_t note = panel::kKeyNotes[key];
                 if(!note || !((v.dream >> (note - 48)) & 1u)) continue;

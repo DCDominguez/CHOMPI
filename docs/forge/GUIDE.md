@@ -50,12 +50,12 @@ play nothing yet. Give them a sound one of these ways:
 - recall a preset ([recall, copy and erase](#how-do-i-recall-copy-and-erase-presets)),
 - or send one from a computer with Forge Bridge ([manual, section 10](MANUAL.md#10-on-the-computer)).
 
-**Dream mode:** leave CHOMPI alone for **two minutes** (toggle down, menu closed, a synth or
-chromatic sample sound, the looper and recorder idle) and it plays a quiet, slow line in your
-key by itself, its notes breathing purple on the keys. Touch anything and it stops. It dreams
-for 3 minutes, then sleeps until you come back. **Any MIDI arriving counts as a touch**, so on
-a computer (forge page connected, a DAW, the bridge) it may never start: try it unplugged.
-Details: [manual, section 5a](MANUAL.md#5a-surprise-me-and-mutate-017).
+**Dream:** hold **SW4 + SW1** for a second and CHOMPI plays an ambient piece on its own, keys and
+knobs glowing in the chord's colours. It follows your sound: pads get slow chords, plucky sounds
+get drifting little clusters, a kit gets soft patter. Hold **SW4 + SW1** again (or press a key)
+to stop it.
+**Nap:** leave CHOMPI alone for two minutes and it hums quietly to itself until you touch
+something (any MIDI arriving wakes it too). Details: [manual, section 5a](MANUAL.md#5a-surprise-me-and-mutate-017).
 
 ---
 
@@ -515,6 +515,7 @@ More: [manual, section 12](MANUAL.md#12-troubleshooting) and
 | Same function key again | cancel save / copy / erase |
 | SW1 + SW3 held 1 s | surprise me (keep holding for more) |
 | SW2 + SW3 held 1 s | mutate (keep holding to drift further) |
+| SW4 + SW1 held 1 s | Dream on / off (an ambient auto-drone with lights) |
 | SW1 + SW2 held 1 s | harmony on / off |
 | SW4 + SW3 held 1 s | panic |
 | Toggle up, hold CHOMPI | record (after the red count-in) |
