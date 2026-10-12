@@ -824,7 +824,7 @@ void FxPage020() {
     rig.Key(panel::kKnobEncoder[2], true); rig.hw.turns[panel::kKnobEncoder[2]] = 6; rig.Block(); rig.Key(panel::kKnobEncoder[2], false);
     assert(std::fabs(rig.engine.Value(Parameter::ColourCharacter) - .12f) < 1e-4f && std::fabs(rig.engine.Value(Parameter::TextureCharacter) - .18f) < 1e-4f);
     // Lights (0.20 light review): D3 full white (cloud, Space on), C3 / E3 a faint glow; F4 full pink
-    // (chorus, Motion on); A#3 teal (Classic); F#3 teal (effects before the looper), G#3 dark; CHOMPI green.
+    // (chorus, Motion on); A#3 orange (Classic); F#3 teal (effects before the looper), G#3 dark; CHOMPI green.
     rig.Block();
     LedView v; v.menu = rig.panel.MenuPacked(); v.fx = rig.panel.FxLights(); v.keys_down = uint64_t(1) << panel::kChompiKey;
     assert((v.fx >> 31) & 1u);
@@ -833,7 +833,7 @@ void FxPage020() {
     assert(led_of(50).r == 1.f && led_of(50).b == 1.f);                          // D3 white
     assert(led_of(48).r > .03f && led_of(48).r < .08f && led_of(52).r < .08f);    // C3, E3 faint
     assert(led_of(65).r == 1.f && led_of(65).g < .5f && led_of(65).b > .5f);       // F4 pink
-    assert(led_of(58).g > .9f && led_of(58).r < .2f);                             // A#3 teal: Classic
+    assert(led_of(58).r == 1.f && led_of(58).g > .5f && led_of(58).g < .7f);       // A#3 orange: Classic
     assert(led_of(54).g > .9f && led_of(56).r == 0.f && led_of(56).g == 0.f);     // F#3 teal, G#3 dark
     assert(chompi.g == 1.f && chompi.r == 0.f);                                   // green page
     // A module turned to zero: its chosen key goes soft.

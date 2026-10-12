@@ -1218,7 +1218,7 @@ inline void ComposeSynthKnobLeds(uint32_t s, uint32_t values, Rgb (&rings)[4], u
 // 0.20 FX page (the owner's light review, 2026-10-13): each module's three keys in its colour (Space
 // white, Colour green, Texture yellow, Motion pink: colours that stay apart on the LEDs). The chosen key
 // is full while its module is on (amount above 0), soft while off; the other two are a faint glow.
-// A#3 the route in its own colours (Classic teal, Wear last blue, Wash first purple, Side by side red);
+// A#3 the route in its own colours (Classic orange, Wear last blue, Wash first purple, Side by side red);
 // F#3 / G#3 teal where the effects sit around the looper, the other dark; KEY_21 / KEY_22 dim.
 FORGE_COLD inline void RenderFxLeds(uint32_t f, Rgb (&keys)[25]) {
     using namespace knobs::colour;
@@ -1237,7 +1237,7 @@ FORGE_COLD inline void RenderFxLeds(uint32_t f, Rgb (&keys)[25]) {
         for(unsigned c = 0; c < fx::kChoices; ++c)
             lit(fx::kKeys[m][c], knobs::Scale(colours[m], c != chosen ? .05f : on ? 1.f : .25f));
     }
-    static const Rgb routes[fx::kRoutes] = {teal, blue, purple, red};
+    static const Rgb routes[fx::kRoutes] = {orange, blue, purple, red};
     lit(fx::kRouteKey, routes[(f >> 8) & 3u]);
     const bool before = (f >> 10) & 1u;
     lit(fx::kBeforeLoopKey, before ? teal : Rgb{}); lit(fx::kAfterLoopKey, before ? Rgb{} : teal);

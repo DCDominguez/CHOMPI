@@ -811,8 +811,9 @@ constexpr float kBalanceG = .85f, kBalanceB = .6f;
 forge::Rgb Balance(forge::Rgb c) { return forge::Rgb{c.r, c.g * kBalanceG, c.b * kBalanceB}; }
 // 0.20: the through-hole LEDs (knob rings, CHOMPI, PLAY / LOOP, transport, SW6) show green about 30 %
 // weaker than the keys' SMT LEDs (measured on the owner's CHOMPI, 2026-10-13: ring orange looked red,
-// yellow orange, white magenta), so their red and blue are trimmed to match the keys.
-constexpr float kPthRedBlue = .74f;
+// yellow orange, white magenta), so their red and blue are trimmed to match the keys. .74 overshot on
+// camera (bright orange looked yellow, dim yellow green): .86.
+constexpr float kPthRedBlue = .86f;
 constexpr forge::Rgb kSafeModeColour{1.f, 0.f, 1.f};
 void Pth(unsigned led, forge::Rgb c) { c = Balance(c); SetPthLedFloat(led, c.r * kPthRedBlue, c.g, c.b * kPthRedBlue); }
 FORGE_COLD void DrawLeds() {
