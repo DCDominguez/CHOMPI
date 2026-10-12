@@ -48,8 +48,10 @@ make firmware-dev         # the development build (Inspector, battery diagnostic
    `python host/build_site.py` (when the workshop controls, the chatbot prompt or the presets
    changed; `tests/test_site.py` / the site checks fail when they are stale).
 3. The community card zip: `src/build/FORGE.bin`, `samples/choowi-pack/*.wav`, the illustrated
-   manual as `MANUAL.html` and a `README-FIRST.txt` (backup, empty the samples, copy, power on).
-4. The GitHub release gets the card zip, `FORGE.bin`, `samples/choowi-samples.zip` and the manual.
+   manual as `MANUAL.html`, `NOTICES.txt` (the licences every copy of the firmware must carry;
+   update it when a new third-party component goes in) and a `README-FIRST.txt` (backup, empty the
+   samples, copy, power on).
+4. The GitHub release gets the card zip, `FORGE.bin`, `NOTICES.txt`, `samples/choowi-samples.zip` and the manual.
    `main` carries the release commit; GitHub Pages serves `docs/` (the landing page and the forge
    page at `/workshop/`).
 

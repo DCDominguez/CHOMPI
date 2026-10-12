@@ -92,3 +92,20 @@ repository keep their original copyright headers, license files and author attri
 nothing has been removed from them. libDaisy is the CHOMPI adaptation described above, DaisySP
 is as shipped with the CHOMPI firmware (it carries no version tag), and coreJSON is v3.2.0 as
 published.
+
+## Forge (`firmware/chompi-forge/`, `docs/`)
+
+Forge and its first firmware line, Choowi, are by DeeCee (built with Claude), under the same MIT
+license as the rest of this repository (`LICENSE`: CHOMPI Club, and DeeCee for the Forge changes).
+Forge reuses CHOMPI's hardware layer and libDaisy as vendored here, and ports a few of TAPE's
+effects into `core/tape_fx.h`: the output compressor from TAPE's `limiter.h` (Mutable Instruments'
+stmlib, © 2015 Emilie Gillet, MIT; the full notice is in that file) and the DJ filter and warble from
+TAPE's `DJFilter.h` / `BasicMMF.h` / `Warble.h` (derived from Electrosmith's DSP source, DaisySP,
+MIT). Everything else in `core/` is Forge's own; the synth filter follows Zavalishin's published
+topology-preserving SVF design.
+
+Forge's released firmware carries these notices in `firmware/chompi-forge/NOTICES.txt` (shipped in
+the release zip next to `FORGE.bin`). Choowi's sounds (`firmware/chompi-forge/samples/choowi-pack/`)
+are CC0. Choowi, Forge's character, and its artwork in `docs/forge/assets/` are Forge's own and are
+not CHOMPI Club marks (see `TRADEMARKS.md` for CHOMPI's).
+
