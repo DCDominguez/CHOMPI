@@ -1,9 +1,28 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2-rc1; `main` carries it, Pages serves the forge page). The owner's CHOMPI runs development build b462bea. Read the newest section below first; older sections are history (HOME_CHECKLIST and TEST_SESSION are kept for the record).
+Updated 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2-rc1; `main` carries it, Pages serves the forge page). The owner's CHOMPI runs development build 69c5727. Read the newest section below first; older sections are history (HOME_CHECKLIST and TEST_SESSION are kept for the record).
 
 
-## 2026-10-12 (later still): next direction decided (resume here)
+## 2026-10-12 (evening): Dream and looper checked on hardware (resume here)
+
+- **Installed:** development build 69c5727 (includes the chime fix) on the owner's CHOMPI.
+- **Dream, hardware-verified** (scripted panel injection + Inspector voice counts, 17/17; the owner
+  listened, all good): keeps playing through SW5/SW6/SW4 turns, surprise, mutate, looper LOOP/PLAY,
+  menu open/close and MIDI in; stops on SW4 + SW1, panic or a note key. The owner: the manual does
+  not list what works during Dream (left for players to discover).
+- **Looper, hardware-verified by state** (Inspector looper fields, scripted): first take, LOOP closes
+  into overdub, PLAY closes into plain playback, overdub on/off from LOOP and off from PLAY, pause /
+  resume, paused + LOOP resumes with overdub, hold PLAY 2 s jumps to the start, panic pauses and
+  keeps the loop, hold PLAY + LOOP clears, arm + note starts the take. After a pause the head slows
+  down like tape before it stops (a few tens of ms of travel), as designed.
+  **Not checked:** SW5 push-and-turn (speed / scrub) — the panel protocol only injects a SW5 click,
+  so it needs hands; dub gain menu; effects before/after; the sound (seam, stacking, reverse).
+- **Battery:** the owner still finds the colour unconvincing (green on USB minutes after a yellow
+  reading). Charging lifts the measured voltage (BATTERY_READINGS); a charging-aware reading is a
+  candidate fix, not started.
+- Scripts: `D:	ools\chompi-session\dream_test.py`, `looper_test.py`, `looper_sw5.py` (outside the repo).
+
+## 2026-10-12 (later still): next direction decided
 
 - The owner: **effects next**, but first **wait for the community's reaction** to the release
   candidates. Leading ideas: a shimmer reverb and a chorus first, then granular "freeze" for
