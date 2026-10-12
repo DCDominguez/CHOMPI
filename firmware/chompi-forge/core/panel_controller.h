@@ -777,7 +777,8 @@ private:
     }
     // The four knobs are the four modules (SW4 Space, SW1 Colour, SW2 Texture, SW3 Motion: logical knob
     // order). Turn = amount; hold + turn = the chosen effect's character (Space: delay time and room /
-    // cloud size together, as SW3 page 1; Motion: rate; Colour and Texture get theirs in Phase 2).
+    // cloud size together, as SW3 page 1; Colour: fold bias / crush sample rate; Texture: cassette hiss and
+    // wear / broken length and stutter / squash release; Motion: rate).
     static Parameter FxAmount(unsigned knob) {
         static const Parameter p[4] = {Parameter::Space, Parameter::Saturation, Parameter::Warble, Parameter::Motion};
         return p[knob & 3];
@@ -790,6 +791,8 @@ private:
             turn_view_[knob] = panel::kTurnViewFrames;
             if(!down) { const Parameter a = FxAmount(knob); engine.Apply({a, engine.Value(a) + t * .03f}); continue; }
             if(knob == 0) { engine.Apply({Parameter::Time, engine.Value(Parameter::Time) + t * .03f}); engine.Apply({Parameter::ReverbSize, engine.Value(Parameter::Time)}); }
+            else if(knob == 1) engine.Apply({Parameter::ColourCharacter, engine.Value(Parameter::ColourCharacter) + t * .03f});
+            else if(knob == 2) engine.Apply({Parameter::TextureCharacter, engine.Value(Parameter::TextureCharacter) + t * .03f});
             else if(knob == 3) engine.Apply({Parameter::MotionRate, engine.Value(Parameter::MotionRate) + t * .03f});
         }
     }

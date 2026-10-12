@@ -800,8 +800,10 @@ void FxPage020() {
     auto press = [&](uint8_t note) { rig.Tap(key_of(note)); };
     const uint32_t voices_before = rig.engine.ActiveVoices();
     press(50); assert(rig.engine.Choice(fx::Module::Space) == 1);                // D3: cloud
-    press(52); assert(rig.engine.Choice(fx::Module::Space) == 1);                // E3: tape echo, not built yet
-    press(55); assert(rig.engine.Choice(fx::Module::Colour) == 0);               // G3: fold, not built yet
+    press(52); assert(rig.engine.Choice(fx::Module::Space) == 2);                // E3: tape echo
+    press(55); assert(rig.engine.Choice(fx::Module::Colour) == 1);               // G3: fold
+    press(53); assert(rig.engine.Choice(fx::Module::Colour) == 0);               // F3: back to saturation
+    press(50); assert(rig.engine.Choice(fx::Module::Space) == 1);                // D3: cloud again
     press(65); assert(rig.engine.Choice(fx::Module::Motion) == 0);               // F4: chorus
     assert(rig.engine.ActiveVoices() == voices_before);                          // the keys play no notes here
     press(58); assert(rig.engine.GetRoute() == fx::Route::WearLast);             // A#3: next route
@@ -817,14 +819,17 @@ void FxPage020() {
     assert(std::fabs(rig.engine.Value(Parameter::Saturation) - .3f) < 1e-4f);
     rig.hw.turns[panel::kKnobEncoder[2]] = 10; rig.Block();                      // SW2 = Texture (warble)
     assert(std::fabs(rig.engine.Value(Parameter::Warble) - .3f) < 1e-4f);
-    // Lights: D3 bright white (cloud), C3 dim, E3 very dim (not built); F4 bright orange; CHOMPI green.
+    rig.Key(panel::kKnobEncoder[1], true); rig.hw.turns[panel::kKnobEncoder[1]] = 4; rig.Block(); rig.Key(panel::kKnobEncoder[1], false);
+    rig.Key(panel::kKnobEncoder[2], true); rig.hw.turns[panel::kKnobEncoder[2]] = 6; rig.Block(); rig.Key(panel::kKnobEncoder[2], false);
+    assert(std::fabs(rig.engine.Value(Parameter::ColourCharacter) - .12f) < 1e-4f && std::fabs(rig.engine.Value(Parameter::TextureCharacter) - .18f) < 1e-4f);
+    // Lights: D3 bright white (cloud), C3 and E3 dim; F4 bright orange; CHOMPI green.
     rig.Block();
     LedView v; v.menu = rig.panel.MenuPacked(); v.fx = rig.panel.FxLights(); v.keys_down = uint64_t(1) << panel::kChompiKey;
     assert((v.fx >> 31) & 1u);
     Rgb keys[25], chompi; ComposeLeds(v, keys, chompi);
     assert(keys[panel::SlotLed(1)].r == 1.f && keys[panel::SlotLed(1)].b == 1.f);   // D3 white
     assert(keys[panel::SlotLed(0)].r > .1f && keys[panel::SlotLed(0)].r < .2f);     // C3 dim
-    assert(keys[panel::SlotLed(2)].r < .05f);                                     // E3 very dim
+    assert(keys[panel::SlotLed(2)].r > .1f && keys[panel::SlotLed(2)].r < .2f);   // E3 dim
     assert(keys[panel::SlotLed(10)].r == 1.f && keys[panel::SlotLed(10)].g > .5f && keys[panel::SlotLed(10)].b < .3f);   // F4 orange
     assert(chompi.g == 1.f && chompi.r == 0.f);                                   // green page
     Rgb rings[4]; ComposeFxKnobLeds(rig.panel.FxKnobs(), rings);

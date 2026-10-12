@@ -41,7 +41,7 @@ inline void EncodeIdentity(uint8_t* out) {
 // supply, 16 a reading below 3.0 V, 32 a firmware install would be refused), charge state.
 constexpr size_t kPowerSize = 3;
 constexpr size_t kStatusTail = 12 + kIdentitySize + kPowerSize;   // CPU, counts, minor, identity, power, checksum
-constexpr size_t kV3Request = 69, kV4Request = 84, kV5Request = 88, kV6Request = 91, kV7Request = 97, kMaxRequest = 107;
+constexpr size_t kV3Request = 69, kV4Request = 84, kV5Request = 88, kV6Request = 91, kV7Request = 97, kMaxRequest = 111;
 constexpr size_t kMaxReply = kMaxRequest + kStatusTail;
 // Note, Pedal (CC64), Bend, ModWheel (CC1) and ResetControllers (CC121) are
 // channel-1 performance events: no reply, dropped if queued before an emergency.
@@ -188,10 +188,11 @@ FORGE_COLD inline Error DecodePatchData(const uint8_t* data, size_t size, Parame
         p.parts_arp = *at(90) | uint32_t(*at(91)) << 7 | uint32_t(*at(92)) << 14;
         p.parts_clock = *at(93) | uint32_t(*at(94)) << 7 | uint32_t(*at(95)) << 14;
     }
-    if(p.version >= 8) {                                                                          // request 96-105
+    if(p.version >= 8) {                                                                          // request 96-109
         p.fx = static_cast<uint16_t>(*at(96) | uint32_t(*at(97)) << 7);
         p.fx_colour = Read14(at(98)) / 16383.f; p.fx_texture = Read14(at(100)) / 16383.f;
         p.fx_motion = Read14(at(102)) / 16383.f; p.fx_motion_rate = Read14(at(104)) / 16383.f;
+        p.fx_colour_character = Read14(at(106)) / 16383.f; p.fx_texture_character = Read14(at(108)) / 16383.f;
     }
     if(!p.Valid()) return Error::Patch;      // e.g. sample start not before end
     out = p;
@@ -324,6 +325,7 @@ FORGE_COLD inline size_t EncodePatchData(const Parameters& p, uint8_t* data) {
         *at(96) = p.fx & 127; *at(97) = (p.fx >> 7) & 127;
         WriteNormalized(at(98), p.fx_colour); WriteNormalized(at(100), p.fx_texture);
         WriteNormalized(at(102), p.fx_motion); WriteNormalized(at(104), p.fx_motion_rate);
+        WriteNormalized(at(106), p.fx_colour_character); WriteNormalized(at(108), p.fx_texture_character);
     }
     return PatchDataSize(p.version);
 }

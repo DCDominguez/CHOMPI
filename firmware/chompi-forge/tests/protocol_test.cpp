@@ -125,7 +125,7 @@ void ProtocolV3() {
     assert(PackUsbSysEx(envelope, sizeof(envelope), usb, sizeof(usb)) == sizeof(usb));
     assert(PackUsbSysEx(envelope, sizeof(envelope), usb, sizeof(usb) - 1) == 0);
 }
-// v8 (0.20) = v7 + the FX section (request 96-105): 107-byte request, 119-byte status. Round trip,
+// v8 (0.20) = v7 + the FX section (request 96-109): 111-byte request, 123-byte status. Round trip,
 // the engine applies it (choices, route, Colour / Texture / Motion), a snapshot carries it back,
 // invalid FX words are rejected, and a v7 sound saved with the FX section in use becomes v8.
 void ProtocolV8() {
@@ -133,6 +133,7 @@ void ProtocolV8() {
     { parts::Settings s; p.parts_arp = parts::PackArp(s); p.parts_clock = parts::PackClock(s); }
     p.fx = static_cast<uint16_t>(1u | 0u << 2 | 0u << 4 | 0u << 6 | 2u << 8);   // cloud, routes: Wash first
     p.fx_colour = .25f; p.fx_texture = .5f; p.fx_motion = .75f; p.fx_motion_rate = .125f;
+    p.fx_colour_character = .375f; p.fx_texture_character = .625f;
     assert(p.Valid());
     std::vector<uint8_t> request(kMaxRequest); Header(request.data(), 1, 80);
     assert(EncodePatchData(p, request.data() + 7) == kMaxRequest - 8);
@@ -141,6 +142,7 @@ void ProtocolV8() {
     assert(decoded.patch.version == 8 && decoded.patch.fx == p.fx);
     assert(std::fabs(decoded.patch.fx_colour - .25f) < 1e-4f && std::fabs(decoded.patch.fx_texture - .5f) < 1e-4f);
     assert(std::fabs(decoded.patch.fx_motion - .75f) < 1e-4f && std::fabs(decoded.patch.fx_motion_rate - .125f) < 1e-4f);
+    assert(std::fabs(decoded.patch.fx_colour_character - .375f) < 1e-4f && std::fabs(decoded.patch.fx_texture_character - .625f) < 1e-4f);
     std::vector<float> l(48002), r(48002); Engine engine; assert(engine.Init(48000.f, l.data(), r.data(), l.size()));
     Response response; assert(ExecuteRequest(decoded, engine, response) && response.error == Error::None);
     assert(engine.Choice(fx::Module::Space) == 1 && engine.GetRoute() == fx::Route::WashFirst);
@@ -155,9 +157,9 @@ void ProtocolV8() {
         broken[kMaxRequest - 1] = Checksum(broken.data(), kMaxRequest - 1);
         Request rejected; assert(DecodeRequest(broken.data(), broken.size(), rejected) == Error::Patch);
     }
-    // An effect this firmware has not built (Colour: fold) falls back to the module's first.
+    // Phase 2: every effect is built (Colour: fold applies).
     Parameters fold = p; fold.fx = static_cast<uint16_t>(1u << 2); assert(fold.Valid() && engine.ApplyPatch(fold));
-    assert(engine.Choice(fx::Module::Colour) == 0);
+    assert(engine.Choice(fx::Module::Colour) == 1);
     // A v3 sound with Motion turned up saves as v8 (with valid parts words even without the parts).
     Engine e2; assert(e2.Init(48000.f, l.data(), r.data(), l.size()));
     Parameters v3; v3.version = 3; v3.synth = true; assert(e2.ApplyPatch(v3));

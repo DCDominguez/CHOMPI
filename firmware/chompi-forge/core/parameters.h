@@ -28,7 +28,9 @@ enum class Parameter : uint8_t { Mix, Time, Feedback, Level, Bypass, Cutoff, Res
                                  Speed, VoiceGain, Pan, Space, Saturation, Warble, DjFilter, DjResonance, Compressor,
                                  InputGain,
                                  // FX section (0.20): the Motion module's amount and rate (its chorus today).
-                                 Motion, MotionRate, Count };
+                                 Motion, MotionRate,
+                                 // FX section Phase 2: the Colour and Texture modules' character (hold + turn).
+                                 ColourCharacter, TextureCharacter, Count };
 // First performance control; ids from here on are never on the wire.
 constexpr Parameter kFirstPerformance = Parameter::Speed;
 inline bool IsPerformance(Parameter p) { return p >= kFirstPerformance && p < Parameter::Count; }
@@ -93,10 +95,12 @@ struct Parameters {
     uint32_t parts_arp = 0, parts_clock = 0;
     // Version 8 (0.20) adds the FX section (core/fx.h): fx = the four modules' choices, 2 bits each in
     // module order (Space, Colour, Texture, Motion), | route << 8 (request bytes 96-97); then the
-    // Colour (saturation), Texture (warble) and Motion amounts and Motion's rate, 14 bits each (98-105).
+    // Colour (saturation), Texture (warble) and Motion amounts, Motion's rate, then the Colour and Texture
+    // characters, 14 bits each (98-109).
     // Space's amount and character are the delay / reverb fields above.
     uint16_t fx = 0;
     float fx_colour = 0.f, fx_texture = 0.f, fx_motion = 0.f, fx_motion_rate = .3f;
+    float fx_colour_character = 0.f, fx_texture_character = 0.f;   // request 106-109
 
     bool Sampler() const { return version >= 4 && source == 1; }
     uint8_t MaxVoices() const { return version >= 4 ? 7 : 4; }
@@ -104,7 +108,8 @@ struct Parameters {
     FORGE_COLD bool Valid() const {
         return version >= 1 && version <= 8 && waveform < 4 && !(version == 1 && synth)
             && (version < 7 || PartsWordsValid(parts_arp, parts_clock))
-            && (version < 8 || (FxWordValid(fx) && Unit(fx_colour) && Unit(fx_texture) && Unit(fx_motion) && Unit(fx_motion_rate)))
+            && (version < 8 || (FxWordValid(fx) && Unit(fx_colour) && Unit(fx_texture) && Unit(fx_motion) && Unit(fx_motion_rate)
+                                && Unit(fx_colour_character) && Unit(fx_texture_character)))
             && harmony < (1u << 17) && (harmony & 15u) < 12 && ((harmony >> 4) & 15u) < 9 && ((harmony >> 8) & 7u) < 6
             && Unit(attack) && Unit(decay) && Unit(sustain) && Unit(release) && Unit(cutoff)
             && Unit(mix) && Unit(time) && Unit(feedback) && Unit(level)
@@ -215,6 +220,7 @@ struct Performance {
     float compressor = 0.f;    // menu SW6
     float input_gain = .75f;   // SW6 page 2: mic x5 / line x3 scaled by this (TAPE)
     float motion = 0.f, motion_rate = .3f;   // FX section (0.20): Motion amount (off at 0) and rate
+    float colour_character = 0.f, texture_character = 0.f;   // Colour / Texture character (0 = the plain effect)
     float* Field(Parameter p) {
         switch(p) {
             case Parameter::Speed: return &speed;
@@ -228,6 +234,8 @@ struct Performance {
             case Parameter::InputGain: return &input_gain;
             case Parameter::Motion: return &motion;
             case Parameter::MotionRate: return &motion_rate;
+            case Parameter::ColourCharacter: return &colour_character;
+            case Parameter::TextureCharacter: return &texture_character;
             default: return nullptr;
         }
     }

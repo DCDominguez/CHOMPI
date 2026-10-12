@@ -96,13 +96,13 @@ class InstrumentTests(unittest.TestCase):
                        **{k: rng.choice((0, 1, round(rng.random(), 4))) for k in host.FX_AMOUNTS}}
             packets.append(host.encode_patch(host.validate_patch(p), index))
         for packet, reply in zip(packets, probe(*packets)):
-            self.assertEqual(len(packet), 107)
-            self.assertEqual(len(reply), 119 + host.STATUS_EXTRA)
-            self.assertEqual(reply[8:106], packet[7:105])
+            self.assertEqual(len(packet), 111)
+            self.assertEqual(len(reply), 123 + host.STATUS_EXTRA)
+            self.assertEqual(reply[8:110], packet[7:109])
             captured = host.decode_response(reply, host.read14(packet, 5))["patch"]
             self.assertEqual(captured["version"], 8)
             self.assertEqual(host.encode_patch(captured, host.read14(packet, 5)), packet)
-        for bad in ({"colour": "fold"}, {"route": "sideways"}, {"motion_amount": 1.5}, {"motion_rate": True}, {"extra": 1}):
+        for bad in ({"colour": "glitter"}, {"route": "sideways"}, {"motion_amount": 1.5}, {"motion_rate": True}, {"extra": 1}):
             p = copy.deepcopy(base); p["fx"] = {**p["fx"], **bad}
             with self.assertRaises(ValueError): host.validate_patch(p)
         p = copy.deepcopy(base); del p["fx"]

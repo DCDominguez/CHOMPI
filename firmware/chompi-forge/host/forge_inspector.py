@@ -173,7 +173,7 @@ def decode(data, sequence, expected_page=None):
             result["events"].append(e)
     elif page == 7:
         patch_data=data[15:-1]
-        if not patch_data or len(patch_data)!={1:10,2:22,3:61,4:76,5:80,6:83,7:89,8:99}.get(patch_data[0]):
+        if not patch_data or len(patch_data)!={1:10,2:22,3:61,4:76,5:80,6:83,7:89,8:103}.get(patch_data[0]):
             raise ValueError("Invalid Inspector patch page")
         # Reuse the established patch decoder via an internal status envelope.
         # Only the decoded patch is returned; these shim diagnostics are never displayed.

@@ -41,7 +41,7 @@ public:
         if(!std::isfinite(sample_rate) || sample_rate < 1000.f
            || sample_rate > 192000.f || !left || !right || left == right
            || capacity < static_cast<size_t>(sample_rate) + 2) return false;
-        sample_rate_ = sample_rate; bell_.Init(sample_rate);
+        sample_rate_ = sample_rate; bell_.Init(sample_rate); squash_.Init(sample_rate); broken_.Init(sample_rate); phaser_.Init(sample_rate); tremolo_.Init(sample_rate);
         left_ = left;
         right_ = right;
         capacity_ = capacity;
@@ -52,7 +52,7 @@ public:
         synth_.Init(sample_rate); synth_.Configure(parameters_);
         PushPerformance();
         synth_.SnapPerformance();
-        effects_.Configure(performance_);
+        ConfigureFx();
         mix_ = parameters_.mix;
         feedback_ = parameters_.feedback * 0.85f;
         level_ = 0.f; // fade up from silence at boot
@@ -139,14 +139,22 @@ public:
     static size_t FxFloats() { return 2 * fx::Chorus::kLength + fx::Diffuser::Required(); }
     FORGE_COLD bool SetFxMemory(float* memory, size_t floats) {
         if(!memory || floats < FxFloats()) return false;
-        chorus_.Init(memory, sample_rate_); chorus_.Set(performance_.motion, performance_.motion_rate);
+        chorus_.Init(memory, sample_rate_);
+        ConfigureFx();
         return diffuser_.Init(memory + 2 * fx::Chorus::kLength, static_cast<uint32_t>(floats - 2 * fx::Chorus::kLength), sample_rate_);
     }
     // The effect chosen in a module (fx::*Choice, key order). Refused until that effect is built.
     FORGE_COLD bool SetChoice(fx::Module module, uint8_t choice) {
         if(!fx::Built(module, choice)) return false;
+        const bool changed = choice_[static_cast<unsigned>(module)] != choice;
         choice_[static_cast<unsigned>(module)] = choice;
-        if(module == fx::Module::Space) { cloud_ = choice == static_cast<uint8_t>(fx::SpaceChoice::Cloud); ConfigureReverb(); }
+        if(module == fx::Module::Space) {
+            cloud_ = choice == static_cast<uint8_t>(fx::SpaceChoice::Cloud);
+            tape_echo_ = choice == static_cast<uint8_t>(fx::SpaceChoice::TapeEcho);
+            ConfigureReverb();
+        }
+        if(changed) RestModule(module);
+        ConfigureFx();
         return true;
     }
     uint8_t Choice(fx::Module module) const { return choice_[static_cast<unsigned>(module)]; }
@@ -163,8 +171,8 @@ public:
         SetRoute(static_cast<fx::Route>((patch.fx >> 8) & 3u));
         performance_.saturation = patch.fx_colour; performance_.warble = patch.fx_texture;
         performance_.motion = patch.fx_motion; performance_.motion_rate = patch.fx_motion_rate;
-        effects_.Configure(performance_);
-        chorus_.Set(performance_.motion, performance_.motion_rate);
+        performance_.colour_character = patch.fx_colour_character; performance_.texture_character = patch.fx_texture_character;
+        ConfigureFx();
     }
     void SetRoute(fx::Route route) { if(static_cast<unsigned>(route) < fx::kRoutes) route_ = route; }
     fx::Route GetRoute() const { return route_; }
@@ -389,6 +397,7 @@ public:
             for(unsigned m = 0; m < fx::kModules; ++m) word = static_cast<uint16_t>(word | (choice_[m] & 3u) << (2 * m));
             p.fx = word; p.fx_colour = performance_.saturation; p.fx_texture = performance_.warble;
             p.fx_motion = performance_.motion; p.fx_motion_rate = performance_.motion_rate;
+            p.fx_colour_character = performance_.colour_character; p.fx_texture_character = performance_.texture_character;
         }
         return p;
     }
@@ -452,8 +461,8 @@ public:
         const fx::Module* order = fx::kOrder[static_cast<unsigned>(route_)];
         for(unsigned stage = 0; stage < fx::kModules; ++stage) {
             switch(order[stage]) {
-                case fx::Module::Colour: if(tape) effects_.Colour(left, right); break;
-                case fx::Module::Texture: if(tape) effects_.Texture(left, right); break;
+                case fx::Module::Colour: ColourStage(left, right, tape); break;
+                case fx::Module::Texture: TextureStage(left, right, tape); break;
                 case fx::Module::Motion: Motion(left, right); break;
                 case fx::Module::Space: SpaceStage(left, right); break;
             }
@@ -476,15 +485,28 @@ private:
         Smooth(time_, DelaySamples());
         const float echo_target = cloud_ ? 0.f : 1.f;
         if(echo_ != echo_target) { Smooth(echo_, echo_target); if(std::fabs(echo_ - echo_target) < 1e-5f) echo_ = echo_target; }
-        float read = static_cast<float>(write_) - time_;
+        float time = time_;
+        if(tape_echo_) {                                                    // tape echo: the head wobbles (wow)
+            wow_phase_ += .55f / sample_rate_; if(wow_phase_ >= 1.f) wow_phase_ -= 1.f;
+            const float x = 2.f * wow_phase_ - 1.f, s = 4.f * x * (1.f - std::fabs(x));
+            time += .0012f * sample_rate_ * (1.f + s);
+            if(time > static_cast<float>(capacity_) - 2.f) time = static_cast<float>(capacity_) - 2.f;
+        }
+        float read = static_cast<float>(write_) - time;
         if(read < 0.f) read += static_cast<float>(capacity_);
         const size_t index = static_cast<size_t>(read);
         const size_t next = (index + 1) % capacity_;
         const float fraction = read - static_cast<float>(index);
-        const bool unread = flushed_ && static_cast<float>(capacity_ - flushed_) <= time_ + 1.f;
-        const float delayed_left = unread ? 0.f : left_[index] + fraction * (left_[next] - left_[index]);
-        const float delayed_right = unread ? 0.f : right_[index] + fraction * (right_[next] - right_[index]);
+        const bool unread = flushed_ && static_cast<float>(capacity_ - flushed_) <= time + 1.f;
+        float delayed_left = unread ? 0.f : left_[index] + fraction * (left_[next] - left_[index]);
+        float delayed_right = unread ? 0.f : right_[index] + fraction * (right_[next] - right_[index]);
         if(flushed_) --flushed_;
+        if(tape_echo_) {                                                    // darker and saturating each time round
+            tape_l_ += tape_k_ * (delayed_left - tape_l_); tape_r_ += tape_k_ * (delayed_right - tape_r_);
+            if(std::fabs(tape_l_) < 1e-20f) tape_l_ = 0.f;
+            if(std::fabs(tape_r_) < 1e-20f) tape_r_ = 0.f;
+            delayed_left = tape::SoftClip(tape_l_); delayed_right = tape::SoftClip(tape_r_);
+        }
         left_[write_] = left + feedback_ * delayed_left;
         right_[write_] = right + feedback_ * delayed_right;
         write_ = (write_ + 1) % capacity_;
@@ -508,8 +530,71 @@ private:
         left = mixed_left; right = mixed_right;
     }
     void Motion(float& left, float& right) {
-        if(!chorus_.Neutral()) { chorus_.Process(left, right); motion_on_ = true; }
-        else if(motion_on_) { chorus_.Rest(); motion_on_ = false; }
+        switch(static_cast<fx::MotionChoice>(choice_[static_cast<unsigned>(fx::Module::Motion)])) {
+            case fx::MotionChoice::Chorus:
+                if(!chorus_.Neutral()) { chorus_.Process(left, right); motion_on_ = true; }
+                else if(motion_on_) { chorus_.Rest(); motion_on_ = false; }
+                break;
+            case fx::MotionChoice::Phaser: if(!phaser_.Neutral()) phaser_.Process(left, right); break;
+            case fx::MotionChoice::Tremolo: if(!tremolo_.Neutral()) tremolo_.Process(left, right); break;
+        }
+    }
+    // Colour: TAPE's saturation (the default), fold or crush; the Colour amount drives the chosen one.
+    void ColourStage(float& left, float& right, bool tape) {
+        switch(static_cast<fx::ColourChoice>(choice_[static_cast<unsigned>(fx::Module::Colour)])) {
+            case fx::ColourChoice::Saturation: if(tape) effects_.Colour(left, right); break;
+            case fx::ColourChoice::Fold: if(!fold_.Neutral()) fold_.Process(left, right); break;
+            case fx::ColourChoice::Crush: if(!crush_.Neutral()) crush_.Process(left, right); break;
+        }
+    }
+    // Texture: cassette (TAPE's warble, the default; with character, hiss and worn highs), broken or squash.
+    void TextureStage(float& left, float& right, bool tape) {
+        switch(static_cast<fx::TextureChoice>(choice_[static_cast<unsigned>(fx::Module::Texture)])) {
+            case fx::TextureChoice::Cassette:
+                if(tape) effects_.Texture(left, right);
+                if(wear_on_) {
+                    wear_l_ += wear_k_ * (left - wear_l_); wear_r_ += wear_k_ * (right - wear_r_);
+                    if(std::fabs(wear_l_) < 1e-20f) wear_l_ = 0.f;
+                    if(std::fabs(wear_r_) < 1e-20f) wear_r_ = 0.f;
+                    hiss_ ^= hiss_ << 13; hiss_ ^= hiss_ >> 17; hiss_ ^= hiss_ << 5;
+                    const float n = hiss_level_ * (static_cast<float>(hiss_ >> 8) * (2.f / 16777216.f) - 1.f);
+                    left = wear_l_ + n; right = wear_r_ + n;
+                }
+                break;
+            case fx::TextureChoice::Broken: if(!broken_.Neutral()) broken_.Process(left, right); break;
+            case fx::TextureChoice::Squash: if(!squash_.Neutral()) squash_.Process(left, right); break;
+        }
+    }
+    // Everything the performance controls and the choices decide, in one place. TAPE's own stages get
+    // their amounts only while they are the module's choice (so fold or crush never add saturation).
+    void ConfigureFx() {
+        const auto c = [&](fx::Module m) { return choice_[static_cast<unsigned>(m)]; };
+        Performance tape = performance_;
+        if(c(fx::Module::Colour) != static_cast<uint8_t>(fx::ColourChoice::Saturation)) tape.saturation = 0.f;
+        if(c(fx::Module::Texture) != static_cast<uint8_t>(fx::TextureChoice::Cassette)) tape.warble = 0.f;
+        effects_.Configure(tape);
+        const Performance& p = performance_;
+        const bool chorus = c(fx::Module::Motion) == static_cast<uint8_t>(fx::MotionChoice::Chorus);
+        chorus_.Set(chorus ? p.motion : 0.f, p.motion_rate);
+        phaser_.Set(c(fx::Module::Motion) == static_cast<uint8_t>(fx::MotionChoice::Phaser) ? p.motion : 0.f, p.motion_rate);
+        tremolo_.Set(c(fx::Module::Motion) == static_cast<uint8_t>(fx::MotionChoice::Tremolo) ? p.motion : 0.f, p.motion_rate);
+        fold_.Set(c(fx::Module::Colour) == static_cast<uint8_t>(fx::ColourChoice::Fold) ? p.saturation : 0.f, p.colour_character);
+        crush_.Set(c(fx::Module::Colour) == static_cast<uint8_t>(fx::ColourChoice::Crush) ? p.saturation : 0.f, p.colour_character);
+        broken_.Set(c(fx::Module::Texture) == static_cast<uint8_t>(fx::TextureChoice::Broken) ? p.warble : 0.f, p.texture_character);
+        squash_.Set(c(fx::Module::Texture) == static_cast<uint8_t>(fx::TextureChoice::Squash) ? p.warble : 0.f, p.texture_character);
+        const bool cassette = c(fx::Module::Texture) == static_cast<uint8_t>(fx::TextureChoice::Cassette);
+        wear_on_ = cassette && p.warble > 0.f && p.texture_character > 0.f;
+        const float hz = 16000.f * std::pow(2500.f / 16000.f, p.texture_character);
+        wear_k_ = 1.f - std::exp(-6.2831853f * hz / sample_rate_);
+        hiss_level_ = .012f * p.texture_character * p.warble;
+        tape_k_ = 1.f - std::exp(-6.2831853f * 2800.f / sample_rate_);
+    }
+    // A module's choice changed: its effects start clean (no stale tail or half-faded mix).
+    void RestModule(fx::Module m) {
+        if(m == fx::Module::Motion) { chorus_.Rest(); motion_on_ = false; phaser_ = fx::Phaser{}; phaser_.Init(sample_rate_); tremolo_ = fx::Tremolo{}; tremolo_.Init(sample_rate_); }
+        else if(m == fx::Module::Colour) { fold_ = fx::Fold{}; crush_ = fx::Crush{}; }
+        else if(m == fx::Module::Texture) { broken_ = fx::Broken{}; broken_.Init(sample_rate_); squash_ = fx::Squash{}; squash_.Init(sample_rate_); wear_l_ = wear_r_ = 0.f; }
+        else { tape_l_ = tape_r_ = 0.f; }
     }
     // Cloud: the patch's size and damping pushed into a longer (2-10 s), darker range.
     void ConfigureReverb() {
@@ -533,8 +618,7 @@ private:
         if(!field) return false;
         *field = v;
         PushPerformance();
-        effects_.Configure(performance_);
-        chorus_.Set(performance_.motion, performance_.motion_rate);
+        ConfigureFx();
         return true;
     }
     // Kit pads carry their own pitch, gain and pan, so the shared ones stay neutral there.
@@ -622,7 +706,7 @@ private:
         if(seq_) seq_->Silenced();                               // its notes are gone; the loop keeps playing (MANUAL 8c)
         // O(1) tail suppression: old delay cells are not read until overwritten.
         flushed_ = capacity_;
-        reverb_.Clear(); diffuser_.Rest(); chorus_.Rest(); motion_on_ = false;
+        reverb_.Clear(); diffuser_.Rest(); chorus_.Rest(); motion_on_ = false; phaser_.Rest(); tape_l_ = tape_r_ = 0.f;
     }
     // A chord's notes fit the patch's voices (at most harmony::kMaxNotes).
     uint8_t ChordVoices() const {
@@ -707,5 +791,11 @@ private:
     fx::Route route_ = fx::Route::Classic;
     bool cloud_ = false, motion_on_ = false;
     float echo_ = 1.f;
+    // FX section Phase 2
+    fx::Fold fold_; fx::Crush crush_; fx::Squash squash_; fx::Broken broken_; fx::Phaser phaser_; fx::Tremolo tremolo_;
+    bool tape_echo_ = false, wear_on_ = false;
+    float wow_phase_ = 0.f, tape_k_ = 0.f, tape_l_ = 0.f, tape_r_ = 0.f;
+    float wear_k_ = 1.f, wear_l_ = 0.f, wear_r_ = 0.f, hiss_level_ = 0.f;
+    uint32_t hiss_ = 0x1b873593u;
 };
 } // namespace forge

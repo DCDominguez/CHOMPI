@@ -208,16 +208,18 @@ SCHEMA7 = object_schema({**SCHEMA6["properties"], "version": {"type": "integer",
 # v8 (firmware 0.20, development) = v7 + "fx": the FX section (core/fx.h; docs/forge/CONTINUE.md). Four modules,
 # one effect chosen in each, in a route; Space's amount and character are the delay / reverb modules. On the wire:
 # a word (2 bits per module's choice in module order space, colour, texture, motion; bits 8-9 route) in two
-# bytes (request 96-97), then colour, texture and motion amounts and motion rate, 14 bits each (98-105).
+# bytes (request 96-97), then colour, texture and motion amounts, motion rate, colour and texture character,
+# 14 bits each (98-109).
 # FX_BUILT lists the effects this firmware has; the others are reserved (the firmware falls back to the first).
 FX_ROUTES = ("classic", "wear_last", "wash_first", "side_by_side")
 FX_MODULES = ("space", "colour", "texture", "motion")
 FX_CHOICES = {"space": ("echo_room", "cloud", "tape_echo"), "colour": ("saturation", "fold", "crush"),
               "texture": ("cassette", "broken", "squash"), "motion": ("chorus", "phaser", "tremolo")}
-FX_BUILT = {"space": ("echo_room", "cloud"), "colour": ("saturation",), "texture": ("cassette",), "motion": ("chorus",)}
-FX_AMOUNTS = ("colour_amount", "texture_amount", "motion_amount", "motion_rate")
+FX_BUILT = FX_CHOICES                                                   # all twelve (Phase 2, 0.20)
+FX_AMOUNTS = ("colour_amount", "texture_amount", "motion_amount", "motion_rate", "colour_character", "texture_character")
 FX_DEFAULTS = {"route": "classic", "space": "echo_room", "colour": "saturation", "texture": "cassette", "motion": "chorus",
-               "colour_amount": 0, "texture_amount": 0, "motion_amount": 0, "motion_rate": 0.3}
+               "colour_amount": 0, "texture_amount": 0, "motion_amount": 0, "motion_rate": 0.3,
+               "colour_character": 0, "texture_character": 0}
 FX_SCHEMA = object_schema({"route": {"type": "string", "enum": list(FX_ROUTES)},
                            **{m: {"type": "string", "enum": list(FX_BUILT[m])} for m in FX_MODULES},
                            **{k: {"type": "number", "minimum": 0, "maximum": 1} for k in FX_AMOUNTS}})
@@ -650,7 +652,7 @@ def encode_value(value, codec):
 
 
 # Status reply length per patch version without the build identity (firmware before 0.15.2).
-STATUS_LENGTHS = {1: 30, 2: 42, 3: 81, 4: 96, 5: 100, 6: 103, 7: 109, 8: 119}
+STATUS_LENGTHS = {1: 30, 2: 42, 3: 81, 4: 96, 5: 100, 6: 103, 7: 109, 8: 123}
 IDENTITY_SIZE = 6
 POWER_SIZE = 3                                              # battery, power flags, charge state (0.15.2)
 STATUS_EXTRA = IDENTITY_SIZE + POWER_SIZE
@@ -762,7 +764,7 @@ def decode_response(data, sequence):
         "level": read14(data, 15) / 16383, "bypass": bool(data[17])}}
     offset = 18
     if data[8] in (3, 4, 5, 6, 7, 8):
-        patch, offset = decode_v3(data, patch["name"]), {3: 69, 4: 84, 5: 88, 6: 91, 7: 97, 8: 107}[data[8]]
+        patch, offset = decode_v3(data, patch["name"]), {3: 69, 4: 84, 5: 88, 6: 91, 7: 97, 8: 111}[data[8]]
     elif data[8] == 2:
         if data[18] > 1 or data[19] > 3:
             raise ValueError("Invalid instrument status")
@@ -845,8 +847,8 @@ def decode_v3(data, name):
         patch["harmony"] = harmony_from_word(data[88] | data[89] << 7 | data[90] << 14)   # request 87-89 + 1
     if data[8] >= 7:
         patch["parts"] = parts_from_words(data[91] | data[92] << 7 | data[93] << 14, data[94] | data[95] << 7 | data[96] << 14)
-    if data[8] == 8:                                                         # request 96-105 + 1
-        patch["fx"] = fx_from_status(data[97] | data[98] << 7, [data[i] | data[i + 1] << 7 for i in (99, 101, 103, 105)])
+    if data[8] == 8:                                                         # request 96-109 + 1
+        patch["fx"] = fx_from_status(data[97] | data[98] << 7, [data[i] | data[i + 1] << 7 for i in (99, 101, 103, 105, 107, 109)])
     return patch
 
 

@@ -18,8 +18,13 @@ Updated 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2
   the firmware codec (forge_probe) in test_instrument. **The public forge page, the local workshop
   (host/web) and the chatbot prompt stay v7 until 0.20 ships** (0.19.2 firmware rejects v8); add
   their FX controls at release. Release 240,840 B, development 252,532 B.
-- Next: a short FX section guide for the listening session, then the session itself (install the
-  development build; the owner judges chorus and cloud; webcam for the FX page lights).
+- **Phase 2 done (the owner: "finalize the FX", all at once):** fold, crush, squash, broken, phaser,
+  tremolo, tape echo; Colour / Texture characters (performance controls, FX page hold + turn SW1 / SW2;
+  v8 request 106-109, kMaxRequest 111). All twelve distinct and bounded in fx_test; golden unchanged.
+  Phaser feedback level-compensated (peak 1.15 on full-scale noise). Release 245,784 B, development
+  257,372 B. Harmony / arp / bass fixes merged from forge/foundation (82c6941).
+- Next: the listening session (install the development build; CPU with every module on; the owner
+  judges all twelve; webcam for the FX page). Then the forge page / chatbot FX controls at 0.20.
 
 ## 2026-10-12 (late night): FX section, Phase 0 done (resume here; branch forge/fx)
 
