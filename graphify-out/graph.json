@@ -7043,7 +7043,7 @@
       "file_type": "code",
       "norm_label": "levelcheckfailures()",
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L289"
+      "source_location": "L299"
     },
     {
       "id": "firmware_chompi_forge_tests_power_test_main",
@@ -7055,7 +7055,7 @@
       "file_type": "code",
       "norm_label": "main()",
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L336"
+      "source_location": "L346"
     },
     {
       "id": "firmware_chompi_forge_tests_power_test_optionsfile",
@@ -69859,7 +69859,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/src/forge_main.cpp",
-      "source_location": "L1248",
+      "source_location": "L1247",
       "weight": 1.0
     },
     {
@@ -69871,7 +69871,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/src/forge_main.cpp",
-      "source_location": "L1249",
+      "source_location": "L1248",
       "weight": 1.0
     },
     {
@@ -69883,7 +69883,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/src/forge_main.cpp",
-      "source_location": "L1268",
+      "source_location": "L1270",
       "weight": 1.0
     },
     {
@@ -69895,7 +69895,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/src/forge_main.cpp",
-      "source_location": "L1269",
+      "source_location": "L1271",
       "weight": 1.0
     },
     {
@@ -69907,7 +69907,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/src/forge_main.cpp",
-      "source_location": "L1271",
+      "source_location": "L1273",
       "weight": 1.0
     },
     {
@@ -69919,7 +69919,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/src/forge_main.cpp",
-      "source_location": "L1271",
+      "source_location": "L1273",
       "weight": 1.0
     },
     {
@@ -73687,7 +73687,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L292",
+      "source_location": "L302",
       "weight": 1.0
     },
     {
@@ -73699,7 +73699,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L337",
+      "source_location": "L347",
       "weight": 1.0
     },
     {
@@ -73711,7 +73711,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L337",
+      "source_location": "L347",
       "weight": 1.0
     },
     {
@@ -73723,7 +73723,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L337",
+      "source_location": "L347",
       "weight": 1.0
     },
     {
@@ -73735,7 +73735,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L338",
+      "source_location": "L348",
       "weight": 1.0
     },
     {
@@ -73747,7 +73747,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L338",
+      "source_location": "L348",
       "weight": 1.0
     },
     {
@@ -73759,7 +73759,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L338",
+      "source_location": "L348",
       "weight": 1.0
     },
     {
@@ -73771,7 +73771,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L338",
+      "source_location": "L348",
       "weight": 1.0
     },
     {
@@ -73783,7 +73783,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L338",
+      "source_location": "L348",
       "weight": 1.0
     },
     {
@@ -73795,7 +73795,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L338",
+      "source_location": "L348",
       "weight": 1.0
     },
     {
@@ -73807,7 +73807,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L338",
+      "source_location": "L348",
       "weight": 1.0
     },
     {
@@ -73819,7 +73819,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L338",
+      "source_location": "L348",
       "weight": 1.0
     },
     {
@@ -73831,7 +73831,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L338",
+      "source_location": "L348",
       "weight": 1.0
     },
     {
@@ -131121,18 +131121,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L289",
-      "weight": 1.0
-    },
-    {
-      "source": "firmware_chompi_forge_tests_power_test",
-      "target": "firmware_chompi_forge_tests_power_test_main",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L336",
+      "source_location": "L299",
       "weight": 1.0
     },
     {
@@ -131144,6 +131133,17 @@
       "confidence_score": 1.0,
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
       "source_location": "L34",
+      "weight": 1.0
+    },
+    {
+      "source": "firmware_chompi_forge_tests_power_test",
+      "target": "firmware_chompi_forge_tests_power_test_main",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "firmware/chompi-forge/tests/power_test.cpp",
+      "source_location": "L346",
       "weight": 1.0
     },
     {
@@ -150005,7 +150005,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "firmware/chompi-forge/src/forge_main.cpp",
-      "source_location": "L1248",
+      "source_location": "L1247",
       "weight": 1.0
     },
     {
@@ -153173,7 +153173,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L333",
+      "source_location": "L343",
       "weight": 1.0
     },
     {
@@ -157313,7 +157313,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "firmware/chompi-forge/tests/power_test.cpp",
-      "source_location": "L293",
+      "source_location": "L303",
       "weight": 1.0
     },
     {
@@ -159994,5 +159994,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "ece524e30cc50074878d277fcf29bd76b2acc2fc"
+  "built_at_commit": "ed902b869a962baee0373134e2e0ea7e8cce8542"
 }

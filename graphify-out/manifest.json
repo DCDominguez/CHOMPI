@@ -420,9 +420,9 @@
     "semantic_hash": "2e4b3e9edadd0d53a2fad658a1196aa6"
   },
   "firmware/chompi-forge/src/forge_main.cpp": {
-    "mtime": 1791806248.236282,
-    "seen": 1791806653.9183815,
-    "ast_hash": "568dd229ba13ebd20c559778e97d0602",
+    "mtime": 1791807790.7995324,
+    "seen": 1791807938.7920969,
+    "ast_hash": "dc380d4ffe436d46172b041697d80598",
     "semantic_hash": ""
   },
   "firmware/chompi-forge/tests/bridge_browser_e2e.py": {
@@ -492,9 +492,9 @@
     "semantic_hash": ""
   },
   "firmware/chompi-forge/tests/power_test.cpp": {
-    "mtime": 1791806369.5664325,
-    "seen": 1791806653.9183815,
-    "ast_hash": "0614aa86ceff4cc7dde2c02a91ab88b3",
+    "mtime": 1791807790.7995324,
+    "seen": 1791807938.7920969,
+    "ast_hash": "cb2b9a929547d3ebdfdc648d98d7fa32",
     "semantic_hash": ""
   },
   "firmware/chompi-forge/tests/preset_test.cpp": {

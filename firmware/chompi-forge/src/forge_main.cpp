@@ -1244,7 +1244,6 @@ FORGE_COLD int main() {
             if(battery_monitor.PeriodicDue(now, hw.read_ready)) ReadBackThreshold(forge::power::ReadBack::Periodic);
             battery_monitor.ReadStarted();
 #endif
-            if(!level_check.Paused()) hw.BMCPerformCheck();   // 0.19.2: no reads while a 3.3 / 3.1 V check is set
             const auto lockout = lockout_guard.Update(ChargerReadings());
             if(lockout != forge::power::Lockout::None) { level_check.Abort(now, charger_io); LogLockout(lockout); hw.LowBatteryLockoutCheck(); }
             else {
@@ -1262,6 +1261,9 @@ FORGE_COLD int main() {
                 (void)checks;
 #endif
             }
+            // After the level check: it needs the bus idle (the read started 20 ms ago has completed),
+            // and no read may start while its 3.3 / 3.1 V threshold is set (0.19.2).
+            if(!level_check.Paused()) hw.BMCPerformCheck();
             battery_check = now;
         }
         if(!stable && now >= forge::restart::kStableMs) { forge::restart::RanStably(startup_guard); stable = true; }

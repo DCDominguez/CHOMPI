@@ -280,6 +280,16 @@ void LevelCheckBands() {
         LevelCheck c; FakeCharger f; uint32_t now = 0;
         assert(Run(c, f, now, 61000, Battery::Full) == Battery::Full && f.writes == 0);
     }
+    {   // The main loop's order (forge_main.cpp): level check, then the stock read when not paused.
+        // The read completes within the 20 ms tick, so the check finds the bus idle the next time.
+        LevelCheck c; FakeCharger f; f.volts = 3.5f; bool in_flight = false; Battery level = Battery::Medium;
+        for(uint32_t now = 0; now < 300; now += 20) {
+            in_flight = false;                                    // the read started last tick has completed
+            level = c.Tick(now, !in_flight, level, false, f);
+            if(!c.Paused()) in_flight = true;                     // hw.BMCPerformCheck()
+        }
+        assert(level == Battery::High && c.Checks() == 1);
+    }
     {   // A busy bus (a stock DMA read in flight) delays the check; nothing is written meanwhile.
         LevelCheck c; FakeCharger f;
         for(uint32_t now = 0; now < 500; now += 20) assert(c.Tick(now, false, Battery::Medium, false, f) == Battery::Medium);

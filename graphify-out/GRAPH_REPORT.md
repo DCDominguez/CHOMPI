@@ -1,7 +1,7 @@
 # Graph Report - CHOMPI  (2026-10-12)
 
 ## Corpus Check
-- 157 files · ~322,147 words
+- 157 files · ~322,262 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 9 file(s) not represented in the graph (top: (none) 4, .css 2, .ld 1)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ece524e3`
+- Built from commit: `ed902b86`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -1067,7 +1067,7 @@ Nodes (4): Cross-cutting fixes (they lift most rows), Forge UX review (2026-10-1
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `Engine` connect `Engine` to `SlotSettings`, `main`, `looper_test.cpp`, `.Init`, `v3_test.cpp`, `.Value`, `Bell`, `synth_test.cpp`, `panel_controller.h`, `Clock`, `Rig`, `Player`, `Sequencer`, `Rig`, `.Block`, `forge_main.cpp`, `Bloom`, `Reverb`, `preset_test.cpp`, `Rig`, `SampleHandoff`, `EngineAndPanel`, `Mailbox`, `core_test.cpp`, `Conversation`, `Rig`, `Performance`, `slot_settings_test.cpp`, `inspector_test.cpp`?**
-  _High betweenness centrality (0.138) - this node is a cross-community bridge._
+  _High betweenness centrality (0.137) - this node is a cross-community bridge._
 - **Are the 9 inferred relationships involving `Engine` (e.g. with `main()` and `PhysicalVersusInjectedAndVoiceEdges()`) actually correct?**
   _`Engine` has 9 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `reverb_`, `del_`, `filter_` to the rest of the system?**
@@ -1075,7 +1075,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `Synth` be split into smaller, more focused modules?**
   _Cohesion score 0.021734156943491192 - nodes in this community are weakly interconnected._
 - **Why does `PanelController` connect `PanelController` to `Options`, `PresetMenu`, `main`, `Error`, `Clock`, `panel_controller.h`, `Rig`, `Show`, `KnobHold`, `Rig`, `.Block`, `SpscQueue`, `Rig`, `TransferAndInstall`, `EngineAndPanel`, `RecordGesture`, `Previous checkpoint: firmware 0.9, key lights while playing, 2026-10-05`, `Dream`, `Chime`, `inspector_test.cpp`?**
-  _High betweenness centrality (0.096) - this node is a cross-community bridge._
+  _High betweenness centrality (0.097) - this node is a cross-community bridge._
 - **Are the 5 inferred relationships involving `PanelController` (e.g. with `Current checkpoint: firmware 0.15.1 review fixes (2026-10-06)` and `Handoff: cloud session → the owner's local PC (2026-10-09)`) actually correct?**
   _`PanelController` has 5 INFERRED edges - model-reasoned connections that need verification._
 - **Should `PanelController` be split into smaller, more focused modules?**
