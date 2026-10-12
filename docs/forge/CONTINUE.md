@@ -3,7 +3,17 @@
 Updated 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2-rc1; `main` carries it, Pages serves the forge page). The owner's CHOMPI runs development build b462bea. Read the newest section below first; older sections are history (HOME_CHECKLIST and TEST_SESSION are kept for the record).
 
 
-## 2026-10-12 (latest): release candidate 2 published (resume here)
+## 2026-10-12 (later still): next direction decided (resume here)
+
+- The owner: **effects next**, but first **wait for the community's reaction** to the release
+  candidates. Leading ideas: a shimmer reverb and a chorus first, then granular "freeze" for
+  samples (ambient). Plan: measure CPU on CHOMPI (Inspector) before building, then optimise only as
+  much as the effects need (options and estimates: the architecture study page and RESOURCE_LEDGER:
+  idle D2 / D3 / ITCM RAM for code, LTO, block processing).
+- Meanwhile: collect community feedback (GitHub issues, the CHOMPI Discord), fix what comes up,
+  then the final 0.19.2 release. The chime fix (22a3d52) is not yet on the owner's CHOMPI.
+
+## 2026-10-12 (latest): release candidate 2 published
 
 - **Published:** https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc2 (pre-release; `main`
   at 22a3d52). Assets: release `FORGE.bin` 253,264 B, `choowi-0.19.2-rc2-card.zip`, samples, manual,

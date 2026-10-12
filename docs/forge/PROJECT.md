@@ -185,6 +185,9 @@ unknown, so CPU-heavy work must keep a fallback (fewer voices / lower quality).
   address). **Done 2026-10-11:** the repo is `myth-world/Forge` (the owner's org); Pages will be
   `https://myth-world.github.io/Forge` from `docs/` once `main` carries Forge. **Gumroad** product page later: pay what you want ($0 minimum), Choowi art, no CHOMPI
   artwork, LICENSE + THIRD_PARTY in the download.
+- **Next feature line: effects** (the owner, 2026-10-12; after community feedback on the release
+  candidates). First a shimmer reverb and a chorus, then granular freeze for samples. CPU measured on
+  CHOMPI first; code-space and CPU options are on the architecture study page.
 - **Ideas from the 0.19 hands-on test (the owner, 2026-10-11, later):** knob lights dim rather
   than off in the record position (TAPE turns them off); a real battery reading (SW6's colour is
   a 3.3 V comparator); charging while on from a power bank.
