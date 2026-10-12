@@ -7,7 +7,9 @@
 #include <cstring>
 #include <iostream>
 #include <vector>
+#include <cmath>
 #include "../core/engine.h"
+#include "../core/fx.h"
 
 using namespace forge;
 
@@ -49,6 +51,57 @@ uint64_t Scene() {
     for(uint8_t n : {48, 55, 60, 64, 67}) rig.engine.Note(n, 0, 0);
     return h ^ Fingerprint(rig, 4000);                                     // 2 s of tails
 }
+
+// Chorus: transparent at zero, bounded and audibly different when on, stereo when on, follows rate.
+void ChorusUnit() {
+    std::vector<float> memory(2 * fx::Chorus::kLength, 123.f);              // stale memory must not leak
+    fx::Chorus c; c.Init(memory.data(), 48000.f);
+    assert(c.Neutral());
+    c.Set(.8f, .4f); assert(!c.Neutral());
+    float peak = 0.f, diff = 0.f, width = 0.f; uint32_t seed = 7;
+    for(int i = 0; i < 96000; ++i) {
+        seed = seed * 1664525u + 1013904223u;
+        const float x = (static_cast<float>(seed >> 8) / 8388608.f - 1.f) * .9f;   // noise, mono
+        float l = x, r = x; c.Process(l, r);
+        assert(std::isfinite(l) && std::isfinite(r));
+        peak = std::fmax(peak, std::fmax(std::fabs(l), std::fabs(r)));
+        if(i > 4800) { diff += std::fabs(l - x); width += std::fabs(l - r); }
+    }
+    assert(peak < 1.f && peak > .5f && diff > 1000.f && width > 1000.f);     // never above the input range
+    c.Set(0.f, .4f);
+    for(int i = 0; i < 48000; ++i) { float l = .3f, r = .3f; c.Process(l, r); }
+    assert(c.Neutral());
+    c.Rest(); c.Set(.5f, .4f);
+    float l = 0.f, r = 0.f; c.Process(l, r); assert(l == 0.f && r == 0.f);  // the line was cleared on return
+}
+// Diffuser: all-passes keep the energy (long run), smear an impulse over time, stay finite.
+void DiffuserUnit() {
+    std::vector<float> memory(fx::Diffuser::Required(), -9.f);
+    fx::Diffuser d; assert(!d.Init(memory.data(), memory.size() - 1, 48000.f));
+    assert(d.Init(memory.data(), memory.size(), 48000.f));
+    double in = 0.0, out = 0.0, tone_in = 0.0, tone_out = 0.0; uint32_t seed = 3;
+    for(int i = 0; i < 480000; ++i) {
+        seed = seed * 1664525u + 1013904223u;
+        const float x = static_cast<float>(seed >> 8) / 8388608.f - 1.f;
+        float l = x, r = -x; d.Process(l, r);
+        assert(std::isfinite(l) && std::isfinite(r) && std::fabs(l) < 8.f);
+        in += 2.0 * x * x; out += l * l + r * r;
+    }
+    // The drifting lines are interpolated, which dulls the highs inside the all-pass loops: white
+    // noise loses about 4 dB (darker, as a cloud should be) while lows and mids keep their level.
+    assert(out / in > .3 && out / in < 1.1);
+    d.Rest();
+    for(int i = 0; i < 240000; ++i) {
+        const float x = .5f * std::sin(6.2831853f * 200.f * static_cast<float>(i) / 48000.f);
+        float l = x, r = x; d.Process(l, r);
+        if(i > 48000) { tone_in += 2.0 * x * x; tone_out += l * l + r * r; }
+    }
+    assert(tone_out / tone_in > .9 && tone_out / tone_in < 1.1);
+    d.Rest(); int spread = 0;
+    for(int i = 0; i < 9600; ++i) { float l = i == 0 ? 1.f : 0.f, r = l; d.Process(l, r); if(std::fabs(l) > 1e-3f) ++spread; }
+    assert(spread > 200);                                                   // one click becomes a haze
+    float big = 1e30f, nan = std::nanf(""); d.Process(big, nan);            // garbage in: no crash
+}
 }
 
 int main() {
@@ -56,5 +109,6 @@ int main() {
     std::cout << "fx golden " << std::hex << golden << std::dec << "\n";
     assert(golden == Scene());                                             // deterministic
     assert(golden == 0x1f4ac63c29d80babull);                              // the pre-FX chain (e245ee6)
-    std::cout << "PASS: FX section: golden (Classic route, new modules at zero = the pre-FX chain)\n";
+    ChorusUnit(); DiffuserUnit();
+    std::cout << "PASS: FX section: golden (Classic route, new modules at zero = the pre-FX chain), chorus, diffuser\n";
 }
