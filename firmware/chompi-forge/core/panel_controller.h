@@ -492,7 +492,7 @@ private:
         }
         if(const seq::Sequencer* q = engine.Sequencer())
             sequence_lights_.store(static_cast<uint32_t>(q->GetState()) | (q->Overdub() ? 8u : 0u) | (clear_frames_ ? 16u : 0u), std::memory_order_relaxed);
-        menu_lights_.store(static_cast<uint8_t>((tape_menu ? 1u : 0u) | (p.sample_loop ? 2u : 0u) | (p.sample_gate ? 4u : 0u)
+        menu_lights_.store(static_cast<uint8_t>((tape_menu ? 1u : 0u) | (p.sample_loop ? 2u : 0u) | (p.sample_gate ? 4u : 0u) | (engine.ChordLoop() ? 32u : 0u)
                                                 | (static_cast<unsigned>(monitor_) << 3)), std::memory_order_relaxed);
     }
     // TAPE's menu knob layer (MenuPage.h): turns and presses while the TAPE menu page is open.
@@ -1011,13 +1011,14 @@ inline void ComposeKnobLeds(uint32_t values, uint32_t state, bool record_positio
         if(record_position && !((state >> (16 + k)) & 1u)) rings[k] = Rgb{};
     }
 }
-// TAPE's menu page (MenuLights bit 0): SW1 white while auto-loop is on, SW2 white while
+// TAPE's menu page (MenuLights bit 0): SW1 white while auto-loop is on (purple for loop chords, bit 5,
+// 0.19.2), SW2 white while
 // sustain is on (dim otherwise); SW6 shows the monitor position (orange headphones, blue
 // both, yellow send/return).
 inline void ComposeMenuKnobLeds(uint8_t lights, Rgb (&rings)[4], Rgb& volume) {
     if(!(lights & 1u)) return;
     const Rgb on{1.f, 1.f, 1.f}, off{.08f, .08f, .08f};
-    rings[1] = (lights >> 1) & 1u ? on : off;
+    rings[1] = (lights >> 5) & 1u ? knobs::colour::purple : (lights >> 1) & 1u ? on : off;
     rings[2] = (lights >> 2) & 1u ? on : off;
     static const Rgb monitor[3] = {knobs::colour::orange, knobs::colour::blue, knobs::colour::yellow};
     volume = monitor[((lights >> 3) & 3u) % 3];

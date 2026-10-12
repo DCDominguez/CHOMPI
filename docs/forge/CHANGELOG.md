@@ -47,6 +47,12 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
   (`/api/midi/send|status|stop|reply`, forge_host's wire format, including the acknowledged-patch
   match); it opens no MIDI port. Tested in the browser end-to-end through the firmware's decoder
   (`forge_probe`) with a stand-in for Web MIDI; not yet with a real CHOMPI in Chrome.
+- **Loop chords** (the owner): SW1's press on TAPE's page now steps auto-loop off → loop (white) →
+  **loop chords** (purple). Plain loop keeps TAPE's behaviour, where each held note loops on its own
+  period (in a harmony chord that ripples). Loop chords: when the slowest (lowest) held looping note
+  of a source wraps, the others restart with it (declicked) and faster notes wait silently at their
+  start, so the chord repeats as one. Not saved (the slot keeps TAPE's loop flag). `Synth::ChordLoops`,
+  test `LoopChords` (clicks land once per root period vs. ripple; SW1 cycle). +560 B release.
 - **Conversations get motif families** (the owner: groups of motifs that go together, varied but
   not too random): SW3's steps after Bloom are now four Conversations: **Echo** (red: the top notes
   come back, softer), **Call** (pink: a rising arpeggio, a falling run, a turn), **Sparkle** (purple:

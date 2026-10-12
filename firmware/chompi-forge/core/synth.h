@@ -99,7 +99,7 @@ class Synth {
         uint32_t age = 0;
         // v4 sampler voice: integer frame + fraction, right-channel filter state,
         // and a decaying tail of the previous sound when a voice is restarted.
-        bool sampled = false, reverse = false;
+        bool sampled = false, reverse = false, looped = false, parked = false;   // 0.19.2 loop chords: wrapped this sample; waiting for the chord
         uint8_t slot = 0;
         int32_t pos = 0;
         float frac = 0, low_r = 0, band_r = 0, tail_l = 0, tail_r = 0, last_l = 0, last_r = 0;
@@ -125,6 +125,9 @@ public:
     void SetSamples(const SampleTable* table) { table_ = table; }
     // False while the main loop rewrites file slots (SampleHandoff): only the recording plays.
     void SetSampleFilesAvailable(bool available) { files_available_ = available; }
+    // 0.19.2 loop chords (TAPE page SW1, third state): a held chord's looping notes repeat together.
+    void SetChordLoop(bool on) { chord_loop_ = on; if(!on) for(auto& v : voices_) v.parked = v.looped = false; }
+    bool ChordLoopOn() const { return chord_loop_; }
     void Init(float rate) {
         rate_ = rate; voices_ = {}; age_ = 0; filter_ = 0; coefficient_ = 0; tick_ = 0;
         gain_slew_ = 1.f - std::exp(-1.f / (0.002f * rate)); // ~2 ms velocity glide on reuse
@@ -552,7 +555,7 @@ private:
             if(v.pos < start) v.pos = start;                         // start moved past the playhead
             if(v.pos >= end) {
                 if(!v.loop) return false;
-                v.pos = start + (v.pos - start) % length;
+                v.pos = start + (v.pos - start) % length; v.looped = true;
             }
         } else {
             v.frac -= step;
@@ -563,7 +566,7 @@ private:
             if(v.pos >= end) v.pos = end - 1;                        // end moved below the playhead
             if(v.pos < start) {
                 if(!v.loop) return false;
-                v.pos = end - 1 - (start - 1 - v.pos) % length;
+                v.pos = end - 1 - (start - 1 - v.pos) % length; v.looped = true;
             }
         }
         return true;
@@ -577,6 +580,7 @@ private:
         cutoff_ += 0.002f * (cutoff_target_ - cutoff_);
         const float base_octave = kLog2Of40 + cutoff_ * kLog2Of400 + lfo_octaves;
         float sum_l = 0.f, sum_r = 0.f;
+        bool looped = false;                             // 0.19.2 loop chords: a held note wrapped
         // Declick tails of restarted voices (tails_: which voices have one; rarely any).
         if(tails_) for(unsigned i = 0; i < voices_.size(); ++i) if((tails_ >> i) & 1u) {
             Voice& v = voices_[i];
@@ -589,10 +593,12 @@ private:
             Step(v.amp, *v.shape);
             if(!v.gate && (v.amp.stage == Stage::Decay || v.amp.stage == Stage::Sustain)) Release(v); // TAPE trigger mode
             if(v.amp.stage == Stage::Off) { v.last_l = v.last_r = 0.f; continue; }
+            if(v.parked) { v.last_l = v.last_r = 0.f; continue; }   // loop chords: waiting at its start for the chord
             if(v.increment != v.target) Portamento(v.increment, v.target);
             const float step = std::min(v.increment * rate * bend_[v.source], 8.f);
             float l, r;
             if(!SampleFrame(v, step, l, r)) { v.amp = Envelope{}; v.last_l = v.last_r = 0.f; continue; }
+            if(v.looped) { if(chord_loop_) looped = true; else v.looped = false; }
             Step(v.filter, filter_shape_);
             if(refresh || v.g == 0.f) {
                 const float hz = Clamp(std::exp2(base_octave + filter_octaves_ * v.filter.value), 20.f, 0.45f * rate_);
@@ -610,6 +616,26 @@ private:
             sum_l += v.last_l; sum_r += v.last_r;
         }
         left = sum_l; right = sum_r;
+        if(looped) ChordLoops();
+    }
+    // 0.19.2 loop chords. A held, looping sample note of a source that wraps: if it is the source's
+    // slowest (on a sample the lowest note is the slowest, so the longest), every other held looping note
+    // of that source starts again from its loop start with it, so the chord repeats as one; a faster note
+    // that wraps first waits silently at its start until then. Each jump leaves a ~1 ms declick tail.
+    FORGE_COLD void ChordLoops() {
+        auto held = [](const Voice& v, uint8_t source) { return v.sampled && !v.pad && v.loop && v.source == source
+                                                                && v.amp.stage != Stage::Off && v.amp.stage != Stage::Release; };
+        for(auto& w : voices_) if(w.looped) {
+            w.looped = false;
+            if(!held(w, w.source)) continue;
+            bool slowest = true;
+            for(const auto& v : voices_) if(&v != &w && held(v, w.source) && v.increment < w.increment) slowest = false;
+            if(!slowest) { w.tail_l += w.last_l; w.tail_r += w.last_r; tails_ |= 1u << (&w - voices_.data()); w.parked = true; continue; }
+            for(auto& v : voices_) if(&v != &w && held(v, w.source)) {
+                if(!v.parked) { v.tail_l += v.last_l; v.tail_r += v.last_r; tails_ |= 1u << (&v - voices_.data()); }
+                v.pos = v.reverse ? v.win_end - 1 : v.win_start; v.frac = 0.f; v.parked = false;
+            }
+        }
     }
     // After Configure: pad envelopes take the patch's decay/sustain, patch voices its settings.
     FORGE_COLD void FollowConfigure() {
@@ -711,6 +737,7 @@ private:
     // v4 sampler
     const SampleTable* table_ = nullptr;
     bool files_available_ = true, sampler_ = false, kit_ = false, sample_gate_ = true, sample_loop_ = false, sample_reverse_ = false;
+    bool chord_loop_ = false;   // 0.19.2: a held chord's notes loop together (TAPE page SW1, third state)
     uint8_t sample_slot_ = 0;
     float sample_start_ = 0, sample_end_ = 1, xfade_frames_ = 0, pitch_ = 1, pitch_target_ = 1;
     float fade_frames_ = 96, inverse_fade_ = 1.f / 96;

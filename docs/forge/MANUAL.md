@@ -360,10 +360,17 @@ While the menu is open the knobs are TAPE's second layer:
 | Knob | Turn | Press |
 | --- | --- | --- |
 | SW4 | Pitch in fifths and octaves (4 clicks per step); on page 2: pan | Pitch back to 1× (page 2: gain and pan back) |
-| SW1 / SW2 | Move the start–end window together (synth: attack and release together) | SW1: auto-loop on/off · SW2: sustain on/off (lights white when on) |
+| SW1 / SW2 | Move the start–end window together (synth: attack and release together) | SW1: auto-loop **off → loop → loop chords** (light dark / white / purple) · SW2: sustain on/off (white when on) |
 | SW3 | Delay time (page 2: warble, page 3: DJ filter resonance) | Every effect back to its default |
 | SW5 | Loop speed, also while paused | Speed back to 1× |
 | SW6 | Output compressor | Next monitor position: orange headphones, blue both, yellow send/return |
+
+**Looping a held sample (SW1 on TAPE's page, 0.19.2).** *Loop* (white) repeats each held note's sample
+from its start point while you hold the key, as TAPE does. In a harmony chord each note loops on its
+own timetable (higher notes play the sample faster, so they come round sooner), which gives a
+rippling, pulsing pattern. *Loop chords* (purple) makes the whole chord repeat as one: every note
+starts again when the lowest note loops, and the faster notes wait for it. Loop chords is not saved
+(it starts as plain loop after power-on; the slot keeps loop on, so TAPE reads it as looping).
 
 **Monitor positions (TAPE):** *headphones* (default) — in the record position you
 hear the input in the headphones only; *both* — the input is always heard, through

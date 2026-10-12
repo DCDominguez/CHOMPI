@@ -107,10 +107,16 @@ public:
     void SetSplitDelay(bool split) { split_delay_ = split; space_ = .5f; }
     // TAPE menu presses (SW1 / SW2): the sampler's auto-loop and sustain (hold) on/off.
     // With per-slot settings they belong to the slot (kit: the pad last played).
+    // 0.19.2: off -> loop -> loop chords -> off. "Loop chords" is TAPE's loop (saved in the slot as loop
+    // on, so TAPE reads it) plus Forge's chord flag: a held chord's notes loop together. The flag is not
+    // saved: off at power-on. Kit pads keep TAPE's two states.
     FORGE_COLD void ToggleSampleLoop() {
         if(SlotMode() && Kit()) { SlotValues v = PadValues(focus_); v.loop = !v.loop; SavePad(v); return; }
+        if(parameters_.sample_loop && !synth_.ChordLoopOn()) { synth_.SetChordLoop(true); return; }
+        synth_.SetChordLoop(false);
         parameters_.sample_loop = !parameters_.sample_loop; synth_.Configure(parameters_); SaveSlot();
     }
+    bool ChordLoop() const { return synth_.ChordLoopOn() && parameters_.sample_loop; }
     FORGE_COLD void ToggleSampleHold() {
         if(SlotMode() && Kit()) { SlotValues v = PadValues(focus_); v.sustain = !v.sustain; SavePad(v); return; }
         parameters_.sample_gate = !parameters_.sample_gate; synth_.Configure(parameters_); SaveSlot();

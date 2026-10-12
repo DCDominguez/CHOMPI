@@ -678,10 +678,46 @@ void CubicTableRead() {
 }
 } // namespace
 
+// 0.19.2 loop chords: a held chord of a looping sample. Plain loop: each note wraps on its own period
+// (the higher, the sooner), so the clicks at the loop start ripple apart. Loop chords: every note starts
+// again with the slowest (lowest) one, so all the clicks land together, once per root period; faster
+// notes wait silently in between. No stuck notes either way.
+void LoopChords() {
+    auto onsets = [](bool chord) {
+        Rig rig;
+        rig.Fill(0, 9600, 1, [](uint32_t i, uint8_t) { return i >= 2400 && i < 2412 ? 20000 : 0; });   // a click at the loop start
+        Parameters p = SamplerPatch(); p.sample_loop = true; p.sample_start = 0.25f; p.sample_end = 0.5f; p.sample_xfade = 0.02f;
+        assert(rig.engine.ApplyPatch(p));
+        if(chord) { rig.engine.ToggleSampleLoop(); assert(rig.engine.ChordLoop()); }   // loop -> loop chords
+        for(uint8_t n : {uint8_t(60), uint8_t(64), uint8_t(67)}) rig.engine.Note(n, 127, 0);
+        std::vector<unsigned> at; float L, R, prior = 0;
+        for(unsigned i = 0; i < 48000; ++i) {
+            rig.engine.Process(0, 0, L, R);
+            if(i > 2000 && std::fabs(L) > 0.2f && std::fabs(prior) <= 0.2f) at.push_back(i);
+            prior = L;
+        }
+        for(uint8_t n : {uint8_t(60), uint8_t(64), uint8_t(67)}) rig.engine.Note(n, 0, 0);
+        rig.Run(4800); assert(rig.engine.ActiveVoices() == 0);
+        return at;
+    };
+    const std::vector<unsigned> ripple = onsets(false), chord = onsets(true);
+    // Root period at note 60 = the window, 2400 frames; in 46,000 frames that is ~19 chord repeats.
+    assert(chord.size() >= 17 && chord.size() <= 21);
+    for(size_t i = 1; i < chord.size(); ++i) { const unsigned gap = chord[i] - chord[i - 1]; assert(gap >= 2390 && gap <= 2410); }
+    assert(ripple.size() > chord.size() + 15);                                      // three notes, three periods: many more clicks
+    unsigned odd = 0; for(size_t i = 1; i < ripple.size(); ++i) odd += (ripple[i] - ripple[i - 1]) < 2300;
+    assert(odd > 10);                                                                // ... and they ripple between the root's
+    // The third press of SW1 turns looping off again (and the chord flag with it).
+    Rig rig; Parameters p = SamplerPatch(); assert(rig.engine.ApplyPatch(p));
+    rig.engine.ToggleSampleLoop(); assert(rig.engine.GetParameters().sample_loop && !rig.engine.ChordLoop());
+    rig.engine.ToggleSampleLoop(); assert(rig.engine.GetParameters().sample_loop && rig.engine.ChordLoop());
+    rig.engine.ToggleSampleLoop(); assert(!rig.engine.GetParameters().sample_loop && !rig.engine.ChordLoop());
+}
+
 int main() {
     CubicTableRead(); WavFormats(); WavRejections(); HeaderRoundTrip(); FactoryTapeFiles();
     ProtocolV4(); ChromaticPitch(); KitMapping(); OneShotLoopReverse(); GateAndTrigger(); LoadingAndHandoff();
-    StereoVoicesAndCompatibility(); RetriggerAndFuzz();
+    StereoVoicesAndCompatibility(); RetriggerAndFuzz(); LoopChords();
     Recording(); Names(); ChromaticAndKitLoading(); ProgressiveAndDetach(); PoolLimitsAndCardRemoval(); SaveCopyErase(); SamplerRequests();
     std::cout << "PASS: cubic table read vs Hermite, WAV formats/rejections/header, factory TAPE files, v4 protocol, chromatic pitch, kit map, "
                  "one-shot/loop/reverse, gate/trigger, loading/handoff, stereo/voices/compatibility, retrigger/fuzz, "
