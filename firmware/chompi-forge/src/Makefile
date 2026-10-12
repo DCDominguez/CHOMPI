@@ -1,6 +1,8 @@
 TARGET = FORGE
 DEBUG = 0
-OPT = -O3
+# -O2, not -O3 (Phase 0 of the FX section, 2026-10-12): -O3 cost 23 KB of SRAM_EXEC for ~1 point
+# of CPU on CHOMPI (sampler + every effect: peak 53.5 % at -O3, 55.3 % at -O2; RESOURCE_LEDGER).
+OPT = -O2
 APP_TYPE = BOOT_SRAM
 WAVE = ../../chompi-wave/code
 LIBDAISY_DIR = $(WAVE)/libs/libDaisy

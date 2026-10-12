@@ -420,8 +420,8 @@
     "semantic_hash": "2e4b3e9edadd0d53a2fad658a1196aa6"
   },
   "firmware/chompi-forge/src/forge_main.cpp": {
-    "mtime": 1791807790.7995324,
-    "seen": 1791807938.7920969,
+    "mtime": 1791807939.8413684,
+    "seen": 1791811502.6695635,
     "ast_hash": "dc380d4ffe436d46172b041697d80598",
     "semantic_hash": ""
   },
@@ -654,9 +654,9 @@
     "semantic_hash": ""
   },
   "docs/forge/CONTINUE.md": {
-    "mtime": 1791806608.7510297,
-    "seen": 1791806653.9183815,
-    "ast_hash": "cc29b519b824beb55eea9b568cbe5fd6",
+    "mtime": 1791811473.7247012,
+    "seen": 1791811502.6695635,
+    "ast_hash": "55870f996b69141a4ba923656b9674c2",
     "semantic_hash": ""
   },
   "docs/forge/DEVELOPMENT.md": {
@@ -738,9 +738,9 @@
     "semantic_hash": ""
   },
   "docs/forge/RESOURCE_LEDGER.md": {
-    "mtime": 1791742019.2552967,
-    "seen": 1791744327.7784767,
-    "ast_hash": "327d791a19d81eb03388173b51b37866",
+    "mtime": 1791811473.7226999,
+    "seen": 1791811502.6695635,
+    "ast_hash": "c4db574eec7a3aac00d77bf70a8d080f",
     "semantic_hash": ""
   },
   "docs/forge/SAMPLING.md": {
@@ -750,9 +750,9 @@
     "semantic_hash": ""
   },
   "docs/forge/STORAGE_STREAMING.md": {
-    "mtime": 1791712698.2344766,
-    "seen": 1791744327.7784767,
-    "ast_hash": "147ef451a4363ac67c782beef9c4141b",
+    "mtime": 1791811473.7226999,
+    "seen": 1791811502.6695635,
+    "ast_hash": "b97283a29e0b50bd12321ee85ca6a5e1",
     "semantic_hash": ""
   },
   "docs/forge/TAPE_CONTROLS.md": {

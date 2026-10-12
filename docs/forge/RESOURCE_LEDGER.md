@@ -1,6 +1,20 @@
 # Forge Resource Ledger
 
-**Latest figures:** firmware 0.19.2 plus the battery instrumentation (2026-10-12, development
+**Latest figures:** `-O2` instead of `-O3` (2026-10-12, branch forge/fx, Phase 0 of the FX section):
+release **235,232 B** / development **246,908 B**, headroom **53,536 / 41,860 B** (-20.2 / -23.1 KB).
+CPU on CHOMPI, same stress both builds (`D:	ools\chompi-session\cpu_stress.py`: presets 10 / 13,
+every SW3 effect up, 7 held notes; status CPU reset before each), average / peak %:
+
+| Scenario | -O3 (83b57b8) | -O2 (1e6f5aa) |
+|---|---|---|
+| synth stress, effects | 37.6 / 43.7 | 37.8 / 42.6 |
+| synth stress, effects, looper recording | 38.2 / 41.9 | 38.7 / 42.9 |
+| sampler stress, effects | 47.6 / 53.5 | 48.4 / 55.3 |
+| sampler stress, effects, looper recording | 44.2 / 51.2 | 45.3 / 52.1 |
+
+(`-Os` would give development 223,268 B but slower audio; not used.) SDRAM and RAM unchanged.
+
+Before that, firmware 0.19.2 plus the battery instrumentation (2026-10-12, development
 only): release **252,416 B** (unchanged) / development **268,348 B** (+2,076 B: Inspector page
 11, `BatteryMonitor`, the 0x0C read-back), headroom **36,352 / 20,420 B**. No RAM reservation
 beyond ~100 B of monitor state in the development build; SDRAM unchanged.

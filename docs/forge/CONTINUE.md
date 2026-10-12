@@ -3,7 +3,25 @@
 Updated 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2-rc1; `main` carries it, Pages serves the forge page). The owner's CHOMPI runs development build 69c5727. Read the newest section below first; older sections are history (HOME_CHECKLIST and TEST_SESSION are kept for the record).
 
 
-## 2026-10-12 (night): battery level fixed in software (resume here)
+## 2026-10-12 (late night): FX section, Phase 0 done (resume here; branch forge/fx)
+
+- **Plan agreed with the owner** (development line, Choowi 0.20): a small multi-effect section in
+  the spirit of a four-module pedal, Forge's own names. Four modules, three effects each, one
+  chosen per module: **Colour** saturation (today) / fold / crush; **Motion** chorus / phaser /
+  tremolo-pan (off by default); **Space** echo + room (today) / cloud (huge diffuse modulated wash)
+  / tape echo; **Texture** DJ filter (today) / cassette (warble + hiss + worn tone) / broken
+  (dropouts). SW3's pages = module amounts; a new **FX menu page**: 12 white keys pick the effects,
+  more keys pick a **route** (Classic, Wear first, Wash first, Side by side). Saved per patch (v8);
+  older patches load as today's sound. Hold SW3 + turn is taken (delay time / warble / resonance).
+- **Phases:** 0 make room (done) - 1 the frame + chorus + cloud - 2 the other effects; each ends
+  with one listening session (the owner judges the sound).
+- **Phase 0:** `-O3` -> `-O2` in `src/Makefile`: development headroom 18.8 -> 41.9 KB, release
+  53.5 KB; on CHOMPI the worst peak went 53.5 -> 55.3 % (RESOURCE_LEDGER table). **Hardware-verified**
+  (stress test on both builds); CHOMPI now runs the `-O2` development build (1e6f5aa trial image).
+- Correction to the Dream check below: the encoder labelled "SW4 turned (pitch)" was SW1
+  (encoder id 3 = SW1, `kKnobEncoder`); Dream survives SW1; SW4 was not covered.
+
+## 2026-10-12 (night): battery level fixed in software
 
 - The owner: **no new features for now; fixes and stability first, battery accuracy above all.**
 - **Implemented and software-tested, not hardware-verified:** `core/power.h LevelCheck` replaces
