@@ -812,10 +812,15 @@ forge::Rgb Balance(forge::Rgb c) { return forge::Rgb{c.r, c.g * kBalanceG, c.b *
 // 0.20: the through-hole LEDs (knob rings, CHOMPI, PLAY / LOOP, transport, SW6) show green about 30 %
 // weaker than the keys' SMT LEDs (measured on the owner's CHOMPI, 2026-10-13: ring orange looked red,
 // yellow orange, white magenta), so their red and blue are trimmed to match the keys. .74 overshot on
-// camera (bright orange looked yellow, dim yellow green): .86.
+// camera (bright orange looked yellow, dim yellow green): .86, eased in with brightness (dim through-hole
+// LEDs lose red on their own: full trim from half brightness up, none at off).
 constexpr float kPthRedBlue = .86f;
 constexpr forge::Rgb kSafeModeColour{1.f, 0.f, 1.f};
-void Pth(unsigned led, forge::Rgb c) { c = Balance(c); SetPthLedFloat(led, c.r * kPthRedBlue, c.g, c.b * kPthRedBlue); }
+void Pth(unsigned led, forge::Rgb c) {
+    c = Balance(c);
+    const float level = std::fmax(c.r, std::fmax(c.g, c.b)), k = 1.f - (1.f - kPthRedBlue) * std::fmin(1.f, 2.f * level);
+    SetPthLedFloat(led, c.r * k, c.g, c.b * k);
+}
 FORGE_COLD void DrawLeds() {
     static uint32_t last_draw = 0;
     const uint32_t now = System::GetNow();

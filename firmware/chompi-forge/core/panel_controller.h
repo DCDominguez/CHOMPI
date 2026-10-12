@@ -1249,7 +1249,7 @@ inline void ComposeFxKnobLeds(uint32_t amounts, Rgb (&rings)[4], uint32_t flags 
     const Rgb colours[4] = {white, green, yellow, pink};
     for(unsigned k = 0; k < 4; ++k) {
         const float v = ((amounts >> (8 * k)) & 255u) / 255.f;
-        rings[k] = knobs::Scale(colours[k], (flags >> (4 + k)) & 1u ? 1.f : .15f + .85f * v);
+        rings[k] = knobs::Scale(colours[k], (flags >> (4 + k)) & 1u ? 1.f : .3f + .7f * v);   // .3 at zero: enough to show the colour
     }
 }
 inline void ComposePartsKnobLeds(uint32_t packed, uint32_t clock, Rgb (&rings)[4], uint32_t flags = 0) {

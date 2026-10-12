@@ -841,7 +841,7 @@ void FxPage020() {
     v.fx = rig.panel.FxLights(); ComposeLeds(v, keys, chompi);
     assert(led_of(65).r > .2f && led_of(65).r < .3f);                             // F4 soft: Motion off
     Rgb rings[4]; ComposeFxKnobLeds(rig.panel.FxKnobs(), rings);
-    assert(rings[1].g > .3f && rings[3].r < .2f && rings[3].b < rings[3].r * 1.f);   // Colour up; Motion (pink) at zero: dim                    // the rings follow the amounts
+    assert(rings[1].g > .5f && rings[3].r > .25f && rings[3].r < .35f);              // Colour up; Motion (pink) at zero: .3                    // the rings follow the amounts
     // Out of the menu, the FX flag clears and the play lights return.
     rig.Key(panel::kChompiKey, false); rig.Block();
     assert(!((rig.panel.FxLights() >> 31) & 1u) && !rig.panel.FxPage());
