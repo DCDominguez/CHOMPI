@@ -12,6 +12,11 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
 - **Lights:** the ring LEDs colour-matched to the keys; fainter harmony chord previews; FX page levels.
 - **Build:** `-O2` instead of `-O3` (23 KB of code space for ~1 point of CPU).
 - **Any FX order:** hold A#3 on the FX page and tap the modules in order; B3 side by side.
+- **Web app (v8):** the forge page and the local workshop edit every sound as v8 with an FX section group
+  (order, side by side, the four effects, amounts and characters); the chatbot prompt describes the FX
+  section; v7 sounds and replies open as v8. Ships with the FX line: firmware 0.19.2 refuses v8 sounds
+  (the page says they need 0.20).
+- **Undo forgives late pairs; fold level** (ceef237): see LOOPING.md and FX.md.
 
 ### 0.19.2
 

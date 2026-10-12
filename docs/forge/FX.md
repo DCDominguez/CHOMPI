@@ -11,7 +11,7 @@ nothing changed, CHOMPI sounds exactly as 0.19.2 (checked bit for bit in `tests/
 | **Space** (white) | echo + room (C3) · cloud (D3) · tape echo (E3) | SW4 (as SW3 page 1) | delay time and room / cloud size |
 | **Colour** (green) | saturation (F3) · fold (G3) · crush (A3) | SW1 (as SW3 page 2) | fold: bias (even harmonics); crush: lower sample rate |
 | **Texture** (yellow) | cassette (C4) · broken (D4) · squash (E4) | SW2 | cassette: hiss and worn highs; broken: longer dropouts, then stutters; squash: slower release |
-| **Motion** (orange) | chorus (F4) · phaser (G4) · tremolo (A4) | SW3 | rate (chorus 0.08–2 Hz, phaser 0.05–1.3 Hz, tremolo 0.3–10 Hz) |
+| **Motion** (pink) | chorus (F4) · phaser (G4) · tremolo (A4) | SW3 | rate (chorus 0.08–2 Hz, phaser 0.05–1.3 Hz, tremolo 0.3–10 Hz) |
 
 - **Tape echo:** the delay's head wobbles slowly and each repeat comes back darker and gently saturated.
 - **Fold:** a wavefolder, glassy then metallic as it drives harder; its level falls as 1/sqrt(drive), so it stays near the dry level (it clipped before ceef237). **Crush:** fewer bits (12 down to 3).

@@ -1,6 +1,6 @@
 "use strict";
-// Forge's USB wire format in the browser (Choowi 0.19.2), for the static "take it to CHOMPI" page on
-// GitHub Pages: a port of firmware/chompi-forge/host/forge_host.py (encode_patch for v7 patches,
+// Forge's USB wire format in the browser (Choowi 0.20), for the static "take it to CHOMPI" page on
+// GitHub Pages: a port of firmware/chompi-forge/host/forge_host.py (encode_patch for v7 / v8 patches,
 // message, the status reply). The host test tests/test_wire_js.py checks it byte for byte against the
 // Python code for every preset and random patches; change both together.
 (function (root) {
@@ -19,6 +19,13 @@
   const EXTENSIONS = ["triad", "7th", "9th", "11th", "13th", "fifth"];          // firmware enum order
   const PATTERNS = ["off", "up", "down", "updown", "order", "random"], RATES = ["1/4", "1/8", "1/8t", "1/16", "1/16t", "1/32"];
   const BASS_MODES = ["off", "root", "fifth", "alternate", "octave"], BASS_RATES = ["chord", "1/2", "1/4", "1/8"];
+  // v8 (0.20): the FX section (forge_host FX_*): four modules in any order, one effect each, amounts 0-1.
+  const FX_MODULES = ["space", "colour", "texture", "motion"], FX_CLASSIC = ["colour", "motion", "texture", "space"];
+  const FX_CHOICES = {space: ["echo_room", "cloud", "tape_echo"], colour: ["saturation", "fold", "crush"],
+    texture: ["cassette", "broken", "squash"], motion: ["chorus", "phaser", "tremolo"]};
+  const FX_AMOUNTS = ["colour_amount", "texture_amount", "motion_amount", "motion_rate", "colour_character", "texture_character"];
+  const FX_DEFAULTS = {order: [...FX_CLASSIC], side_by_side: false, space: "echo_room", colour: "saturation", texture: "cassette",
+    motion: "chorus", colour_amount: 0, texture_amount: 0, motion_amount: 0, motion_rate: 0.3, colour_character: 0, texture_character: 0};
   // Wire order after the shared fields (forge_host V3_FIELDS / V4_SAMPLER); codec as in Python.
   const V3_FIELDS = [
     ["synth", "osc2_waveform", ["enum", WAVEFORMS]], ["synth", "osc2_level", ["lin", 0, 1]], ["synth", "osc2_semitones", ["int", -24, 24, 24]],
@@ -40,8 +47,9 @@
   const ERRORS = {1: "invalid length", 2: "unsupported version", 3: "checksum mismatch", 4: "invalid patch or preset address",
     5: "unknown operation", 6: "device queue busy", 7: "that slot is empty", 8: "SD card missing or storage failed", 9: "storage busy",
     10: "battery low on a weak supply"};
-  const STATUS_LENGTHS = {1: 30, 2: 42, 3: 81, 4: 96, 5: 100, 6: 103, 7: 109}, STATUS_EXTRA = 9;
-  const OFFSETS = {1: 18, 2: 30, 3: 69, 4: 84, 5: 88, 6: 91, 7: 97};
+  ERRORS[2] = "unsupported version (sounds from this page need Choowi 0.20 or newer on CHOMPI)";
+  const STATUS_LENGTHS = {1: 30, 2: 42, 3: 81, 4: 96, 5: 100, 6: 103, 7: 109, 8: 123}, STATUS_EXTRA = 9;
+  const OFFSETS = {1: 18, 2: 30, 3: 69, 4: 84, 5: 88, 6: 91, 7: 97, 8: 111};
   const BATTERY = ["full", "high", "medium", "low", "unknown"];
 
   const word14 = v => [v & 127, (v >> 7) & 127];
@@ -68,12 +76,12 @@
     if (codec[0] === "int" && !Number.isInteger(value)) fail(where, "must be a whole number");
     if (value < codec[1] || value > codec[2]) fail(where, `must be ${codec[1]}-${codec[2]}`);
   }
-  // The v7 checks forge_host.validate_patch makes (structure, ranges, start < end); older versions are
+  // The v7 / v8 checks forge_host.validate_patch makes (structure, ranges, start < end); older versions are
   // converted by the workshop first.
   function validate(patch) {
     if (!patch || typeof patch !== "object") fail("the file", "is not a JSON object");
-    if (patch.version !== 7) fail("version", `is ${patch.version}: open it in Choowi's workshop first (it converts older sounds to v7)`);
-    exactKeys(patch, ["version", "name", "engine", "routing", "modules", "knobs", "harmony", "parts"], "the sound");
+    if (patch.version !== 7 && patch.version !== 8) fail("version", `is ${patch.version}: open it in Choowi's workshop first (it converts older sounds)`);
+    exactKeys(patch, ["version", "name", "engine", "routing", "modules", "knobs", "harmony", "parts", ...(patch.version === 8 ? ["fx"] : [])], "the sound");
     if (typeof patch.name !== "string" || !patch.name.length || patch.name.length > 80) fail("name", "must be 1-80 characters");
     if (patch.engine !== "instrument") fail("engine", "must be instrument");
     if (!ROUTES4.includes(patch.routing)) fail("routing", `must be one of ${ROUTES4.join(", ")}`);
@@ -106,8 +114,24 @@
     check(p.bass.rate, ["enum", BASS_RATES], "bass.rate"); check(p.bass.octave, ["int", 1, 3, 0], "bass.octave");
     check(p.clock.bpm, ["int", 40, 300, 0], "clock.bpm"); check(p.clock.seed, ["int", 0, 2047, 0], "clock.seed");
     check(p.clock.send_clock, ["bool"], "clock.send_clock");
+    if (patch.version === 8) {
+      const x = patch.fx; exactKeys(x, Object.keys(FX_DEFAULTS), "fx");
+      if (!Array.isArray(x.order) || x.order.length !== 4 || [...x.order].sort().join() !== [...FX_MODULES].sort().join())
+        fail("fx.order", `must list ${FX_MODULES.join(", ")} each once`);
+      check(x.side_by_side, ["bool"], "fx.side_by_side");
+      for (const m of FX_MODULES) check(x[m], ["enum", FX_CHOICES[m]], `fx.${m}`);
+      for (const k of FX_AMOUNTS) check(x[k], ["lin", 0, 1], `fx.${k}`);
+    }
     return patch;
   }
+  // A v7 sound as v8: the FX section at its defaults (forge_host.upgrade_patch to 8).
+  const toV8 = patch => patch && patch.version === 7 ? {...patch, version: 8, fx: JSON.parse(JSON.stringify(FX_DEFAULTS))} : patch;
+  function fxOrderIndex(order) {
+    let index = 0; const left = [...FX_CLASSIC];
+    order.forEach((m, i) => { const r = left.indexOf(m); index = index * (4 - i) + r; left.splice(r, 1); });
+    return index;
+  }
+  const fxWord = f => FX_MODULES.reduce((w, m, i) => w | FX_CHOICES[m].indexOf(f[m]) << 2 * i, 0) | fxOrderIndex(f.order) << 8 | (f.side_by_side ? 1 : 0) << 13;
   const harmonyWord = h => TONICS.indexOf(h.tonic) | MODES.indexOf(h.mode) << 4 | EXTENSIONS.indexOf(h.extension) << 8 | h.inversion << 11
     | (h.open ? 1 : 0) << 13 | (h.voice_leading ? 0 : 1) << 14 | (h.layout === "real" ? 1 : 0) << 15 | (h.enabled ? 1 : 0) << 16;
   function partsWords(p) {
@@ -127,7 +151,7 @@
   function encodePatch(patch, sequence) {
     validate(patch);
     const m = patch.modules, d = m.delay;
-    const data = [7];
+    const data = [patch.version];
     for (const v of [d.mix, (d.time_ms - 10) / 990, d.feedback / 0.85, m.output.level]) data.push(...word14(Math.floor(Math.min(Math.max(v, 0), 1) * 16383 + 0.5)));
     data.push(d.bypass ? 1 : 0);
     const route = ROUTES4.indexOf(patch.routing);
@@ -140,6 +164,10 @@
     for (const k of patch.knobs) data.push(k === "default" ? 0 : KNOB_TARGETS[k] + 1);
     data.push(...three(harmonyWord(patch.harmony)));
     for (const w of partsWords(patch.parts)) data.push(...three(w));
+    if (patch.version === 8) {
+      const w = fxWord(patch.fx); data.push(w & 127, w >> 7 & 127);
+      for (const k of FX_AMOUNTS) data.push(...word14(Math.floor(Math.min(Math.max(patch.fx[k], 0), 1) * 16383 + 0.5)));
+    }
     return message(1, sequence, data);
   }
   const read14 = (data, i) => data[i] | data[i + 1] << 7;
@@ -184,7 +212,7 @@
     const blocks = [...text.matchAll(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/g)].map(m => m[1]);
     const raw = blocks.length ? blocks[blocks.length - 1] : text.includes("{") ? text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1) : "";
     let patch; try { patch = JSON.parse(raw); } catch { throw new Error("That isn't valid JSON"); }
-    return validate(patch);
+    return validate(toV8(patch));
   }
   // forge_host.preset_message: store (4) saves the sound CHOMPI is playing into bank 1-8, slot 1-15; list (7).
   function presetStore(sequence, bank, slot) {
@@ -192,6 +220,7 @@
     return message(4, sequence, [bank - 1, slot - 1]);
   }
   const api = {encodePatch, validate, readSound, decodeReply, statusMessage: s => message(2, s), stopMessage: s => message(3, s),
-               presetStore, presetList: s => message(7, s), frame, message};
+               presetStore, presetList: s => message(7, s), frame, message, toV8,
+               FX: {MODULES: FX_MODULES, CLASSIC: FX_CLASSIC, CHOICES: FX_CHOICES, AMOUNTS: FX_AMOUNTS, DEFAULTS: FX_DEFAULTS}};
   if (typeof module !== "undefined") module.exports = api; else root.ForgeWire = api;
 })(typeof window !== "undefined" ? window : globalThis);

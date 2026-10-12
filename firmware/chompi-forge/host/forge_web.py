@@ -167,7 +167,7 @@ class Handler(BaseHTTPRequestHandler):
                 result = {"patch": host.validate_patch(body.get("patch"))}
             elif self.path == "/api/upgrade":
                 to = body.get("to", 3)
-                if to not in (3, 4, 5, 6, 7): raise ValueError("Upgrade target must be 3, 4, 5, 6 or 7")
+                if to not in (3, 4, 5, 6, 7, 8): raise ValueError("Upgrade target must be 3-8")
                 result = {"patch": host.upgrade_patch(body.get("patch"), to)}
             elif self.path in ("/api/midi/send", "/api/midi/status", "/api/midi/stop"):
                 # Web MIDI page (0.19.2): the browser carries the bytes; the wire format stays here.

@@ -38,10 +38,10 @@ class SiteTests(unittest.TestCase):
             for idea, js in zip(ideas, json.loads(out.stdout)):
                 self.assertEqual(js, forge_ai.chat_prompt(idea, "instrument"))
 
-    def test_presets_are_v7_and_valid(self):
+    def test_presets_are_v8_and_valid(self):
         import forge_host
         for patch in json.loads(build_site.data_js().split("window.CHOOWI_DATA = ", 1)[1].rstrip().rstrip(";"))["presets"]:
-            self.assertEqual(patch["version"], 7)
+            self.assertEqual(patch["version"], 8)
             self.assertEqual(forge_host.validate_patch(patch), patch)
 
 

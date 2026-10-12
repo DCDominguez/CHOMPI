@@ -5,7 +5,7 @@ import re
 import urllib.error
 import urllib.request
 
-from forge_host import SAMPLE_BANKS, SAMPLE_MODES, SCHEMA, SCHEMA7, parse_json, validate_patch
+from forge_host import SAMPLE_BANKS, SAMPLE_MODES, SCHEMA, SCHEMA8, parse_json, upgrade_patch, validate_patch
 
 SYSTEM = (
     "Author a Forge v1 stereo_delay JSON preset matching the schema. Only mix, "
@@ -95,10 +95,10 @@ def check_prompt(prompt, kind):
 
 def instructions(kind, samples=None):
     """The system text and JSON Schema for one authoring mode (API providers and the chat prompt)."""
-    schema = copy.deepcopy(SCHEMA7 if kind == "instrument" else SCHEMA)
+    schema = copy.deepcopy(SCHEMA8 if kind == "instrument" else SCHEMA)
     schema.pop("$schema", None)
     system = SYSTEM if kind == "delay" else (
-        "Author a Forge v7 instrument patch. Installed modules only: synth (main oscillator "
+        "Author a Forge v8 instrument patch. Installed modules only: synth (main oscillator "
         "sine/triangle/saw/square; second oscillator with its own waveform, level, semitone interval and "
         "detune; white noise; amplitude ADSR; voices 1-7, use at most 4 with the oscillators; glide), "
         "sampler (plays sample files already on the device's SD card, TAPE layout: mode chromatic plays one "
@@ -130,13 +130,25 @@ def instructions(kind, samples=None):
         "arrives), clock.seed 0-2047 picks the random pattern, send_clock true sends MIDI clock. Use the arp or bass only "
         "when the request asks for arpeggios, sequences, bass lines or a tempo; otherwise pattern off and mode off. "
         "An arp plays one note at a time, so it suits leads, plucks and keys; the bass adds one or two voices. "
+        "fx: CHOMPI's FX section, four modules that run in series in fx.order (each processes the one before's sound, "
+        "so the order changes how they affect each other; classic order colour, motion, texture, space). colour: "
+        "saturation (warm drive), fold (wavefolder, glassy to metallic) or crush (fewer bits, lo-fi grit), with "
+        "colour_amount and colour_character (fold: more even harmonics; crush: lower sample rate). texture: cassette "
+        "(tape warble; character adds hiss and worn highs), broken (random dropouts like failing tape; character makes "
+        "them longer) or squash (heavy pumping compressor; character slows its release), with texture_amount and "
+        "texture_character. motion: chorus, phaser or tremolo (pulses, the sides in turn), with motion_amount and "
+        "motion_rate (speed). space: echo_room (the delay and reverb above), cloud (a huge smeared, slowly blooming "
+        "wash) or tape_echo (repeats that wobble, darken and saturate); it has no amount of its own: delay.mix and "
+        "reverb.mix set how much. An amount of 0 bypasses its module. side_by_side true lets the reverb hear the sound "
+        "before the delay (cleaner echoes, a separate wash). Leave every amount 0 (motion_rate 0.3) unless the request "
+        "asks for drive, grit, lo-fi, tape, wobble, movement, pumping or a big wash. "
         "You cannot create or record audio and must only use samples listed below. No FM, "
         "arbitrary routing or custom code exists. Approximate the request only with these modules. Default "
         "output level 0.25. Return JSON only. " + sample_summary(samples))
     describe(schema)
     provider_schema(schema)
     # Explicit types and enums work across both providers' JSON Schema subsets.
-    schema["properties"]["version"] = {"type": "integer", "enum": [7 if kind == "instrument" else 1]}
+    schema["properties"]["version"] = {"type": "integer", "enum": [8 if kind == "instrument" else 1]}
     schema["properties"]["engine"] = {"type": "string", "enum": ["instrument" if kind == "instrument" else "stereo_delay"]}
     return system, schema
 
@@ -203,7 +215,8 @@ def generate_patch(provider, api_key, model, prompt, opener=None, kind="delay", 
 
 def checked_patch(value, kind, samples):
     patch = validate_patch(value)
-    if patch["version"] != (7 if kind == "instrument" else 1):
+    if kind == "instrument" and patch["version"] == 7: patch = upgrade_patch(patch, 8)   # a reply in the older format
+    if patch["version"] != (8 if kind == "instrument" else 1):
         raise ValueError("Wrong patch format for authoring mode")
     check_samples(patch, samples)
     return patch

@@ -1,5 +1,5 @@
 """The browser's wire format (docs/send/forge-wire.js, the GitHub Pages send page) against forge_host:
-byte-for-byte patch encoding for every preset and random v7 patches, the same refusals, and replies from
+byte-for-byte patch encoding for every preset and random v7 / v8 patches, the same refusals, and replies from
 the firmware's own decoder (build/forge_probe via sim_device) decoded alike. Needs Node.js (skips without)."""
 import copy
 import json
@@ -57,6 +57,13 @@ def random_patch(r, base):
     return host.validate_patch(p)
 
 
+def random_fx(r, patch):
+    f = dict(host.FX_DEFAULTS); order = list(host.FX_MODULES); r.shuffle(order)
+    f.update(order=order, side_by_side=r.random() < .5, **{m: r.choice(host.FX_CHOICES[m]) for m in host.FX_MODULES},
+             **{k: r.choice((0, 1)) if r.random() < .15 else r.random() for k in host.FX_AMOUNTS})
+    return host.validate_patch({**patch, "version": 8, "fx": f})
+
+
 @unittest.skipIf(NODE is None, "Node.js not found (set FORGE_NODE)")
 class WireJsTests(unittest.TestCase):
     def test_preset_store_and_list(self):
@@ -87,6 +94,30 @@ class WireJsTests(unittest.TestCase):
             self.assertEqual(js, host.encode_patch(case["patch"], case["seq"]), case["patch"]["name"])
         self.assertEqual(len(got), len(presets) + 300)
 
+    def test_v8_encoding_matches_python_byte_for_byte(self):
+        # 0.20: the FX section (patch v8): every preset upgraded, random v8 sounds with any order.
+        presets = [host.upgrade_patch(host.load_patch(path), 8) for path in sorted((ROOT / "presets").glob("*.json"))]
+        r = random.Random(20261013)
+        patches = presets + [random_fx(r, random_patch(r, host.upgrade_patch(host.load_patch(sorted((ROOT / "presets").glob("*.json"))[0]), 7))) for _ in range(300)]
+        cases = [{"patch": p, "seq": r.randint(0, 16383)} for p in patches]
+        got = node("console.log(JSON.stringify(input.map(c => w.encodePatch(c.patch, c.seq))));", cases)
+        for case, js in zip(cases, got):
+            self.assertEqual(js, host.encode_patch(case["patch"], case["seq"]), case["patch"]["name"])
+        orders = {tuple(c["patch"]["fx"]["order"]) for c in cases}
+        self.assertGreater(len(orders), 20)
+
+    def test_v7_sounds_open_as_v8_and_bad_fx_is_refused(self):
+        base = host.upgrade_patch(host.load_patch(ROOT / "presets" / "08-acid-bass.json"), 7)
+        got = node("console.log(JSON.stringify(w.readSound(JSON.stringify(input))));", base)
+        self.assertEqual(got, host.upgrade_patch(base, 8))
+        good = host.upgrade_patch(base, 8); bad = []
+        for key, value in (("order", ["colour", "colour", "space", "motion"]), ("fold", 1), ("colour", "fuzz"),
+                           ("motion_amount", 1.5), ("side_by_side", 1)):
+            p = copy.deepcopy(good); p["fx"][key] = value; bad.append(p)
+        missing = copy.deepcopy(good); del missing["fx"]; bad.append(missing)
+        refused = node("console.log(JSON.stringify(input.map(p => { try { w.encodePatch(p, 1); return false; } catch (e) { return true; } })));", bad)
+        self.assertEqual(refused, [True] * len(bad))
+
     def test_the_same_sounds_are_refused(self):
         base = host.upgrade_patch(host.load_patch(ROOT / "presets" / "08-acid-bass.json"), 7)
         bad = []
@@ -114,8 +145,9 @@ class WireJsTests(unittest.TestCase):
         device = sim_device.SimulatedMido()
         try:
             patch = host.upgrade_patch(host.load_patch(ROOT / "presets" / "08-acid-bass.json"), 7)
+            v8 = random_fx(random.Random(8), host.upgrade_patch(patch, 7))
             cases = []
-            for sent in (host.encode_patch(patch, 77), host.message(2, 78), host.message(3, 79)):
+            for sent in (host.encode_patch(patch, 77), host.message(2, 78), host.message(3, 79), host.encode_patch(v8, 80)):
                 device.handle(sim_device.Message("sysex", sent))
                 reply = list(device.replies.popleft().data)
                 cases.append({"sent": sent, "reply": reply, "python": host.decode_response(reply, host.read14(sent, 5))})

@@ -111,7 +111,7 @@ class BrowserTests(unittest.TestCase):
         p = self.page
         self.assertEqual(p.locator("#preset option").count(), len(list((ROOT / "presets").glob("*.json"))) + 1)
         patch_json = self.json()
-        self.assertEqual(patch_json["version"], 7)                  # every sound is edited as v7 (0.19.2)
+        self.assertEqual(patch_json["version"], 8)                  # every sound is edited as v8 (0.20)
         self.assertEqual(p.locator("#upgrade").count(), 0)          # so there is no convert button
         self.assertFalse(p.is_disabled("#sampler-mode")); self.assertFalse(p.is_disabled("#knobs-0"))
         for control in ("#synth-waveform", "#filter-resonance", "#lfo-rate_hz", "#reverb-mix", "#lfo-mod_wheel"):
@@ -147,14 +147,14 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(p.input_value("#filter-cutoff_hz-range"), "1000")
         p.screenshot(path=str(SHOTS / "desktop-instrument.png"), full_page=True)
 
-    def test_older_presets_open_as_v7(self):
+    def test_older_presets_open_as_v8(self):
         p = self.page
         self.choose_preset("Soft Pad")                              # a v2 preset
         before = forge_host.load_patch(ROOT / "presets" / "05-soft-pad.json")
         upgraded = self.json()
-        self.assertEqual(upgraded, forge_host.upgrade_patch(before, 7))
+        self.assertEqual(upgraded, forge_host.upgrade_patch(before, 8))
         self.assertEqual((upgraded["version"], upgraded["routing"], upgraded["knobs"], upgraded["harmony"], upgraded["parts"]),
-                         (7, "synth>delay>reverb>output", ["default"] * 4, forge_host.HARMONY_DEFAULTS, forge_host.PARTS_DEFAULTS))
+                         (8, "synth>delay>reverb>output", ["default"] * 4, forge_host.HARMONY_DEFAULTS, forge_host.PARTS_DEFAULTS))
         self.assertEqual(upgraded["modules"]["filter"]["cutoff_hz"], forge_host.v2_cutoff(before["modules"]["synth"]))   # 0.17.1 conversion
         self.assertFalse(p.is_disabled("#reverb-mix"))
         # 0.15.1: a v7 patch lists its three routes (the routing menu was empty for v7).
@@ -201,7 +201,7 @@ class BrowserTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             v1 = ROOT / "presets" / "02-slap.json"
             p.set_input_files("#import", str(v1)); self.wait_idle()
-            self.assertEqual(self.json(), forge_host.upgrade_patch(forge_host.load_patch(v1), 7))   # opens as v7
+            self.assertEqual(self.json(), forge_host.upgrade_patch(forge_host.load_patch(v1), 8))   # opens as v8
             self.assertEqual(self.json()["routing"], "aux>delay>reverb>output")            # still the line-in delay
             before = self.json()
             dup = Path(folder) / "dup.json"; dup.write_text('{"version":1,"version":1}')
@@ -210,10 +210,10 @@ class BrowserTests(unittest.TestCase):
             self.assertEqual(self.json(), before, "failed import must not replace the editor")
             v2 = ROOT / "presets" / "05-soft-pad.json"
             p.set_input_files("#import", str(v2)); self.wait_idle()
-            self.assertEqual(self.json(), forge_host.upgrade_patch(forge_host.load_patch(v2), 7))
+            self.assertEqual(self.json(), forge_host.upgrade_patch(forge_host.load_patch(v2), 8))
             v3 = ROOT / "presets" / "08-acid-bass.json"
             p.set_input_files("#import", str(v3)); self.wait_idle()
-            self.assertEqual(self.json(), forge_host.upgrade_patch(forge_host.load_patch(v3), 7))
+            self.assertEqual(self.json(), forge_host.upgrade_patch(forge_host.load_patch(v3), 8))
             self.assertEqual(p.input_value("#synth-voices"), "1")
 
     def test_chat_copy_and_paste_needs_no_key_or_device(self):
@@ -227,7 +227,7 @@ class BrowserTests(unittest.TestCase):
         box = p.locator("#chat-prompt-text")
         if box.is_visible():                                   # clipboard refused: the prompt is shown to copy
             self.assertIn("Gritty saw bass", box.input_value())
-        bass = forge_host.upgrade_patch(forge_host.load_patch(ROOT / "presets" / "08-acid-bass.json"), 7)
+        bass = forge_host.upgrade_patch(forge_host.load_patch(ROOT / "presets" / "08-acid-bass.json"), 8)
         p.fill("#reply", "Here you go!\n```json\n" + json.dumps(bass) + "\n```\nHave fun.")
         p.click("#use-reply"); self.wait_idle()
         self.assertIn("valid patch", self.notice()); self.assertEqual(self.json()["name"], bass["name"])
@@ -240,7 +240,7 @@ class BrowserTests(unittest.TestCase):
     def test_sampler_controls(self):
         p = self.page
         self.choose_preset("Recorded Keys")
-        self.assertEqual(self.json()["version"], 7)
+        self.assertEqual(self.json()["version"], 8)
         p.select_option("#sampler-mode", "kit"); p.select_option("#sampler-bank", "c"); p.check("#sampler-reverse")
         p.uncheck("#sampler-hold"); p.fill("#sampler-crossfade_ms", "80"); p.fill("#synth-voices", "7")
         s = self.json()["modules"]["sampler"]

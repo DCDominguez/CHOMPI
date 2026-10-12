@@ -1,5 +1,5 @@
 "use strict";
-// Choowi's forge, the static workshop for GitHub Pages (0.19.2). Connect CHOMPI over Web MIDI, describe a
+// Choowi's forge, the static workshop for GitHub Pages (0.20: v8 sounds with the FX section). Connect CHOMPI over Web MIDI, describe a
 // sound, let any chatbot write it (the prompt is baked in data.js from forge_ai), hear it live on CHOMPI,
 // tweak it (controls from editor.js, generated from the local workshop), keep it. forge-wire.js encodes and
 // checks everything with forge_host's wire format (tests/test_wire_js.py, tests/test_site.py).
@@ -152,11 +152,11 @@ function showJSON() { $("json").textContent = JSON.stringify(patch, null, 2); }
 function changed() { showJSON(); audition(); }
 function updateButtons() {
   $("download").disabled = !patch; $("editor").disabled = !patch; $("save-to-chompi").disabled = !patch || !connected();
-  for (const c of CONTROLS) { const off = !patch || !path(c, 7); $(c.id).disabled = off; if ($(`${c.id}-range`)) $(`${c.id}-range`).disabled = off; }
+  for (const c of CONTROLS) { const off = !patch || !path(c, 8); $(c.id).disabled = off; if ($(`${c.id}-range`)) $(`${c.id}-range`).disabled = off; }
 }
 function loadPatch(value, send = true) {
   patch = structuredClone(value); $("patch-name").value = patch.name;
-  $("routing").replaceChildren(...ROUTES[7].map(([v, label]) => new Option(label, v))); $("routing").value = patch.routing;
+  $("routing").replaceChildren(...ROUTES[8].map(([v, label]) => new Option(label, v))); $("routing").value = patch.routing;
   for (const c of CONTROLS) {
     const v = read(c);
     if (c.type === "check") $(c.id).checked = !!v;

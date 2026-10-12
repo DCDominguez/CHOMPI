@@ -168,7 +168,9 @@ class SampleWebAndAiTests(unittest.TestCase):
             self.assertEqual((status, result["patch"]["version"], result["patch"]["harmony"]), (200, 6, host.HARMONY_DEFAULTS))
             status, result = self.post("/api/upgrade", {"patch": WARM, "to": 7})
             self.assertEqual((status, result["patch"]["version"], result["patch"]["parts"]), (200, 7, host.PARTS_DEFAULTS))
-            self.assertEqual(self.post("/api/upgrade", {"patch": WARM, "to": 8})[0], 400)
+            status, result = self.post("/api/upgrade", {"patch": WARM, "to": 8})   # 0.20: the editor works in v8
+            self.assertEqual((status, result["patch"]["version"], result["patch"]["fx"]), (200, 8, host.FX_DEFAULTS))
+            self.assertEqual(self.post("/api/upgrade", {"patch": WARM, "to": 9})[0], 400)
         finally:
             device.close()
 
@@ -179,7 +181,7 @@ class SampleWebAndAiTests(unittest.TestCase):
         summary = forge_ai.sample_summary(listing)
         self.assertIn("kit bank c: slots 1, 2, 5", summary); self.assertIn("recording (slot 15, chromatic): 2.5 s", summary)
         self.assertIn("No sample list", forge_ai.sample_summary(None))
-        v4 = host.upgrade_patch(WARM, 7); v4["routing"] = "sampler>delay>reverb>output"
+        v4 = host.upgrade_patch(WARM, 8); v4["routing"] = "sampler>delay>reverb>output"
         def reply(p):
             text = json.dumps(p)
             return lambda request, timeout: io.BytesIO(json.dumps({"status": "completed", "output": [
@@ -193,6 +195,8 @@ class SampleWebAndAiTests(unittest.TestCase):
         ok = copy.deepcopy(v4); ok["modules"]["sampler"].update(mode="kit", bank="c")
         self.assertEqual(forge_ai.generate_patch("openai", "k", "m", "drums", capture(ok), kind="instrument", samples=listing), ok)
         self.assertIn("kit bank c: slots 1, 2, 5", captured["system"])
+        older = {k: v for k, v in ok.items() if k != "fx"}; older["version"] = 7   # a reply in the v7 format still opens, as v8
+        self.assertEqual(forge_ai.generate_patch("openai", "k", "m", "drums", reply(older), kind="instrument", samples=listing), ok)
         rec = copy.deepcopy(v4); rec["modules"]["sampler"].update(mode="chromatic", slot=15)
         self.assertEqual(forge_ai.generate_patch("openai", "k", "m", "keys", reply(rec), kind="instrument", samples=listing), rec)
         for bad in ({"mode": "kit", "bank": "a"}, {"mode": "chromatic", "bank": "c", "slot": 3}):

@@ -54,7 +54,7 @@ class InstrumentTests(unittest.TestCase):
 
     def test_cloud_instrument_schema_and_response(self):
         v3 = host.load_patch(ROOT / "presets/07-warm-pad.json")
-        v4 = host.upgrade_patch(v3, 7)
+        v4 = host.upgrade_patch(v3, 8)
         v4["knobs"] = ["filter.cutoff_hz", "synth.release_ms", "default", "reverb.mix"]
         for provider in ("openai","gemini"):
             content=json.dumps(v4)
@@ -63,7 +63,7 @@ class InstrumentTests(unittest.TestCase):
             def opener(request,timeout):
                 body=json.loads(request.data)
                 schema=body["text"]["format"]["schema"] if provider == "openai" else body["generationConfig"]["responseFormat"]["text"]["schema"]
-                self.assertEqual(schema["properties"]["version"]["enum"],[7])
+                self.assertEqual(schema["properties"]["version"]["enum"],[8]); self.assertIn("fx", schema["required"])
                 self.assertEqual(set(schema["properties"]["parts"]["properties"]), {"arp", "bass", "clock"})
                 self.assertIn("harmony", schema["required"]); self.assertIn("parts", schema["required"])
                 knobs = schema["properties"]["knobs"]
