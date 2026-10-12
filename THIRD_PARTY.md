@@ -106,6 +106,6 @@ topology-preserving SVF design.
 
 Forge's released firmware carries these notices in `firmware/chompi-forge/NOTICES.txt` (shipped in
 the release zip next to `FORGE.bin`). Choowi's sounds (`firmware/chompi-forge/samples/choowi-pack/`)
-are CC0. Choowi, Forge's character, and its artwork in `docs/forge/assets/` are Forge's own and are
-not CHOMPI Club marks (see `TRADEMARKS.md` for CHOMPI's).
+are CC0. Choowi, Forge's character, and its artwork in `docs/forge/assets/` are Forge's own, not
+CHOMPI Club marks, and are reserved like them: see `TRADEMARKS.md` ("Forge and Choowi").
 

@@ -60,3 +60,9 @@ Choowi started as the owner's sketch: a square with spiral, slightly crazy eyes 
 chewy grin. He got a crooked wizard hat full of stars and a hammer with a glowing rune
 that throws sparks in the nine colours. His line turns CHOMPI into a playable instrument
 that does half the work for you; see the [manual](MANUAL.md) for everything he does.
+
+## whose it is
+
+The code is MIT, free for anyone. The **names and mascots** (Forge, Choowi, and every future
+mascot) and their artwork are kept as Forge's own, the way CHOMPI Club keeps its character:
+see [TRADEMARKS.md](../../TRADEMARKS.md). A fork gets its own name and mascot.

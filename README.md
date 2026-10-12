@@ -8,7 +8,7 @@ some of it is magic. most of it is just really fun to play.</p>
 <p align="center">by <b>DeeCee</b>, built with Claude</p>
 
 <p align="center"><sub><i>Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club.
-CHOMPI is a trademark of CHOMPI Club. See <a href="TRADEMARKS.md">TRADEMARKS.md</a>.</i></sub></p>
+CHOMPI is a trademark of CHOMPI Club. The code is MIT; the Choowi name and artwork are Forge's own. See <a href="TRADEMARKS.md">TRADEMARKS.md</a>.</i></sub></p>
 
 ---
 

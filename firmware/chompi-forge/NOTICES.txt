@@ -125,4 +125,5 @@ TRADEMARKS
 
 Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club.
 The CHOMPI name, logo, character and related marks are trademarks of CHOMPI Club and are not
-covered by these licences (see TRADEMARKS.md). Choowi is Forge's own character and name.
+covered by these licences (see TRADEMARKS.md). The Choowi name, character and artwork are
+DeeCee's and are reserved in the same way (TRADEMARKS.md, "Forge and Choowi").
