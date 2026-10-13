@@ -71,7 +71,7 @@ function drawGuide(v) {
     row.append(a, b); return row;
   }));
 }
-function show(on) { $("start").hidden = on; $("panel-card").hidden = !on; $("readout").hidden = !on; }
+function show(on) { $("start").hidden = on; $("panel-card").hidden = !on; $("readout").hidden = !on; $("guide-card").hidden = !on; }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function keepAwake() {
   try { if (navigator.wakeLock && document.visibilityState === "visible") wake = await navigator.wakeLock.request("screen"); } catch { /* not allowed: fine */ }
