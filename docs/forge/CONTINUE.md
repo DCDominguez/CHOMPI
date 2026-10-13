@@ -34,6 +34,23 @@ Updated 2026-10-13: 0.20.0 release candidate 3 prepared (newest section). 2026-1
 - Also queued: rebuild the rc3 kit right before publishing (the manual changed after it was built: tooltips'
   touch targets, the glossary).
 
+- **Dream that remembers you** (the owner liked it, 2026-10-14): while the owner plays, Choowi keeps small
+  statistics of the playing (which key follows which, 25 x 25 counts; favourite chords by degree and size; hold
+  lengths and pace); idle Dream improvises from them instead of its generic styles (pad / pluck / kit styles stay
+  the fallback until enough is learned), a little dreamier than the source. Kept on the card (one small file in
+  Forge's folder), slowly forgetting old habits. Choowivision / the stage could show "dreaming of you". Estimate:
+  4-6 KB code, a few KB RAM, negligible CPU. Open: where learning lives (main loop, not the audio callback), when
+  it counts as learned, a way to reset it, privacy wording (nothing leaves CHOMPI).
+- **Choowi listens** (the owner liked it, 2026-10-14): play guitar (or anything) into CHOMPI's input; Choowi
+  detects the chord in real time (chroma from an FFT of the input, matched to chord templates in the harmony
+  key) and the arp, bass and harmony play along. Estimate: 10-15 KB code, ~30 KB RAM (D2), real CPU (FFT every
+  ~50 ms off the audio callback or bounded inside it: measure on hardware first; the 60 % peak was without the
+  FX section). Open: input level / noise gate, latency vs stability (hold a chord a beat before switching),
+  how it's switched on (a secret first, like split?), key detection or the harmony page's key, overlap with
+  SING (ugrossek's voice-led firmware). Needs CPU measurement with all FX before committing to it.
+- Code room for both (RESOURCE_LEDGER, 2026-10-14): release 34 KB, development 22 KB left; the development
+  build runs out first (Inspector ~11 KB): plan to trim it if both go in.
+
 ## 2026-10-13 (evening): Choowi 0.20.0 rc3 published (kit at e272943)
 
 - CHOMPI runs the development build of e272943 (installed with the owner's key press; split, its clearer
