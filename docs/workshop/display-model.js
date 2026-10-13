@@ -8,9 +8,9 @@
   // core/parameters.h Parameter, in enum order (a knob's target id indexes this).
   const PARAMETERS = ["Delay mix", "Delay time", "Feedback", "Level", "Bypass", "Cutoff", "Resonance", "Reverb",
     "Pitch", "Start", "End", "Knob 1", "Knob 2", "Knob 3", "Knob 4",
-    "Filter envelope", "Attack", "Decay", "Sustain", "Release", "LFO rate", "Vibrato", "LFO filter", "Tremolo depth",
+    "Filter envelope", "Attack", "Decay", "Sustain", "Release", "LFO rate", "Vibrato", "LFO filter", "LFO → volume",
     "Osc 2 level", "Osc 2 detune", "Noise", "Glide", "Room size", "Damping", "Crossfade",
-    "Speed", "Voice gain", "Pan", "Space", "Saturation", "Warble", "DJ filter", "DJ resonance", "Compressor",
+    "Speed", "Voice gain", "Pan", "Space", "Colour", "Texture", "DJ filter", "DJ resonance", "Compressor",
     "Input gain", "Motion", "Motion speed", "Colour character", "Texture character"];
   const KNOBS = ["SW4", "SW1", "SW2", "SW3"];                 // knob 0..3, left to right on the panel
   const FX_MODULES = ["Space", "Colour", "Texture", "Motion"];  // the FX page's knobs SW4 SW1 SW2 SW3
@@ -19,7 +19,7 @@
   const EXTENSIONS = ["triad", "7th", "9th", "11th", "13th", "fifth"];        // firmware enum order
   const SIZE_ORDER = ["fifth", "triad", "7th", "9th", "11th", "13th"];        // SW1's order, for its bar
   const BASS_RATES = ["per chord", "1/2", "1/4", "1/8"];
-  const SYNTH_KNOBS = [["Osc 2 level", "Vibrato"], ["Osc 2 detune", "Tremolo depth"], ["Noise", "LFO rate"], ["Glide", "Delay time"]];
+  const SYNTH_KNOBS = [["Osc 2 level", "Vibrato"], ["Osc 2 detune", "LFO → volume"], ["Noise", "LFO rate"], ["Glide", "Delay time"]];
   const LOOPER = ["empty", "armed", "recording", "playing", "paused"];
   const RECORDER = ["empty", "armed", "recording", "playing", "stopped"];
   const BATTERY = ["full", "high", "medium", "low", "unknown"];

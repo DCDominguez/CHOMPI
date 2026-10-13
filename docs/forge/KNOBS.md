@@ -22,7 +22,7 @@ Pages follow TAPE first, then Forge's extra controls, then the patch's own knob
 | SW4 | 1 pitch · 2 gain · 3 resonance · 4 filter envelope | same | 1 delay mix · 2 output level |
 | SW1 | 1 sample start · 2 attack · 3 LFO speed | 1 attack · 2 decay · 3 LFO speed | 1 delay time |
 | SW2 | 1 sample end · 2 release · 3 LFO filter · 4 loop crossfade | 1 release · 2 sustain · 3 LFO filter · 4 osc 2 detune | 1 feedback |
-| SW3 | 1 reverb + delay · 2 saturation · 3 DJ filter | same | same (on the line input) |
+| SW3 | 1 Space (reverb + delay) · 2 Colour · 3 DJ filter | same | same (on the line input) |
 | SW5 | turn: filter cutoff · push and turn: loop speed (scrub when paused) · click: speed 1× | same | same |
 | SW6 | turn: volume · short press: input gain page · hold 2 s: battery | same | same |
 
@@ -37,7 +37,8 @@ Pages follow TAPE first, then Forge's extra controls, then the patch's own knob
 - **Gain** (SW4 page 2): TAPE's voice gain, 2v² + 0.01 (0.704 ≈ 1×).
 - **Reverb + delay** (SW3 page 1): one value sets the delay feedback, half of it
   the delay mix and the reverb mix (TAPE drives delay and reverb together).
-- **Saturation** (SW3 page 2): TAPE's soft clip with level compensation.
+- **Colour** (SW3 page 2; was "saturation"): the FX section's Colour amount. TAPE's soft clip with level
+  compensation by default; fold or crush when chosen on the FX page (0.20).
 - **DJ filter** (SW3 page 3): TAPE's: left of centre low-pass, right high-pass,
   centre open. The resonance is in the menu (stage 2).
 - Pitch, gain, saturation, DJ filter, pan, warble, compressor and input gain are

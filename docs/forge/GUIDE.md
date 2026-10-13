@@ -240,7 +240,7 @@ change. No synth sound yet? Hold **SW1 + SW3** for a second (menu closed) for a 
 | Knob | Page 1 (pink) | Page 2 (teal) |
 | --- | --- | --- |
 | SW4 | oscillator 2 level | vibrato depth |
-| SW1 | oscillator 2 detune | tremolo depth |
+| SW1 | oscillator 2 detune | LFO → volume |
 | SW2 | noise | LFO speed |
 | SW3 | glide | delay time |
 

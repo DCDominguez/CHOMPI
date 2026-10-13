@@ -1,9 +1,10 @@
-# Redundant controls: review for 0.20 (proposal, nothing changed yet)
+# Redundant controls: review for 0.20
 
 The owner asked (2026-10-13) for a pass on controls that do the same thing in two places now that the FX
 page exists. Found from the firmware's own tables (`core/knob_layout.h` LayoutTarget, `PanelController`
 FxAmount / SynthTarget / FX keys, `core/preset_menu.h`). Each item: what overlaps, why it matters, a
-recommendation. **Decisions are the owner's**; nothing below is implemented.
+recommendation. **Decisions are the owner's.** The owner took the names-only set (2026-10-13): done in 0.20.0 (Colour, Texture,
+LFO → volume, Space in the display, the web editor and the manuals). Items 3 and 4 are left as they are.
 
 ## Same control, two places
 

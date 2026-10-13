@@ -178,11 +178,12 @@ light flashes white).
 | SW4 | pitch · gain · resonance · filter envelope | same |
 | SW1 | sample start · attack · LFO speed | attack · decay · LFO speed |
 | SW2 | sample end · release · LFO filter · loop crossfade | release · sustain · LFO filter · osc 2 detune |
-| SW3 | reverb + delay · saturation · DJ filter | same |
+| SW3 | Space (reverb + delay) · Colour · DJ filter | same |
 
 - **Pitch** (TAPE): the light is green-yellow at normal speed; turning left slows
   down, past the centre the sample plays **backwards**, turning right speeds up to 2×.
-- **Reverb + delay** (TAPE): one knob for both. **Saturation**: TAPE's "lofi"
+- **Colour** (0.20: the FX section's Colour amount, so with fold or crush chosen on the FX page it turns that
+  effect; TAPE's saturation otherwise). **Space** = **Reverb + delay** (TAPE): one knob for both. **Saturation**: TAPE's "lofi"
   drive. **DJ filter**: left of centre low-pass, right of centre high-pass.
 - One click moves 3 % on SW1–SW3 (TAPE's step), so single clicks are audible.
 - A patch can add its own control as each knob's **last page** (dim white light;
@@ -383,7 +384,7 @@ While the menu is open the knobs are TAPE's second layer:
 | --- | --- | --- |
 | SW4 | Pitch in fifths and octaves (4 clicks per step); on page 2: pan | Pitch back to 1× (page 2: gain and pan back) |
 | SW1 / SW2 | Move the start–end window together (synth: attack and release together) | SW1: auto-loop **off → loop → loop chords** (light dark / white / purple) · SW2: sustain on/off (white when on) |
-| SW3 | Delay time (page 2: warble, page 3: DJ filter resonance) | Every effect back to its default |
+| SW3 | Delay time (page 2: Texture, TAPE's warble; page 3: DJ filter resonance) | Every effect back to its default |
 | SW5 | Loop speed, also while paused | Speed back to 1× |
 | SW6 | Output compressor | Next monitor position: orange headphones, blue both, yellow send/return |
 
@@ -585,7 +586,7 @@ page keep holding **KEY_21**: purple (harmony) at 1 s, orange (parts) at 2 s, **
 | Knob | Page 1 (pink) | Page 2 (teal; press to switch) |
 | --- | --- | --- |
 | SW4 | Oscillator 2 level | Vibrato depth |
-| SW1 | Oscillator 2 detune | Tremolo depth |
+| SW1 | Oscillator 2 detune | LFO → volume |
 | SW2 | Noise | LFO speed |
 | SW3 | Glide | Delay time |
 

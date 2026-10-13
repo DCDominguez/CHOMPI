@@ -2,7 +2,7 @@
 
 Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)); the heading names it.
 
-## 0.20.0 The FX section, overdub undo, the phone display (tool: to be named) — release candidate 3, for community testing (2026-10-13; not yet released)
+## 0.20.0 The FX section, overdub undo, the phone display (tool: Choowivision) — release candidate 3, for community testing (2026-10-13; not yet released)
 
 - **The FX section:** four modules (Space, Colour, Texture, Motion), three effects each, in a route; the
   FX menu page; patch v8. See [FX.md](FX.md).
@@ -18,6 +18,10 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
   (the page says they need 0.20).
 - **Undo forgives late pairs; fold level** (ceef237): see LOOPING.md and FX.md.
 - **A secret on the FX page** (the owner's pick; developer notes in FX.md).
+- **Surprise me and mutate use the FX section:** half the rolls come with one or two effects (sometimes
+  another order); mutate drifts the effect amounts and now and then swaps an effect. Heard by the owner: kept.
+- **Clearer names:** SW3 page 2 is **Colour** (it turns fold or crush when they're chosen), the synth page's
+  tremolo is **LFO → volume**, TAPE's warble reads **Texture** (REDUNDANT_CONTROLS.md).
 - **Phone display:** a forge site page that shows CHOMPI's lights, page, knobs, chord, looper and battery
   live over USB (Android Chrome), portrait and landscape; firmware opcode 0D. See [DISPLAY.md](DISPLAY.md).
 

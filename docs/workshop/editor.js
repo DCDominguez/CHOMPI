@@ -55,7 +55,7 @@ const CONTROLS = [
   {g: "lfo", m: "lfo", k: "rate_hz", label: "LFO rate", unit: "Hz · log", min: .05, max: 20, step: .01, log: true, v: [3, 4, 5, 6, 7, 8]},
   {g: "lfo", m: "lfo", k: "pitch_cents", label: "Vibrato depth", unit: "cents", min: 0, max: 200, step: 1, v: [3, 4, 5, 6, 7, 8]},
   {g: "lfo", m: "lfo", k: "filter_octaves", label: "Filter sweep", unit: "octaves", min: 0, max: 4, step: .1, v: [3, 4, 5, 6, 7, 8]},
-  {g: "lfo", m: "lfo", k: "amp_depth", label: "Tremolo depth", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4, 5, 6, 7, 8]},
+  {g: "lfo", m: "lfo", k: "amp_depth", label: "LFO → volume (depth)", unit: "0–1", min: 0, max: 1, step: .01, v: [3, 4, 5, 6, 7, 8]},
   {g: "lfo", m: "lfo", k: "mod_wheel", label: "Mod wheel (CC1) controls LFO depth", type: "check", v: [3, 4, 5, 6, 7, 8]},
   {g: "delay", m: "delay", k: "mix", label: "Wet / dry", unit: "0–1", min: 0, max: 1, step: .01, v: [1, 2, 3, 4, 5, 6, 7, 8]},
   {g: "delay", m: "delay", k: "time_ms", label: "Delay time", unit: "ms", min: 10, max: 1000, step: 1, v: [1, 2, 3, 4, 5, 6, 7, 8]},

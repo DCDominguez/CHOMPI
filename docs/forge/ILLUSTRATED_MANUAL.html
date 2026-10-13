@@ -493,7 +493,7 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
     <tbody>
       <tr><td>SW4</td><td>Pitch in fifths and octaves (page 2: pan)</td><td>Pitch back to 1×</td></tr>
       <tr><td>SW1 / SW2</td><td>Move the start–end window together (synth: attack and release)</td><td>SW1 auto-loop: off, loop (white), loop chords (purple: a held chord repeats as one) · SW2 sustain (white when on)</td></tr>
-      <tr><td>SW3</td><td>Delay time (page 2 warble, page 3 DJ filter resonance)</td><td>All effects back to default</td></tr>
+      <tr><td>SW3</td><td>Delay time (page 2 Texture, TAPE's warble; page 3 DJ filter resonance)</td><td>All effects back to default</td></tr>
       <tr><td>SW5</td><td>Loop speed, also while paused</td><td>Speed back to 1×</td></tr>
       <tr><td>SW6</td><td>Output compressor</td><td>Monitor: orange headphones · blue both · yellow send/return</td></tr>
     </tbody>
@@ -672,7 +672,7 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
     <thead><tr><th>Knob</th><th>Page 1 (pink)</th><th>Page 2 (teal, press to switch)</th></tr></thead>
     <tbody>
       <tr><td>SW4</td><td>Oscillator 2 level</td><td>Vibrato depth</td></tr>
-      <tr><td>SW1</td><td>Oscillator 2 detune</td><td>Tremolo depth</td></tr>
+      <tr><td>SW1</td><td>Oscillator 2 detune</td><td>LFO → volume</td></tr>
       <tr><td>SW2</td><td>Noise</td><td>LFO speed</td></tr>
       <tr><td>SW3</td><td>Glide</td><td>Delay time</td></tr>
     </tbody>
@@ -848,7 +848,7 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
 <path d="M104 52 A30 30 0 1 0 146 94 L130 84 L126 70 L118 56 Z" fill="#ec3b3b" stroke="#1b1b22" stroke-width="5" stroke-linejoin="round"></path>
 <circle cx="52" cy="158" r="10" fill="#ffffff" stroke="#1b1b22" stroke-width="4"></circle>
 <circle cx="160" cy="146" r="22" fill="#1b1b22"></circle><circle cx="160" cy="146" r="14" fill="#ffffff"></circle><path d="M160 146 L170 134" stroke="#1b1b22" stroke-width="4" stroke-linecap="round"></path>
-</svg><span class="n">Tinker Wrench</span><span class="v">forge 0.19</span><span>Builds a sound right there on the panel.</span></div></div>
+</svg><span class="n">Tinker Wrench</span><span class="v">forge 0.19</span><span>Builds a sound right there on the panel.</span></div><div><svg class="tool" width="96" height="91" viewBox="0 0 200 190" role="img" aria-label="Choowivision"><rect x="34" y="46" width="132" height="96" rx="18" fill="#1b1b22" stroke="#1b1b22" stroke-width="5"></rect><rect x="46" y="58" width="108" height="72" rx="10" fill="#ff5ea0" opacity=".9"></rect><circle cx="78" cy="94" r="9" fill="#ffffff"></circle><circle cx="100" cy="94" r="9" fill="#f5c400"></circle><circle cx="122" cy="94" r="9" fill="#2fbf55"></circle><path d="M80 28 L100 46 L120 28" fill="none" stroke="#1b1b22" stroke-width="6" stroke-linecap="round"></path><path d="M70 142 L62 162 M130 142 L138 162" stroke="#1b1b22" stroke-width="6" stroke-linecap="round"></path></svg><span class="n">Choowivision</span><span class="v">forge 0.20</span><span>Puts CHOMPI's panel on your phone, and four effects in your order.</span></div></div>
 </section>
 
 <!-- 16 -->
@@ -1061,9 +1061,9 @@ document.getElementById('book-print').addEventListener('click',()=>window.print(
   // core/parameters.h Parameter, in enum order (a knob's target id indexes this).
   const PARAMETERS = ["Delay mix", "Delay time", "Feedback", "Level", "Bypass", "Cutoff", "Resonance", "Reverb",
     "Pitch", "Start", "End", "Knob 1", "Knob 2", "Knob 3", "Knob 4",
-    "Filter envelope", "Attack", "Decay", "Sustain", "Release", "LFO rate", "Vibrato", "LFO filter", "Tremolo depth",
+    "Filter envelope", "Attack", "Decay", "Sustain", "Release", "LFO rate", "Vibrato", "LFO filter", "LFO → volume",
     "Osc 2 level", "Osc 2 detune", "Noise", "Glide", "Room size", "Damping", "Crossfade",
-    "Speed", "Voice gain", "Pan", "Space", "Saturation", "Warble", "DJ filter", "DJ resonance", "Compressor",
+    "Speed", "Voice gain", "Pan", "Space", "Colour", "Texture", "DJ filter", "DJ resonance", "Compressor",
     "Input gain", "Motion", "Motion speed", "Colour character", "Texture character"];
   const KNOBS = ["SW4", "SW1", "SW2", "SW3"];                 // knob 0..3, left to right on the panel
   const FX_MODULES = ["Space", "Colour", "Texture", "Motion"];  // the FX page's knobs SW4 SW1 SW2 SW3
@@ -1072,7 +1072,7 @@ document.getElementById('book-print').addEventListener('click',()=>window.print(
   const EXTENSIONS = ["triad", "7th", "9th", "11th", "13th", "fifth"];        // firmware enum order
   const SIZE_ORDER = ["fifth", "triad", "7th", "9th", "11th", "13th"];        // SW1's order, for its bar
   const BASS_RATES = ["per chord", "1/2", "1/4", "1/8"];
-  const SYNTH_KNOBS = [["Osc 2 level", "Vibrato"], ["Osc 2 detune", "Tremolo depth"], ["Noise", "LFO rate"], ["Glide", "Delay time"]];
+  const SYNTH_KNOBS = [["Osc 2 level", "Vibrato"], ["Osc 2 detune", "LFO → volume"], ["Noise", "LFO rate"], ["Glide", "Delay time"]];
   const LOOPER = ["empty", "armed", "recording", "playing", "paused"];
   const RECORDER = ["empty", "armed", "recording", "playing", "stopped"];
   const BATTERY = ["full", "high", "medium", "low", "unknown"];

@@ -17,7 +17,8 @@ forge                         the workshop: shared tools, docs, tests, the bridg
 │   ├── 0.17  Wake-up Bell    (yellow)
 │   │   └── 0.17.1 Sweep Brush  (small update, small tool)
 │   ├── 0.18  Dream Bellows   (orange)
-│   └── 0.19  Tinker Wrench   (red)
+│   ├── 0.19  Tinker Wrench   (red)
+│   └── 0.20  Choowivision    (pink: CHOMPI's screen on your phone, and the FX section)
 └── (the next firmware line)  a new name, a new mascot, same workshop
 ```
 
