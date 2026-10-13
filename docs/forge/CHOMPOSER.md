@@ -173,6 +173,32 @@ instrument's colour; in every phase, SW1-SW4 speak to instruments 1-4. That's th
 | **LOOP, held** | **Fermata**: time holds on the current chord; release to go on | fermata |
 | **C5** | Tutti (everyone in); held: grand pause | tutti / G.P. |
 
+### The knobs in detail (owner: "how about the knobs")
+
+**SW1-SW4 are instruments 1-4, always.** One gesture vocabulary in performance:
+
+| Gesture | Does | Conductor equivalent |
+|---|---|---|
+| **Turn** | that instrument's dynamics (smooth, no steps) | the left hand towards a section |
+| **Push + turn** | its **character**: legato ↔ staccato, and brightness with it (CC 74) | the shape of the gesture to that section |
+| **Tap** | **cue** it in at the next bar (after a pickup), or **cut it off** at the end of its phrase | cue / cutoff |
+| **Hold 1 s** | **solo**: it leads, the others drop back (released: back to the balance) | bringing a line forward |
+| **Push two knobs together** | **swap their roles**: the melody passes from one instrument to the other at the next phrase | the melody passing between sections |
+| **SW5 turn / push + turn / tap** | tempo / pace (half, normal, double time feel) / back to the prepared tempo | beat spacing, subdivision |
+| **SW6** | the whole orchestra's dynamics (held 2 s: the battery, as Choowi) | gesture size |
+
+**What the rings show (feedback):**
+- **Colour = the instrument's role**, from CHOMPI's nine: melody pink, counter-melody teal, harmony purple,
+  bass blue, rhythm orange, drone green. A role swap visibly moves the colours between knobs.
+- **Brightness = its level**, and it **flickers with every note it plays**, so you see who is playing
+  and how busy they are, at a glance.
+- **Resting (tacet):** a slow, dim breath. **Cue waiting:** it blinks in time until its entrance lands.
+  **Cut off:** a short white flash, then the rest breath. **Solo:** it brightens, the other three dim.
+- **Character (push + turn):** the ring turns white while held, bright = legato, pulsing short = staccato.
+- **SW5's two lights tick the beat** left / right like a metronome; faster when you push the tempo.
+- In the prep pages the rings show the page's value (level, brightness, mood follow) the way Choowi's
+  knob pages do; in the seed phase they show the step (length, quantize, meter, key) in the step colours.
+
 **Lights:** the CHOMPI light pulses on every beat (the ictus); knob rings show each instrument's colour
 and level, dim when it rests; the lower white keys show the form (the current part bright, the queued one
 blinking); the mood keys glow in their colour; PLAY / LOOP as the transport and the fermata.
