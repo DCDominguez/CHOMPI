@@ -35,7 +35,7 @@ It only reads: nothing on the page changes CHOMPI.
 1. Android phone, Chrome. Plug CHOMPI into the phone with a USB-C cable (an OTG cable or adapter); CHOMPI
    may draw power (and charge) from the phone while connected: mind the phone's battery on long sessions
    (not yet measured).
-2. Open the forge site's **phone display** page and press **Connect**; allow MIDI devices (Chrome asks once,
+2. Open the forge site's **Choowivision** page and press **Connect**; allow MIDI devices (Chrome asks once,
    including "system exclusive" messages, which is how the view travels).
 3. Turn the phone sideways for a bigger panel: portrait puts the panel above the readout, landscape side by
    side, sized to the screen with no scrolling. The ⤢ button goes full screen; the page keeps the screen

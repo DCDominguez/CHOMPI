@@ -22,8 +22,9 @@ const ripples = [];
 let W = 0, H = 0, dpr = 1, mask = null;
 function resize() {
   dpr = Math.min(2, window.devicePixelRatio || 1); W = cv.width = innerWidth * dpr; H = cv.height = innerHeight * dpr;
-  // The LED look: a mask of round holes over the scaled-up panel.
-  const cell = Math.min(W / GW, H / GH); mask = {cell, ox: (W - cell * GW) / 2, oy: (H - cell * GH) / 2};
+  // The LED look: a mask of round holes over the scaled-up panel. It covers the whole screen (the owner: "it doesn't
+  // take up the whole screen"); a screen of another shape loses a little at the edges.
+  const cell = Math.max(W / GW, H / GH); mask = {cell, ox: (W - cell * GW) / 2, oy: (H - cell * GH) / 2};
   const m = document.createElement("canvas"); m.width = Math.ceil(cell); m.height = Math.ceil(cell);
   const mc = m.getContext("2d"); mc.fillStyle = "#050507"; mc.fillRect(0, 0, m.width, m.height);
   mc.globalCompositeOperation = "destination-out"; mc.beginPath(); mc.arc(cell / 2, cell / 2, cell * .36, 0, Math.PI * 2); mc.fill();
@@ -249,7 +250,7 @@ const pick = (attr, set) => document.querySelectorAll(`[data-${attr}]`).forEach(
   set(b.dataset[attr]); document.querySelectorAll(`[data-${attr}]`).forEach(x => x.setAttribute("aria-pressed", String(x === b)));
 }));
 pick("pattern", v => { pattern = v; }); pick("look", v => { look = v; prev.fill(0); dead.fill(0); });
-document.getElementById("full").addEventListener("click", () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}));
+if (window.ForgeFull) ForgeFull(document.getElementById("full"), {landscape: true});
 // ---- Dream (the owner: "make it reactive to keys being played on dream mode"). Dream plays inside CHOMPI and sends
 // no notes, but the view (opcode 0D page 1) says when it plays (dream bit 26) and which keys it plays (bits 0-24:
 // C3 + bit, PanelController::DreamLights / dream::Show::KeyMask). While Dream plays: tide, and each key it plays is

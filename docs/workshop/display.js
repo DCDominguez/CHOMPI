@@ -172,7 +172,4 @@ $("demo").addEventListener("click", () => {
     requestAnimationFrame(frame);
   })();
 });
-$("full").addEventListener("click", () => {
-  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-  else document.documentElement.requestFullscreen().catch(() => {});
-});
+if (window.ForgeFull) ForgeFull($("full"));

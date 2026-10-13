@@ -576,13 +576,13 @@ Any arriving MIDI stops dream mode. No API key is needed on the forge page.
 
 ## how do I see CHOMPI on my phone?
 
-The forge page has a **phone display**: CHOMPI's panel drawn live, with every light, the page
+The forge page has **Choowivision**: CHOMPI's panel drawn live, with every light, the page
 you're on, what each key and knob does there, the chord you just played, the looper and the
 battery. It's the same drawing as the illustrated manual, so you can check one against the other.
 
 1. **Android phone, Chrome** (iPhones have no Web MIDI). Plug CHOMPI into the phone with a USB-C
    OTG cable or adapter and switch it on. A computer with Chrome or Edge works too.
-2. Open the forge page, tap **phone display**, then **Connect**, and allow MIDI devices.
+2. Open the forge page, tap **Choowivision**, then **Connect**, and allow MIDI devices.
 3. Turn the phone sideways for the biggest panel. It only watches; it never changes CHOMPI.
    Needs Choowi 0.20.
 

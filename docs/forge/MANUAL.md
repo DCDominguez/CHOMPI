@@ -751,9 +751,9 @@ Without CHOMPI, choose **make sounds anyway** to create, edit and save JSON for 
 
 Any arriving MIDI stops dream mode and restarts its idle timer.
 
-### CHOMPI's screen on your phone (0.20)
+### Choowivision: CHOMPI's screen on your phone (0.20)
 
-The forge page's **phone display** shows what CHOMPI is doing while you play: the panel's lights in place, the
+The forge page's **Choowivision** shows what CHOMPI is doing while you play: the panel's lights in place, the
 page you're on (in its CHOMPI colour), what each knob moves and its value, the chord harmony mode just played,
 the looper's position and length, SW5's cutoff and the loop speed, the recorder, SW6 and the battery. It only
 watches; nothing on it changes CHOMPI.
@@ -766,7 +766,7 @@ combos and the other controls. Chords are spelled in the key you set (B♭, not 
 case; ♭VII, iv and ♭VI for borrowed chords).
 
 1. **Android phone, Chrome.** Plug CHOMPI into the phone with a USB-C OTG cable or adapter and switch it on.
-2. Open the forge page, tap **phone display**, then **Connect**, and allow MIDI devices.
+2. Open the forge page, tap **Choowivision**, then **Connect**, and allow MIDI devices.
 3. Hold the phone upright for the panel above the readout, or sideways for both side by side. ⤢ goes full
    screen; the screen stays on while the page is open.
 
