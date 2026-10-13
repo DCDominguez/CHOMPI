@@ -8,7 +8,8 @@ const NS = "http://www.w3.org/2000/svg";
 let running = false, wake = null;
 
 // ---- the panel drawing (viewBox 1200 x 470): one element per light, coloured from view page 0 -------------
-const lights = [];
+const lights = [], keyLabels = {}, knobLabels = [];
+const WHITE = [48, 50, 52, 53, 55, 57, 59, 60, 62, 64, 65, 67, 69, 71, 72], BLACK = [49, 51, 54, 56, 58, 61, 63, 66, 68, 70];
 function el(tag, attrs, parent) {
   const e = document.createElementNS(NS, tag);
   for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
@@ -36,7 +37,9 @@ function el(tag, attrs, parent) {
     const halo = el("circle", {cx, cy, r: 50, fill: "none", stroke: "#000", "stroke-width": 18, filter: "url(#glow)", opacity: 0}, svg);
     const ring = el("circle", {cx, cy, r: 44, fill: "none", stroke: "#222", "stroke-width": 9}, svg);
     el("circle", {cx, cy, r: 31, fill: "#d9d6cf"}, svg);
-    light(L.rings[k], {kind: "ring", ring, halo}); text(cx, 172, name);
+    light(L.rings[k], {kind: "ring", ring, halo}); text(cx, 166, name, 20);
+    knobLabels[k] = el("text", {x: cx, y: 194, "text-anchor": "middle", fill: "#f4f2ec", "font-size": 21,
+      "font-family": "Fredoka, Nunito, system-ui, sans-serif", "font-weight": 600}, svg);
   });
   // SW5, the transport pair above it, PLAY and LOOP.
   el("circle", {cx: 838, cy: 104, r: 58, fill: "#4c3f9e", stroke: "#2c2560", "stroke-width": 4}, svg); text(838, 186, "SW5");
@@ -61,7 +64,8 @@ function el(tag, attrs, parent) {
     const halo = el("rect", {x: x + kw / 2 - 20, y: 290, width: 40, height: 22, rx: 8, fill: "#000", filter: "url(#glow)", opacity: 0}, svg);
     const dot = el("rect", {x: x + kw / 2 - 15, y: 294, width: 30, height: 14, rx: 6, fill: "#bdb9b0"}, svg);
     light(L.white[i], {kind: "dot", dot, halo, off: "#bdb9b0"});
-    if (i % 7 === 0) text(x + kw / 2, 430, `C${3 + i / 7}`, 16);
+    keyLabels[WHITE[i]] = el("text", {x: 0, y: 0, "data-cx": x + kw / 2, fill: "#2b2228",
+      "font-size": 22, "font-family": "Fredoka, Nunito, system-ui, sans-serif", "font-weight": 600}, svg);
   }
   [0, 1, 3, 4, 5, 7, 8, 10, 11, 12].forEach((after, j) => {
     const x = x0 + (after + 1) * kw;
@@ -69,6 +73,8 @@ function el(tag, attrs, parent) {
     const halo = el("rect", {x: x - 18, y: 216, width: 36, height: 18, rx: 7, fill: "#000", filter: "url(#glow)", opacity: 0}, svg);
     const dot = el("rect", {x: x - 13, y: 220, width: 26, height: 11, rx: 5, fill: "#2a2529"}, svg);
     light(L.black[j], {kind: "dot", dot, halo, off: "#2a2529"});
+    keyLabels[BLACK[j]] = el("text", {x, y: 258, "text-anchor": "middle", fill: "#e9e3e7", "font-size": 14,
+      "font-family": "Fredoka, Nunito, system-ui, sans-serif", "font-weight": 600}, svg);
   });
 })();
 // A 7-bit LED colour as the eye sees it: hue kept, dim lights lifted a little so they still read.
@@ -109,6 +115,18 @@ function drawState(v) {
     const ring = lastLeds && colour(lastLeds[L.rings[i]]);
     t.tile.style.setProperty("--ring", ring ? ring.css : "#888");
   });
+  // Page context: every key's job on this page, each knob's control under it, the page's notes below.
+  for (const n of WHITE.concat(BLACK)) {
+    const label = v.guide.keys[n] || "", e = keyLabels[n], max = BLACK.includes(n) ? 8 : 10;
+    e.textContent = label.length > max ? label.slice(0, max - 1) + "…" : label;
+    if (!BLACK.includes(n)) {                     // white keys: short labels upright at the bottom, longer ones up the key
+      const cx = Number(e.getAttribute("data-cx")), upright = label.length <= 4;
+      e.setAttribute("transform", upright ? `translate(${cx},${428})` : `translate(${cx + 8},${430}) rotate(-90)`);
+      e.setAttribute("text-anchor", upright ? "middle" : "start");
+    }
+  }
+  v.knobs.forEach((k, i) => { const s = k.text || k.label || ""; knobLabels[i].textContent = s.length > 11 ? s.slice(0, 10) + "…" : s; });
+  drawGuide(v);
   $("vol-label").textContent = v.volume.label; $("vol").style.width = `${Math.round(v.volume.value * 100)}%`;
   $("chord-name").textContent = v.chord && v.chord.name ? v.chord.name : "—";
   $("chord-detail").textContent = v.chord ? [v.chord.numeral, v.chord.shifted ? "shift" : "", v.chord.notes.join(" ")].filter(Boolean).join(" · ") : "harmony plays chords here";
@@ -120,6 +138,21 @@ function drawState(v) {
   const p = v.power;
   $("battery").hidden = false;
   $("battery").textContent = `${p.charging ? "⚡ " : ""}battery ${p.battery}${p.full ? " · charged" : ""}`;
+}
+let guideKey = "";
+function drawGuide(v) {
+  const c = v.guide.controls;
+  const rows = v.guide.legend.concat([["CHOMPI", c.chompi], ["SW5", c.sw5], ["SW6", c.sw6], ["SW4", c.sw4], ["PLAY", c.play], ["LOOP", c.loop]]
+    .filter(([, d]) => d));
+  const key = v.page + JSON.stringify(rows);
+  if (key === guideKey) return;                                   // rebuild only when the page's notes change
+  guideKey = key;
+  $("guide-title").textContent = `on this page · ${v.pageName}`;
+  $("guide").replaceChildren(...rows.map(([what, does]) => {
+    const row = document.createElement("div"); row.className = "guide-row";
+    const a = document.createElement("b"); a.textContent = what; const b = document.createElement("span"); b.textContent = does;
+    row.append(a, b); return row;
+  }));
 }
 function show(on) { $("start").hidden = on; $("panel-card").hidden = !on; $("readout").hidden = !on; }
 const sleep = ms => new Promise(r => setTimeout(r, ms));

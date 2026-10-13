@@ -97,6 +97,22 @@ class DisplayJsTests(unittest.TestCase):
                          [("Tempo", "128 BPM"), ("Arp octaves", "3"), ("Arp gate", "45 %"), ("Bass rate", "1/4")])
         self.assertEqual(got[1][3]["hint"], "bass in C2")
 
+    def test_page_key_labels_follow_the_firmware(self):
+        # Every key the firmware gives a job on the parts, synth and FX pages is labelled, and only those (+ C#4 / D#4).
+        panel = (ROOT / "core" / "panel_controller.h").read_text(encoding="utf-8")
+        fx = (ROOT / "core" / "fx.h").read_text(encoding="utf-8")
+        def body(name):
+            start = panel.index(f"void {name}(")
+            return panel[start:panel.index("\n    }\n", start)]
+        parts = {int(n) for n in re.findall(r"case (\d+):", body("PartsKey"))}
+        synth = set(range(48, 54)) - {49, 51} | {int(n) for n in re.findall(r"\b(\d{2})\b", body("SynthKey")) if 48 <= int(n) <= 72}
+        keys = re.search(r"kKeys\[kModules\]\[kChoices\] = \{(.*?)\};", fx, re.S)
+        fx_notes = {int(n) for n in re.findall(r"\d+", keys.group(1))} | {int(re.search(rf"{k} = (\d+)", fx).group(1))
+                    for k in ("kRouteKey", "kBeforeLoopKey", "kAfterLoopKey", "kSideKey")}
+        got = model("console.log(JSON.stringify(['parts', 'synth', 'fx'].map(p => Object.keys(d.guide(p, {menu: 1, harmony_lights: 0}).keys).map(Number))));", None)
+        for page, firmware, js in zip(("parts", "synth", "fx"), (parts, synth, fx_notes), got):
+            self.assertEqual(set(js), firmware | {61, 63}, page)
+
 
 if __name__ == "__main__":
     unittest.main()

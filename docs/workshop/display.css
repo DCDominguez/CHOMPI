@@ -38,6 +38,10 @@ main{flex:1;display:flex;flex-direction:column;gap:12px;padding:12px var(--pad);
 .meter i{display:block;height:100%;width:0;background:var(--ring,var(--spark));border-radius:4px}
 .knob .meter i{background:var(--ring)}
 .status-line{text-align:center;margin:0}
+.guide{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px;line-height:1.35}
+.guide-row{display:contents}
+.guide-row b{font-family:var(--mono);font-size:12px;color:var(--spark);white-space:nowrap;padding-top:2px}
+.guide-row span{color:var(--ink)}
 /* Landscape on a phone: panel left (as large as the height allows), a compact readout right; no scrolling. */
 @media (orientation:landscape) and (min-width:560px){
   body{height:100dvh;overflow:hidden}

@@ -17,6 +17,14 @@ The display is a page of the forge site (`docs/workshop/display.html`) that show
 - **the chord** harmony mode just played (name, numeral, notes), **the looper** (state, position, length,
   effects before or after), **the event recorder**, SW6 (volume or input gain) and the **battery**.
 
+**Page context everywhere** (the owner, 2026-10-13: "labels on everything"): every key is labelled with
+what it does on the page you're on (note names when playing; chord numerals with harmony on in the static
+layout; slots, bank, save / copy / erase on the presets and TAPE pages; the effects on the FX page; waves,
+intervals and voices on the synth page; patterns, rates and the bass on the arp and bass page), each knob's
+control is written under it, and an **on this page** list below the readout explains the page's keys, combos
+and the other controls (CHOMPI, SW5, SW6, PLAY, LOOP). `tests/test_display_js.py` checks the key labels
+against the firmware's key handlers, so they can't drift apart.
+
 It only reads: nothing on the page changes CHOMPI.
 
 ## Using it

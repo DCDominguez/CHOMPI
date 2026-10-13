@@ -116,7 +116,7 @@ Forge keeps TAPE's panel workflow (firmware 0.10). The toggle has two positions:
 
 | Control | Normal play | In the menu (toggle down + hold CHOMPI) |
 | --- | --- | --- |
-| 25 keys (C3–C5) | Play notes (full velocity, as TAPE) | The menu opens on the page you left it on, at first **TAPE's page** (section 7: sample slots, KEY_21 / KEY_22 taps place the effects). Hold KEY_22 1 s: Forge's **presets page** (white keys pick slots, black keys are save / copy / erase / bank). Hold KEY_21 1 s: the **harmony page**, then tap KEY_21 to cycle **harmony → parts → synth → harmony**. KEY_22 goes back to TAPE's page |
+| 25 keys (C3–C5) | Play notes (full velocity, as TAPE) | The menu opens on the page you left it on, at first **TAPE's page** (section 7: sample slots, KEY_21 / KEY_22 taps place the effects). Hold KEY_22 1 s: Forge's **presets page** (white keys pick slots, black keys are save / copy / erase / bank). Hold KEY_21 1 s: the **harmony page**, then tap KEY_21 to cycle **harmony → parts → synth → FX → harmony**. KEY_22 goes back to TAPE's page |
 | CHOMPI key | Toggle **up** + hold = record (after a 1.5 s count-in). Toggle **down**, a quick tap: the event recorder's close / stop / play once it has a take or is armed (arm it with F#4 on the parts page; section 8c) | Toggle **down** + hold = open the menu; press = confirm |
 | SW4, SW1, SW2, SW3 | Turn: the knob's current page. Press and release: next page. Hold 1.5 s: reset that control | SW4 turns the bank |
 | SW4 + SW3 held 1 s | **Panic** (stops all sound) | — |
