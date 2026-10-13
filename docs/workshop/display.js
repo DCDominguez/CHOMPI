@@ -91,9 +91,9 @@ function drawLights(leds) {
 // ---- the readout ------------------------------------------------------------------------------------------
 const knobTiles = ["SW4", "SW1", "SW2", "SW3"].map(name => {
   const tile = document.createElement("div"); tile.className = "tile knob";
-  tile.innerHTML = `<span class="label"><span>${name}</span><span class="pg"></span></span><b>—</b><div class="meter"><i></i></div>`;
+  tile.innerHTML = `<span class="label"><span class="nm">${name}</span><span class="pg"></span></span><b>—</b><div class="meter"><i></i></div><span class="detail hint"></span>`;
   $("knobs").append(tile);
-  return {tile, page: tile.querySelector(".pg"), name: tile.querySelector("b"), bar: tile.querySelector(".meter i")};
+  return {tile, title: tile.querySelector(".nm"), page: tile.querySelector(".pg"), name: tile.querySelector("b"), bar: tile.querySelector(".meter i"), hint: tile.querySelector(".hint")};
 });
 let lastLeds = null;
 function drawState(v) {
@@ -101,7 +101,10 @@ function drawState(v) {
   $("where-dot").style.background = v.pageColour; $("where-dot").style.color = v.pageColour;
   v.knobs.forEach((k, i) => {
     const t = knobTiles[i];
-    t.name.textContent = k.label; t.page.textContent = k.page ? `page ${k.page}${k.patchPage ? " · sound's" : ""}` : "";
+    // A page's own setting: its name in the small row, its value big; a play knob: the control it moves big.
+    t.title.textContent = k.text ? `${k.name} · ${k.label}` : k.name; t.name.textContent = k.text || k.label;
+    t.page.textContent = k.page ? `page ${k.page}${k.patchPage ? " · sound's" : ""}` : "";
+    t.hint.textContent = k.hint || ""; t.hint.hidden = !k.hint;
     t.bar.style.width = `${Math.round(k.value * 100)}%`;
     const ring = lastLeds && colour(lastLeds[L.rings[i]]);
     t.tile.style.setProperty("--ring", ring ? ring.css : "#888");
@@ -181,7 +184,7 @@ $("demo").addEventListener("click", () => {
     const knobBytes = [0, 1, 2, 3].reduce((w, k) => w + Math.round(255 * wave(k)) * 2 ** (8 * k), 0);
     drawState(D.describe({words: {menu, looper: 3 | 32 | Math.round(pos * 1023) << 6 | 800 * 65536, knob_state: 1 << 3 | 200 * 2 ** 24,
       knob_values: knobBytes, knob_targets: 0 | 1 << 8 | 2 << 16 | 5 * 2 ** 24, fx_lights: fxBit, fx_knobs: knobBytes, synth_lights: 0, synth_knobs: 0,
-      harmony_lights: 0, parts_lights: 0, parts_clock: 0, sequence_lights: 0,
+      harmony_lights: 9 | 1 << 8 | 1 << 16, parts_lights: 1 | 3 << 3 | 1 << 6 | 9 << 8 | 2 << 17, parts_clock: 1 | 120 << 8, sequence_lights: 0,
       chord: root | 1 << 7 | degree << 10 | notes.length << 14 | (Math.floor(t / 60) & 127) << 17, flags: 0, dream: 0},
       chordNotes: [...notes, 0, 0, 0, 0].slice(0, 5), power: {battery: 1, flags: 1, chargeState: 3}}));
     $("status-line").textContent = "demo: made-up lights and state";

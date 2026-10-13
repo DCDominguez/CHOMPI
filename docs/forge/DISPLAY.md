@@ -11,7 +11,9 @@ The display is a page of the forge site (`docs/workshop/display.html`) that show
   transport pair, drawn in place on a picture of the panel;
 - **the page you're on** (play, TAPE record, presets, TAPE page, harmony, arp and bass, synth, FX) in its
   CHOMPI colour, or Dream;
-- **what each knob moves** right now (name, page, value; on the FX page the four module amounts);
+- **what each knob moves** right now (name, page, value). On the FX page the four module amounts; on the
+  harmony page mode, chord size, inversion and spread (with harmony on / off, layout and voice leading); on
+  the arp and bass page tempo, arp octaves, gate and bass rate (with tap tempo or MIDI clock, the bass octave);
 - **the chord** harmony mode just played (name, numeral, notes), **the looper** (state, position, length,
   effects before or after), **the event recorder**, SW6 (volume or input gain) and the **battery**.
 
@@ -83,5 +85,3 @@ firmware version. Firmware before 0.20 answers "unknown operation"; the page the
 
 - Tried on CHOMPI and an Android phone (USB OTG, poll rate, battery draw).
 - A cheat sheet per page under the readout (the owner's idea, with the illustrated guides).
-- The harmony and parts pages show their knobs' normal targets; their own settings (key, mode, chord size;
-  pattern, rate) come from the status's patch in a later pass.

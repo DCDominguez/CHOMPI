@@ -80,6 +80,23 @@ class DisplayJsTests(unittest.TestCase):
         self.assertAlmostEqual(got[0]["position"], 512 / 1023, places=4)
         self.assertEqual((got[1]["name"], got[1]["numeral"], got[1]["notes"]), ("Am7", "VI", ["A3", "C4", "E4", "G4"]))
 
+    def test_harmony_and_parts_page_knobs(self):
+        # The harmony and parts pages show their own settings (harmony::Pack / parts::PackArp = forge_host's words).
+        h = dict(host.HARMONY_DEFAULTS, enabled=True, mode="dorian", extension="9th", inversion=2, open=True, voice_leading=False, layout="real")
+        parts = {"arp": {"pattern": "up", "rate": "1/16", "octaves": 3, "gate": 45, "latch": False},
+                 "bass": {"mode": "root", "rate": "1/4", "octave": 2}, "clock": {"bpm": 128, "seed": 0, "send_clock": False}}
+        arp = host.parts_words(parts)[0]
+        words = {"menu": 1 | 7 << 1, "fx_lights": 0, "flags": 0, "harmony_lights": host.harmony_word(h), "parts_lights": arp,
+                 "parts_clock": 1 | 128 << 8}
+        got = model("console.log(JSON.stringify([d.knobs(input, 'harmony'), d.knobs(input, 'parts')]));", words)
+        self.assertEqual([(k["label"], k["text"], k["hint"]) for k in got[0]],
+                         [("Mode", "dorian", "harmony on"), ("Chord size", "9th", "real layout"),
+                          ("Inversion", "2", "voice leading off"), ("Spread", "open", "")])
+        self.assertEqual(got[1][0]["hint"], "tap tempo")
+        self.assertEqual([(k["label"], k["text"]) for k in got[1]],
+                         [("Tempo", "128 BPM"), ("Arp octaves", "3"), ("Arp gate", "45 %"), ("Bass rate", "1/4")])
+        self.assertEqual(got[1][3]["hint"], "bass in C2")
+
 
 if __name__ == "__main__":
     unittest.main()

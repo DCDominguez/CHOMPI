@@ -14,13 +14,18 @@
     "Input gain", "Motion", "Motion speed", "Colour character", "Texture character"];
   const KNOBS = ["SW4", "SW1", "SW2", "SW3"];                 // knob 0..3, left to right on the panel
   const FX_MODULES = ["Space", "Colour", "Texture", "Motion"];  // the FX page's knobs SW4 SW1 SW2 SW3
+  // The harmony and parts pages' knobs (MANUAL 8a / 8b): harmony::Pack and parts::PackArp, as those pages light them.
+  const MODES = ["major", "natural minor", "harmonic minor", "melodic minor", "dorian", "phrygian", "lydian", "mixolydian", "locrian"];
+  const EXTENSIONS = ["triad", "7th", "9th", "11th", "13th", "fifth"];        // firmware enum order
+  const SIZE_ORDER = ["fifth", "triad", "7th", "9th", "11th", "13th"];        // SW1's order, for its bar
+  const BASS_RATES = ["per chord", "1/2", "1/4", "1/8"];
   const LOOPER = ["empty", "armed", "recording", "playing", "paused"];
   const RECORDER = ["empty", "armed", "recording", "playing", "stopped"];
   const BATTERY = ["full", "high", "medium", "low", "unknown"];
   // The CHOMPI light's colour per page (MANUAL: TAPE teal, presets blue, harmony purple, parts orange, synth pink, FX green).
   const PAGES = {play: ["Play", "#ffffff"], record: ["TAPE · record", "#ec3b3b"], presets: ["Presets", "#2f7cf6"],
-    samples: ["TAPE page · samples", "#19c9b6"], harmony: ["Harmony page", "#9150f0"], parts: ["Arp · bass page", "#ff8a2a"],
-    synth: ["Synth page", "#ff5ea0"], fx: ["FX page", "#2fbf55"]};
+    samples: ["TAPE page", "#19c9b6"], harmony: ["Harmony", "#9150f0"], parts: ["Arp · bass", "#ff8a2a"],
+    synth: ["Synth", "#ff5ea0"], fx: ["FX", "#2fbf55"]};
 
   // core/preset_menu.h Packed: bit 0 open, 1-3 the mode (7 harmony, 6 parts, 5 synth / FX), 21 the samples page;
   // the FX page is told apart from the synth page by the FX lights' bit 31.
@@ -36,7 +41,25 @@
   const byte = (word, i) => word >>> 8 * i & 255;
   // The four knobs as the panel moves them. Normal play: each knob's page (1-based), its target and value;
   // FX page: the module amounts; synth page: that page's knobs.
+  function harmonyKnobs(w) {
+    const mode = (w >>> 4 & 15) % 9, size = EXTENSIONS[(w >>> 8 & 7) % 6], inversion = w >>> 11 & 3;
+    return [
+      {label: "Mode", text: MODES[mode], value: mode / 8, hint: `harmony ${w >>> 16 & 1 ? "on" : "off"}`},
+      {label: "Chord size", text: size, value: SIZE_ORDER.indexOf(size) / 5, hint: `${w >>> 15 & 1 ? "real" : "static"} layout`},
+      {label: "Inversion", text: String(inversion), value: inversion / 3, hint: `voice leading ${w >>> 14 & 1 ? "off" : "on"}`},
+      {label: "Spread", text: w >>> 13 & 1 ? "open" : "close", value: w >>> 13 & 1, hint: ""}];
+  }
+  function partsKnobs(arp, clock) {
+    const bpm = clock >>> 8 & 511, octaves = (arp >>> 6 & 3) + 1, gate = ((arp >>> 8 & 31) + 1) * 5, rate = arp >>> 17 & 3;
+    return [
+      {label: "Tempo", text: `${bpm} BPM`, value: (bpm - 40) / 260, hint: clock & 2 ? "MIDI clock" : "tap tempo"},
+      {label: "Arp octaves", text: String(octaves), value: (octaves - 1) / 3, hint: ""},
+      {label: "Arp gate", text: `${gate} %`, value: gate / 100, hint: ""},
+      {label: "Bass rate", text: BASS_RATES[rate], value: rate / 3, hint: `bass in C${(arp >>> 19 & 3) + 1}`}];
+  }
   function knobs(words, where) {
+    if (where === "harmony") return harmonyKnobs(words.harmony_lights).map((k, i) => ({name: KNOBS[i], ...k}));
+    if (where === "parts") return partsKnobs(words.parts_lights, words.parts_clock).map((k, i) => ({name: KNOBS[i], ...k}));
     return KNOBS.map((name, k) => {
       if (where === "fx") return {name, label: FX_MODULES[k], value: byte(words.fx_knobs, k) / 255};
       if (where === "synth") return {name, label: `Synth ${words.synth_lights >>> 14 + k & 1 ? "page 2" : "page 1"}`, value: byte(words.synth_knobs, k) / 255};
