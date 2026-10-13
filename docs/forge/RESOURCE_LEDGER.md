@@ -1,6 +1,11 @@
 # Forge Resource Ledger
 
-**Latest figures (2026-10-13, 0.20.0 release candidate 3):** release **252,214 B**, headroom **36,554 B**;
+**Latest figures (2026-10-14, 0.20.0 rc3 as published, build e272943):** release **254,446 B**, headroom
+**34,322 B**; development **265,854 B**, headroom **22,914 B** (SRAM_EXEC 288,768 B; sum of the ELF sections
+there). Since the figures below: split playing, its lights and the chord-side secret modes (+2.2 KB release).
+RAM_D2CACHE now holds the FX section's 33,792 B (`.d2_bss`); SDRAM, DTCM and RAM_D2 as in the table.
+
+**Earlier (2026-10-13, 0.20.0 release candidate 3):** release **252,214 B**, headroom **36,554 B**;
 development **263,606 B**, headroom **25,162 B** (sum of the ELF sections in SRAM_EXEC). Since the display
 figures below: SW5 in the view, the tap-A#3 order gesture and broken radio (+1.9 KB release).
 
