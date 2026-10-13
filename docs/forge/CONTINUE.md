@@ -3,6 +3,20 @@
 Updated 2026-10-13: 0.20.0 release candidate 3 prepared (newest section). 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2-rc1; `main` carries it, Pages serves the forge page). The owner's CHOMPI runs development build 69c5727. Read the newest section below first; older sections are history (HOME_CHECKLIST and TEST_SESSION are kept for the record).
 
 
+## Next update (after 0.20.0): planned with the owner, 2026-10-13
+
+- **Guided tutorial mode in Choowivision:** pick a lesson (first sounds and knob pages, chords with harmony,
+  loop / overdub / undo, effects and your own order, saving a sound); one step at a time, the key or knob to use
+  pulsing on the panel drawing; each step advances by itself when CHOMPI's view shows it done (page, knob,
+  harmony, looper state, FX choice / order); 4-7 steps, spoiler-free. Display page only, no firmware change;
+  tests: every step detectable from the view.
+- **Split playing for harmony:** chords on the left part of the keyboard, melody on the right, the melody in
+  the harmony's scale. Open questions for the owner: the split point (fixed, e.g. C4, or settable); right side
+  as plain notes snapped to the scale, or white keys = scale degrees; whether the arp and bass follow the left
+  side only; how it's switched on (harmony page setting, saved in the sound).
+- Also queued: rebuild the rc3 kit right before publishing (the manual changed after it was built: tooltips'
+  touch targets, the glossary).
+
 ## 2026-10-13 (afternoon): 0.20.0 release candidate 3 prepared (branch forge/fx; CHOMPI runs 8a8de38)
 
 - **Version 0.20.0** (f0ddcdb): firmware minor 20 / patch 0, docs, site and checklists name choowi-0.20.0-rc3.
