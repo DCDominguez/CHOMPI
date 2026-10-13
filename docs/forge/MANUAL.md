@@ -754,8 +754,15 @@ Any arriving MIDI stops dream mode and restarts its idle timer.
 
 The forge page's **phone display** shows what CHOMPI is doing while you play: the panel's lights in place, the
 page you're on (in its CHOMPI colour), what each knob moves and its value, the chord harmony mode just played,
-the looper's position and length, the recorder, SW6 and the battery. It only watches; nothing on it changes
-CHOMPI.
+the looper's position and length, SW5's cutoff and the loop speed, the recorder, SW6 and the battery. It only
+watches; nothing on it changes CHOMPI.
+
+**Labels on everything:** every key on the drawing says what it does on the page you're on (note names when
+you play; chord numerals with harmony on; slots, banks and save / copy / erase on the presets and TAPE pages;
+the effects on the FX page; waves and voices on the synth page; patterns, rates and the bass on the arp and
+bass page), each knob shows the control it moves, and **on this page** below explains the page's keys,
+combos and the other controls. Chords are spelled in the key you set (B♭, not A#; ii, vi and vii° in lower
+case; ♭VII, iv and ♭VI for borrowed chords).
 
 1. **Android phone, Chrome.** Plug CHOMPI into the phone with a USB-C OTG cable or adapter and switch it on.
 2. Open the forge page, tap **phone display**, then **Connect**, and allow MIDI devices.
