@@ -96,3 +96,15 @@ firmware version. Firmware before 0.20 answers "unknown operation"; the page the
 
 - Tried on CHOMPI and an Android phone (USB OTG, poll rate, battery draw).
 - A cheat sheet per page under the readout (the owner's idea, with the illustrated guides).
+
+## A secret (developer note; keep it out of the player manuals)
+
+**The stage** (0.20, the owner's pick). Tap the drawn panel's **microphone three times within 1.2 s**: Choowivision
+opens `stage.html?live=1`, a dot-matrix screen (128 x 64 dots, computed live) that connects to CHOMPI and plays
+original patterns: **forge** (anvil, beat strikes, sparks from notes), **reels** (tape reels turning with the
+loop), **keyfall** (key columns rise and rain), **tide** (slow bands). Notes ripple from their key, chords tint
+it, the loop sweeps as a scanline; the knobs nudge it (CC 20-23: SW4 speed, SW1 density, SW2 spread, SW3
+colour); effect looks on its own buttons (cloud, tape echo, chorus, tremolo, broken). Not linked anywhere,
+`noindex`; has a demo without CHOMPI. Prototype quality in 0.20; the next update wires it to the view (FX
+choices, the real loop, Dream switching to tide). Code: `docs/workshop/stage.html` / `stage.js`, the trigger in
+`display.js` (`data-secret="mic"` in panel-art.js, deliberately without a tooltip).

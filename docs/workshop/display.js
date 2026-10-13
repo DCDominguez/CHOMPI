@@ -58,6 +58,15 @@ function drawState(v) {
   $("battery").textContent = `${p.charging ? "⚡ " : ""}battery ${p.battery}${p.full ? " · charged" : ""}`;
 }
 let guideKey = "", lastView = null;
+// A secret (0.20, the owner's pick; developer note in DISPLAY.md): three quick taps on the panel's microphone.
+(function secret() {
+  let taps = [];
+  $("panel").addEventListener("pointerdown", e => {
+    if (!e.target.closest || !e.target.closest("[data-secret=mic]")) return;
+    const now = Date.now(); taps = taps.filter(t => now - t < 1200).concat(now);
+    if (taps.length >= 3) location.href = "stage.html?live=1";
+  });
+})();
 // Tooltips (the owner, 2026-10-13): hover a key, knob, button or light on a computer, tap it on a phone. The text
 // is DisplayModel.tip for the page CHOMPI is on now.
 (function tooltips() {

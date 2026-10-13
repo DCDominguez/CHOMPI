@@ -1064,6 +1064,7 @@ document.getElementById('book-print').addEventListener('click',()=>window.print(
     hit("rect", {x: 262, y: 390, width: 98, height: 98}, "chompi"); hit("rect", {x: 196, y: 384, width: 52, height: 118}, "toggle");
     hit("circle", {cx: 310, cy: 352, r: 20}, "light:chompi"); hit("circle", {cx: 1458, cy: 352, r: 20}, "light:sw6");
     hit("rect", {x: 990, y: 326, width: 124, height: 34}, "light:transport");
+    el("circle", {cx: 1381, cy: 352, r: 30, "data-secret": "mic", "pointer-events": "all"}, hits);   // no tooltip: see DISPLAY.md
     const short = (s, n) => s.length > n ? s.slice(0, n - 1) + "…" : s;
     return {
       // 35 lights as 7-bit RGB in the view's order (unlit: [0, 0, 0]).
