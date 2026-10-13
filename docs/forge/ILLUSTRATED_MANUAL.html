@@ -70,6 +70,8 @@ nav.toc a{color:var(--ink);text-decoration:none;border-bottom:1px solid transpar
 nav.toc a:hover,nav.toc a:focus-visible{border-bottom-color:var(--accent);outline:none}
 section{padding-block:44px 8px;border-bottom:1px solid var(--rule);display:grid;gap:6px}
 section > .head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px}
+.figure.panel-art{background:#101015;border-color:#2c2c36;padding:8px}
+.figure.panel-art svg{display:block;width:100%;height:auto;min-width:640px}
 .figure{margin:18px 0 6px;overflow-x:auto;background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:16px}
 .figure svg{display:block;min-width:640px;width:100%;height:auto}
 .figure.small svg{min-width:0;max-width:560px}
@@ -364,8 +366,8 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
 </svg><div class="tip-bubble"><span>Choowi’s tip</span><p>“A connected computer can keep me awake: any arriving MIDI stops dream mode and restarts its timer. To try dreaming, disconnect MIDI, choose a synth or chromatic sound, leave the menu closed and toggle down, with loops and recorders idle. After 2 quiet minutes I dream; after 3 minutes of dreaming I sleep until you touch something.”</p></div></div></aside></section><div class="book-end"><h2>A sound of your own.</h2><p>That’s the first little adventure. Explore the reference whenever you want another tool from Choowi’s bench.</p><a href="#reference-book">Open the controls and reference</a></div></main><details class="reference-book" id="reference-book"><summary>Controls, diagrams &amp; full reference</summary><nav class="toc" aria-label="Contents">
   <a href="#start">Quick start</a><a href="#panel">The panel</a><a href="#knobs">Knobs &amp; pages</a><a href="#menu">Menu map</a>
   <a href="#tape">TAPE's page</a><a href="#presets">Presets</a><a href="#record">Recording</a><a href="#looper">Looper</a>
-  <a href="#harmony">Harmony</a><a href="#parts">Arp, bass, tempo</a><a href="#recorder">Event recorder</a><a href="#synth">Synth page</a><a href="#sound">The sound</a>
-  <a href="#magic">Magic</a><a href="#lights">Lights</a><a href="#power">Power</a><a href="#install">Install</a><a href="#workshop">Workshop</a><a href="#help">Troubleshooting</a>
+  <a href="#harmony">Harmony</a><a href="#parts">Arp, bass, tempo</a><a href="#recorder">Event recorder</a><a href="#synth">Synth page</a><a href="#fx">FX page</a><a href="#sound">The sound</a>
+  <a href="#magic">Magic</a><a href="#lights">Lights</a><a href="#power">Power</a><a href="#install">Install</a><a href="#display">Phone display</a><a href="#workshop">Workshop</a><a href="#help">Troubleshooting</a>
 </nav>
 
 <!-- 1 -->
@@ -677,6 +679,29 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
   </table></div>
 </section>
 
+<!-- 11b -->
+<section id="fx">
+  <div class="head"><h2>The FX page (0.20)</h2></div>
+  <p class="col">Four effect modules run in a row on everything CHOMPI plays: <b>Space</b>, <b>Colour</b>, <b>Texture</b> and <b>Motion</b>, with three effects each. <b>Open:</b> toggle down, hold CHOMPI, tap <span class="k">KEY_21</span> past the synth page until CHOMPI turns <b style="color:var(--green)">green</b>. The keys play nothing here.</p>
+  <div class="figure" id="fig-fx"></div>
+  <div class="tablebox"><table>
+    <thead><tr><th>Module (knob)</th><th>Keys</th><th>Turn</th><th>Hold the knob + turn</th></tr></thead>
+    <tbody>
+      <tr><td>Space (SW4, white)</td><td>C3 echo + room · D3 cloud · E3 tape echo</td><td>amount</td><td>delay time and room / cloud size</td></tr>
+      <tr><td>Colour (SW1, green)</td><td>F3 saturation · G3 fold · A3 crush</td><td>amount</td><td>fold: bias · crush: lower sample rate</td></tr>
+      <tr><td>Texture (SW2, yellow)</td><td>C4 cassette · D4 broken · E4 squash</td><td>amount</td><td>hiss and wear · longer dropouts · slower release</td></tr>
+      <tr><td>Motion (SW3, pink)</td><td>F4 chorus · G4 phaser · A4 tremolo</td><td>amount</td><td>speed</td></tr>
+    </tbody>
+  </table></div>
+  <div class="grid2"><div class="col">
+    <h3>Your own order</h3>
+    <p>Tap <b>A#3</b>: it and the effect keys blink. Tap one key of each module in the order you want the sound to go through them; each placed module stays lit, first brightest. The <b>fourth tap locks the order</b> and the keys pick effects again. Tap A#3 again to finish early. <b>Hold A#3 1 s</b> for Classic (Colour, Motion, Texture, Space). <b>B3</b>: side by side (the reverb hears your sound before the delay). <b>F#3 / G#3</b>: effects before / after the looper.</p>
+  </div><div class="col">
+    <h3>Taking an effect out</h3>
+    <p>Turn its knob down until its ring is dim: the module is off wherever it sits, and the order and the chosen effect stay for when you turn it up again. Saving a preset keeps the whole FX section.</p>
+  </div></div>
+</section>
+
 <!-- 12 -->
 <section id="sound">
   <div class="head"><h2>The sound</h2></div>
@@ -782,6 +807,11 @@ footer{padding-block:28px;color:var(--muted);font-size:.86rem}
       <p>Back to stock TAPE: rename <code>CHOMPI_TAPEv2_0_bin.old</code> back to <code>.bin</code>, remove <code>FORGE.bin</code>, power on.</p>
     </div>
   </div>
+</section>
+
+<section id="display">
+  <div class="head"><h2>CHOMPI's screen on your phone (0.20)</h2></div>
+  <p class="col">The forge page's <b>phone display</b> draws this same panel live while you play: every light in its colour, the page you're on, what each key and knob does there, the chord harmony just played, the looper and the battery. Plug CHOMPI into an <b>Android</b> phone with a USB-C OTG cable, open the forge page, tap <b>phone display</b>, then <b>Connect</b> (Chrome; iPhones have no Web MIDI). Sideways gives the biggest panel. It only watches: nothing on it changes CHOMPI.</p>
 </section>
 
 <!-- 15b -->
@@ -897,6 +927,369 @@ window.addEventListener('hashchange',revealBookReference);revealBookReference();
 document.getElementById('book-theme').addEventListener('click',()=>{const root=document.documentElement,dark=root.dataset.theme?root.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;root.dataset.theme=dark?'light':'dark';});
 document.getElementById('book-print').addEventListener('click',()=>window.print());
 </script>
+<!-- panel-art:begin (generated by host/build_site.py from docs/workshop/panel-art.js and display-model.js; do not edit here) -->
+<script>
+"use strict";
+// CHOMPI's panel as line art (the owner's choice, 2026-10-13, after the TAPE mini guide's panel diagram): the
+// phone display draws it live and the illustrated manual draws its page figures with the same code (host/
+// build_site.py copies this file into docs/forge/ILLUSTRATED_MANUAL.html, which must stand alone on the card;
+// tests/test_site.py fails if that copy is stale). No DOM lookups: everything goes through the returned panel.
+(function (root) {
+  const NS = "http://www.w3.org/2000/svg";
+  const WHITE = [48, 50, 52, 53, 55, 57, 59, 60, 62, 64, 65, 67, 69, 71, 72], BLACK = [49, 51, 54, 56, 58, 61, 63, 66, 68, 70];
+  const LINE = "#e8939b", DIM = "#5a3d47", FACE = "Fredoka, Nunito, system-ui, sans-serif";
+  // The view's light order (view page 0): 0-9 black keys C#3..A#4, 24 down to 10 white keys C3..C5, 25 CHOMPI,
+  // 26 PLAY, 27 LOOP, 28-31 the knob lights SW4 SW1 SW2 SW3, 32 / 33 the transport pair, 34 SW6.
+  const LIGHTS = {black: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], white: [24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10],
+    chompi: 25, play: 26, loop: 27, rings: [28, 29, 30, 31], reverse: 32, forward: 33, sw6: 34};
+  let panels = 0;
+  function el(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (parent) parent.append(e); return e;
+  }
+  // A 7-bit LED colour as the eye sees it: hue kept, dim lights lifted a little so they still read.
+  function colour([r, g, b]) {
+    const m = Math.max(r, g, b);
+    if (m < 2) return null;
+    const level = m / 127, lift = 255 * Math.pow(level, .55) / m;
+    return {css: `rgb(${Math.round(r * lift)},${Math.round(g * lift)},${Math.round(b * lift)})`, level};
+  }
+  // Draws the panel into `svg` (viewBox 130 296 1432 424) and returns the handles to light and label it.
+  function draw(svg) {
+    const L = LIGHTS, lights = [], keyLabels = {}, knobLabels = [], glow = `panel-glow-${++panels}`;
+    svg.setAttribute("viewBox", "130 296 1432 424");
+    const defs = el("defs", {}, svg), f = el("filter", {id: glow, x: "-100%", y: "-100%", width: "300%", height: "300%"}, defs);
+    el("feGaussianBlur", {stdDeviation: "8"}, f);
+    const line = (tag, attrs) => el(tag, {fill: "none", stroke: LINE, "stroke-width": 3, ...attrs}, svg);
+    const text = (x, y, s, size, colour = LINE, weight = 600) => {
+      const e = el("text", {x, y, "text-anchor": "middle", fill: colour, "font-size": size, "font-family": FACE, "font-weight": weight}, svg);
+      e.textContent = s; return e;
+    };
+    // A light: a halo (glow) under a dot or a window, both coloured from the view.
+    const lamp = (index, shape, attrs) => {
+      const halo = el(shape, {...attrs, fill: "#000", filter: `url(#${glow})`, opacity: 0}, svg);
+      const dot = el(shape, {...attrs, fill: DIM, stroke: LINE, "stroke-width": 2}, svg);
+      lights[index] = {dot, halo};
+    };
+    line("rect", {x: 132, y: 298, width: 1428, height: 418, rx: 24});
+    // The lights along the top: CHOMPI, the four knobs, SW6; the transport pair around SW5.
+    lamp(L.chompi, "circle", {cx: 310, cy: 352, r: 14});
+    [446, 593, 740, 887].forEach((x, k) => lamp(L.rings[k], "circle", {cx: x, cy: 352, r: 14}));
+    lamp(L.sw6, "circle", {cx: 1458, cy: 352, r: 14});
+    lamp(L.reverse, "circle", {cx: 1010, cy: 342, r: 9}); lamp(L.forward, "circle", {cx: 1094, cy: 342, r: 9});
+    text(1052, 349, "«|»", 22);
+    line("circle", {cx: 1381, cy: 352, r: 24});                         // the microphone
+    [-10, 0, 10].forEach(dx => line("line", {x1: 1381 + dx, y1: 336, x2: 1381 + dx, y2: 368, "stroke-width": 4}));
+    // The toggle (up: record position, down: menu position) and the CHOMPI key.
+    line("rect", {x: 196, y: 384, width: 52, height: 118, rx: 10});
+    line("rect", {x: 210, y: 404, width: 24, height: 78, rx: 12, "stroke-width": 2});
+    const lever = el("circle", {cx: 222, cy: 462, r: 10, fill: LINE}, svg);
+    text(222, 524, "toggle", 16);
+    line("rect", {x: 262, y: 390, width: 98, height: 98, rx: 12}); line("rect", {x: 272, y: 400, width: 78, height: 78, rx: 9, "stroke-width": 2});
+    text(311, 446, "CHOMPI", 17);
+    // The knobs: SW4, SW1 and SW2 in their tape outline (r 42, about 13 units clear all round), SW3; each with
+    // its control written under it.
+    line("rect", {x: 538, y: 385, width: 257, height: 110, rx: 55, "stroke-width": 2});
+    ["SW4", "SW1", "SW2", "SW3"].forEach((name, k) => {
+      const cx = [446, 593, 740, 887][k], cy = 440;
+      line("circle", {cx, cy, r: 42}); line("circle", {cx, cy, r: 25, "stroke-width": 2});
+      text(cx, cy + 6, name, 16);
+      knobLabels[k] = text(cx, 514, "", 19, "#f4f2ec");
+    });
+    // SW5 (r 80, centre 1052: clear of SW3 and of the PLAY / LOOP frame), PLAY and LOOP (lights inside), SW6.
+    line("circle", {cx: 1052, cy: 440, r: 80}); line("circle", {cx: 1052, cy: 440, r: 64, "stroke-width": 2});
+    line("circle", {cx: 1052, cy: 410, r: 22, "stroke-width": 2}); text(1052, 458, "SW5", 16);
+    const sw5 = text(1052, 482, "", 18, "#f4f2ec");
+    line("rect", {x: 1140, y: 392, width: 206, height: 106, rx: 12, "stroke-width": 2});
+    [[L.play, 1153, "▶❙❙"], [L.loop, 1241, "↻"]].forEach(([index, x, symbol]) => {
+      line("rect", {x, y: 403, width: 82, height: 84, rx: 10});
+      lamp(index, "rect", {x: x + 21, y: 412, width: 40, height: 12, rx: 6});
+      text(x + 41, 462, symbol, 24);
+    });
+    text(1194, 520, "PLAY", 15); text(1282, 520, "LOOP", 15);
+    line("circle", {cx: 1458, cy: 444, r: 42}); line("circle", {cx: 1458, cy: 444, r: 25, "stroke-width": 2}); text(1458, 450, "SW6", 16);
+    const sw6 = text(1458, 514, "", 19, "#f4f2ec");
+    // The keys: the upper row (black keys) in groups of 2-3-2-3, the 15 white keys below, each with its light.
+    const key = (note, index, x, y) => {
+      line("rect", {x: x - 40, y, width: 80, height: 80, rx: 6, "stroke-width": 2});
+      line("rect", {x: x - 34, y: y + 6, width: 68, height: 68, rx: 9, "stroke-width": 2});
+      lamp(index, "rect", {x: x - 17, y: y + 12, width: 34, height: 12, rx: 6});
+      keyLabels[note] = el("text", {x, y: y + 50, "text-anchor": "middle", fill: "#f4e6e9", "font-size": 16, "font-family": FACE, "font-weight": 600}, svg);
+    };
+    [265, 355, 531, 619, 707, 884, 972, 1149, 1237, 1325].forEach((x, j) => key(BLACK[j], L.black[j], x, 532));
+    WHITE.forEach((note, i) => key(note, L.white[i], 224 + 88.07 * i, 622));
+
+    const short = (s, n) => s.length > n ? s.slice(0, n - 1) + "…" : s;
+    return {
+      // 35 lights as 7-bit RGB in the view's order (unlit: [0, 0, 0]).
+      setLights(leds) {
+        leds.forEach((rgb, i) => {
+          const s = lights[i]; if (!s) return;
+          const c = colour(rgb);
+          s.dot.setAttribute("fill", c ? c.css : DIM);
+          s.halo.setAttribute("fill", c ? c.css : "#000"); s.halo.setAttribute("opacity", c ? (.25 + .6 * c.level).toFixed(2) : 0);
+        });
+      },
+      // A key's job: up to two lines of about eight letters inside the key (split at a space when there is one).
+      setKeyLabel(note, label = "") {
+        const e = keyLabels[note]; if (!e) return;
+        let rows = [label];
+        if (label.length > 8) { const cut = label.lastIndexOf(" ", 9); rows = cut > 0 ? [label.slice(0, cut), label.slice(cut + 1)] : [label.slice(0, 8), label.slice(8)]; }
+        rows = rows.slice(0, 2).map(s => short(s, 9));
+        e.replaceChildren(...rows.map((s, i) => {
+          const span = document.createElementNS(NS, "tspan");
+          span.setAttribute("x", e.getAttribute("x")); span.setAttribute("dy", i ? "18" : rows.length > 1 ? "-8" : "0");
+          span.textContent = s; return span;
+        }));
+      },
+      setKnob(k, label = "") { if (knobLabels[k]) knobLabels[k].textContent = short(label, 12); },
+      setToggle(up) { lever.setAttribute("cy", up ? 424 : 462); },
+      setSw5(label = "") { sw5.textContent = label; },
+      setSw6(label = "") { sw6.textContent = label; },
+    };
+  }
+  root.PanelArt = {draw, colour, LIGHTS, WHITE, BLACK};
+})(typeof window !== "undefined" ? window : globalThis);
+"use strict";
+// What the display shows, from CHOMPI's view reply (opcode 0D; docs/forge/DISPLAY.md) and its status: plain
+// names for the menu page, the knobs, the chord, the looper and the battery. No DOM here, so the host tests
+// (tests/test_display_js.py) check it against the firmware's own tables.
+(function (root) {
+  const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+  const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII"];
+  // core/parameters.h Parameter, in enum order (a knob's target id indexes this).
+  const PARAMETERS = ["Delay mix", "Delay time", "Feedback", "Level", "Bypass", "Cutoff", "Resonance", "Reverb",
+    "Pitch", "Start", "End", "Knob 1", "Knob 2", "Knob 3", "Knob 4",
+    "Filter envelope", "Attack", "Decay", "Sustain", "Release", "LFO rate", "Vibrato", "LFO filter", "Tremolo depth",
+    "Osc 2 level", "Osc 2 detune", "Noise", "Glide", "Room size", "Damping", "Crossfade",
+    "Speed", "Voice gain", "Pan", "Space", "Saturation", "Warble", "DJ filter", "DJ resonance", "Compressor",
+    "Input gain", "Motion", "Motion speed", "Colour character", "Texture character"];
+  const KNOBS = ["SW4", "SW1", "SW2", "SW3"];                 // knob 0..3, left to right on the panel
+  const FX_MODULES = ["Space", "Colour", "Texture", "Motion"];  // the FX page's knobs SW4 SW1 SW2 SW3
+  // The harmony and parts pages' knobs (MANUAL 8a / 8b): harmony::Pack and parts::PackArp, as those pages light them.
+  const MODES = ["major", "natural minor", "harmonic minor", "melodic minor", "dorian", "phrygian", "lydian", "mixolydian", "locrian"];
+  const EXTENSIONS = ["triad", "7th", "9th", "11th", "13th", "fifth"];        // firmware enum order
+  const SIZE_ORDER = ["fifth", "triad", "7th", "9th", "11th", "13th"];        // SW1's order, for its bar
+  const BASS_RATES = ["per chord", "1/2", "1/4", "1/8"];
+  const SYNTH_KNOBS = [["Osc 2 level", "Vibrato"], ["Osc 2 detune", "Tremolo depth"], ["Noise", "LFO rate"], ["Glide", "Delay time"]];
+  const LOOPER = ["empty", "armed", "recording", "playing", "paused"];
+  const RECORDER = ["empty", "armed", "recording", "playing", "stopped"];
+  const BATTERY = ["full", "high", "medium", "low", "unknown"];
+  // The CHOMPI light's colour per page (MANUAL: TAPE teal, presets blue, harmony purple, parts orange, synth pink, FX green).
+  const PAGES = {play: ["Play", "#ffffff"], record: ["TAPE · record", "#ec3b3b"], presets: ["Presets", "#2f7cf6"],
+    samples: ["TAPE page", "#19c9b6"], harmony: ["Harmony", "#9150f0"], parts: ["Arp · bass", "#ff8a2a"],
+    synth: ["Synth", "#ff5ea0"], fx: ["FX", "#2fbf55"]};
+
+  // core/preset_menu.h Packed: bit 0 open, 1-3 the mode (7 harmony, 6 parts, 5 synth / FX), 21 the samples page;
+  // the FX page is told apart from the synth page by the FX lights' bit 31.
+  function page(words) {
+    const m = words.menu;
+    if (!(m & 1)) return words.flags & 1 ? "record" : "play";
+    const mode = m >>> 1 & 7;
+    if (mode === 7) return "harmony";
+    if (mode === 6) return "parts";
+    if (mode === 5) return words.fx_lights >>> 31 & 1 ? "fx" : "synth";
+    return m >>> 21 & 1 ? "samples" : "presets";
+  }
+  const byte = (word, i) => word >>> 8 * i & 255;
+  // The four knobs as the panel moves them. Normal play: each knob's page (1-based), its target and value;
+  // FX page: the module amounts; synth page: that page's knobs.
+  function harmonyKnobs(w) {
+    const mode = (w >>> 4 & 15) % 9, size = EXTENSIONS[(w >>> 8 & 7) % 6], inversion = w >>> 11 & 3;
+    return [
+      {label: "Mode", text: MODES[mode], value: mode / 8, hint: `harmony ${w >>> 16 & 1 ? "on" : "off"}`},
+      {label: "Chord size", text: size, value: SIZE_ORDER.indexOf(size) / 5, hint: `${w >>> 15 & 1 ? "real" : "static"} layout`},
+      {label: "Inversion", text: String(inversion), value: inversion / 3, hint: `voice leading ${w >>> 14 & 1 ? "off" : "on"}`},
+      {label: "Spread", text: w >>> 13 & 1 ? "open" : "close", value: w >>> 13 & 1, hint: ""}];
+  }
+  function partsKnobs(arp, clock) {
+    const bpm = clock >>> 8 & 511, octaves = (arp >>> 6 & 3) + 1, gate = ((arp >>> 8 & 31) + 1) * 5, rate = arp >>> 17 & 3;
+    return [
+      {label: "Tempo", text: `${bpm} BPM`, value: (bpm - 40) / 260, hint: clock & 2 ? "MIDI clock" : "tap tempo"},
+      {label: "Arp octaves", text: String(octaves), value: (octaves - 1) / 3, hint: ""},
+      {label: "Arp gate", text: `${gate} %`, value: gate / 100, hint: ""},
+      {label: "Bass rate", text: BASS_RATES[rate], value: rate / 3, hint: `bass in C${(arp >>> 19 & 3) + 1}`}];
+  }
+  function knobs(words, where) {
+    if (where === "harmony") return harmonyKnobs(words.harmony_lights).map((k, i) => ({name: KNOBS[i], ...k}));
+    if (where === "parts") return partsKnobs(words.parts_lights, words.parts_clock).map((k, i) => ({name: KNOBS[i], ...k}));
+    return KNOBS.map((name, k) => {
+      if (where === "fx") return {name, label: FX_MODULES[k], value: byte(words.fx_knobs, k) / 255};
+      if (where === "synth") {                   // PanelController::SynthTarget: press flips page 1 / 2
+        const page2 = words.synth_lights >>> 14 + k & 1;
+        return {name, page: page2 + 1, label: SYNTH_KNOBS[k][page2], value: byte(words.synth_knobs, k) / 255};
+      }
+      if (k === 0 && (where === "presets" || where === "samples"))
+        return {name, label: "Bank", text: where === "samples" ? "abcde"[words.menu >>> 4 & 7] || "?" : String((words.menu >>> 4 & 7) + 1),
+                value: (words.menu >>> 4 & 7) / (where === "samples" ? 4 : 7), hint: ""};
+      const target = byte(words.knob_targets, k);
+      return {name, page: (words.knob_state >>> 3 * k & 7) + 1, patchPage: !!(words.knob_state >>> 12 + k & 1),
+              label: PARAMETERS[target] || `control ${target}`, value: byte(words.knob_values, k) / 255};
+    });
+  }
+  // SW5 (view flags): its cutoff (MANUAL: about 80 Hz to 8 kHz, so shown as an estimate) and the loop speed.
+  function sw5(words) {
+    const f = words.flags, cutoff = (f >>> 8 & 255) / 255, speed = Math.round(((f >>> 16 & 1023) / 255 - 2) * 100) / 100;
+    const hz = 80 * Math.pow(100, cutoff);
+    return {cutoff, turned: !!(f >>> 5 & 1), speed, hz: hz >= 1000 ? `≈${(hz / 1000).toFixed(1)} kHz` : `≈${Math.round(hz)} Hz`};
+  }
+  function volume(words) { return {label: words.knob_state >>> 20 & 1 ? "Input gain" : "Volume", value: (words.knob_state >>> 24) / 255}; }
+  // Music spelling (the owner, 2026-10-13: the chord read wrong): letters from the key, flats for borrowed roots,
+  // lower-case numerals for minor and diminished chords. core/harmony.h kScale, in Mode order.
+  const SCALES = [[0, 2, 4, 5, 7, 9, 11], [0, 2, 3, 5, 7, 8, 10], [0, 2, 3, 5, 7, 8, 11], [0, 2, 3, 5, 7, 9, 11],
+    [0, 2, 3, 5, 7, 9, 10], [0, 1, 3, 5, 7, 8, 10], [0, 2, 4, 6, 7, 9, 11], [0, 2, 4, 5, 7, 9, 10], [0, 1, 3, 5, 6, 8, 10]];
+  const LETTERS = ["C", "D", "E", "F", "G", "A", "B"], NATURAL = [0, 2, 4, 5, 7, 9, 11];
+  const TONIC_LETTER = [0, 1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6];        // C D♭ D E♭ E F F#(G♭ → F#) G A♭ A B♭ B
+  const TONIC_FLAT = [0, 1, 0, 1, 0, 0, -1, 0, 1, 0, 1, 0];         // black-key tonics as flats, F# as a sharp
+  function spell(pc, letter) {                                     // the pitch class written on this letter
+    const diff = ((pc - NATURAL[letter]) % 12 + 18) % 12 - 6;
+    return LETTERS[letter] + (diff > 0 ? "♯".repeat(diff) : "♭".repeat(-diff));
+  }
+  const tonicLetter = tonic => TONIC_FLAT[tonic] === 1 ? (TONIC_LETTER[tonic] + 1) % 7 : TONIC_LETTER[tonic];
+  // A root's degree (0-6) and accidental against the key: in the scale as it is, else the nearest lowered degree.
+  function degreeOf(interval, scale) {
+    const d = scale.indexOf(interval);
+    if (d >= 0) return {degree: d, flat: ""};
+    const up = scale.findIndex(s => s === (interval + 1) % 12);
+    return up >= 0 ? {degree: up, flat: "♭"} : {degree: scale.findIndex(s => s === (interval + 11) % 12), flat: "♯"};
+  }
+  function diatonicLower(degree, scale) {                          // that degree's triad is minor or diminished
+    const third = (scale[(degree + 2) % 7] - scale[degree] + 12) % 12;
+    return third === 3;
+  }
+  function numeral(degree, lower, dim) { const r = ROMAN[degree] || "?"; return (lower ? r.toLowerCase() : r) + (dim ? "°" : ""); }
+  // A chord's name from the notes that sound (the Inspector's chord_label, host/forge_inspector.py).
+  function chordName(root, notes) {
+    if (!notes.length) return null;
+    const pcs = new Set(notes.map(n => ((n - root) % 12 + 12) % 12)), has = i => pcs.has(i);
+    let third = has(3) && !has(4) ? "m" : has(5) && !has(4) && !has(3) ? "sus4" : "";
+    if (has(3) && has(6) && !has(7)) third = "dim";
+    let ext = "";
+    if (has(10)) ext = "7";
+    if (has(11)) ext = "maj7";
+    if (has(2) && (has(10) || has(11))) ext = ext === "7" ? "9" : ext === "maj7" ? "maj9" : ext;
+    if (has(9) && (has(10) || has(11))) ext = "13";
+    if (has(5) && third !== "sus4" && (has(10) || has(11)) && ext !== "13") ext = "11";
+    return NOTES[root] + (third !== "m" || !ext.startsWith("maj") ? third : "m") + ext;
+  }
+  function chordSuffix(root, notes) { return chordName(root, notes).slice(NOTES[root].length); }
+  // Engine::ChordView: root 0-3, quality 4-6, kind 7-9, degree 10-12, shifted 13, count 14-16, counter 17-23.
+  function chord(words, chordNotes) {
+    const w = words.chord, count = Math.min(w >>> 14 & 7, 5), root = w & 15, kind = w >>> 7 & 7, target = w >>> 10 & 7;
+    if (!count) return null;
+    const notes = chordNotes.slice(0, count), h = words.harmony_lights || 0, tonic = h & 15, scale = SCALES[(h >>> 4 & 15) % 9];
+    const suffix = chordSuffix(root, notes), lower = /^(m(?!aj)|dim)/.test(suffix), dim = suffix.startsWith("dim");
+    const at = degreeOf((root - tonic + 12) % 12, scale), letter = (tonicLetter(tonic) + at.degree) % 7;
+    // Secondary dominants name their target (V/ii); everything else its own degree, flats for borrowed roots.
+    const roman = kind === 2 ? `V/${numeral(target, diatonicLower(target, scale), false)}` : kind ? at.flat + numeral(at.degree, lower, dim) : null;
+    // The chord's notes on letters counted from its root (third, fifth, seventh...), so A7 reads A C♯ E G.
+    const STEP = [0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6];
+    const noteName = n => {                       // the octave follows the letter (B♯4 = C5, C♭5 = B4)
+      const l = (letter + STEP[(n - root + 120) % 12]) % 7, diff = ((n % 12 - NATURAL[l]) % 12 + 18) % 12 - 6;
+      return spell(n % 12, l) + (Math.floor((n - diff) / 12) - 1);
+    };
+    const spelled = spell(root, letter);
+    return {name: spelled + suffix, numeral: roman, shifted: !!(w >>> 13 & 1), counter: w >>> 17 & 127, notes: notes.map(noteName)};
+  }
+  // PackLooper: state 0-2, overdub 3, effects before 4, has a loop 5, position 6-15 (x1023), length 16-31 (10 ms).
+  function looper(words) {
+    const l = words.looper;
+    return {state: LOOPER[l & 7] || "?", overdub: !!(l >>> 3 & 1), fxBefore: !!(l >>> 4 & 1), hasLoop: !!(l >>> 5 & 1),
+            position: (l >>> 6 & 1023) / 1023, seconds: (l >>> 16) / 100};
+  }
+  function recorder(words) { const s = words.sequence_lights; return {state: RECORDER[s & 7] || "?", overdub: !!(s >>> 3 & 1)}; }
+  function power(p) { return {battery: BATTERY[p.battery] || "unknown", usb: !!(p.flags & 1), charging: p.chargeState >= 1 && p.chargeState <= 4, full: p.chargeState === 5}; }
+  // ---- page context: what each key and control does on the page you're on (MANUAL; firmware key handlers) ----
+  const noteName = n => NOTES[n % 12] + (Math.floor(n / 12) - 1);
+  const NAV = {61: "next ▸", 63: "TAPE"};          // C#4 (KEY_21) and D#4 (KEY_22) on Forge's own pages
+  const FX_KEYS = {48: "echo", 50: "cloud", 52: "tape echo", 53: "satur.", 55: "fold", 57: "crush", 60: "cassette", 62: "broken",
+    64: "squash", 65: "chorus", 67: "phaser", 69: "tremolo", 58: "order", 59: "side by side", 54: "before", 56: "after", ...NAV};
+  const SYNTH_KEYS = {48: "sine", 50: "triangle", 52: "saw", 53: "square", 55: "sine", 57: "triangle", 59: "saw", 60: "square",
+    62: "unison", 64: "+5th", 65: "+oct", 67: "−oct", 69: "+4th", 71: "+oct 5th", 49: "LFO sin", 51: "LFO tri", 54: "LFO sqr",
+    56: "LFO S&H", 58: "wheel", 66: "4 voices", 68: "7 voices", 70: "mono", 72: "listen", ...NAV};
+  const PARTS_KEYS = {48: "arp off", 50: "up", 52: "down", 53: "up-down", 55: "as played", 57: "random", 59: "latch",
+    60: "1/4", 62: "1/8", 64: "1/8t", 65: "1/16", 67: "1/16t", 69: "1/32", 71: "run / stop", 49: "no bass", 51: "root",
+    54: "fifth", 56: "alt", 58: "octave", 66: "record", 68: "overdub", 70: "clear", 72: "tap tempo", ...NAV};
+  const STATIC_BLACK = {49: "V/ii", 51: "V/iii", 54: "V/V", 56: "V/vi", 58: "♭VII", 61: "iv", 63: "♭III", 66: "♭VI", 68: "V/IV", 70: "♭II"};
+  const WHITE = [48, 50, 52, 53, 55, 57, 59, 60, 62, 64, 65, 67, 69, 71, 72];
+  function harmonyOn(words) { return !!(words.harmony_lights >>> 16 & 1); }
+  // keys: {midi note: short label}; legend: [[what, does], ...]; controls: labels for the panel's other controls.
+  function guide(where, words) {
+    const keys = {}, legend = [];
+    const h = words.harmony_lights, tonic = h & 15, real = !!(h >>> 15 & 1);
+    let controls = {chompi: "toggle down + hold: menu", sw5: "cutoff · push+turn: loop speed", sw6: "volume · hold: battery",
+                    play: "looper", loop: "looper"};
+    if (where === "play" || where === "record") {
+      if (where === "play" && harmonyOn(words) && !real) {
+        const scale = SCALES[(h >>> 4 & 15) % 9];                  // the key's own chords: ii, iii, vii° in major
+        WHITE.forEach((n, i) => {
+          const d = i % 7, fifth = (scale[(d + 4) % 7] - scale[d] + 12) % 12;
+          keys[n] = i === 14 ? "shift" : numeral(d, diatonicLower(d, scale), fifth === 6);
+        });
+        Object.assign(keys, STATIC_BLACK);
+        legend.push(["white keys", "chords I–VII, two octaves (C5: shift)"], ["black keys", "V/ii V/iii V/V V/vi ♭VII · iv ♭III ♭VI V/IV ♭II"],
+                    ["key", `${NOTES[tonic]} ${MODES[(h >>> 4 & 15) % 9]}`]);
+      } else {
+        for (let n = 48; n <= 72; n++) keys[n] = noteName(n);
+        legend.push(["keys", where === "play" && harmonyOn(words) ? "each key plays the chord built on it (real layout)" : "play notes"]);
+      }
+      if (where === "record") { controls.chompi = "hold: record (1.5 s count-in)"; legend.push(["record", "CHOMPI light = input meter; hold CHOMPI to record"]); }
+      else legend.push(["SW4+SW3", "panic"], ["SW1+SW2", "harmony on / off"], ["SW1+SW3", "surprise me"], ["SW2+SW3", "mutate"], ["SW4+SW1", "Dream"]);
+    } else if (where === "presets" || where === "samples") {
+      WHITE.forEach((n, i) => { keys[n] = where === "samples" && i === 14 ? "recording" : `slot ${i + 1}`; });
+      Object.assign(keys, {66: "erase", 68: "copy", 70: "save"});
+      controls = {chompi: "release: close · press: confirm", sw4: "bank"};
+      if (where === "presets") {
+        Object.assign(keys, {49: "bank −", 51: "bank +", 63: "TAPE"});
+        legend.push(["bank", String((words.menu >>> 4 & 7) + 1)], ["recall", "white key, then release CHOMPI"], ["save", "A#4, release CHOMPI, a white key, press CHOMPI"],
+                    ["copy / erase", "G#4 / F#4, release CHOMPI, slot(s), press CHOMPI"]);
+      } else {
+        Object.assign(keys, {49: "chrom", 51: "kit", 54: "mic", 56: "line", 58: "resamp", 61: "before", 63: "after"});
+        legend.push(["mode", (words.menu >>> 22 & 1 ? "kit" : "chromatic") + ` · bank ${"abcde"[words.menu >>> 4 & 7] || "?"}`],
+                    ["white keys", "pick a sample slot (C5: the recording)"], ["F#3 G#3 A#3", "record from mic / line / resample"], ["C#4 / D#4", "effects before / after the looper · hold: harmony / presets page"],
+                    ["save the recording", "A#4, release CHOMPI, a white key, press CHOMPI"]);
+      }
+    } else if (where === "harmony") {
+      WHITE.concat([49, 51, 54, 56, 58, 66, 68, 70]).forEach(n => { keys[n] = noteName(n); });
+      Object.assign(keys, NAV);
+      legend.push(["any key", `sets the key's tonic (now ${NOTES[tonic]})`], ["C#4", "next page: arp · bass"], ["D#4", "back to TAPE's page"]);
+      controls = {...controls, sw5: "cutoff", chompi: "release: close the menu"};
+    } else if (where === "parts") {
+      Object.assign(keys, PARTS_KEYS); controls.chompi = "release: close the menu";
+      legend.push(["C3–A3", "arp pattern"], ["C4–A4", "arp rate"], ["C#3–A#3", "bass part"], ["F#4 G#4 A#4", "event recorder: record, overdub, clear"],
+                  ["B3 / B4 / C5", "latch · run / stop · tap tempo"], ["C#4", "next page: synth"]);
+    } else if (where === "synth") {
+      Object.assign(keys, SYNTH_KEYS); controls.chompi = "release: close the menu";
+      legend.push(["C3–F3", "oscillator 1 wave"], ["G3–C4", "oscillator 2 wave"], ["D4–B4", "oscillator 2 interval"], ["C#3–G#3", "LFO shape"],
+                  ["A#3", "mod wheel → LFO"], ["F#4 G#4 A#4", "4 / 7 voices, mono with glide"], ["C5", "listen"], ["knobs", "press: page 1 / page 2"], ["C#4", "next page: FX"]);
+    } else if (where === "fx") {
+      Object.assign(keys, FX_KEYS); controls.chompi = "release: close the menu";
+      legend.push(["C3 D3 E3", "Space: echo + room, cloud, tape echo (SW4)"], ["F3 G3 A3", "Colour: saturation, fold, crush (SW1)"],
+                  ["C4 D4 E4", "Texture: cassette, broken, squash (SW2)"], ["F4 G4 A4", "Motion: chorus, phaser, tremolo (SW3)"],
+                  ["A#3", "tap, then one key per module in order (4th locks) · hold 1 s: Classic"], ["B3", "side by side"], ["F#3 / G#3", "effects before / after the looper"],
+                  ["knobs", "turn: amount · hold + turn: character"], ["C#4", "next page: harmony"]);
+    }
+    if (words.menu & 1) Object.assign(controls, {play: "overdub feedback −", loop: "overdub feedback +"});
+    return {keys, legend, controls};
+  }
+  // The whole picture for one state reply.
+  function describe(view) {
+    const w = view.words, where = page(w);
+    return {page: where, pageName: PAGES[where][0], pageColour: PAGES[where][1], knobs: knobs(w, where), volume: volume(w), sw5: sw5(w),
+            chord: chord(w, view.chordNotes), looper: looper(w), recorder: recorder(w), power: power(view.power),
+            dream: !!(w.dream >>> 26 & 1), recording: !!(w.flags & 2), safeMode: !!(w.flags & 4), busy: !!(w.flags & 8),
+            guide: guide(where, w)};
+  }
+  // The panel's lights (view page 0) in place: 0-9 black keys C#3..A#4, 24 down to 10 white keys C3..C5,
+  // 25 CHOMPI, 26 PLAY, 27 LOOP, 28-31 the rings SW4 SW1 SW2 SW3, 32 / 33 the transport pair, 34 SW6.
+  const LIGHTS = {black: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], white: [24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10],
+    chompi: 25, play: 26, loop: 27, rings: [28, 29, 30, 31], reverse: 32, forward: 33, sw6: 34};
+  root.DisplayModel = {describe, page, knobs, chord, chordName, looper, sw5, guide, LIGHTS, PARAMETERS, NOTES};
+})(typeof window !== "undefined" ? window : globalThis);
+if (typeof module !== "undefined") module.exports = globalThis.DisplayModel;
+</script>
+<!-- panel-art:end -->
 <script>
 (function(){
 const NS="http://www.w3.org/2000/svg";
@@ -928,43 +1321,30 @@ function keyboard(spec,opt){
   return svg;
 }
 function place(id,svg){const box=document.getElementById(id);if(box)box.appendChild(svg);}
+// The phone display's panel (panel-art.js) labelled for a page by its own guide (display-model.js), so the manual
+// and the live display match. lit: {note or "chompi" / "sw1".."sw6" / "play" / "loop": colour name}.
+const RGB={white:[100,100,100],green:[20,120,40],yellow:[127,112,5],orange:[127,70,20],red:[127,12,12],pink:[127,30,80],
+  purple:[85,35,127],blue:[15,45,127],teal:[0,95,85],dim:[14,12,12]};
+function panelFigure(id,page,words,lit,opt){
+  const box=document.getElementById(id);if(!box||!window.PanelArt||!window.DisplayModel)return;
+  opt=opt||{};box.classList.add("panel-art");
+  const svg=el("svg",{role:"img","aria-label":opt.label||"CHOMPI's panel"});box.appendChild(svg);
+  const P=PanelArt.draw(svg),L=PanelArt.LIGHTS,w=Object.assign({menu:0,harmony_lights:0,parts_lights:0,parts_clock:120<<8,fx_lights:0,fx_knobs:0,
+    synth_lights:0,synth_knobs:0,knob_state:0,knob_values:0,knob_targets:0,flags:0},words||{});
+  const guide=DisplayModel.guide(page,w);
+  PanelArt.WHITE.concat(PanelArt.BLACK).forEach(n=>P.setKeyLabel(n,guide.keys[n]||""));
+  (opt.knobs||DisplayModel.knobs(w,page).map(k=>k.text||k.label)).forEach((s,k)=>P.setKnob(k,s||""));
+  P.setSw5(opt.sw5||"");P.setSw6(opt.sw6||"");P.setToggle(!!opt.toggleUp);
+  const leds=Array.from({length:35},()=>[0,0,0]),idx={chompi:L.chompi,play:L.play,loop:L.loop,sw6:L.sw6,sw4:L.rings[0],sw1:L.rings[1],sw2:L.rings[2],sw3:L.rings[3]};
+  Object.entries(lit||{}).forEach(([k,c])=>{const n=Number(k),i=idx[k]!==undefined?idx[k]:PanelArt.WHITE.includes(n)?L.white[PanelArt.WHITE.indexOf(n)]:L.black[PanelArt.BLACK.indexOf(n)];
+    if(i!==undefined&&RGB[c])leds[i]=RGB[c];});
+  P.setLights(leds);
+}
+const span=(notes,c)=>Object.fromEntries(notes.map(n=>[n,c]));
 
-// Panel overview, in CHOMPI's real left-to-right order (from the webcam, 2026-10-11).
-(function(){
-  const svg=el("svg",{viewBox:"0 0 900 430",role:"img","aria-label":"CHOMPI controls, left to right"});
-  svg.appendChild(el("rect",{x:4,y:4,width:892,height:422,rx:22,fill:"var(--panel)",stroke:"var(--panel-edge)","stroke-width":2}));
-  const label=(x,y,name,role)=>{svg.appendChild(el("text",{x,y,"text-anchor":"middle","font-family":"var(--f-mono)","font-size":12.5,"font-weight":600,fill:"var(--ink)"},name));
-    if(role) lines(svg,x,y+15,role,{lh:13,attrs:{"text-anchor":"middle","font-family":"var(--f-body)","font-size":10.5,fill:"var(--muted)"}});};
-  const led=(cx,cy,col)=>svg.appendChild(el("circle",{cx,cy,r:7,fill:col,stroke:"var(--key-edge)","stroke-width":1}));
-  const knob=(cx,cy,r,col)=>{svg.appendChild(el("circle",{cx,cy,r,fill:col||"var(--key-black)"}));
-    svg.appendChild(el("circle",{cx,cy,r:r*0.55,fill:"var(--key-white)",opacity:col?0:0.9}));
-    svg.appendChild(el("line",{x1:cx,y1:cy-r*0.3,x2:cx,y2:cy-r*0.85,stroke:col?"var(--key-white)":"var(--key-black)","stroke-width":3,"stroke-linecap":"round"}));};
-  // toggle + CHOMPI key
-  svg.appendChild(el("rect",{x:28,y:72,width:18,height:40,rx:9,fill:"var(--key-black)"}));
-  svg.appendChild(el("circle",{cx:37,cy:102,r:7,fill:"var(--key-label-dark)"}));
-  label(37,138,"toggle","up rec\ndown menu");
-  svg.appendChild(el("rect",{x:62,y:66,width:58,height:52,rx:10,fill:"var(--orange)",stroke:"var(--key-edge)"}));
-  label(91,138,"CHOMPI","rec · menu");
-  // SW4
-  led(180,36,"var(--green)"); knob(180,92,26); label(180,138,"SW4","pitch · gain");
-  // SW1 + SW2 framed
-  svg.appendChild(el("rect",{x:238,y:58,width:202,height:70,rx:14,fill:"none",stroke:"var(--key-edge)","stroke-width":1.5,"stroke-dasharray":"4 3"}));
-  led(290,36,"var(--orange)"); knob(290,92,24); label(290,148,"SW1","attack · start");
-  led(390,36,"var(--red)"); knob(390,92,24); label(390,148,"SW2","release · end");
-  // SW3
-  led(495,36,"var(--blue)"); knob(495,92,26); label(495,138,"SW3","reverb + delay");
-  // SW5 big
-  led(578,30,"var(--key-edge)"); led(632,30,"var(--key-edge)");
-  knob(605,90,40,"var(--purple)"); label(605,152,"SW5","cutoff · loop speed");
-  // PLAY, LOOP
-  svg.appendChild(el("rect",{x:672,y:66,width:52,height:50,rx:10,fill:"var(--teal)"})); label(698,138,"PLAY","looper");
-  svg.appendChild(el("rect",{x:734,y:66,width:52,height:50,rx:10,fill:"var(--yellow)"})); label(760,138,"LOOP","looper");
-  // SW6
-  led(848,36,"var(--green)"); knob(848,92,26); label(848,138,"SW6","volume · battery");
-  // keyboard: black keys in groups of 2-3-2-3 above 15 white keys (1-14 and the top C)
-  const kb=keyboard({},{h:150,keynames:true,top:0,foot:18});kb.setAttribute("x","30");kb.setAttribute("y","190");kb.setAttribute("width","840");kb.setAttribute("height","225");svg.appendChild(kb);
-  place("fig-panel",svg);
-})();
+// Panel overview: the phone display's drawing, as you play (toggle down, menu closed).
+panelFigure("fig-panel","play",{},{chompi:"white",sw4:"green",sw1:"orange",sw2:"red",sw3:"blue",sw6:"green"},
+  {knobs:["pitch · gain","attack · start","release · end","reverb + delay"],sw5:"cutoff",sw6:"volume",label:"CHOMPI's panel, left to right"});
 
 // Knob pages.
 (function(){
@@ -1001,6 +1381,10 @@ function place(id,svg){const box=document.getElementById(id);if(box)box.appendCh
   box(560,174,150,"Harmony","tonic · mode · chords","var(--purple)");
   box(760,174,126,"Parts","arp · bass · tempo","var(--orange)");
   box(760,12,126,"Synth","waves · LFO · voices","var(--pink)");
+  box(560,93,150,"FX","4 effects · your order","var(--green)");
+  arrow("M760 50 C735 60 720 80 712 104","",0,0);
+  svg.appendChild(el("text",{x:752,y:92,"text-anchor":"middle","font-family":"var(--f-mono)","font-size":11,fill:"var(--ink)"},"KEY_21"));
+  arrow("M635 157 V170","KEY_21",668,166);
   arrow("M823 174 V82","KEY_21",848,130);
   arrow("M166 125 H244","hold CHOMPI",205,116);
   arrow("M420 112 C480 80 500 44 554 44","hold KEY_22 1 s",478,62);
@@ -1015,20 +1399,12 @@ function place(id,svg){const box=document.getElementById(id);if(box)box.appendCh
 })();
 
 // TAPE's page.
-place("fig-tape",keyboard({
-  "C3":{t:"slot\n1",c:"teal"},"D3":{t:"2",c:"teal"},"E3":{t:"3",c:"teal"},"F3":{t:"4",c:"teal"},"G3":{t:"5",c:"teal"},"A3":{t:"6",c:"teal"},"B3":{t:"7",c:"teal"},
-  "C4":{t:"8",c:"teal"},"D4":{t:"9",c:"teal"},"E4":{t:"10",c:"teal"},"F4":{t:"11",c:"teal"},"G4":{t:"12",c:"teal"},"A4":{t:"13",c:"teal"},"B4":{t:"14",c:"teal"},"C5":{t:"record-\ning",c:"pink"},
-  "C#3":{t:"chromatic",c:"blue"},"D#3":{t:"kit",c:"blue"},"F#3":{t:"rec mic",c:"red"},"G#3":{t:"rec line",c:"red"},"A#3":{t:"resample",c:"red"},
-  "C#4":{t:"FX before",c:"purple"},"D#4":{t:"FX after",c:"purple"},"F#4":{t:"erase",c:"orange"},"G#4":{t:"copy",c:"orange"},"A#4":{t:"save",c:"orange"}
-},{keynames:true,label:"TAPE's menu page"}));
+panelFigure("fig-tape","samples",{menu:1|1<<21},Object.assign(span([48,50,52,53,55,57,59,60,62,64,65,67,69,71],"teal"),{72:"pink",49:"blue",51:"blue",54:"red",56:"red",58:"red",
+  61:"purple",63:"purple",66:"orange",68:"orange",70:"orange",chompi:"teal"}),{label:"TAPE's menu page",knobs:["bank","","",""]});
 
 // Presets page.
-place("fig-presets",keyboard({
-  "C3":{t:"slot\n1",c:"white"},"D3":{t:"2",c:"white"},"E3":{t:"3",c:"white"},"F3":{t:"4",c:"white"},"G3":{t:"5",c:"white"},"A3":{t:"6",c:"white"},"B3":{t:"7",c:"white"},
-  "C4":{t:"8",c:"white"},"D4":{t:"9",c:"white"},"E4":{t:"10",c:"white"},"F4":{t:"11",c:"white"},"G4":{t:"12",c:"white"},"A4":{t:"13",c:"white"},"B4":{t:"14",c:"white"},"C5":{t:"15",c:"white"},
-  "C#3":{t:"bank −",c:"blue"},"D#3":{t:"bank +",c:"blue"},"A#3":{t:"FX after",c:"purple"},"C#4":{t:"FX before",c:"purple"},"D#4":{t:"TAPE page",c:"teal"},
-  "F#4":{t:"erase",c:"red"},"G#4":{t:"copy",c:"green"},"A#4":{t:"save",c:"blue"}
-},{keynames:true,label:"Forge presets page"}));
+panelFigure("fig-presets","presets",{menu:1},Object.assign(span([48,50,52,53,55,57,59,60,62,64,65,67,69,71].concat([72]),"white"),{49:"blue",51:"blue",63:"teal",66:"red",68:"green",70:"blue",chompi:"blue"}),
+  {label:"Forge presets page",knobs:["bank","","",""]});
 
 // Count-in.
 (function(){
@@ -1056,30 +1432,24 @@ place("fig-presets",keyboard({
   place("fig-looper",svg);
 })();
 
-// Harmony, static layout in C major.
-place("fig-harmony",keyboard({
-  "C3":{t:"I",c:"orange"},"D3":{t:"ii",c:"blue"},"E3":{t:"iii",c:"blue"},"F3":{t:"IV",c:"orange"},"G3":{t:"V",c:"orange"},"A3":{t:"vi",c:"blue"},"B3":{t:"vii°",c:"red"},
-  "C4":{t:"I",c:"orange"},"D4":{t:"ii",c:"blue"},"E4":{t:"iii",c:"blue"},"F4":{t:"IV",c:"orange"},"G4":{t:"V",c:"orange"},"A4":{t:"vi",c:"blue"},"B4":{t:"vii°",c:"red"},"C5":{t:"Shift",c:"white"},
-  "C#3":{t:"V/ii",c:"orange"},"D#3":{t:"V/iii",c:"orange"},"F#3":{t:"V/V",c:"orange"},"G#3":{t:"V/vi",c:"orange"},"A#3":{t:"♭VII",c:"orange"},
-  "C#4":{t:"iv",c:"blue"},"D#4":{t:"♭III",c:"orange"},"F#4":{t:"♭VI",c:"orange"},"G#4":{t:"V/IV",c:"orange"},"A#4":{t:"♭II",c:"orange"}
-},{label:"Harmony static layout in C major"}));
+// Harmony, static layout in C major (harmony on, menu closed).
+panelFigure("fig-harmony","play",{harmony_lights:1<<16},Object.assign(span([48,53,55,60,65,67],"orange"),span([50,52,57,62,64,69],"blue"),
+  {59:"red",71:"red",72:"white",49:"orange",51:"orange",54:"orange",56:"orange",58:"orange",61:"blue",63:"orange",66:"orange",68:"orange",70:"orange",chompi:"white"}),
+  {label:"Harmony static layout in C major",knobs:["","","",""]});
 
 // Parts page.
-place("fig-parts",keyboard({
-  "C3":{t:"arp\noff",c:"blue"},"D3":{t:"up",c:"blue"},"E3":{t:"down",c:"blue"},"F3":{t:"up-\ndown",c:"blue"},"G3":{t:"as\nplayed",c:"blue"},"A3":{t:"random",c:"blue"},"B3":{t:"latch",c:"white"},
-  "C4":{t:"1/4",c:"green"},"D4":{t:"1/8",c:"green"},"E4":{t:"1/8T",c:"green"},"F4":{t:"1/16",c:"green"},"G4":{t:"1/16T",c:"green"},"A4":{t:"1/32",c:"green"},"B4":{t:"run /\nstop",c:"green"},"C5":{t:"tap\ntempo",c:"yellow"},
-  "C#3":{t:"bass off",c:"orange"},"D#3":{t:"root",c:"orange"},"F#3":{t:"root + 5th",c:"orange"},"G#3":{t:"root, 5th",c:"orange"},"A#3":{t:"root, oct",c:"orange"},
-  "C#4":{t:"harmony",c:"purple"},"D#4":{t:"TAPE page",c:"teal"},"F#4":{t:"rec / play",c:"red"},"G#4":{t:"overdub",c:"yellow"},"A#4":{t:"clear ×2",c:"white"}
-},{label:"Parts page: arp, bass, tempo and the event recorder"}));
+panelFigure("fig-parts","parts",{menu:1|6<<1,parts_lights:1|1<<3|1<<6|9<<8|2<<17,parts_clock:1|120<<8},Object.assign(span([48,50,52,53,55,57],"blue"),
+  span([60,62,64,65,67,69,71],"green"),span([49,51,54,56,58],"orange"),{59:"white",72:"yellow",61:"purple",63:"teal",66:"red",68:"yellow",70:"white",chompi:"orange"}),
+  {label:"Parts page: arp, bass, tempo and the event recorder"});
 
 // Synth page.
-place("fig-synth",keyboard({
-  "C3":{t:"osc 1\nsine",c:"pink"},"D3":{t:"tri",c:"pink"},"E3":{t:"saw",c:"pink"},"F3":{t:"square",c:"pink"},
-  "G3":{t:"osc 2\nsine",c:"teal"},"A3":{t:"tri",c:"teal"},"B3":{t:"saw",c:"teal"},"C4":{t:"square",c:"teal"},
-  "D4":{t:"uni-\nson",c:"yellow"},"E4":{t:"+5th",c:"yellow"},"F4":{t:"+oct",c:"yellow"},"G4":{t:"−oct",c:"yellow"},"A4":{t:"+4th",c:"yellow"},"B4":{t:"+12th",c:"yellow"},"C5":{t:"hear\nit",c:"white"},
-  "C#3":{t:"LFO sine",c:"purple"},"D#3":{t:"LFO tri",c:"purple"},"F#3":{t:"LFO sq",c:"purple"},"G#3":{t:"LFO rnd",c:"purple"},"A#3":{t:"mod wheel",c:"white"},
-  "C#4":{t:"harmony",c:"purple"},"D#4":{t:"TAPE page",c:"teal"},"F#4":{t:"4 voices",c:"green"},"G#4":{t:"7 voices",c:"green"},"A#4":{t:"mono",c:"green"}
-},{label:"Synth page"}));
+panelFigure("fig-synth","synth",{menu:1|5<<1},Object.assign(span([48,50,52,53],"pink"),span([55,57,59,60],"teal"),span([62,64,65,67,69,71],"yellow"),
+  span([49,51,54,56],"purple"),{58:"white",72:"white",61:"purple",63:"teal",66:"green",68:"green",70:"green",chompi:"pink"}),{label:"Synth page"});
+
+// FX page (0.20).
+panelFigure("fig-fx","fx",{menu:1|5<<1,fx_lights:2**31},Object.assign(span([48,50,52],"white"),span([53,55,57],"green"),span([60,62,64],"yellow"),
+  span([65,67,69],"pink"),{58:"orange",59:"red",54:"teal",chompi:"green",sw4:"white",sw1:"green",sw2:"yellow",sw3:"pink"}),
+  {label:"FX page",knobs:["Space","Colour","Texture","Motion"]});
 
 // Event recorder states.
 (function(){

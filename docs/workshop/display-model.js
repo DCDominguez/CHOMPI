@@ -169,7 +169,11 @@
                     play: "looper", loop: "looper"};
     if (where === "play" || where === "record") {
       if (where === "play" && harmonyOn(words) && !real) {
-        WHITE.forEach((n, i) => { keys[n] = i === 14 ? "shift" : ROMAN[i % 7]; });
+        const scale = SCALES[(h >>> 4 & 15) % 9];                  // the key's own chords: ii, iii, vii° in major
+        WHITE.forEach((n, i) => {
+          const d = i % 7, fifth = (scale[(d + 4) % 7] - scale[d] + 12) % 12;
+          keys[n] = i === 14 ? "shift" : numeral(d, diatonicLower(d, scale), fifth === 6);
+        });
         Object.assign(keys, STATIC_BLACK);
         legend.push(["white keys", "chords I–VII, two octaves (C5: shift)"], ["black keys", "V/ii V/iii V/V V/vi ♭VII · iv ♭III ♭VI V/IV ♭II"],
                     ["key", `${NOTES[tonic]} ${MODES[(h >>> 4 & 15) % 9]}`]);

@@ -3,103 +3,13 @@
 // the state) as fast as CHOMPI answers, and the status every 2 s (battery, firmware). display-model.js names
 // things; this file draws them. A demo shows the layout without a CHOMPI.
 const $ = id => document.getElementById(id);
-const W = window.ForgeWire, M = window.ForgeMidi, D = window.DisplayModel, L = D.LIGHTS;
-const NS = "http://www.w3.org/2000/svg";
+const W = window.ForgeWire, M = window.ForgeMidi, D = window.DisplayModel, L = window.PanelArt.LIGHTS;
 let running = false, wake = null;
 
-// ---- the panel drawing: CHOMPI as line art (after the TAPE mini guide's panel diagram, the owner's choice,
-// 2026-10-13), viewBox 130 296 1432 424. One element per light, coloured from view page 0; every key and knob
-// carries its job on the current page. ---------------------------------------------------------------------
-const lights = [], keyLabels = {}, knobLabels = [];
-let toggleLever = null, sw5Label = null, sw6Label = null;
-const WHITE = [48, 50, 52, 53, 55, 57, 59, 60, 62, 64, 65, 67, 69, 71, 72], BLACK = [49, 51, 54, 56, 58, 61, 63, 66, 68, 70];
-const LINE = "#e8939b", DIM = "#5a3d47", FACE = "Fredoka, Nunito, system-ui, sans-serif";
-function el(tag, attrs, parent) {
-  const e = document.createElementNS(NS, tag);
-  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
-  if (parent) parent.append(e); return e;
-}
-(function buildPanel() {
-  const svg = $("panel");
-  svg.setAttribute("viewBox", "130 296 1432 424");
-  const defs = el("defs", {}, svg), f = el("filter", {id: "glow", x: "-100%", y: "-100%", width: "300%", height: "300%"}, defs);
-  el("feGaussianBlur", {stdDeviation: "8"}, f);
-  const line = (tag, attrs) => el(tag, {fill: "none", stroke: LINE, "stroke-width": 3, ...attrs}, svg);
-  const text = (x, y, s, size, colour = LINE, weight = 600) => {
-    const e = el("text", {x, y, "text-anchor": "middle", fill: colour, "font-size": size, "font-family": FACE, "font-weight": weight}, svg);
-    e.textContent = s; return e;
-  };
-  // A light: a halo (glow) under a dot or a window, both coloured from the view.
-  const lamp = (index, shape, attrs) => {
-    const halo = el(shape, {...attrs, fill: "#000", filter: "url(#glow)", opacity: 0}, svg);
-    const dot = el(shape, {...attrs, fill: DIM, stroke: LINE, "stroke-width": 2}, svg);
-    lights[index] = {kind: "dot", dot, halo, off: DIM};
-  };
-  line("rect", {x: 132, y: 298, width: 1428, height: 418, rx: 24});
-  // The lights along the top: CHOMPI, the four knobs, SW6; the transport pair around SW5.
-  lamp(L.chompi, "circle", {cx: 310, cy: 352, r: 14});
-  [446, 593, 740, 887].forEach((x, k) => lamp(L.rings[k], "circle", {cx: x, cy: 352, r: 14}));
-  lamp(L.sw6, "circle", {cx: 1458, cy: 352, r: 14});
-  lamp(L.reverse, "circle", {cx: 1010, cy: 342, r: 9}); lamp(L.forward, "circle", {cx: 1094, cy: 342, r: 9});
-  text(1052, 349, "«|»", 22);
-  line("circle", {cx: 1381, cy: 352, r: 24});                         // the microphone
-  [-10, 0, 10].forEach(dx => line("line", {x1: 1381 + dx, y1: 336, x2: 1381 + dx, y2: 368, "stroke-width": 4}));
-  // The toggle (up: record position, down: menu position) and the CHOMPI key.
-  line("rect", {x: 196, y: 384, width: 52, height: 118, rx: 10});
-  line("rect", {x: 210, y: 404, width: 24, height: 78, rx: 12, "stroke-width": 2});
-  toggleLever = el("circle", {cx: 222, cy: 462, r: 10, fill: LINE}, svg);
-  text(222, 524, "toggle", 16);
-  line("rect", {x: 262, y: 390, width: 98, height: 98, rx: 12}); line("rect", {x: 272, y: 400, width: 78, height: 78, rx: 9, "stroke-width": 2});
-  text(311, 446, "CHOMPI", 17);
-  // The knobs: SW4, SW1 and SW2 in their tape outline, SW3; each with its control written under it.
-  // The tape outline holds SW1 and SW2 (r 42) with about 13 units clear all round.
-  line("rect", {x: 538, y: 385, width: 257, height: 110, rx: 55, "stroke-width": 2});
-  ["SW4", "SW1", "SW2", "SW3"].forEach((name, k) => {
-    const cx = [446, 593, 740, 887][k], cy = 440;
-    line("circle", {cx, cy, r: 42}); line("circle", {cx, cy, r: 25, "stroke-width": 2});
-    text(cx, cy + 6, name, 16);
-    knobLabels[k] = text(cx, 514, "", 19, "#f4f2ec");
-  });
-  // SW5, PLAY and LOOP (their lights glow inside them), SW6.
-  // SW5 (r 80, centre 1052): clear of SW3 (right edge 934) and of the PLAY / LOOP frame (left edge 1140).
-  line("circle", {cx: 1052, cy: 440, r: 80}); line("circle", {cx: 1052, cy: 440, r: 64, "stroke-width": 2});
-  line("circle", {cx: 1052, cy: 410, r: 22, "stroke-width": 2}); text(1052, 458, "SW5", 16);
-  sw5Label = text(1052, 482, "", 18, "#f4f2ec");
-  line("rect", {x: 1140, y: 392, width: 206, height: 106, rx: 12, "stroke-width": 2});
-  [[L.play, 1153, "▶❙❙"], [L.loop, 1241, "↻"]].forEach(([index, x, symbol]) => {
-    line("rect", {x, y: 403, width: 82, height: 84, rx: 10});
-    lamp(index, "rect", {x: x + 21, y: 412, width: 40, height: 12, rx: 6});
-    text(x + 41, 462, symbol, 24);
-  });
-  text(1194, 520, "PLAY", 15); text(1282, 520, "LOOP", 15);
-  line("circle", {cx: 1458, cy: 444, r: 42}); line("circle", {cx: 1458, cy: 444, r: 25, "stroke-width": 2}); text(1458, 450, "SW6", 16);
-  sw6Label = text(1458, 514, "", 19, "#f4f2ec");
-  // The keys: the upper row (black keys) in groups of 2-3-2-3, the 15 white keys below, each with its light.
-  const key = (note, index, x, y) => {
-    line("rect", {x: x - 40, y, width: 80, height: 80, rx: 6, "stroke-width": 2});
-    line("rect", {x: x - 34, y: y + 6, width: 68, height: 68, rx: 9, "stroke-width": 2});
-    lamp(index, "rect", {x: x - 17, y: y + 12, width: 34, height: 12, rx: 6});
-    keyLabels[note] = el("text", {x, y: y + 50, "text-anchor": "middle", fill: "#f4e6e9", "font-size": 16, "font-family": FACE, "font-weight": 600}, svg);
-  };
-  [265, 355, 531, 619, 707, 884, 972, 1149, 1237, 1325].forEach((x, j) => key(BLACK[j], L.black[j], x, 532));
-  WHITE.forEach((note, i) => key(note, L.white[i], 224 + 88.07 * i, 622));
-})();
-// A 7-bit LED colour as the eye sees it: hue kept, dim lights lifted a little so they still read.
-function colour([r, g, b]) {
-  const m = Math.max(r, g, b);
-  if (m < 2) return null;
-  const level = m / 127, lift = 255 * Math.pow(level, .55) / m;
-  return {css: `rgb(${Math.round(r * lift)},${Math.round(g * lift)},${Math.round(b * lift)})`, level};
-}
-function drawLights(leds) {
-  leds.forEach((rgb, i) => {
-    const s = lights[i]; if (!s) return;
-    const c = colour(rgb), target = s.kind === "ring" ? s.ring : s.dot;
-    target.setAttribute(s.kind === "ring" ? "stroke" : "fill", c ? c.css : s.off || (s.kind === "ring" ? "#222" : "#111"));
-    s.halo.setAttribute(s.kind === "ring" ? "stroke" : "fill", c ? c.css : "#000");
-    s.halo.setAttribute("opacity", c ? (.25 + .6 * c.level).toFixed(2) : 0);
-  });
-}
+// ---- the panel drawing: panel-art.js (shared with the illustrated manual) ----------------------------------
+const P = window.PanelArt.draw($("panel")), colour = window.PanelArt.colour;
+const WHITE = window.PanelArt.WHITE, BLACK = window.PanelArt.BLACK;
+const drawLights = leds => P.setLights(leds);
 
 // ---- the readout ------------------------------------------------------------------------------------------
 const knobTiles = ["SW4", "SW1", "SW2", "SW3"].map(name => {
@@ -123,20 +33,9 @@ function drawState(v) {
     t.tile.style.setProperty("--ring", ring ? ring.css : "#888");
   });
   // Page context: every key's job on this page, each knob's control under it, the page's notes below.
-  for (const n of WHITE.concat(BLACK)) {
-    const label = v.guide.keys[n] || "", e = keyLabels[n];
-    // Up to two lines of about eight letters inside the key (split at a space when there is one).
-    let lines = [label];
-    if (label.length > 8) { const cut = label.lastIndexOf(" ", 9); lines = cut > 0 ? [label.slice(0, cut), label.slice(cut + 1)] : [label.slice(0, 8), label.slice(8)]; }
-    lines = lines.slice(0, 2).map(s => s.length > 9 ? s.slice(0, 8) + "…" : s);
-    e.replaceChildren(...lines.map((s, i) => {
-      const span = document.createElementNS(NS, "tspan");
-      span.setAttribute("x", e.getAttribute("x")); span.setAttribute("dy", i ? "18" : lines.length > 1 ? "-8" : "0");
-      span.textContent = s; return span;
-    }));
-  }
-  if (toggleLever) toggleLever.setAttribute("cy", v.page === "record" ? 424 : 462);
-  v.knobs.forEach((k, i) => { const s = k.text || k.label || ""; knobLabels[i].textContent = s.length > 12 ? s.slice(0, 11) + "…" : s; });
+  for (const n of WHITE.concat(BLACK)) P.setKeyLabel(n, v.guide.keys[n] || "");
+  P.setToggle(v.page === "record");
+  v.knobs.forEach((k, i) => P.setKnob(i, k.text || k.label || ""));
   drawGuide(v);
   const s5 = v.sw5, speedText = s5.speed === 1 ? "speed 1×" : s5.speed === 0 ? "stopped" : `speed ${s5.speed.toFixed(2)}×${s5.speed < 0 ? " (reverse)" : ""}`;
   $("sw5-value").textContent = s5.hz; $("sw5").style.width = `${Math.round(s5.cutoff * 100)}%`;
@@ -144,8 +43,8 @@ function drawState(v) {
   $("sw5-detail").textContent = v.looper.hasLoop ? `loop ${speedText} · push + turn` : "push + turn with a loop: speed";
   const vol = Math.round(v.volume.value * 100);
   $("vol-label").textContent = `SW6 · ${v.volume.label.toLowerCase()}`; $("vol-value").textContent = `${vol} %`; $("vol").style.width = `${vol}%`;
-  if (sw5Label) sw5Label.textContent = v.looper.hasLoop && s5.speed !== 1 ? `${s5.speed.toFixed(2)}×` : s5.hz.replace("≈", "");
-  if (sw6Label) sw6Label.textContent = `${v.volume.label.toLowerCase()} ${vol}%`;
+  P.setSw5(v.looper.hasLoop && s5.speed !== 1 ? `${s5.speed.toFixed(2)}×` : s5.hz.replace("≈", ""));
+  P.setSw6(`${v.volume.label.toLowerCase()} ${vol}%`);
   $("chord-name").textContent = v.chord && v.chord.name ? v.chord.name : "—";
   $("chord-detail").textContent = v.chord ? [v.chord.numeral, v.chord.shifted ? "shift" : "", v.chord.notes.join(" ")].filter(Boolean).join(" · ") : "harmony plays chords here";
   const l = v.looper;

@@ -7,7 +7,7 @@ from pathlib import Path
 
 MANUAL = Path(__file__).resolve().parents[3] / "docs" / "forge" / "ILLUSTRATED_MANUAL.html"
 FIGURES = ["fig-panel", "fig-knobs", "fig-menu", "fig-tape", "fig-presets", "fig-harmony", "fig-parts",
-           "fig-synth", "fig-recorder", "fig-magic", "fig-chain", "fig-countin", "fig-looper"]
+           "fig-synth", "fig-fx", "fig-recorder", "fig-magic", "fig-chain", "fig-countin", "fig-looper"]
 LEGENDS = ["lg-steps", "lg-chompi", "lg-sw6", "lg-safe"]
 
 

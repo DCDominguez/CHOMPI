@@ -4,7 +4,10 @@
 - editor.js: the editor's control definitions, copied from host/web/app.js (everything before
   its `let token` line), so the local workshop and the site share one list of controls.
 - data.js: the chatbot prompt (forge_ai.chat_prompt without the user's words) and the presets,
-  all as v7 instruments.
+  all as v8 instruments.
+- docs/forge/ILLUSTRATED_MANUAL.html: its panel figures use the phone display's drawing and labels
+  (panel-art.js and display-model.js, copied in between its panel-art markers, since the manual must
+  stand alone on the card).
 
 tests/test_site.py fails if these files are out of date. Run after changing host/web/app.js's
 controls, forge_ai's instructions or the presets:
@@ -22,6 +25,7 @@ import forge_host as host
 
 ROOT = HERE.parent
 SITE = ROOT.parents[1] / "docs" / "workshop"
+MANUAL = ROOT.parents[1] / "docs" / "forge" / "ILLUSTRATED_MANUAL.html"
 MARK = "let token"
 
 
@@ -42,8 +46,17 @@ def data_js():
             "window.CHOOWI_DATA = " + json.dumps(data, ensure_ascii=False, separators=(",", ":")) + ";\n")
 
 
+def manual_html():
+    text = MANUAL.read_text(encoding="utf-8")
+    begin, end = text.index("<!-- panel-art:begin"), text.index("<!-- panel-art:end -->")
+    head = text[begin:text.index("\n", begin) + 1]
+    code = "\n".join((SITE / name).read_text(encoding="utf-8").rstrip() for name in ("panel-art.js", "display-model.js"))
+    if "</script" in code: raise ValueError("panel-art / display-model must not contain </script")
+    return text[:begin] + head + "<script>\n" + code + "\n</script>\n" + text[end:]
+
+
 def outputs():
-    return {SITE / "editor.js": editor_js(), SITE / "data.js": data_js()}
+    return {SITE / "editor.js": editor_js(), SITE / "data.js": data_js(), MANUAL: manual_html()}
 
 
 def main():
