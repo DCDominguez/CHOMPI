@@ -742,6 +742,19 @@ def describe_build(status):
     return f"Forge · {FIRMWARE_LINE} {status['firmware']}" + (f" ({', '.join(notes)})" if notes else "")
 
 
+# 0.20 display (opcode 0D, every build; docs/forge/DISPLAY.md): page 0 the 35 panel lights (7-bit RGB:
+# 25 keys by slot, CHOMPI, PLAY, LOOP, rings SW4 SW1 SW2 SW3, transport reverse / forward, SW6), page 1 the
+# state words below, the chord's notes and power.
+VIEW_LEDS = 35
+VIEW_WORDS = ("menu", "looper", "knob_state", "knob_values", "knob_targets", "fx_lights", "fx_knobs", "synth_lights",
+              "synth_knobs", "harmony_lights", "parts_lights", "parts_clock", "sequence_lights", "chord", "flags", "dream")
+
+
+def view_message(sequence, page):
+    if page not in (0, 1): raise ValueError("View page must be 0 (lights) or 1 (state)")
+    return message(0x0D, sequence, [page])
+
+
 def decode_response(data, sequence):
     data = list(data)
     if len(data) < 8 or data[:4] != PREFIX or any(type(x) is not int or not 0 <= x < 128 for x in data):
@@ -752,6 +765,15 @@ def decode_response(data, sequence):
         raise ValueError("Invalid reply checksum")
     if data[4] == 0x41 and len(data) == 9:
         raise RuntimeError("Device rejected request: " + ERRORS.get(data[7], "unknown error"))
+    if data[4] == 0x49:
+        if data[7] != 0 or data[8] not in (0, 1) or len(data) != (9 + 3 * VIEW_LEDS + 1 if data[8] == 0 else 9 + 5 * len(VIEW_WORDS) + 9):
+            raise ValueError("Invalid view reply")
+        if data[8] == 0:
+            return {"sequence": sequence, "page": 0, "leds": [data[9 + 3 * i: 12 + 3 * i] for i in range(VIEW_LEDS)]}
+        words = {name: sum(data[9 + 5 * i + b] << (7 * b) for b in range(5)) & 0xFFFFFFFF for i, name in enumerate(VIEW_WORDS)}
+        at = 9 + 5 * len(VIEW_WORDS)
+        return {"sequence": sequence, "page": 1, "words": words, "chord_notes": data[at:at + 5],
+                "power": {"battery": data[at + 5], "flags": data[at + 6], "charge_state": data[at + 7]}}
     if data[4] == 0x42:
         if len(data) != 12 or data[7] != 0 or data[8] not in (1, 2) or data[9] >= PRESET_BANKS or data[10] >= PRESET_SLOTS:
             raise ValueError("Invalid preset acknowledgement")

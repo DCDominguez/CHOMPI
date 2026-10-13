@@ -262,6 +262,18 @@ public:
     // On for synth and chromatic sampler patches; kit patches keep their pads.
     void SetHarmony(harmony::Player* player) { harmony_ = player; }
     harmony::Player* Harmony() const { return harmony_; }
+    // 0.20 display (opcode 0D): the last chord harmony mode played. Word: root pitch class (bits 0-3), quality
+    // (4-6), kind (7-9), degree (10-12), shifted (13), note count (14-16), chord counter (17-23), the 5th note
+    // (25-31); notes: the first four notes, 8 bits each. Changes only when a chord does.
+    void ChordView(uint32_t& word, uint32_t& notes) const {
+        if(!harmony_) { word = notes = 0; return; }
+        const harmony::Chord& c = harmony_->LastChord(); const harmony::Voiced& v = harmony_->LastVoiced();
+        const unsigned count = v.count < harmony::kMaxNotes ? v.count : harmony::kMaxNotes;
+        word = (c.root % 12u) | static_cast<uint32_t>(c.quality) << 4 | static_cast<uint32_t>(c.kind) << 7 | (c.degree & 7u) << 10
+             | (c.shifted ? 1u : 0u) << 13 | count << 14 | (harmony_->Changes() & 127u) << 17 | (count > 4 ? (v.note[4] & 127u) << 25 : 0u);
+        notes = 0;
+        for(unsigned i = 0; i < 4 && i < count; ++i) notes |= static_cast<uint32_t>(v.note[i] & 127u) << (8 * i);
+    }
     // Secret modes (0.19.2): the harmony page's SW3 picks one.
     // One out-of-line note for the secret modes (inlined, each caller grew by a copy of Synth::Note).
     FORGE_COLD void SecretVoice(uint8_t n, uint8_t v, uint8_t source) { if(parameters_.synth) synth_.Note(n, v, source); }

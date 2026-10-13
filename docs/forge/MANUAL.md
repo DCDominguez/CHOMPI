@@ -750,6 +750,21 @@ Without CHOMPI, choose **make sounds anyway** to create, edit and save JSON for 
 
 Any arriving MIDI stops dream mode and restarts its idle timer.
 
+### CHOMPI's screen on your phone (0.20)
+
+The forge page's **phone display** shows what CHOMPI is doing while you play: the panel's lights in place, the
+page you're on (in its CHOMPI colour), what each knob moves and its value, the chord harmony mode just played,
+the looper's position and length, the recorder, SW6 and the battery. It only watches; nothing on it changes
+CHOMPI.
+
+1. **Android phone, Chrome.** Plug CHOMPI into the phone with a USB-C OTG cable or adapter and switch it on.
+2. Open the forge page, tap **phone display**, then **Connect**, and allow MIDI devices.
+3. Hold the phone upright for the panel above the readout, or sideways for both side by side. ⤢ goes full
+   screen; the screen stays on while the page is open.
+
+iPhones can't do it (no Web MIDI in any iPhone browser). It needs Choowi 0.20 or newer; older firmware gets a
+message saying so. **Show a demo** shows the layout without a CHOMPI.
+
 ### Built-in sounds
 Dry, Slap, Long Echo (delay effects for line in); Glass Keys, Soft Pad, Saw Bass,
 Warm Pad, Acid Bass, Bell Keys, Knob Pad (synths); Recorded Keys, TAPE Kit A

@@ -359,7 +359,32 @@ void StatusResetsCpu() {
     m = status({2}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Patch);
     m = status({1, 0}); assert(DecodeRequest(m.data(), m.size(), r) == Error::Length);
 }
-int main() { ProtocolV3(); ProtocolV5(); ProtocolV6(); ProtocolV7(); ProtocolV8(); StatusResetsCpu();
+// 0.20 display: opcode 0D (page 0 lights, 1 state); replies 0x49 fit the transport and check out.
+void ProtocolView() {
+    std::vector<uint8_t> req(9); Header(req.data(), 0x0d, 321);
+    for(uint8_t page : {0, 1}) {
+        req[7] = page; req[8] = Checksum(req.data(), 8);
+        Request r; assert(DecodeRequest(req.data(), req.size(), r) == Error::None && r.kind == RequestKind::View && r.page == page && r.sequence == 321);
+    }
+    req[7] = 2; req[8] = Checksum(req.data(), 8); { Request r; assert(DecodeRequest(req.data(), req.size(), r) == Error::Patch); }
+    { std::vector<uint8_t> short_req(8); Header(short_req.data(), 0x0d, 1); short_req[7] = Checksum(short_req.data(), 7);
+      Request r; assert(DecodeRequest(short_req.data(), short_req.size(), r) == Error::Length); }
+    uint8_t leds[kViewLeds][3]; for(unsigned i = 0; i < kViewLeds; ++i) for(unsigned c = 0; c < 3; ++c) leds[i][c] = static_cast<uint8_t>(i * 3 + c);
+    std::vector<uint8_t> out(kMaxReply);
+    size_t n = EncodeViewLeds(5, leds, out.data());
+    assert(n == 9 + 3 * kViewLeds + 1 && out[4] == 0x49 && out[8] == 0 && Checksum(out.data(), n) == 0 && out[9 + 3 * 33 + 2] == 101);
+    ViewState v; for(unsigned i = 0; i < kViewWords; ++i) v.words[i] = 0x9e3779b9u * (i + 1);
+    v.chord_notes[4] = 72; v.battery = 1; v.charge_state = 3;
+    n = EncodeViewState(6, v, out.data());
+    assert(n == 9 + 5 * kViewWords + 8 + 1 && out[8] == 1 && Checksum(out.data(), n) == 0);
+    for(unsigned i = 0; i < kViewWords; ++i) {
+        uint32_t w = 0; for(unsigned b = 0; b < 5; ++b) w |= static_cast<uint32_t>(out[9 + 5 * i + b]) << (7 * b);
+        assert(w == v.words[i]);
+    }
+    for(size_t i = 0; i < n; ++i) assert(out[i] < 128);
+    assert(out[9 + 5 * kViewWords + 4] == 72 && out[9 + 5 * kViewWords + 5] == 1 && out[9 + 5 * kViewWords + 7] == 3);
+}
+int main() { ProtocolView(); ProtocolV3(); ProtocolV5(); ProtocolV6(); ProtocolV7(); ProtocolV8(); StatusResetsCpu();
     ProtocolAndAtomicity(); Framing(); UsbPacketization();
     std::cout << "PASS: protocol rejection/atomicity, v3 round trip/bounds, v5 knob assignments, status CPU reset, MIDI real-time/resync/fuzz, USB packet endings\n";
 }

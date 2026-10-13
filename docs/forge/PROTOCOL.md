@@ -442,6 +442,14 @@ the reply comes when the file is written.
 saves, SDRAM cache behaviour of sample reads (device CPU), recording levels,
 monitoring, jack detection, LED colours.
 
+## Display view, firmware 0.20 (development)
+
+Opcode **0D** (every build): `page` 0 returns the 35 panel lights as 7-bit RGB, page 1 sixteen 32-bit state
+words (menu, looper with its length, knob pages / values / targets, FX, synth, harmony, parts and recorder
+lights, the last chord, flags, Dream), the chord's notes and power. Reply opcode **0x49**; answered by the main
+loop from what it draws, read-only. Full layout: [DISPLAY.md](DISPLAY.md). Firmware before 0.20 answers
+error 5 (unknown operation).
+
 ## Development probe and Inspector schema 1
 
 Only `FORGE_TEST_HOOKS` firmware accepts `0A`/`0B`. Release firmware rejects

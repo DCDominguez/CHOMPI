@@ -236,6 +236,7 @@ constexpr uint32_t kLoopFrames = 4000000u;
 int16_t DSY_SDRAM_BSS loop_memory[2 * kLoopFrames];
 forge::Looper looper;                                         // audio owner
 std::atomic<uint32_t> looper_state{0};                        // audio -> main: PackLooper, for the LEDs
+std::atomic<uint32_t> chord_word{0}, chord_notes{0};          // audio -> main: Engine::ChordView (0.20 display)
 uint8_t __attribute__((aligned(32))) sample_scratch[16384];   // D1 SRAM: reachable by SD DMA
 forge::SampleTable& sample_table = Construct<forge::SampleTable>();
 forge::SampleHandoff sample_handoff;
@@ -252,6 +253,7 @@ std::atomic<float> input_peak{0.f};                           // audio -> main: 
 std::atomic<float> loop_speed{1.f}, loop_head{1.f};           // audio -> main: SW5's lights (target, head)
 forge::SpscQueue<forge::SampleJob, 4> sample_jobs;            // audio -> main: panel save/erase/copy
 uint8_t led_shadow[26][3];                                    // main loop: what the LEDs show now (probe page 1)
+uint8_t view_leds[forge::kViewLeds][3];                       // main loop: every panel light, for the display (opcode 0D)
 
 #ifdef FORGE_TEST_HOOKS
 forge::InspectorMailbox& inspector_mailbox = Construct<forge::InspectorMailbox>();
@@ -370,6 +372,13 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
     recording_now.store(recorder.Recording(), std::memory_order_relaxed);
     menu_state.store(panel_controller.MenuPacked(), std::memory_order_relaxed);
     looper_state.store(forge::PackLooper(looper, engine.FxBeforeLoop()), std::memory_order_relaxed);
+    if(const auto* h = engine.Harmony()) {                       // 0.20 display: only when a new chord sounded
+        static uint32_t seen = ~0u;
+        if(h->Changes() != seen) {
+            seen = h->Changes(); uint32_t word, notes; engine.ChordView(word, notes);
+            chord_notes.store(notes, std::memory_order_relaxed); chord_word.store(word, std::memory_order_release);
+        }
+    }
     loop_speed.store(looper.Speed(), std::memory_order_relaxed); loop_head.store(looper.HeadSpeed(), std::memory_order_relaxed);
 
     const bool recording = recorder.Recording();
@@ -919,6 +928,12 @@ FORGE_COLD void DrawLeds() {
         const forge::Rgb& c = i < 25 ? keys[i] : chompi;
         led_shadow[i][0] = seven(c.r); led_shadow[i][1] = seven(c.g); led_shadow[i][2] = seven(c.b);
     }
+    // 0.20 display: the same colours as drawn (before the LED balance), in kViewLeds order.
+    const forge::Rgb* lights[forge::kViewLeds - 27] = {&play, &loop, &knobs[0], &knobs[1], &knobs[2], &knobs[3], &reverse, &forward};
+    for(unsigned i = 0; i < forge::kViewLeds; ++i) {
+        const forge::Rgb& c = i < 26 ? (i < 25 ? keys[i] : chompi) : i < forge::kViewLeds - 1 ? *lights[i - 26] : volume;
+        view_leds[i][0] = seven(c.r); view_leds[i][1] = seven(c.g); view_leds[i][2] = seven(c.b);
+    }
 }
 // Card insert/remove: remount and rescan when the card comes back.
 // Safe mode at start-up: the four knob lights flash magenta three times (1.2 s).
@@ -1007,6 +1022,25 @@ FORGE_COLD void CaptureInspector() {
 #endif
 
 // One received frame (shared by both transports, so the code exists once).
+// 0.20 display (opcode 0D page 1): the panel's state words, all already published for the lights.
+FORGE_COLD forge::ViewState ViewNow() {
+    forge::ViewState v;
+    const uint32_t chord = chord_word.load(std::memory_order_acquire), notes = chord_notes.load(std::memory_order_relaxed);
+    const uint32_t words[forge::kViewWords] = {
+        menu_state.load(std::memory_order_relaxed), looper_state.load(std::memory_order_relaxed),
+        panel_controller.KnobState(), panel_controller.KnobValues(), panel_controller.KnobTargets(),
+        panel_controller.FxLights(), panel_controller.FxKnobs(), panel_controller.SynthLights(), panel_controller.SynthKnobs(),
+        panel_controller.HarmonyLights(), panel_controller.PartsLights(), panel_controller.PartsClock(),
+        panel_controller.SequenceLights(), chord,
+        (panel_controller.RecordPosition() ? 1u : 0u) | (recording_now.load(std::memory_order_relaxed) ? 2u : 0u)
+            | (safe_mode ? 4u : 0u) | (sample_loader.Busy() ? 8u : 0u) | (install_gate.Armed() ? 16u : 0u),
+        panel_controller.DreamLights()};
+    for(unsigned i = 0; i < forge::kViewWords; ++i) v.words[i] = words[i];
+    for(unsigned i = 0; i < 4; ++i) v.chord_notes[i] = (notes >> (8 * i)) & 127u;
+    v.chord_notes[4] = (chord >> 25) & 127u;
+    ReadPower(v.battery, v.power_flags, v.charge_state);
+    return v;
+}
 FORGE_COLD void HandleFrame(const forge::MidiFrame& frame, uint8_t source) {
     forge::Request request;
     if(frame.kind == forge::MidiFrame::Kind::SysEx && forge::IsRequest(frame.data, frame.size)
@@ -1035,6 +1069,12 @@ FORGE_COLD void HandleFrame(const forge::MidiFrame& frame, uint8_t source) {
     request.source = source;
     if(error == forge::Error::None) error = HandleStorage(request);
     bool handled = request.kind == forge::RequestKind::Erase || request.kind == forge::RequestKind::List;
+    if(error == forge::Error::None && request.kind == forge::RequestKind::View) {   // 0.20 display: main loop only
+        uint8_t envelope[kMaxEnvelope];
+        Send(source, envelope, request.page == 0 ? forge::EncodeViewLeds(request.sequence, view_leds, envelope + 1)
+                                                 : forge::EncodeViewState(request.sequence, ViewNow(), envelope + 1));
+        return;
+    }
 #ifdef FORGE_TEST_HOOKS
     // Development probe: answered here from the latest snapshots; panel events
     // go to the audio owner and are acknowledged once queued.

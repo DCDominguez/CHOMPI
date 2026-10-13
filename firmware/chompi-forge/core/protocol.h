@@ -50,11 +50,14 @@ constexpr size_t kMaxReply = kMaxRequest + kStatusTail;
 // SampleList/SampleJob (opcodes 08/09) are sampler requests: the main loop
 // answers lists and runs erase/copy; a save first locks the recording (audio).
 // Panel/Probe (opcodes 0A/0B) exist only in development builds (FORGE_TEST_HOOKS).
+// View (opcode 0D, every build, 0.20): the phone display's read-only view of the panel, answered by
+// the main loop from what it already draws (page 0 the lights, page 1 the state words; EncodeView).
 enum class RequestKind : uint8_t { Parameter, Patch, Status, Note, Panic, Pedal, Bend, ResetControllers, ModWheel,
                                    Store, Recall, Erase, List, SampleList, SampleJob, Panel, Probe,
                                    Looper,     // internal (MIDI CC 24/26/27): note = control, value = CC value
                                    Clock,      // internal (MIDI real-time, 0.14): note = 0 tick, 1 start, 2 continue, 3 stop
-                                   SequenceLoad };   // internal (0.15): a recalled preset's loop is in the mailbox
+                                   SequenceLoad,     // internal (0.15): a recalled preset's loop is in the mailbox
+                                   View };           // opcode 0D (0.20): the display's view, main loop
 enum class SampleAction : uint8_t { Save, Erase, Copy };   // opcode 09 byte 7
 struct Request {
     RequestKind kind = RequestKind::Status;
@@ -255,6 +258,10 @@ FORGE_COLD inline Error DecodeRequest(const uint8_t* bytes, size_t size, Request
         }
         candidate.kind = RequestKind::Probe; candidate.page = bytes[7];
 #endif
+    } else if(bytes[4] == 0x0d) {                    // view (0.20): page 0 lights, 1 state
+        if(size != 9) return Error::Length;
+        if(bytes[7] > 1) return Error::Patch;
+        candidate.kind = RequestKind::View; candidate.page = bytes[7];
     } else if(bytes[4] == 2) {                       // status; optional flags byte: bit 0 resets the CPU peak after this reply
         if(size != 8 && size != 9) return Error::Length;
         if(size == 9 && bytes[7] > 1) return Error::Patch;
@@ -383,6 +390,38 @@ FORGE_COLD inline size_t EncodeResponse(const Response& response, uint32_t dropp
     bytes[offset + kStatusTail - 1] = Checksum(bytes, offset + kStatusTail - 1);
     return offset + kStatusTail;
 }
+// View reply 0x49 (0.20, every build; docs/forge/DISPLAY.md): the phone display. Page 0: the 35 panel
+// lights as 7-bit RGB in kViewLeds order (25 keys by slot, CHOMPI, PLAY, LOOP, the four rings SW4 SW1 SW2
+// SW3, the transport pair, SW6). Page 1: kViewWords 32-bit words (5 bytes each, 7 bits per byte, low
+// first), the chord's notes and power. Both fit kMaxReply.
+constexpr unsigned kViewLeds = 35, kViewWords = 16;
+struct ViewState {
+    // menu (PresetMenu::Packed), looper (PackLooper), knob state / values (PanelController), knob targets
+    // (Parameter ids, 8 bits each), FX lights / amounts, synth lights / knobs, harmony, parts, parts clock,
+    // event recorder lights, the chord (EngineChord), flags (bit 0 record position, 1 recording,
+    // 2 safe mode, 3 sample job busy, 4 install armed), Dream lights.
+    uint32_t words[kViewWords]{};
+    uint8_t chord_notes[5]{};
+    uint8_t battery = 4, power_flags = 0, charge_state = 0;
+};
+inline void Write32(uint8_t* bytes, uint32_t value) { for(unsigned i = 0; i < 5; ++i) bytes[i] = (value >> (7 * i)) & 127; }
+inline size_t EncodeViewLeds(uint16_t sequence, const uint8_t (&leds)[kViewLeds][3], uint8_t* bytes) {
+    Header(bytes, 0x49, sequence); bytes[7] = 0; bytes[8] = 0;
+    for(unsigned i = 0; i < kViewLeds; ++i) for(unsigned c = 0; c < 3; ++c) bytes[9 + 3 * i + c] = leds[i][c] & 127;
+    const size_t end = 9 + 3 * kViewLeds;
+    bytes[end] = Checksum(bytes, end);
+    return end + 1;
+}
+inline size_t EncodeViewState(uint16_t sequence, const ViewState& v, uint8_t* bytes) {
+    Header(bytes, 0x49, sequence); bytes[7] = 0; bytes[8] = 1;
+    size_t at = 9;
+    for(unsigned i = 0; i < kViewWords; ++i, at += 5) Write32(bytes + at, v.words[i]);
+    for(unsigned i = 0; i < 5; ++i) bytes[at++] = v.chord_notes[i] & 127;
+    bytes[at++] = v.battery & 127; bytes[at++] = v.power_flags & 127; bytes[at++] = v.charge_state & 127;
+    bytes[at] = Checksum(bytes, at);
+    return at + 1;
+}
+static_assert(9 + 3 * kViewLeds + 1 <= kMaxReply && 9 + 5 * kViewWords + 8 + 1 <= kMaxReply, "view replies fit the transport");
 #ifdef FORGE_TEST_HOOKS
 // Development probe replies (main loop). 0x47: panel event queued. 0x46 page 1:
 // the 25 key LEDs + CHOMPI LED as 7-bit RGB (pages 2-7: core/inspector.h).

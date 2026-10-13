@@ -171,6 +171,19 @@
     return message(1, sequence, data);
   }
   const read14 = (data, i) => data[i] | data[i + 1] << 7;
+  // 0.20 display (opcode 0D, forge_host.view_message / VIEW_WORDS): page 0 the 35 panel lights, 1 the state.
+  const VIEW_LEDS = 35;
+  const VIEW_WORDS = ["menu", "looper", "knob_state", "knob_values", "knob_targets", "fx_lights", "fx_knobs", "synth_lights",
+    "synth_knobs", "harmony_lights", "parts_lights", "parts_clock", "sequence_lights", "chord", "flags", "dream"];
+  function decodeView(data) {
+    const page = data[8], size = page === 0 ? 9 + 3 * VIEW_LEDS + 1 : 9 + 5 * VIEW_WORDS.length + 9;
+    if (data[7] !== 0 || (page !== 0 && page !== 1) || data.length !== size) throw new Error("Unexpected view reply");
+    if (page === 0) return {page, leds: [...Array(VIEW_LEDS).keys()].map(i => data.slice(9 + 3 * i, 12 + 3 * i))};
+    const words = {};
+    VIEW_WORDS.forEach((name, i) => { words[name] = [0, 1, 2, 3, 4].reduce((w, b) => w + data[9 + 5 * i + b] * 2 ** (7 * b), 0) % 2 ** 32; });
+    const at = 9 + 5 * VIEW_WORDS.length;
+    return {page, words, chordNotes: data.slice(at, at + 5), power: {battery: data[at + 5], flags: data[at + 6], chargeState: data[at + 7]}};
+  }
   // CHOMPI's reply (payload without F0 / F7) to the request `sent` (payload without F0 / F7).
   function decodeReply(data, sent) {
     if (data.length < 8 || PREFIX.some((b, i) => data[i] !== b) || data.some(x => !Number.isInteger(x) || x < 0 || x > 127))
@@ -178,6 +191,7 @@
     if (read14(data, 5) !== read14(sent, 5)) throw new Error("Reply to another request");
     if (checksum(data) !== 0) throw new Error("Reply damaged on the way (checksum)");
     if (data[4] === 0x41 && data.length === 9) throw new Error(`CHOMPI said no: ${ERRORS[data[7]] || "unknown error"}`);
+    if (data[4] === 0x49) return decodeView(data);
     if (data[4] === 0x42) {                                  // preset stored / erased (forge_host decode_response)
       if (data.length !== 12 || data[7] !== 0 || ![1, 2].includes(data[8]) || data[9] > 7 || data[10] > 14) throw new Error("Unexpected preset reply");
       return {action: data[8] === 1 ? "stored" : "erased", bank: data[9] + 1, slot: data[10] + 1};
@@ -221,6 +235,7 @@
   }
   const api = {encodePatch, validate, readSound, decodeReply, statusMessage: s => message(2, s), stopMessage: s => message(3, s),
                presetStore, presetList: s => message(7, s), frame, message, toV8,
+               viewMessage: (s, page) => { if (page !== 0 && page !== 1) throw new Error("View page must be 0 or 1"); return message(0x0D, s, [page]); },
                FX: {MODULES: FX_MODULES, CLASSIC: FX_CLASSIC, CHOICES: FX_CHOICES, AMOUNTS: FX_AMOUNTS, DEFAULTS: FX_DEFAULTS}};
   if (typeof module !== "undefined") module.exports = api; else root.ForgeWire = api;
 })(typeof window !== "undefined" ? window : globalThis);

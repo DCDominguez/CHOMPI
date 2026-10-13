@@ -17,6 +17,8 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
   section; v7 sounds and replies open as v8. Ships with the FX line: firmware 0.19.2 refuses v8 sounds
   (the page says they need 0.20).
 - **Undo forgives late pairs; fold level** (ceef237): see LOOPING.md and FX.md.
+- **Phone display:** a forge site page that shows CHOMPI's lights, page, knobs, chord, looper and battery
+  live over USB (Android Chrome), portrait and landscape; firmware opcode 0D. See [DISPLAY.md](DISPLAY.md).
 
 ### 0.19.2
 

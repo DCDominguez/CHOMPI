@@ -281,6 +281,10 @@ void LooperThroughThePanel() {
     cc(27, 127); cc(27, 0); assert(looper.Overdubbing());                       // CC 27 = LOOP: overdub
     Rgb play, loop; ComposeLooperLeds(PackLooper(looper, true), false, play, loop);
     assert(loop.r > 0.f && loop.g > 0.f && loop.b == 0.f);                       // yellow while overdubbing
+    // 0.20 display: the looper word carries the length (10 ms units); the knobs publish their targets.
+    assert(looper.Length() > 480 && (PackLooper(looper, true) >> 16) == looper.Length() / 480u);
+    for(unsigned k = 0; k < 4; ++k)
+        assert(((rig.panel.KnobTargets() >> (8 * k)) & 255u) == static_cast<uint32_t>(knobs::Target(k, (rig.panel.KnobState() >> (3 * k)) & 7u, rig.engine.GetParameters())));
     // Hold PLAY + LOOP 2 s: cleared; SW5 is the cutoff / panic again.
     rig.hw.keys = (uint64_t(1) << panel::kPlayKey) | (uint64_t(1) << panel::kLoopKey);
     for(int i = 0; i < 4100; ++i) rig.Block();

@@ -1,0 +1,57 @@
+/* Choowi display: CHOMPI's screen on a phone. Dark like a stage screen (the panel's lights glow on it), the
+   forge site's faces and colours (style.css). Portrait: the panel on top, the readout below. Landscape: side
+   by side, sized to the screen's height so nothing scrolls. */
+:root{--ink:#f4f2ec;--paper:#101015;--card:#1b1b23;--rule:#2c2c36;--muted:#a9a9b4;--field:#24242e;--spark:#ff5ea0;
+  --words:"Fredoka","Nunito","Varela Round","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;--mono:"Space Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --pad:16px;color-scheme:dark;font-family:var(--words)}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.bar{display:flex;align-items:center;gap:12px;padding:10px var(--pad);border-bottom:1px solid var(--rule)}
+.brand{font-weight:700;font-size:22px;color:var(--ink);text-decoration:none}
+.where{display:flex;align-items:center;gap:8px;font-weight:600;font-size:17px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.where i{width:14px;height:14px;border-radius:50%;background:#444;flex:none;box-shadow:0 0 10px currentColor}
+.battery{font-family:var(--mono);font-size:13px;color:var(--muted);white-space:nowrap}
+button{font:inherit;color:var(--ink);background:var(--field);border:2px solid var(--rule);border-radius:12px;min-height:44px;padding:0 16px;cursor:pointer}
+button.icon{min-width:44px;padding:0;font-size:20px}
+button.primary{background:var(--spark);border-color:var(--spark);color:#1b1b22;font-weight:700;width:100%;font-size:18px}
+button.quiet{background:none;border:0;color:var(--muted);text-decoration:underline;width:100%}
+button:focus-visible{outline:3px solid var(--spark);outline-offset:2px}
+main{flex:1;display:flex;flex-direction:column;gap:12px;padding:12px var(--pad);min-height:0}
+.start{max-width:520px;margin:auto;display:flex;flex-direction:column;gap:14px;text-align:center}
+.start h1{font-size:32px;margin:0}
+.start p{color:var(--muted);line-height:1.45;margin:0}
+.notice{min-height:1.4em;color:#ffb4a8}
+.panel-card{background:#07070a;border:1px solid var(--rule);border-radius:18px;padding:6px}
+#panel{display:block;width:100%;height:auto}
+.readout{display:flex;flex-direction:column;gap:10px;min-height:0}
+.knobs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.tile{background:var(--card);border:1px solid var(--rule);border-radius:14px;padding:10px 12px;min-width:0;display:flex;flex-direction:column;gap:4px}
+.tile b{font-size:20px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.label{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;gap:6px}
+.detail{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chord b{font-size:30px;color:#c9a7ff}
+.meter{height:8px;border-radius:4px;background:var(--field);overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--ring,var(--spark));border-radius:4px}
+.knob .meter i{background:var(--ring)}
+.status-line{text-align:center;margin:0}
+/* Landscape on a phone: panel left (as large as the height allows), a compact readout right; no scrolling. */
+@media (orientation:landscape) and (min-width:560px){
+  body{height:100dvh;overflow:hidden}
+  main{display:grid;grid-template-columns:minmax(0,2fr) minmax(220px,1fr);gap:10px;align-items:center;padding-top:8px;padding-bottom:8px}
+  main:has(.start:not([hidden])){display:flex}
+  .panel-card{align-self:center}
+  #panel{max-height:calc(100dvh - 90px)}
+  .readout{align-self:stretch;gap:6px;overflow:auto;justify-content:center}
+  .knobs,.row{gap:6px}
+  .tile{padding:6px 9px;gap:2px;border-radius:11px}
+  .tile b{font-size:15px}.chord b{font-size:21px}
+  .label{font-size:10px}.detail{font-size:11px}
+  .meter{height:6px}
+  .status-line{display:none}
+}
+@media (orientation:landscape) and (max-height:430px){ .bar{padding:3px var(--pad)} .brand{font-size:18px} .where{font-size:15px} button.icon{min-height:36px;min-width:36px} }
+@media (prefers-reduced-motion:no-preference){.meter i{transition:width .12s linear}}

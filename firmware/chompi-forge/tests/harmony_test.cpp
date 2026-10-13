@@ -240,6 +240,11 @@ void EngineAndPanel() {
     assert(n == 4 && released == 0); run(10); assert(e.ActiveVoices() == 4);
     std::set<unsigned> pcs; for(unsigned i = 0; i < n; ++i) pcs.insert(played[i] % 12);
     assert((pcs == std::set<unsigned>{0, 4, 7, 11}));                               // Cmaj7
+    {   // 0.20 display: the chord view names what sounds (root C, four notes, the chord counter moved)
+        uint32_t word, notes; e.ChordView(word, notes);
+        assert((word & 15u) == 0 && ((word >> 14) & 7u) == 4 && ((word >> 17) & 127u) == (player.Changes() & 127u) && player.Changes());
+        for(unsigned i = 0; i < 4; ++i) assert(((notes >> (8 * i)) & 255u) == played[i]);
+    }
     // Harmony switched off while the key is held: key-up still stops the chord.
     player.state.enabled = false;
     assert(e.Note(60, 0, 1, played, &released) == 4 && released == 4);

@@ -1,6 +1,10 @@
 # Forge Resource Ledger
 
-**Latest figures:** `-O2` instead of `-O3` (2026-10-12, branch forge/fx, Phase 0 of the FX section):
+**Latest figures (2026-10-13, branch forge/fx, the phone display):** release **250,310 B**, headroom
+**38,458 B** (+1,264 B for the display view over 249,046 B; the FX section, its order and the undo grace came
+before). Measured as the sum of the ELF sections in SRAM_EXEC (`arm-none-eabi-size -A`).
+
+**Earlier figures:** `-O2` instead of `-O3` (2026-10-12, branch forge/fx, Phase 0 of the FX section):
 release **235,232 B** / development **246,908 B**, headroom **53,536 / 41,860 B** (-20.2 / -23.1 KB).
 CPU on CHOMPI, same stress both builds (`D:	ools\chompi-session\cpu_stress.py`: presets 10 / 13,
 every SW3 effect up, 7 held notes; status CPU reset before each), average / peak %:

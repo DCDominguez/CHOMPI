@@ -418,6 +418,8 @@ public:
     // Main loop (knob lights): pages, values and flags published once per block.
     uint32_t KnobValues() const { return knob_values_.load(std::memory_order_relaxed); }
     uint32_t KnobState() const { return knob_state_.load(std::memory_order_relaxed); }
+    // 0.20 display (opcode 0D): what each knob moves on its current page (Parameter ids, 8 bits each, SW4 lowest).
+    uint32_t KnobTargets() const { return knob_targets_.load(std::memory_order_relaxed); }
     // 0.16 light feedback: bits 0-3 page flash, 4-7 a stepped setting being turned, 8 SW5's
     // cutoff shown, 9-16 the cutoff 0..255, 17 harmony on/off flash, 18 harmony now on.
     uint32_t KnobFlags() const { return knob_flags_.load(std::memory_order_relaxed); }
@@ -473,9 +475,11 @@ private:
     // SW6 value 0..255 (24-31).
     FORGE_COLD void PublishKnobs(const Engine& engine) {
         const Parameters& p = engine.GetParameters();
-        uint32_t values = 0, state = KnobPages();
+        uint32_t values = 0, state = KnobPages(), targets = 0;
         for(unsigned k = 0; k < 4; ++k) {
-            const float v = Clamp(engine.Value(knobs::Target(k, knob_page_[k], p)), 0.f, 1.f);
+            const Parameter target = knobs::Target(k, knob_page_[k], p);
+            targets |= static_cast<uint32_t>(target) << (8 * k);
+            const float v = Clamp(engine.Value(target), 0.f, 1.f);
             values |= static_cast<uint32_t>(v * 255.f + .5f) << (8 * k);
             if(knobs::IsPatchPage(k, knob_page_[k], p)) state |= 1u << (12 + k);
             if(reset_flash_[k]) state |= 1u << (16 + k);
@@ -485,6 +489,7 @@ private:
         const float vol = Clamp(engine.Value(volume_page_ ? Parameter::InputGain : Parameter::Level), 0.f, 1.f);
         state |= static_cast<uint32_t>(vol * 255.f + .5f) << 24;
         knob_values_.store(values, std::memory_order_relaxed); knob_state_.store(state, std::memory_order_relaxed);
+        knob_targets_.store(targets, std::memory_order_relaxed);
         uint32_t flags = 0;
         for(unsigned k = 0; k < 4; ++k) flags |= (page_flash_[k] ? 1u << k : 0u) | (turn_view_[k] ? 1u << (4 + k) : 0u);
         if(tone_view_) flags |= 1u << 8;
@@ -920,7 +925,7 @@ private:
     KnobHold hold_[4];
     uint32_t combo_frames_ = 0, reset_flash_[4]{};
     bool tone_was_down_ = false, tone_turned_ = false, volume_page_ = false;
-    std::atomic<uint32_t> knob_values_{0}, knob_state_{0};
+    std::atomic<uint32_t> knob_values_{0}, knob_state_{0}, knob_targets_{0};
     std::atomic<bool> recording_position_{false};
     std::atomic<uint8_t> count_in_{0};
     uint32_t volume_held_ = 0;
@@ -1063,10 +1068,11 @@ FORGE_COLD inline void RenderPlayLeds(uint64_t keys_down, uint32_t live, uint16_
     }
 }
 // Looper state for the LEDs (audio -> main loop in one word): bits 0-2 state,
-// 3 overdub, 4 effects before the loop, 5 has a loop, 6-15 position x 1023.
+// 3 overdub, 4 effects before the loop, 5 has a loop, 6-15 position x 1023, 16-31 length (10 ms).
 inline uint32_t PackLooper(const Looper& l, bool fx_before) {
     return static_cast<uint32_t>(l.GetState()) | (l.Overdubbing() ? 8u : 0u) | (fx_before ? 16u : 0u)
-         | (l.HasLoop() ? 32u : 0u) | (static_cast<uint32_t>(l.Position() * 1023.f) << 6);
+         | (l.HasLoop() ? 32u : 0u) | (static_cast<uint32_t>(l.Position() * 1023.f) << 6)
+         | (std::min<uint32_t>(l.Length() / 480u, 65535u) << 16);   // 0.20 display: length in 10 ms
 }
 // PLAY / LOOP LEDs (as TAPE). PLAY: off empty, white armed, teal recording or
 // playing (fading over the loop), white fading when paused. LOOP: red first

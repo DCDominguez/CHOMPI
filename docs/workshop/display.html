@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#16161c">
+  <title>Choowi display</title>
+  <meta name="description" content="CHOMPI's screen on your phone: the panel's lights, what each knob does, the chord, the looper. Over USB, in Chrome.">
+  <link rel="icon" href="../forge/assets/choowi.svg">
+  <link rel="stylesheet" href="display.css">
+  <script src="forge-wire.js" defer></script><script src="forge-midi.js" defer></script>
+  <script src="display-model.js" defer></script><script src="display.js" defer></script>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html" aria-label="back to Choowi's forge">forge</a>
+  <span id="where" class="where"><i id="where-dot"></i><span id="where-name">not connected</span></span>
+  <span id="battery" class="battery" hidden></span>
+  <button id="full" type="button" class="icon" aria-label="full screen" title="full screen">⤢</button>
+</header>
+<main id="display">
+  <section id="start" class="start">
+    <h1>CHOMPI's screen</h1>
+    <p>Plug CHOMPI into this phone with a USB-C cable (an OTG cable or adapter), switch it on, then Connect. Chrome on Android or a computer; iPhones have no Web MIDI.</p>
+    <button id="connect" type="button" class="primary">Connect ✦</button>
+    <button id="demo" type="button" class="quiet">Show a demo</button>
+    <p id="notice" class="notice" role="status" aria-live="polite"></p>
+  </section>
+  <section id="panel-card" class="panel-card" hidden aria-label="CHOMPI's panel">
+    <svg id="panel" viewBox="0 0 1200 470" role="img" aria-label="CHOMPI's lights as they are now"></svg>
+  </section>
+  <section id="readout" class="readout" hidden>
+    <div id="knobs" class="knobs"></div>
+    <div class="row">
+      <div id="chord" class="tile chord"><span class="label">chord</span><b id="chord-name">—</b><span id="chord-detail" class="detail"></span></div>
+      <div id="loop" class="tile"><span class="label">looper</span><b id="loop-state">empty</b>
+        <div class="meter"><i id="loop-pos"></i></div><span id="loop-detail" class="detail"></span></div>
+    </div>
+    <div class="row">
+      <div class="tile"><span class="label" id="vol-label">volume</span><div class="meter"><i id="vol"></i></div></div>
+      <div class="tile"><span class="label">recorder</span><b id="rec-state">empty</b></div>
+    </div>
+    <p id="status-line" class="detail status-line"></p>
+  </section>
+</main>
+</body>
+</html>

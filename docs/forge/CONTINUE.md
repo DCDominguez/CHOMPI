@@ -3,6 +3,21 @@
 Updated 2026-10-13: overnight functions test done (newest section). 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2-rc1; `main` carries it, Pages serves the forge page). The owner's CHOMPI runs development build 69c5727. Read the newest section below first; older sections are history (HOME_CHECKLIST and TEST_SESSION are kept for the record).
 
 
+## 2026-10-13 (morning): web app v8 and the phone display (branch forge/fx)
+
+- **Web app v8** (25441b6): forge page + local workshop edit v8 with an FX group; chatbot prompt v8; tests
+  byte-for-byte. Not published (ships with 0.20). browser_e2e moved to v8 but not run (no Playwright).
+- **Phone display** (the owner: Android, now in 0.20): firmware opcode 0D / reply 0x49 (35 lights; 16 state
+  words incl. knob targets, looper length, the last chord), main loop only; `docs/workshop/display.html` with
+  portrait / landscape layouts, a demo, wake lock; shared `forge-midi.js`. Release +1,264 B (headroom 38,458 B).
+  Software-tested (make test 158 OK; UBSan trap protocol / harmony / panel; test_display_js); layouts checked
+  in the browser pane at 375x812 and 812x375 with the demo. **Not tried on CHOMPI or a phone; not installed.**
+  How to try before publishing: DISPLAY.md (adb reverse or the insecure-origin flag).
+- Still waiting on the owner: install the current build (blocked earlier by the session's permission check),
+  undo with natural timing, fold level; the TAPE mini guide PDF couldn't be opened here (no renderer).
+- Next: cheat sheets per page / illustrated guides (the owner's idea; could also show on the display),
+  redundant-controls pass, docs, release candidate 3.
+
 ## 2026-10-13 (overnight): functions test (branch forge/fx; CHOMPI runs 55f77b6)
 
 - **Run:** `D:	ools\chompi-sessiontest.py` (harness `ftest_harness.py`: panel injection +
