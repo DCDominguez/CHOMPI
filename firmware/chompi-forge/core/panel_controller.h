@@ -1088,9 +1088,9 @@ FORGE_COLD inline void RenderPlayLeds(uint64_t keys_down, uint32_t live, uint16_
             const uint8_t slot = panel::KeyToSlot(key);
             const uint8_t led = slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key);
             if(led < 25) leds[led] = ChordColour(note, hs, (harmony >> 17) & 1u);
-            if(led < 25 && ((harmony >> 18) & 1u) && note >= 60) {   // split: the melody side shows the scale, the tonic brightest
-                const unsigned pc = note % 12;
-                leds[led] = !harmony::InKey(pc, hs) ? Rgb{} : pc == hs.tonic % 12u ? Rgb{.55f, .55f, .55f} : Rgb{.14f, .14f, .14f};
+            if(led < 25 && ((harmony >> 18) & 1u) && note >= 60) {   // split: the melody side shows the scale (the owner:
+                const unsigned pc = note % 12;                       // lit in scale, red if not); the tonic brightest
+                leds[led] = !harmony::InKey(pc, hs) ? Rgb{.18f, 0.f, 0.f} : pc == hs.tonic % 12u ? Rgb{.8f, .8f, .8f} : Rgb{.35f, .35f, .35f};
             }
         }
     } else if(live & 1u) {

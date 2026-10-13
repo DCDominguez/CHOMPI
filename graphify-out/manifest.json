@@ -84,9 +84,9 @@
     "semantic_hash": "cbb13981dc7a3751a6eb413032ce38a9"
   },
   "firmware/chompi-forge/core/panel_controller.h": {
-    "mtime": 1791899277.6157837,
-    "seen": 1791899930.9661224,
-    "ast_hash": "20c774aeebadf0c0168b415043188640",
+    "mtime": 1791900457.3953135,
+    "seen": 1791900769.0305715,
+    "ast_hash": "0a8e884d615d9d7fbd7a14561297c521",
     "semantic_hash": ""
   },
   "firmware/chompi-forge/core/parameters.h": {
@@ -480,9 +480,9 @@
     "semantic_hash": ""
   },
   "firmware/chompi-forge/tests/panel_test.cpp": {
-    "mtime": 1791899443.8396792,
-    "seen": 1791899930.9661224,
-    "ast_hash": "d90725bb055902caf7718adcc46bd934",
+    "mtime": 1791900457.3963127,
+    "seen": 1791900769.0305715,
+    "ast_hash": "7549aa33a876af4b54180d401efbbe44",
     "semantic_hash": ""
   },
   "firmware/chompi-forge/tests/parts_test.cpp": {
@@ -840,9 +840,9 @@
     "semantic_hash": ""
   },
   "docs/forge/ILLUSTRATED_MANUAL.html": {
-    "mtime": 1791899892.4896328,
-    "seen": 1791899930.9661224,
-    "ast_hash": "568f4187146a07409b9ccbfd93a24030",
+    "mtime": 1791900731.7935245,
+    "seen": 1791900769.0305715,
+    "ast_hash": "f51e538ba0126c68317f3ac07cd4bbd2",
     "semantic_hash": ""
   },
   "docs/forge/UX_REVIEW.md": {
@@ -1236,9 +1236,9 @@
     "semantic_hash": ""
   },
   "docs/forge/FX.md": {
-    "mtime": 1791899880.616553,
-    "seen": 1791899930.9661224,
-    "ast_hash": "fb2d5598c8af513fa19f8bb97f769ba8",
+    "mtime": 1791900489.330668,
+    "seen": 1791900769.0305715,
+    "ast_hash": "5d65f98dde28af2a7be9e02ab287dbb3",
     "semantic_hash": ""
   },
   "firmware/chompi-forge/tests/test_display_js.py": {
@@ -1248,9 +1248,9 @@
     "semantic_hash": ""
   },
   "docs/forge/DISPLAY.md": {
-    "mtime": 1791899191.4334831,
-    "seen": 1791899930.9661224,
-    "ast_hash": "837611d61d39e18481115f7eac112017",
+    "mtime": 1791900335.3483934,
+    "seen": 1791900769.0305715,
+    "ast_hash": "6ea833fdd544eda9a646f85361bd3271",
     "semantic_hash": ""
   },
   "docs/forge/REDUNDANT_CONTROLS.md": {

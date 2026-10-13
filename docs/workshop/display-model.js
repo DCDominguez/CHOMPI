@@ -180,7 +180,7 @@
         if (h >>> 18 & 1) {                                        // split playing (shown only while it's on)
           const scale = SCALES[(h >>> 4 & 15) % 9];
           for (let n = 60; n <= 72; n++) keys[n] = scale.includes((n - tonic + 120) % 12) ? noteName(n) : "";
-          legend.splice(0, 2, ["C3–B3", "chords (the arp and bass follow these)"], ["C4–C5", "melody, every note snapped to the key's scale"]);
+          legend.splice(0, 2, ["C3–B3", "chords (the arp and bass follow these)"], ["C4–C5", "melody, every note snapped to the key's scale (white keys in it, red ones move)"]);
         }
       } else {
         for (let n = 48; n <= 72; n++) keys[n] = noteName(n);

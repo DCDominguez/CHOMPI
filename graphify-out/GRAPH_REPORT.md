@@ -1,7 +1,7 @@
 # Graph Report - CHOMPI  (2026-10-13)
 
 ## Corpus Check
-- 164 files · ~362,034 words
+- 164 files · ~362,104 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 9 file(s) not represented in the graph (top: (none) 4, .css 2, .ld 1)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `414d5351`
+- Built from commit: `a31266e9`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 

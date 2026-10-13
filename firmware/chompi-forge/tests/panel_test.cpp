@@ -927,7 +927,8 @@ void Split020() {
     auto key_of = [](uint8_t note) { for(uint8_t k = 0; k < panel::kButtons; ++k) if(panel::kKeyNotes[k] == note) return k; return uint8_t(0); };
     LedView v; v.harmony = rig.panel.HarmonyLights(); Rgb keys[25], chompi; ComposeLeds(v, keys, chompi);
     auto led_of = [&](uint8_t note) { const uint8_t k = key_of(note), slot = panel::KeyToSlot(k); return keys[slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(k)]; };
-    assert(led_of(60).r > .5f && led_of(62).r > .1f && led_of(62).r < .2f && led_of(61).r == 0.f && led_of(66).r == 0.f);   // tonic, in scale, out
+    assert(led_of(60).g > .5f && led_of(62).g > .25f && led_of(62).g < .5f);       // tonic bright, in scale lit white
+    assert(led_of(61).r > .1f && led_of(61).g == 0.f && led_of(66).r > .1f && led_of(66).b == 0.f);   // out of scale: dim red
     assert(led_of(48).r > 0.f || led_of(48).g > 0.f);                              // the chord side keeps its chord colours
     hold(); assert(!rig.engine.Split() && !((rig.panel.HarmonyLights() >> 18) & 1u));
 }
