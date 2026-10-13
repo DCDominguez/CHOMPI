@@ -254,6 +254,47 @@ line in (as today), and the hand control has an on / off (a long press, so it ne
 **Could come to Choowi first** as a secret: cupping the mic as a filter / mute on the synth, a breath as a
 swell, taps as tap tempo for the arp.
 
+## Control schemes and expression on CHOMPI (research)
+
+**What CHOMPI gives us:** keys with **no velocity** (every press is full strength), **no motion sensor**,
+four push encoders with rings, two more knobs, three buttons, a toggle, and the mic. So expression has
+to come from **timing, combination and the knobs**, the way button-grid instruments (the monome has no
+velocity either) and encoder controllers (turn, push, push + turn, hold for fine resolution) do it.
+
+**Lessons from conducting machines:**
+- **Max Mathews' Radio Baton and Conductor program** (Bell Labs, 1980s): the score's notes are stored as
+  a sequence of beats and **each beat of the baton advances the score**, so tempo is fully in the
+  conductor's hands; the two batons control six variables that can be reassigned at any moment. Soloists
+  used it to play orchestral accompaniments.
+- **Buchla Lightning** (1991): two infrared wands; the mapping from gesture to music is user-defined.
+- Both were harder to time on than a drum (a 2009 NIME study): **a physical tap beats a wave in the air
+  for precision**, which suits CHOMPI's buttons.
+
+**Lessons from performance instruments:** Elektron's **scenes and crossfader** (two snapshots, one control
+morphs every parameter between them); **macro knobs** in generative instruments (one knob moves many
+parameters: density, intensity, space); **multi-state thresholds** (Battey: push past a point and the system
+reconfigures itself); **shared control** (Martin: a generative model and the performer move the same knobs).
+
+**Expression schemes for Chomposer (proposals):**
+
+| Scheme | The gesture | What it expresses |
+|---|---|---|
+| **Baton mode** (Mathews) | each tap of the CHOMPI key (or of the case, via the mic) **is** the next beat | the piece moves only when you beat; stop and it waits on the beat (a natural fermata); beat faster and it flows |
+| **Flick** | spin a knob fast and let go | a swell on that instrument that blooms and decays, sized by the spin speed (knob speed is the "velocity" CHOMPI's keys lack) |
+| **Hold time** | how long a key or knob is held | sustain, fermata, solo: the longer, the more |
+| **Roll speed** | press chord keys in a quick sweep instead of together | a strum: a fast sweep is energetic, a slow one gentle; it sets the next chord's spread |
+| **Trill rate** | repeat one key quickly | intensity: tremolo strings, rolled timpani, building tension |
+| **Span** | press two keys far apart | how wide the orchestra spreads in register (narrow = intimate, wide = grand) |
+| **Anticipation** | press a section key early or late against the beat | push forward or hold back (rubato into the next part) |
+| **Scenes A / B** (Elektron) | store two prep states; a knob morphs between them | one knob moves mood, balance, register and density together |
+| **Threshold** (Battey) | push a dynamics knob past its end and hold | the climax: tutti, everyone fortissimo, then it settles back |
+| **Gesture loop** | hold LOOP while turning a knob, release | that movement repeats every phrase (a swell each phrase) until cleared |
+| **Shared rings** (Martin) | the ensemble's own suggestions animate the rings | in Dream / auto mode the musicians "move the knobs" themselves; touch a knob to take it back |
+| **The hand on the mic** | cup, breathe, tap, hover (above) | darkness, swell, beat, height |
+
+The gesture layer that recognises these is in CHOMPOSER_ARCHITECTURE.md (section 8c); its timing
+thresholds stay tables, tuned on the owner's hands.
+
 ## Building it (milestones)
 
 1. **One seed, four parts, fixed form**: seed capture, analysis, a simple arranger (melody, harmony, bass,
@@ -295,4 +336,14 @@ Each milestone is playable on its own.
   [Motivic manipulations (Ithaca College)](https://musictech.ithaca.edu/MusicTech/ICTheory/OnlineText/Form/Unit%20I/MelManipulation/MelManipulation.html);
   [Texture (Tiverton High School)](https://tiverton.devon.sch.uk/curriculum/knowledge_organisers/year_10/music/Musical%20Elements/Texture-2.pdf).
   The owner's pick: [What do orchestra conductors ACTUALLY do? (Mixed Signals, YouTube)](https://www.youtube.com/watch?v=3Osx3JsCS9s).
+- Conducting machines: [Max Mathews (Wikipedia)](https://en.wikipedia.org/wiki/Max_Mathews);
+  [Computers and music (Computer History Museum)](https://www.computerhistory.org/collections/curator-picks/computers-and-music);
+  [Buchla Lightning II (MATRIXSYNTH)](https://www.matrixsynth.com/2006/11/buchla-lightning-ii.html);
+  [Collicutt, Casciato and Wanderley, NIME 2009](https://nime.org/proc/nime2009_collicutt/).
+- Controllers and performance: [LinnStrument and expressive grids (CDM)](https://cdm.link/2014/04/roger-linns-linnstrument-finally-make-grids-expressive-music-hands/);
+  [Midi Fighter Twister hidden features (DJ TechTools)](https://djtechtools.com/2016/07/28/midi-fighter-twister-5-hidden-features-you-should-know);
+  [Octatrack scenes and crossfader (Sonicstate)](https://sonicstate.com/news/2010/11/01/-more-octatrack-features/);
+  [Drambo morphs](https://www.beepstreet.com/drambo-docs/morphs.html);
+  [Battey, multi-state force-feedback (CIRMMT)](https://cirmmt.org/fr/events/workshops/research/forcefeedback-and-music-abstracts/battey);
+  [Martin, generative gestures on a controller (CEUR)](https://ceur-ws.org/Vol-3124/paper10.pdf).
   Standard texts worth reading in full: Max Rudolf, *The Grammar of Conducting*; Adler, *The Study of Orchestration*.

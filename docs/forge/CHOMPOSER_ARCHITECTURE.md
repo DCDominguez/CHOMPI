@@ -20,6 +20,9 @@ estimates to check when the code exists.
 
 ## 2. Overview
 
+![Chomposer architecture](assets/chomposer-architecture.svg)
+
+
 ```
                  MAIN LOOP (~1 kHz)                                   AUDIO CALLBACK (2 kHz blocks)
  ┌──────────────────────────────────────────────┐       ┌──────────────────────────────────────────────┐
@@ -34,7 +37,7 @@ estimates to check when the code exists.
 ```
 
 Three single-producer / single-consumer queues (as Choowi's `SpscQueue`): **commands** main → audio
-(start, stop, cue, cut, solo, swap, jump, mood, tempo...), **MIDI events** audio → main (time-stamped,
+(start, stop, cue, cut, solo, swap, jump, mood, tempo, beat...), **MIDI events** audio → main (time-stamped,
 with priority), **features** audio → main (the mic's hand readings, the beat for the lights). The **score**
 is double-buffered: the arranger writes the spare copy, then one atomic index flip hands it to the
 conductor at a section boundary.
@@ -51,6 +54,8 @@ conductor at a section boundary.
 | `Performance` | live: tempo target and current, pace, mood (current and target), per-instrument live level, character, cue / cut / solo state, queued jump, fermata | 0.2 KB |
 | `NoteTracker` | per channel (16) x 128 notes: sounding count + which instrument | 2 KB |
 | `HandFeatures` | openness 0-1, breath 0-1, tap event + time, height 0-1, speed (signed) | 32 B |
+| `Gesture` | the gesture layer's output: kind (beat, flick, swell, roll, trill, span, hold, combo), target, amount, time | 16 B per event, a queue of 32 |
+| `Ensemble` | the sampled instruments in SDRAM: per instrument up to 16 zones (root note, range, loop points, sample offset) | zones ~2 KB; audio in SDRAM |
 
 `Score` and `NoteTracker` live in D2 SRAM; the rest in DTCM. Total under 32 KB.
 
@@ -188,6 +193,32 @@ too slow and jittery for an ensemble.
 - **MIDI in:** optional clock follow (an external drum machine leads the tempo; `parts::Clock` already
   follows MIDI clock); start / stop / continue; nothing else is needed from the instruments.
 
+## 8b. The internal ensemble (sampled instruments, SDRAM)
+
+Without Choowi's sampler pool, TAPE recording and looper, **~60 MB of SDRAM is free**. Chomposer uses it
+for **its own orchestra**: sampled instruments (strings, flute, horn, piano, harp, bass, a little
+percussion) loaded from the card at start-up into SDRAM, **one per role**, so a piece sounds like an
+ensemble with nothing plugged in; external instruments become an upgrade, not a requirement. Each
+instrument: several samples across its range (zones every 3-6 semitones), sustain loops, 16-bit, ~4-8 MB;
+six instruments fit in ~40 MB. Playback reuses Choowi's sampler voice (Hermite interpolation, loop
+crossfade, envelopes) with a voice budget per instrument (e.g. 24 voices in all, to measure). Mixable
+with MIDI: CHOMPI plays strings and horns from its memory while a synth on TRS takes the bass. Also in
+SDRAM: a **hall reverb** long enough to give the ensemble a room (a few seconds of delay lines), and a
+**performance recorder** (the last minutes of audio, to save as a WAV; MIDI takes are tiny and live on the
+card). Licensing: samples must be CC0 or the owner's own (as Choowi's packs).
+
+## 8c. The gesture layer (expression without velocity)
+
+CHOMPI's keys send no velocity and there is no motion sensor, so expression comes from **time, combination
+and the knobs** (the research is in CHOMPOSER.md, "Control schemes and expression"). A gesture recognizer
+in the main loop turns raw panel events (key down / up and encoder steps with timestamps, pushes, the
+mic's features) into `Gesture` events for the phase machine: **beat** (a tap on the beat key: tempo and, in
+baton mode, the next beat itself), **flick** (a fast knob spin: a swell that decays), **hold** (a held key
+or knob: sustain, fermata, solo), **roll** (keys pressed in a quick sweep: strum speed = energy), **trill**
+(a key repeated fast: tremolo, intensity), **span** (two keys far apart: register width), **combo** (two
+controls together: role swap, scene). Thresholds are tables (press < 180 ms = tap, > 600 ms = hold; a roll
+is notes within 120 ms; a flick is > 6 detents in 100 ms), to tune on the owner's hands.
+
 ## 9. Panel and phases
 
 A small state machine: **Seed** (toggle up) → **Casting / Prep** (toggle down, menu open, KEY_21 steps
@@ -274,9 +305,11 @@ Choowi stays untouched (one change at a time, Choowi's tests guarding it).
 | Conductor + note tracker | 8 KB | 2.5 KB | < 2 % |
 | MIDI out (DMA, priority, USB) | 4 KB | 2 KB | < 1 % |
 | Hand-mic | 6 KB | 6 KB | 3-7 % |
+| Gesture layer | 3 KB | 1 KB | main loop only |
+| Internal ensemble (sampler voices, hall reverb) | 8-12 KB (reuses Choowi's voice) | ~40-50 MB SDRAM | 20-40 % (the voice count decides; to measure) |
 | Panel, phases, lights, files, view | 20-25 KB | 2 KB | small |
 | Internal synth (reused) | as Choowi | as Choowi | as Choowi (fewer voices) |
-| **Chomposer-specific total** | **~60-70 KB** | **~40 KB** | **~10 %** plus the synth |
+| **Chomposer-specific total** | **~70-85 KB** | **~40 KB + SDRAM** | **~10 %** plus the ensemble's voices |
 
 With the sampler, looper and most of Choowi's FX left out, the line fits the 282 KB code area with room
 to spare.
