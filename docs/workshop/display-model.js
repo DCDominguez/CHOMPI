@@ -76,6 +76,30 @@
     });
   }
   function volume(words) { return {label: words.knob_state >>> 20 & 1 ? "Input gain" : "Volume", value: (words.knob_state >>> 24) / 255}; }
+  // Music spelling (the owner, 2026-10-13: the chord read wrong): letters from the key, flats for borrowed roots,
+  // lower-case numerals for minor and diminished chords. core/harmony.h kScale, in Mode order.
+  const SCALES = [[0, 2, 4, 5, 7, 9, 11], [0, 2, 3, 5, 7, 8, 10], [0, 2, 3, 5, 7, 8, 11], [0, 2, 3, 5, 7, 9, 11],
+    [0, 2, 3, 5, 7, 9, 10], [0, 1, 3, 5, 7, 8, 10], [0, 2, 4, 6, 7, 9, 11], [0, 2, 4, 5, 7, 9, 10], [0, 1, 3, 5, 6, 8, 10]];
+  const LETTERS = ["C", "D", "E", "F", "G", "A", "B"], NATURAL = [0, 2, 4, 5, 7, 9, 11];
+  const TONIC_LETTER = [0, 1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6];        // C D♭ D E♭ E F F#(G♭ → F#) G A♭ A B♭ B
+  const TONIC_FLAT = [0, 1, 0, 1, 0, 0, -1, 0, 1, 0, 1, 0];         // black-key tonics as flats, F# as a sharp
+  function spell(pc, letter) {                                     // the pitch class written on this letter
+    const diff = ((pc - NATURAL[letter]) % 12 + 18) % 12 - 6;
+    return LETTERS[letter] + (diff > 0 ? "♯".repeat(diff) : "♭".repeat(-diff));
+  }
+  const tonicLetter = tonic => TONIC_FLAT[tonic] === 1 ? (TONIC_LETTER[tonic] + 1) % 7 : TONIC_LETTER[tonic];
+  // A root's degree (0-6) and accidental against the key: in the scale as it is, else the nearest lowered degree.
+  function degreeOf(interval, scale) {
+    const d = scale.indexOf(interval);
+    if (d >= 0) return {degree: d, flat: ""};
+    const up = scale.findIndex(s => s === (interval + 1) % 12);
+    return up >= 0 ? {degree: up, flat: "♭"} : {degree: scale.findIndex(s => s === (interval + 11) % 12), flat: "♯"};
+  }
+  function diatonicLower(degree, scale) {                          // that degree's triad is minor or diminished
+    const third = (scale[(degree + 2) % 7] - scale[degree] + 12) % 12;
+    return third === 3;
+  }
+  function numeral(degree, lower, dim) { const r = ROMAN[degree] || "?"; return (lower ? r.toLowerCase() : r) + (dim ? "°" : ""); }
   // A chord's name from the notes that sound (the Inspector's chord_label, host/forge_inspector.py).
   function chordName(root, notes) {
     if (!notes.length) return null;
@@ -90,14 +114,24 @@
     if (has(5) && third !== "sus4" && (has(10) || has(11)) && ext !== "13") ext = "11";
     return NOTES[root] + (third !== "m" || !ext.startsWith("maj") ? third : "m") + ext;
   }
+  function chordSuffix(root, notes) { return chordName(root, notes).slice(NOTES[root].length); }
   // Engine::ChordView: root 0-3, quality 4-6, kind 7-9, degree 10-12, shifted 13, count 14-16, counter 17-23.
   function chord(words, chordNotes) {
-    const w = words.chord, count = Math.min(w >>> 14 & 7, 5), root = w & 15, kind = w >>> 7 & 7, degree = w >>> 10 & 7;
+    const w = words.chord, count = Math.min(w >>> 14 & 7, 5), root = w & 15, kind = w >>> 7 & 7, target = w >>> 10 & 7;
     if (!count) return null;
-    const notes = chordNotes.slice(0, count);
-    const numeral = kind === 1 || kind === 5 ? ROMAN[degree] : kind === 2 ? `V/${ROMAN[degree]}` : null;
-    return {name: chordName(root, notes), numeral, shifted: !!(w >>> 13 & 1), counter: w >>> 17 & 127,
-            notes: notes.map(n => NOTES[n % 12] + (Math.floor(n / 12) - 1))};
+    const notes = chordNotes.slice(0, count), h = words.harmony_lights || 0, tonic = h & 15, scale = SCALES[(h >>> 4 & 15) % 9];
+    const suffix = chordSuffix(root, notes), lower = /^(m(?!aj)|dim)/.test(suffix), dim = suffix.startsWith("dim");
+    const at = degreeOf((root - tonic + 12) % 12, scale), letter = (tonicLetter(tonic) + at.degree) % 7;
+    // Secondary dominants name their target (V/ii); everything else its own degree, flats for borrowed roots.
+    const roman = kind === 2 ? `V/${numeral(target, diatonicLower(target, scale), false)}` : kind ? at.flat + numeral(at.degree, lower, dim) : null;
+    // The chord's notes on letters counted from its root (third, fifth, seventh...), so A7 reads A C♯ E G.
+    const STEP = [0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6];
+    const noteName = n => {                       // the octave follows the letter (B♯4 = C5, C♭5 = B4)
+      const l = (letter + STEP[(n - root + 120) % 12]) % 7, diff = ((n % 12 - NATURAL[l]) % 12 + 18) % 12 - 6;
+      return spell(n % 12, l) + (Math.floor((n - diff) / 12) - 1);
+    };
+    const spelled = spell(root, letter);
+    return {name: spelled + suffix, numeral: roman, shifted: !!(w >>> 13 & 1), counter: w >>> 17 & 127, notes: notes.map(noteName)};
   }
   // PackLooper: state 0-2, overdub 3, effects before 4, has a loop 5, position 6-15 (x1023), length 16-31 (10 ms).
   function looper(words) {

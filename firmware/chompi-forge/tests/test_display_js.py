@@ -78,7 +78,7 @@ class DisplayJsTests(unittest.TestCase):
         got = model("console.log(JSON.stringify([d.looper({looper: input[0]}), d.chord({chord: input[1]}, [57, 60, 64, 67, 0])]));", [looper, chord])
         self.assertEqual((got[0]["state"], got[0]["overdub"], got[0]["seconds"]), ("playing", True, 7.5))
         self.assertAlmostEqual(got[0]["position"], 512 / 1023, places=4)
-        self.assertEqual((got[1]["name"], got[1]["numeral"], got[1]["notes"]), ("Am7", "VI", ["A3", "C4", "E4", "G4"]))
+        self.assertEqual((got[1]["name"], got[1]["numeral"], got[1]["notes"]), ("Am7", "vi", ["A3", "C4", "E4", "G4"]))
 
     def test_harmony_and_parts_page_knobs(self):
         # The harmony and parts pages show their own settings (harmony::Pack / parts::PackArp = forge_host's words).
@@ -112,6 +112,24 @@ class DisplayJsTests(unittest.TestCase):
         got = model("console.log(JSON.stringify(['parts', 'synth', 'fx'].map(p => Object.keys(d.guide(p, {menu: 1, harmony_lights: 0}).keys).map(Number))));", None)
         for page, firmware, js in zip(("parts", "synth", "fx"), (parts, synth, fx_notes), got):
             self.assertEqual(set(js), firmware | {61, 63}, page)
+
+    def test_chords_are_spelled_from_the_key(self):
+        # Real chords from CHOMPI (2026-10-13, C major, static layout) and the same moved to F, D and F# major:
+        # letters from the key, flats for borrowed roots, a chord's notes counted from its root, lower-case minor.
+        word = lambda root, kind, degree, count: root | kind << 7 | degree << 10 | count << 14
+        cases = [(0, word(9, 2, 1, 4), [57, 61, 64, 67], "A7", "V/ii", ["A3", "C♯4", "E4", "G4"]),
+                 (0, word(10, 5, 6, 3), [58, 62, 65], "B♭", "♭VII", ["B♭3", "D4", "F4"]),
+                 (0, word(5, 5, 3, 3), [68, 72, 77], "Fm", "iv", ["A♭4", "C5", "F5"]),
+                 (0, word(1, 3, 0, 3), [68, 73, 77], "D♭", "♭II", ["A♭4", "D♭5", "F5"]),
+                 (0, word(11, 1, 6, 3), [59, 62, 65], "Bdim", "vii°", ["B3", "D4", "F4"]),
+                 (5, word(2, 2, 1, 4), [62, 66, 69, 72], "D7", "V/ii", ["D4", "F♯4", "A4", "C5"]),
+                 (2, word(1, 1, 6, 3), [61, 64, 67], "C♯dim", "vii°", ["C♯4", "E4", "G4"]),
+                 (6, word(8, 2, 4, 4), [63, 66, 68, 72], "G♯7", "V/V", ["D♯4", "F♯4", "G♯4", "B♯4"])]
+        payload = [{"words": {"chord": w, "harmony_lights": tonic | 1 << 16}, "notes": notes + [0] * (5 - len(notes))}
+                   for tonic, w, notes, *_ in cases]
+        got = model("console.log(JSON.stringify(input.map(c => d.chord(c.words, c.notes))));", payload)
+        for case, js in zip(cases, got):
+            self.assertEqual((js["name"], js["numeral"], js["notes"]), tuple(case[3:]), case)
 
 
 if __name__ == "__main__":

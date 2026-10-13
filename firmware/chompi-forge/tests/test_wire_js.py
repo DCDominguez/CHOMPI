@@ -26,7 +26,7 @@ def node(script, payload):
         data = Path(folder) / "in.json"; data.write_text(json.dumps(payload))
         runner = Path(folder) / "run.js"
         runner.write_text(f"const w = require({json.dumps(str(WIRE))}); const input = require({json.dumps(str(data))});\n{script}")
-        out = subprocess.run([NODE, str(runner)], capture_output=True, text=True, timeout=60)
+        out = subprocess.run([NODE, str(runner)], capture_output=True, text=True, encoding="utf-8", timeout=60)
         if out.returncode: raise AssertionError(out.stderr)
         return json.loads(out.stdout)
 
