@@ -1,6 +1,7 @@
 # Chomposer: design study (Forge line #2, planned)
 
-Status: **design only, 2026-10-14.** Nothing built. The owner's brief, then a proposed architecture,
+Status: **design only, 2026-10-14.** The build-level architecture (data model, arranger rules, mood
+numbers, the conductor's timing, MIDI output, files, tests, milestone 1): [CHOMPOSER_ARCHITECTURE.md](CHOMPOSER_ARCHITECTURE.md). Nothing built. The owner's brief, then a proposed architecture,
 a control map for CHOMPI's panel, and the conducting research it rests on. Everything below is a
 proposal to settle with the owner; decisions are marked **(owner)** when they are his.
 
