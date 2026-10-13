@@ -347,6 +347,34 @@ your preset. MIDI clock from other gear takes over the tempo while it plays. Det
 
 ---
 
+## how do I use the effects?
+
+Choowi 0.20 has an FX section: four **modules** in a row, each with three effects.
+
+| Module | Knob | Keys on the FX page |
+| --- | --- | --- |
+| Space | SW4 | C3 echo + room · D3 cloud · E3 tape echo |
+| Colour | SW1 | F3 saturation · G3 fold · A3 crush |
+| Texture | SW2 | C4 cassette · D4 broken · E4 squash |
+| Motion | SW3 | F4 chorus · G4 phaser · A4 tremolo |
+
+1. **Open the FX page:** toggle down, hold CHOMPI, then tap **KEY_21 (C#4)** until the CHOMPI
+   light turns **green** (harmony → parts → synth → FX).
+2. **Pick an effect:** press its white key. The chosen key in each module lights.
+3. **Turn its knob up** to hear it. **Hold the knob and turn** for its character (for example
+   the phaser's speed, or the hiss on cassette).
+4. **Change the order** the sound goes through the modules: tap **A#3**. It and the effect keys
+   blink. Tap one key of each module in the order you want; the **fourth tap locks it**. Tap
+   A#3 again to finish early; **hold A#3 1 s** to go back to Classic.
+5. **Take an effect out:** turn its knob down until its ring is dim. The order and the chosen
+   effect stay put for when you turn it back up.
+6. Let go of CHOMPI and play. **Save a preset** to keep the effects with the sound.
+
+B3 puts the reverb side by side with the delay; F#3 / G#3 put the effects before or after the
+looper. Details: [manual, section 8e](MANUAL.md#8e-the-fx-section--firmware-020).
+
+---
+
 ## how do I play Choowi's samples?
 
 Forge comes with its own sounds in **bank purple** (copy `choowi-samples.zip` from the release
@@ -407,7 +435,9 @@ The looper records everything you hear, as audio. Menu closed:
 2. Tap **PLAY** to end the take: the loop plays. (Tap **LOOP** instead to go straight into
    overdub.)
 3. While it plays: tap **LOOP** = overdub on / off (LOOP yellow), tap **PLAY** = pause / resume.
-4. Hold **PLAY + LOOP** for 2 s to clear it.
+4. Overdubbed something you don't like? **Tap PLAY + LOOP together**: the last overdub is gone
+   (one step back, loops up to about 41 s). They needn't land at exactly the same moment.
+5. Hold **PLAY + LOOP** for 2 s to clear it.
 
 **SW5 on the loop:**
 
@@ -505,8 +535,11 @@ More: [manual, section 12](MANUAL.md#12-troubleshooting) and
 | --- | --- |
 | Toggle down, hold CHOMPI | open the menu (let go to close) |
 | In the menu: hold KEY_22 1 s (on TAPE's page) | presets page (blue) |
-| In the menu: hold KEY_21 1 / 2 / 3 s (on TAPE's page) | harmony (purple) / parts (orange) / synth (pink) |
-| In the menu: tap KEY_21 (harmony, parts, synth) | next of those three pages |
+| In the menu: hold KEY_21 1 / 2 / 3 / 4 s (on TAPE's page) | harmony (purple) / parts (orange) / synth (pink) / FX (green) |
+| In the menu: tap KEY_21 (harmony, parts, synth, FX) | next of those four pages |
+| FX page: white key / knob / hold knob + turn | pick an effect / its amount / its character |
+| FX page: tap A#3, then one key per module | your own effect order (the fourth tap locks it) |
+| FX page: hold A#3 1 s | the Classic order again |
 | In the menu: tap KEY_22 (any Forge page) | back to TAPE's page (teal) |
 | Presets page: KEY_25, let go of CHOMPI, white key, CHOMPI | **save** the sound (green flash) |
 | Presets page: hold CHOMPI, white key, let go | recall |
@@ -522,6 +555,7 @@ More: [manual, section 12](MANUAL.md#12-troubleshooting) and
 | Toggle up, hold CHOMPI | record (after the red count-in) |
 | Toggle down, tap CHOMPI | event recorder: close the take / stop / play |
 | LOOP, then PLAY | record a loop, then play it |
+| PLAY + LOOP tapped together | undo the last overdub |
 | PLAY + LOOP held 2 s | clear the loop |
 | SW5 turn / push and turn / click | filter / loop speed or scrub / speed back to normal |
 | SW6 turn / short press / hold 2 s | volume / switch to input gain and back / battery light |
@@ -539,5 +573,17 @@ Download `choowi-0.19.2-rc2-card.zip` from the [download page](https://github.co
 4. **Save JSON** keeps a file on the computer. Without a device, **make sounds anyway** lets you edit and keep JSON for later.
 
 Any arriving MIDI stops dream mode. No API key is needed on the forge page.
+
+## how do I see CHOMPI on my phone?
+
+The forge page has a **phone display**: CHOMPI's panel drawn live, with every light, the page
+you're on, what each key and knob does there, the chord you just played, the looper and the
+battery. It's the same drawing as the illustrated manual, so you can check one against the other.
+
+1. **Android phone, Chrome** (iPhones have no Web MIDI). Plug CHOMPI into the phone with a USB-C
+   OTG cable or adapter and switch it on. A computer with Chrome or Edge works too.
+2. Open the forge page, tap **phone display**, then **Connect**, and allow MIDI devices.
+3. Turn the phone sideways for the biggest panel. It only watches; it never changes CHOMPI.
+   Needs Choowi 0.20.
 
 **Power reminder:** When using a power bank, charge with CHOMPI switched off. SW6 green, yellow and red are voltage bands, not a percentage; only white means full.
