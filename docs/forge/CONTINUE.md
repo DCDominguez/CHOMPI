@@ -34,7 +34,7 @@ Updated 2026-10-13: 0.20.0 release candidate 3 prepared (newest section). 2026-1
 - Also queued: rebuild the rc3 kit right before publishing (the manual changed after it was built: tooltips'
   touch targets, the glossary).
 
-## 2026-10-13 (evening): rc3 kit rebuilt at e272943; waiting to push
+## 2026-10-13 (evening): Choowi 0.20.0 rc3 published (kit at e272943)
 
 - CHOMPI runs the development build of e272943 (installed with the owner's key press; split, its clearer
   lights and the secret modes on the chord side). Split melody lights were too faint on hardware (the owner),
@@ -50,7 +50,8 @@ Updated 2026-10-13: 0.20.0 release candidate 3 prepared (newest section). 2026-1
 - Planned for the setup-page listing (ugrossek/CHOMPI-firmwares, entry drafted: title Choowi, card CHOOWI,
   author DeeCee, tag `^choowi-(?P<v>.+)$`, asset `^FORGE\.bin$`): a "Choowi's sounds" button on the forge page
   (writes the purple samples over USB) and Choowi keeping its files in `/FORGE` when it exists (root fallback).
-- Publishing rc3 (the owner: "rc3 lets go"): forge/fx pushed by the owner; main fast-forward + GitHub release.
+- **Published 2026-10-13:** main = 6f2b3b2 (Pages built: forge page, Choowivision, stage door), GitHub release
+  choowi-0.20.0-rc3 (card zip, samples, manual, FORGE.bin e272943, NOTICES, SHA256SUMS; not a pre-release).
 - Hardware checks still open: split lights and chord-side secret modes, order gesture, broken radio, undo
   timing, fold level, held-knob white light, bank b levels, the stage with its word on the phone.
 
