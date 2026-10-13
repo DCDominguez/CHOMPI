@@ -19,7 +19,8 @@ forge                         the workshop: shared tools, docs, tests, the bridg
 │   ├── 0.18  Dream Bellows   (orange)
 │   ├── 0.19  Tinker Wrench   (red)
 │   └── 0.20  Choowivision    (pink: CHOMPI's screen on your phone, and the FX section)
-└── (the next firmware line)  a new name, a new mascot, same workshop
+├── Chomposer                 firmware line #2 (planned): CHOMPI conducts an ensemble; mascot to come
+└── (the line after)         a new name, a new mascot, same workshop
 ```
 
 ## the rules
@@ -61,6 +62,16 @@ Choowi started as the owner's sketch: a square with spiral, slightly crazy eyes 
 chewy grin. He got a crooked wizard hat full of stars and a hammer with a glowing rune
 that throws sparks in the nine colours. His line turns CHOMPI into a playable instrument
 that does half the work for you; see the [manual](MANUAL.md) for everything he does.
+
+## Chomposer, the next of the family (planned)
+
+The owner's idea for line #2 (2026-10-14): **Chomposer**. CHOMPI becomes an orchestra
+conductor: you play one musical idea and an **ensemble of instruments** takes it up, every
+part playing the same idea in a different **role** (melody, harmony, bass, rhythm,
+counter-line and so on), together as one piece of music rather than a stack of layers.
+Its own firmware, name and mascot (not a Choowi release), forged in the same workshop:
+Choowi's harmony, arp / bass, synth voices and Dream are the parts it would start from.
+Nothing is designed or built yet; the mascot and the first tool are still to come.
 
 ## whose it is
 
