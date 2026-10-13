@@ -1,4 +1,4 @@
-# Forge 0.19.2 — the one consolidated hardware test
+# Forge 0.20.0 — the one consolidated hardware test
 
 > **Kept for the record.** This is the 0.15-era consolidated session plan; most of it has since been
 > run by hand. The current evidence, including the 0.19 guided hands-on test, is in

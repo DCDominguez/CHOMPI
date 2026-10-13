@@ -3,7 +3,7 @@
 *Choowi is the first firmware of the Forge, a little workshop of custom CHOMPI firmware.
 The family and its rules: [FORGE_FAMILY.md](FORGE_FAMILY.md).*
 
-Firmware **0.19.2**. Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club. Forge turns CHOMPI into a playable synthesizer,
+Firmware **0.20.0**. Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club. Forge turns CHOMPI into a playable synthesizer,
 TAPE-compatible sampler and looper whose sounds you can design on a computer —
 by hand or by describing them to an AI — and send over USB.
 
@@ -31,7 +31,7 @@ Keep a backup of your SD card.
 ## 2. Installing and updating
 
 ### Install and update from the SD card (the easy way)
-Download **`choowi-0.19.2-rc2-card.zip`** from the [0.19.2 release candidate](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc2). Read **README-FIRST** before copying the kit to the card’s top folder. It contains `FORGE.bin`, Choowi’s bank purple samples and the illustrated tutorial as `MANUAL.html`. Keep your card backup; a kit sample filename can replace an existing sample. A standalone `FORGE.bin` is also available for firmware-only updates.
+Download **`choowi-0.20.0-rc3-card.zip`** from the [0.20.0 release candidate](https://github.com/myth-world/Forge/releases/tag/choowi-0.20.0-rc3). Read **README-FIRST** before copying the kit to the card’s top folder. It contains `FORGE.bin`, Choowi’s bank purple samples and the illustrated tutorial as `MANUAL.html`. Keep your card backup; a kit sample filename can replace an existing sample. A standalone `FORGE.bin` is also available for firmware-only updates.
 Nothing to install on the computer.
 
 1. Back up the card (copy everything to the computer).
@@ -820,7 +820,7 @@ so one card sets both firmwares:
 | CHOMPI switched itself off or restarted | *Check setup* shows **Last start** (power-on, brown-out = the supply dipped, or a crash); the card keeps a line per start in `FORGE/RESTARTS.TXT`. Send both with your report. A low battery switches CHOMPI off as stock TAPE does: with no USB after 15 s of amber flashes; on a weak USB supply (computer port) at once, lights off. From 0.11 these leave a "battery low" line in `RESTARTS.TXT`; charge it, or play on a USB-C charger |
 | Knob lights flash magenta three times at start, then the CHOMPI light blinks magenta every 2 s; menu keys red | **Safe mode** (0.15.2): Forge crashed three times within 10 s of starting, so it started without the card's settings, presets and samples. Playing works; your card is untouched. Copy `FORGE/RESTARTS.TXT` off the card and report it; switch off and on to leave safe mode. A firmware install over USB or from the card still works |
 | Dim blue light for 30 s or more at start, or it hangs there | A card written by Forge before the 0.15.2 card fix: put the card in a computer, run a disk check (Windows: `chkdsk X: /F`), delete empty files named `RESTARTS.TXT`, `presets_backup.json` (in `FORGE/`) and `presets_temp.json`; until then CHOMPI starts without the card |
-| Which build is on CHOMPI? | Connect CHOMPI (bridge) or `python host/forge_host.py battery`: e.g. "Forge · Choowi 0.19.2 (build b462bea)" — the build is the commit it was made from |
+| Which build is on CHOMPI? | Connect CHOMPI (bridge) or `python host/forge_host.py battery`: e.g. "Forge · Choowi 0.20.0 (build 960cad3)" — the build is the commit it was made from |
 | Dark after an install or a restart; only the red charge light | The bootloader is waiting on a low battery with a weak USB supply. Plug in a USB-C to USB-C charger, switch off, wait 5 s, switch on |
 | White keys all red in the menu | SD card missing or unreadable; reinsert it |
 | A sample doesn't play | Exact name in the card's top folder (`cubbi_a1.wav`), not inside a folder |

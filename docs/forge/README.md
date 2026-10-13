@@ -3,8 +3,8 @@
 # the forge docs
 
 Everything about **Forge**, the workshop of custom CHOMPI firmware, and **Choowi**, its first
-firmware line, written down. Current release: **Choowi 0.19.2, release candidate**
-([download](https://github.com/myth-world/Forge/releases/tag/choowi-0.19.2-rc2): the card zip has
+firmware line, written down. Current release: **Choowi 0.20.0, release candidate 3 (community testing)**
+([download](https://github.com/myth-world/Forge/releases/tag/choowi-0.20.0-rc3): the card zip has
 the firmware, Choowi's own sounds and the illustrated manual).
 
 - **Playing it:** the [guide](GUIDE.md) ("how do I…?"), the [illustrated manual](ILLUSTRATED_MANUAL.html)
@@ -42,7 +42,7 @@ Older, kept for the record: [TEST_SESSION.md](TEST_SESSION.md) and [HOME_CHECKLI
 (the 0.15-era hardware session; the 0.19 hands-on checks are in TEST_RESULTS), and
 [LIVE_AI_TEST.md](LIVE_AI_TEST.md) (API-key provider checks; the workshop no longer uses keys).
 
-## Where Choowi stands (0.19.2 release candidate)
+## Where Choowi stands (0.20.0 release candidate 3)
 
 | Area | On the owner's CHOMPI | Software-tested only / open |
 | --- | --- | --- |

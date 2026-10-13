@@ -2,9 +2,7 @@
 
 Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)); the heading names it.
 
-## 0.19.2 Secret modes, the forge site, bank purple (small tool: Whatzit) — 2026-10-12 (release candidate; on CHOMPI as build b462bea; checks in TEST_RESULTS)
-
-### Development line (branch forge/fx, not released; the version number for it is still open)
+## 0.20.0 The FX section, overdub undo, the phone display (tool: to be named) — release candidate 3, for community testing (2026-10-13; not yet released)
 
 - **The FX section:** four modules (Space, Colour, Texture, Motion), three effects each, in a route; the
   FX menu page; patch v8. See [FX.md](FX.md).
@@ -23,7 +21,7 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
 - **Phone display:** a forge site page that shows CHOMPI's lights, page, knobs, chord, looper and battery
   live over USB (Android Chrome), portrait and landscape; firmware opcode 0D. See [DISPLAY.md](DISPLAY.md).
 
-### 0.19.2
+## 0.19.2 Secret modes, the forge site, bank purple (small tool: Whatzit) — 2026-10-12 (release candidate; on CHOMPI as build b462bea; checks in TEST_RESULTS)
 
 - **Harmony, arp and bass fixes (after release candidate 2; implemented and software-tested, not yet
   hardware-verified; the owner's review, 2026-10-13).** Dominant chords (secondary dominants, Shift's
