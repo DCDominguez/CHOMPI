@@ -42,8 +42,15 @@ Updated 2026-10-13: 0.20.0 release candidate 3 prepared (newest section). 2026-1
 - Stage door on the home page: the pink colour dot (a31266e).
 - Kit rebuilt: `build/release-rc3` (card zip 3,239,001 B; FORGE.bin from e272943; NOTES "a few secrets").
   Software-tested: make test 163 OK, UBSan secret / harmony / parts / panel, both builds.
-- Not yet: the push of forge/fx and the fast-forward of main (Pages) - the owner asked for it, the agent's
-  permission check refused the push; the owner runs it or allows it. Then the GitHub release with the kit.
+- **Hardware-verified: Choowi runs from the community multi-firmware launcher** (sfaber02, v1.5.0). Launcher
+  installed over USB through Choowi's installer (the owner's key press), rc3 FORGE.bin sent to key 5 with the
+  launcher's USB-MIDI protocol (a scratchpad client written from its PROTOCOL.md), started by the launcher; Choowi
+  answered "0.20.0 (build e272943)". The owner's card kept Choowi's top-folder samples, so a fresh launcher card
+  is not yet tried. To put Choowi back alone: start key 5, `forge_card.py install` FORGE.bin (key press).
+- Planned for the setup-page listing (ugrossek/CHOMPI-firmwares, entry drafted: title Choowi, card CHOOWI,
+  author DeeCee, tag `^choowi-(?P<v>.+)$`, asset `^FORGE\.bin$`): a "Choowi's sounds" button on the forge page
+  (writes the purple samples over USB) and Choowi keeping its files in `/FORGE` when it exists (root fallback).
+- Publishing rc3 (the owner: "rc3 lets go"): forge/fx pushed by the owner; main fast-forward + GitHub release.
 - Hardware checks still open: split lights and chord-side secret modes, order gesture, broken radio, undo
   timing, fold level, held-knob white light, bank b levels, the stage with its word on the phone.
 
