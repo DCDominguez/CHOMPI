@@ -34,7 +34,11 @@ Branch head `753078b` (the brief named `b7d098b`; 23 commits later: knob pages,
 | Event recorder mailbox | `sequence_mailbox_memory` (0.15: a 1,024-event loop for save / load) | 6,152 |
 | **Free** | | **387,048 (0.37 MiB)** |
 
-Executable space (SRAM_EXEC 282 KiB = 288,768 B): *2026-10-12, `-O2`: release 235,232 B, headroom
+Executable space (SRAM_EXEC 282 KiB = 288,768 B): *2026-10-13, 0.20.0 (FX section, overdub undo, display
+view, broken radio): release 252,214 B, headroom 36,554 B; development 263,606 B, headroom 25,162 B
+(RESOURCE_LEDGER). SDRAM is unchanged: the FX memory is in D2 SRAM (33 KB `.d2_bss`) and overdub undo uses
+the loop memory's spare half, not a new allocation; the sampler read path, loader, recorder, USB file
+replacement and FatFS / SD config are untouched.* 2026-10-12, `-O2`: release 235,232 B, headroom
 53,536 B; development 246,908 B, headroom 41,860 B (RESOURCE_LEDGER). Older figures follow.*
 Release **235,380 B, headroom
 53,388 B**; development 249,188 B, headroom 39,580 B (0.15.1 review fixes +0.9 KB both, no

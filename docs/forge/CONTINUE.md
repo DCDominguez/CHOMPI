@@ -1,7 +1,22 @@
 # Forge — developer resume checkpoint
 
-Updated 2026-10-13: overnight functions test done (newest section). 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2-rc1; `main` carries it, Pages serves the forge page). The owner's CHOMPI runs development build 69c5727. Read the newest section below first; older sections are history (HOME_CHECKLIST and TEST_SESSION are kept for the record).
+Updated 2026-10-13: 0.20.0 release candidate 3 prepared (newest section). 2026-10-12: **Choowi 0.19.2 release candidate published** (choowi-0.19.2-rc1; `main` carries it, Pages serves the forge page). The owner's CHOMPI runs development build 69c5727. Read the newest section below first; older sections are history (HOME_CHECKLIST and TEST_SESSION are kept for the record).
 
+
+## 2026-10-13 (afternoon): 0.20.0 release candidate 3 prepared (branch forge/fx; CHOMPI runs 8a8de38)
+
+- **Version 0.20.0** (f0ddcdb): firmware minor 20 / patch 0, docs, site and checklists name choowi-0.20.0-rc3.
+  The 0.20 tool is still to be named (CHANGELOG heading says so).
+- **Since 8a8de38 (not installed):** SW5 cutoff / loop speed in the display view; FX order by tap A#3 then one
+  key per module (the owner's design; hold A#3 1 s = Classic); broken radio, a secret (FX.md developer note);
+  display + manual share panel-art.js; manual FX and phone display sections; GUIDE FX / display / undo.
+- **Software-tested:** make test 162 OK; UBSan trap fx / panel / protocol / harmony; release 252,214 B
+  (headroom 36,554), development 263,606 B (headroom 25,162). Browser e2e not run (no Playwright).
+- **Proposal waiting for the owner:** REDUNDANT_CONTROLS.md (names only would be the small set).
+- **Left for rc3:** install + hardware checks (order gesture, SW5 on the display, undo timing, fold level,
+  held-knob white, broken radio by ear, bank b level, display on CHOMPI and Android); by-hand test-sheet items;
+  battery watch; the tool name; release kit (package_candidate.py), push / merge to main and the GitHub
+  release only with the owner's OK; Pages then serves the v8 site and the display.
 
 ## 2026-10-13 (morning): web app v8 and the phone display (branch forge/fx)
 

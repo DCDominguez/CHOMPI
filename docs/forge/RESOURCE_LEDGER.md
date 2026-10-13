@@ -1,6 +1,10 @@
 # Forge Resource Ledger
 
-**Latest figures (2026-10-13, branch forge/fx, the phone display):** release **250,310 B**, headroom
+**Latest figures (2026-10-13, 0.20.0 release candidate 3):** release **252,214 B**, headroom **36,554 B**;
+development **263,606 B**, headroom **25,162 B** (sum of the ELF sections in SRAM_EXEC). Since the display
+figures below: SW5 in the view, the tap-A#3 order gesture and broken radio (+1.9 KB release).
+
+**Earlier (2026-10-13, branch forge/fx, the phone display):** release **250,310 B**, headroom
 **38,458 B** (+1,264 B for the display view over 249,046 B; the FX section, its order and the undo grace came
 before). Measured as the sum of the ELF sections in SRAM_EXEC (`arm-none-eabi-size -A`).
 
