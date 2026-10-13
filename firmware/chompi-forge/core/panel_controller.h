@@ -344,6 +344,15 @@ public:
                     s.enabled = !s.enabled; hold_[1].used = hold_[2].used = true; harmony_flash_ = panel::kHarmonyFlashFrames;
                 }
             } else harmony_combo_frames_ = 0;
+            // 0.20 secret: SW4 + SW2 held 1 s = split playing on / off (the knob lights flash teal).
+            const bool split_combo = hold_[0].down && hold_[2].down && !hold_[1].down && !hold_[3].down;
+            if(split_combo) {
+                split_combo_frames_ += hardware.frames;
+                if(split_combo_frames_ >= panel::kPanicHoldFrames && !hold_[0].used) {
+                    engine.SetSplit(!engine.Split()); hold_[0].used = hold_[2].used = true;
+                    magic_flash_ = panel::kMagicFlashFrames; magic_kind_ = 2;
+                }
+            } else split_combo_frames_ = 0;
             // 0.17: SW1 + SW3 = surprise me, SW2 + SW3 = mutate (not with SW4: SW4 + SW3 is panic).
             const bool roll_combo = hold_[1].down && hold_[3].down && !hold_[0].down && !hold_[2].down;
             const bool mutate_combo = hold_[2].down && hold_[3].down && !hold_[0].down && !hold_[1].down;
@@ -368,7 +377,7 @@ public:
                 if(down) {
                     if(!h.down) h = KnobHold{}, h.down = true; else h.frames += hardware.frames;
                     if(increment) h.turned = true;
-                    if(!h.used && !h.turned && !combo && !harmony_combo && !roll_combo && !mutate_combo && !dream_combo && h.frames >= panel::kResetHoldFrames && !menu_.Active()) {
+                    if(!h.used && !h.turned && !combo && !harmony_combo && !roll_combo && !mutate_combo && !dream_combo && !split_combo && h.frames >= panel::kResetHoldFrames && !menu_.Active()) {
                         engine.ResetControl(target); h.used = true; reset_flash_[knob] = 48 * 300;
                     }
                 } else if(h.down) {
@@ -536,7 +545,8 @@ private:
             fx_lights_.store(f, std::memory_order_relaxed); fx_knobs_.store(amounts, std::memory_order_relaxed);
         }
         const bool tape_menu = menu_.Active() && menu_.Page() == MenuPage::Samples;
-        harmony_lights_.store(engine.Harmony() ? harmony::Pack(engine.Harmony()->state, engine.Harmony()->Shift()) : 0u, std::memory_order_relaxed);
+        harmony_lights_.store(engine.Harmony() ? harmony::Pack(engine.Harmony()->state, engine.Harmony()->Shift()) | (engine.Split() ? 1u << 18 : 0u) : 0u,
+                              std::memory_order_relaxed);   // bit 18 (0.20): split playing, lights only, never in a patch
         if(const parts::Parts* pp = engine.Parts()) {
             const parts::Clock& c = pp->GetClock();
             parts_lights_.store(parts::PackArp(pp->settings), std::memory_order_relaxed);
@@ -900,7 +910,7 @@ private:
     std::atomic<uint32_t> dream_lights_{0};
     std::atomic<uint8_t> dream_colour_{0};
     dream::Show show_;                            // 0.19.2 Dream (toggled); dream_ above is now the nap
-    uint32_t dream_combo_frames_ = 0;
+    uint32_t dream_combo_frames_ = 0, split_combo_frames_ = 0;
     FORGE_COLD void StopDream(Engine& engine) { show_.Stop([&](uint8_t note, uint8_t velocity) { engine.ChimeNote(note, velocity); }); }
     // Fires at 1 s held, then every 1.5 s while held; letting go resets.
     template<typename F> static void MagicCombo(bool held, uint32_t& frames, uint32_t block, F fire) {
@@ -1078,6 +1088,10 @@ FORGE_COLD inline void RenderPlayLeds(uint64_t keys_down, uint32_t live, uint16_
             const uint8_t slot = panel::KeyToSlot(key);
             const uint8_t led = slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key);
             if(led < 25) leds[led] = ChordColour(note, hs, (harmony >> 17) & 1u);
+            if(led < 25 && ((harmony >> 18) & 1u) && note >= 60) {   // split: the melody side shows the scale, the tonic brightest
+                const unsigned pc = note % 12;
+                leds[led] = !harmony::InKey(pc, hs) ? Rgb{} : pc == hs.tonic % 12u ? Rgb{.55f, .55f, .55f} : Rgb{.14f, .14f, .14f};
+            }
         }
     } else if(live & 1u) {
         const bool kit = (live >> 1) & 1u;

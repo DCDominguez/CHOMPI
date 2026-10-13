@@ -261,6 +261,15 @@ void EngineAndPanel() {
     std::set<unsigned> pcs; for(uint8_t n : arp_notes) pcs.insert(n % 12);
     assert((pcs == std::set<unsigned>{0, 4, 7}) && e.ActiveVoices() <= 1);
     e.Note(60, 0, 2); e.Panic(); run(10);
+    {   // 0.20 secret, split playing: the arp takes the chord side (C3 = I), the melody side plays straight past it.
+        e.SetSplit(true); arp_notes.clear();
+        assert(e.Note(48, 100, 2) == 0 && parts.SetCount() == 3);                // C3: the I chord, to the arp
+        uint8_t mp[4]; assert(e.Note(62, 100, 2, mp) == 1 && mp[0] == 62);        // D4: sounds itself, the arp untouched
+        assert(parts.SetCount() == 3);
+        run(1000);
+        for(uint8_t n : arp_notes) assert(n % 12 == 0 || n % 12 == 4 || n % 12 == 7);   // the arp plays only the chord
+        e.Note(62, 0, 2); e.Note(48, 0, 2); e.Panic(); run(10); e.SetSplit(false);
+    }
     // Bass only: the chord sounds directly, the bass adds its root (C2) on MIDI channel + 1.
     parts.settings.pattern = Pattern::Off; parts.settings.bass = Bass::Root; parts.settings.bass_rate = BassRate::Chord; e.PartsChanged();
     uint8_t played[16]; unsigned released = 0; midi();                          // (the panic's note-offs)

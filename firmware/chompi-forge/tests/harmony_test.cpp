@@ -253,6 +253,26 @@ void EngineAndPanel() {
     player.state.enabled = true; player.state.extension = Extension::Ninth; synth.voices = 4; assert(e.ApplyPatch(synth));
     assert(e.Note(55, 100, 1) == 4); run(10); assert(e.ActiveVoices() == 4);
     e.Panic(); run(10); assert(e.ActiveVoices() == 0 && player.Sounding(1) == 0);
+    {   // 0.20 secret, split playing (C major, triads): C3-B3 chords, C4-C5 single notes snapped to the scale.
+        player.state.extension = Extension::Triad; synth.voices = 7; assert(e.ApplyPatch(synth));
+        e.SetSplit(true); assert(e.Split());
+        uint8_t out[2 * kMaxNotes]; unsigned off = 9;
+        assert(e.Note(60, 100, 1, out, &off) == 1 && out[0] == 60 && off == 0);          // C4: C4 alone, not a chord
+        assert(e.Note(61, 100, 1, out, &off) == 1 && out[0] == 60);                      // C#4: down to C4 (a tie goes down)
+        assert(e.Note(66, 100, 1, out, &off) == 1 && out[0] == 65);                      // F#4: F4 (a tie goes down)
+        assert(e.Note(62, 100, 1, out) == 1 && out[0] == 62);                            // D4 is in the scale
+        assert(e.Note(61, 0, 1, out, &off) == 1 && out[0] == 60 && off == 1);           // its key up stops what it played
+        assert(e.Note(60, 0, 1, out) == 1 && e.Note(66, 0, 1, out) == 1 && e.Note(62, 0, 1, out) == 1);
+        assert(e.Note(48, 100, 1, out, &off) == 3);                                      // C3: still the I chord
+        e.Note(48, 0, 1); run(400); assert(e.ActiveVoices() == 0);
+        player.state.enabled = false;                                                    // harmony off: split doesn't apply
+        assert(e.Note(61, 100, 1, out) == 1 && out[0] == 61); e.Note(61, 0, 1);
+        player.state.enabled = true;
+        e.Note(64, 100, 1); e.SetSplit(false); assert(e.Note(64, 0, 1, out) == 1 && out[0] == 64);   // switched off while held: still stops
+        run(400); assert(e.ActiveVoices() == 0);
+        e.SetSplit(true); e.Note(67, 100, 1); e.Panic(); run(10); assert(e.ActiveVoices() == 0);
+        e.SetSplit(false);
+    }
     assert(e.Note(55, 0, 1) == 1);                                                  // nothing held after panic: a plain note-off
     // A kit sampler keeps its pads (no chords); outside C3..C5 Static plays plain notes.
     assert(e.Note(30, 100, 1, played) == 1 && played[0] == 30); e.Note(30, 0, 1);

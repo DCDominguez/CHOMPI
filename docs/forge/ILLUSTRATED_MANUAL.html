@@ -1275,6 +1275,11 @@ document.getElementById('book-print').addEventListener('click',()=>window.print(
         Object.assign(keys, STATIC_BLACK);
         legend.push(["white keys", "chords I–VII, two octaves (C5: shift)"], ["black keys", "V/ii V/iii V/V V/vi ♭VII · iv ♭III ♭VI V/IV ♭II"],
                     ["key", `${NOTES[tonic]} ${MODES[(h >>> 4 & 15) % 9]}`]);
+        if (h >>> 18 & 1) {                                        // split playing (shown only while it's on)
+          const scale = SCALES[(h >>> 4 & 15) % 9];
+          for (let n = 60; n <= 72; n++) keys[n] = scale.includes((n - tonic + 120) % 12) ? noteName(n) : "";
+          legend.splice(0, 2, ["C3–B3", "chords (the arp and bass follow these)"], ["C4–C5", "melody, every note snapped to the key's scale"]);
+        }
       } else {
         for (let n = 48; n <= 72; n++) keys[n] = noteName(n);
         legend.push(["keys", where === "play" && harmonyOn(words) ? "each key plays the chord built on it (real layout)" : "play notes"]);

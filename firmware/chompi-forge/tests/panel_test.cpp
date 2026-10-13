@@ -911,7 +911,28 @@ void FxPage020() {
     rig.Key(panel::kChompiKey, false);
 }
 
+// 0.20 secret: SW4 + SW2 held 1 s toggles split playing (teal flash); the melody side's keys show the scale.
+void Split020() {
+    Rig rig;
+    harmony::Player player; rig.engine.SetHarmony(&player);
+    Parameters synth; synth.version = 4; synth.synth = true; synth.voices = 7; assert(rig.engine.ApplyPatch(synth));
+    player.state.enabled = true; player.state.tonic = 0;                          // C major
+    rig.Block();
+    const float before = rig.engine.Value(knobs::Target(0, 0, rig.engine.GetParameters()));
+    auto hold = [&] { rig.Key(panel::kKnobEncoder[0], true); rig.Key(panel::kKnobEncoder[2], true); for(int i = 0; i < 2010; ++i) rig.Block();
+                      rig.Key(panel::kKnobEncoder[0], false); rig.Key(panel::kKnobEncoder[2], false); rig.Block(); };
+    hold(); assert(rig.engine.Split() && ((rig.panel.HarmonyLights() >> 18) & 1u));
+    assert(((rig.panel.MagicLights() & 3u) == 2u));                              // the teal flash
+    assert(rig.engine.Value(knobs::Target(0, 0, rig.engine.GetParameters())) == before);   // no knob reset on the way
+    auto key_of = [](uint8_t note) { for(uint8_t k = 0; k < panel::kButtons; ++k) if(panel::kKeyNotes[k] == note) return k; return uint8_t(0); };
+    LedView v; v.harmony = rig.panel.HarmonyLights(); Rgb keys[25], chompi; ComposeLeds(v, keys, chompi);
+    auto led_of = [&](uint8_t note) { const uint8_t k = key_of(note), slot = panel::KeyToSlot(k); return keys[slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(k)]; };
+    assert(led_of(60).r > .5f && led_of(62).r > .1f && led_of(62).r < .2f && led_of(61).r == 0.f && led_of(66).r == 0.f);   // tonic, in scale, out
+    assert(led_of(48).r > 0.f || led_of(48).g > 0.f);                              // the chord side keeps its chord colours
+    hold(); assert(!rig.engine.Split() && !((rig.panel.HarmonyLights() >> 18) & 1u));
+}
 int main() {
+    Split020();
     DjFilterNeverSilent();
     FxPage020();
     SynthPage019();

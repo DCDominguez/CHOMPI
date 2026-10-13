@@ -257,6 +257,15 @@ inline bool InKey(unsigned pc, const State& s) {
     for(uint8_t step : kScale[static_cast<unsigned>(s.mode) % kModes]) if((s.tonic + step) % 12 == pc % 12) return true;
     return false;
 }
+inline bool InKeyNote(unsigned note, const State& s) { return InKey(note % 12, s); }
+// Split playing (0.20 secret): a melody note moved into the key's scale, to the nearest scale note (a tie goes down).
+inline uint8_t SnapToScale(uint8_t note, const State& s) {
+    for(int d = 0; d <= 6; ++d) {
+        if(note >= d && InKeyNote(note - d, s)) return static_cast<uint8_t>(note - d);
+        if(note + d <= 127 && InKeyNote(note + d, s)) return static_cast<uint8_t>(note + d);
+    }
+    return note;
+}
 
 // Keys to chords and who owns which note: each held key keeps the notes it started,
 // a per-pitch count lets overlapping chords share notes, so releasing a key (or

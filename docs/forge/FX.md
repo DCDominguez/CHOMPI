@@ -62,7 +62,7 @@ to be measured on CHOMPI in the listening session.
 5. Save a sound with cloud + chorus, recall another, recall it again — do the FX come back?
 6. The lights: groups, colours, route key, rings, the green CHOMPI light.
 
-## A secret (developer note; keep it out of the player manuals)
+## Secrets (developer note; keep them out of the player manuals)
 
 **Broken radio** (0.20, the owner's pick, 2026-10-13). On the FX page, tap **D4** (broken) **twice within
 0.4 s** to switch it on or off; D4 then flickers. With Texture up, broken's cut-outs fall on the tempo's 1/16
@@ -73,3 +73,16 @@ saved in presets, off at power-on; Texture at zero bypasses it as usual. Code: `
 `Radio`, `Engine::SetBrokenRadio`, `PanelController::FxKey` (FxLights bit 30). Tests: fx_test BrokenRadio
 (cut-outs only at grid steps, bounded, bypassed at zero; golden unchanged), panel_test (double tap, slow taps
 don't, flicker). Software-tested; not yet heard on CHOMPI.
+
+**Split playing** (0.20, the owner's pick, 2026-10-13; lives with harmony, noted here beside the other
+panel secret). Hold **SW4 + SW2 for 1 s** (the knob lights flash teal) to switch it on or off. With harmony
+on, **C3-B3 play chords** as usual and **C4-C5 play a melody**: one note per key, moved to the nearest note
+of the key's scale (a tie goes down: C#4 plays C4 in C major). The arp and the bass follow the chord side
+only. The melody keys are lit: out-of-scale keys dark, scale notes dim white, the tonic brighter.
+Choowivision's play guide shows the split while it's on (harmony_lights bit 18, lights only). Device state,
+not saved in presets, off at power-on; harmony off = normal keys. Code: `harmony::SnapToScale`,
+`Engine::SetSplit` / `kSplitNote` / `melody_` (a key-up stops what its key played, even after split is
+switched off; panic clears it), `PanelController` split_combo and RenderPlayLeds. Tests: harmony_test
+(snapping, ties, key-ups, harmony off, switched off while held, panic), parts_test (the arp takes the
+chord side only), panel_test Split020 (gesture, teal flash, no knob reset, lights). Software-tested
+(make test, UBSan harmony / parts / panel, both firmware builds); not yet played on CHOMPI.

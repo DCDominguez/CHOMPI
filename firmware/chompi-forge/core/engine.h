@@ -191,6 +191,10 @@ public:
     const fx::Module (&Order() const)[fx::kModules] { return order_; }
     void SetSideBySide(bool on) { side_by_side_ = on; }
     // 0.20 secret (FX page: D4 tapped twice): broken radio. Device state, never in a patch; off at power-on.
+    // 0.20 secret (hold SW4 + SW2 1 s): split playing. Device state, never in a patch; off at power-on.
+    void SetSplit(bool on) { split_ = on; }
+    bool Split() const { return split_; }
+    static constexpr uint8_t kSplitNote = 60;                    // C4: the melody side starts here
     void SetBrokenRadio(bool on) { broken_radio_ = on; broken_.SetRadio(on, Sixteenth()); }
     bool BrokenRadio() const { return broken_radio_; }
     bool SideBySide() const { return side_by_side_; }
@@ -214,6 +218,24 @@ public:
         if(seq_ && source != seq::kSource && seq_->Capturing()) seq_->RecordNote(note, velocity);   // event recorder (0.15)
         if(velocity && SlotMode() && Kit()) { const int pad = Synth::KitSlot(note); if(pad >= 0) focus_ = static_cast<uint8_t>(pad); }
         if(velocity && secret::Talks(secret_)) StopTalk();   // a key cuts Choowi off
+        // 0.20 secret, split playing: with harmony on, C4-C5 play the melody, one note snapped to the key's scale,
+        // past harmony and the arp / bass (they follow the chord side, C3-B3). melody_ remembers what a key played.
+        if(velocity && split_ && harmony_ && HarmonyOn() && note >= kSplitNote) {
+            const uint8_t m = harmony::SnapToScale(note, harmony_->state);
+            if(melody_[note & 127]) synth_.Note(melody_[note & 127] - 1, 0, source);
+            melody_[note & 127] = static_cast<uint8_t>(m + 1);
+            if(parameters_.synth) synth_.Note(m, velocity, source);
+            if(played) played[0] = m;
+            if(released) *released = 0;
+            return 1;
+        }
+        if(!velocity && melody_[note & 127]) {
+            const uint8_t m = static_cast<uint8_t>(melody_[note & 127] - 1); melody_[note & 127] = 0;
+            if(parameters_.synth) synth_.Note(m, 0, source);
+            if(played) played[0] = m;
+            if(released) *released = 1;
+            return 1;
+        }
         if(harmony_ && (velocity ? HarmonyOn() && harmony_->Maps(note) : harmony_->Holds(note, source)))
             return HarmonyNote(note, velocity, source, played, released);
         if(parts_ && (PartsOn() || !velocity) && PartsKey(note, &note, 1, -1, 7, velocity, source)) {
@@ -351,7 +373,7 @@ public:
     void ModWheel(uint8_t value) { synth_.ModWheel(value); }
     // Panic (SW5, CC 120/123, SysEx, recovery): everything silent at once; a
     // loop is paused, not lost. Patch changes use Silence() and leave the loop.
-    void Panic() { Silence(); if(seq_) seq_->Panic(); if(looper_) looper_->Panic(); }
+    void Panic() { Silence(); for(uint8_t& m : melody_) m = 0; if(seq_) seq_->Panic(); if(looper_) looper_->Panic(); }
     // Looper (docs/forge/LOOPING.md). Owned by the caller; audio owner only.
     void SetLooper(Looper* looper) { looper_ = looper; }
     Looper* GetLooper() const { return looper_; }
@@ -831,7 +853,8 @@ private:
     float echo_ = 1.f;
     // FX section Phase 2
     fx::Fold fold_; fx::Crush crush_; fx::Squash squash_; fx::Broken broken_; fx::Phaser phaser_; fx::Tremolo tremolo_;
-    bool broken_radio_ = false;
+    bool broken_radio_ = false, split_ = false;
+    uint8_t melody_[128] = {};                                   // split: what each key's melody note is (+1; 0 none)
     bool tape_echo_ = false, wear_on_ = false;
     float wow_phase_ = 0.f, tape_k_ = 0.f, tape_l_ = 0.f, tape_r_ = 0.f;
     float wear_k_ = 1.f, wear_l_ = 0.f, wear_r_ = 0.f, hiss_level_ = 0.f;

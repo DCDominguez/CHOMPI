@@ -17,7 +17,7 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
   section; v7 sounds and replies open as v8. Ships with the FX line: firmware 0.19.2 refuses v8 sounds
   (the page says they need 0.20).
 - **Undo forgives late pairs; fold level** (ceef237): see LOOPING.md and FX.md.
-- **Two secrets:** one on the FX page, one in Choowivision (the owner's picks; developer notes in FX.md and DISPLAY.md).
+- **Three secrets:** two on the panel, one in Choowivision (the owner's picks; developer notes in FX.md and DISPLAY.md).
 - **Surprise me and mutate use the FX section:** half the rolls come with one or two effects (sometimes
   another order); mutate drifts the effect amounts and now and then swaps an effect. Heard by the owner: kept.
 - **Clearer names:** SW3 page 2 is **Colour** (it turns fold or crush when they're chosen), the synth page's
