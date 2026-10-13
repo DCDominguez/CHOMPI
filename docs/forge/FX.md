@@ -78,7 +78,8 @@ don't, flicker). Software-tested; not yet heard on CHOMPI.
 panel secret). Hold **SW4 + SW2 for 1 s** (the knob lights flash teal) to switch it on or off. With harmony
 on, **C3-B3 play chords** as usual and **C4-C5 play a melody**: one note per key, moved to the nearest note
 of the key's scale (a tie goes down: C#4 plays C4 in C major). The arp and the bass follow the chord side
-only. The melody keys are lit: scale notes white, the tonic brightest, out-of-scale keys dim red (the owner).
+only. So do harmony's secret modes (the owner): melody notes never bloom or get bent, and play along with
+Choowi's answer instead of cutting it off. The melody keys are lit: scale notes white, the tonic brightest, out-of-scale keys dim red (the owner).
 Choowivision's play guide shows the split while it's on (harmony_lights bit 18, lights only). Device state,
 not saved in presets, off at power-on; harmony off = normal keys. Code: `harmony::SnapToScale`,
 `Engine::SetSplit` / `kSplitNote` / `melody_` (a key-up stops what its key played, even after split is

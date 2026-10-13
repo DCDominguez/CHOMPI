@@ -265,9 +265,38 @@ void ChimeAlwaysSounds() {
     assert(chime(synth, voices) > 0.02f && voices >= 2);                            // the sound's own voices
 }
 
+// 0.20 split playing: the secret modes stay on the chord side (C3-B3); melody keys (C4-C5) just play.
+void SplitChordSideOnly() {
+    const uint32_t step = secret::Sixteenth(48000.f, 120.f);
+    {   Rig rig; rig.engine.SetSecret(secret::Mode::BloomUp); rig.engine.SetSplit(true);
+        rig.engine.Note(48, 100, 2); rig.Run(240); assert(rig.engine.ActiveVoices() == 1);   // the chord blooms
+        const unsigned pending = rig.engine.Blooming().Pending(); assert(pending > 0);
+        rig.engine.Note(64, 100, 2); rig.Run(240);                                     // the melody note sounds at once
+        assert(rig.engine.ActiveVoices() == 2 && rig.engine.Blooming().Pending() == pending);
+        rig.engine.Note(64, 0, 2); rig.engine.Note(48, 0, 2); rig.Run(9600); assert(rig.engine.ActiveVoices() == 0);
+    }
+    {   Rig rig; rig.engine.SetSplit(true);                                            // Mischief bends chords only
+        rig.engine.Note(64, 100, 2); rig.Run(240); assert(!rig.engine.CanBend() && !rig.engine.HarmonyBend(0));
+        rig.engine.Note(48, 100, 2); rig.Run(240); assert(rig.engine.CanBend() && rig.engine.HarmonyBend(0));
+        rig.engine.HarmonyUnbend(); rig.engine.Note(48, 0, 2); rig.Run(240); assert(rig.engine.ActiveVoices() == 1);   // the melody note still sounds
+        rig.engine.Note(64, 0, 2); rig.Run(9600); assert(rig.engine.ActiveVoices() == 0);
+    }
+    {   Rig rig; rig.engine.SetSecret(secret::Mode::TalkCall); rig.engine.SetSplit(true);
+        secret::Conversation& talk = rig.engine.Talk();
+        rig.engine.Note(64, 100, 2); rig.Run(480); rig.engine.Note(64, 0, 2); assert(!talk.Speaking());   // a melody note: no answer
+        rig.engine.Note(48, 100, 2); rig.Run(4800); rig.engine.Note(48, 0, 2); assert(talk.Speaking());   // a chord: Choowi answers
+        rig.Run(17 * step); assert(talk.Sounding() != 0);
+        rig.engine.Note(67, 100, 2); assert(talk.Speaking());                         // a melody plays along with the answer
+        rig.engine.Note(67, 0, 2);
+        rig.engine.Note(50, 100, 2); assert(!talk.Speaking());                        // a chord key cuts it off
+        rig.engine.Note(50, 0, 2); rig.engine.Panic();
+    }
+}
+
 int main() {
+    SplitChordSideOnly();
     BloomUnit(); BloomInEngine(); Conversations(); MotifFamilies(); Mischief(); Panel(); DreamShow(); ChimeAlwaysSounds();
     std::cout << "PASS: secret modes: bloom order/timing/cancel, conversations (bar pause, one voice, in key, cut off, 4 motif families), "
-                 "mischief (5 bends, home, no stuck notes), panel (SW3 picks, SW1+SW3 bends with a chord, rolls without), Dream (styles, in key, voices, SW4+SW1, key / panic stop), the chime's bell fallback\n";
+                 "mischief (5 bends, home, no stuck notes), panel (SW3 picks, SW1+SW3 bends with a chord, rolls without), Dream (styles, in key, voices, SW4+SW1, key / panic stop), the chime's bell fallback, split (chord side only)\n";
     return 0;
 }

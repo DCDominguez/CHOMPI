@@ -217,10 +217,12 @@ public:
         if(velocity && looper_) looper_->NoteStarted();      // an armed looper starts recording
         if(seq_ && source != seq::kSource && seq_->Capturing()) seq_->RecordNote(note, velocity);   // event recorder (0.15)
         if(velocity && SlotMode() && Kit()) { const int pad = Synth::KitSlot(note); if(pad >= 0) focus_ = static_cast<uint8_t>(pad); }
-        if(velocity && secret::Talks(secret_)) StopTalk();   // a key cuts Choowi off
         // 0.20 secret, split playing: with harmony on, C4-C5 play the melody, one note snapped to the key's scale,
-        // past harmony and the arp / bass (they follow the chord side, C3-B3). melody_ remembers what a key played.
-        if(velocity && split_ && harmony_ && HarmonyOn() && note >= kSplitNote) {
+        // past harmony, the arp / bass and the secret modes (they all stay on the chord side, C3-B3; the owner).
+        // melody_ remembers what a key played.
+        const bool melody = split_ && harmony_ && HarmonyOn() && note >= kSplitNote;
+        if(velocity && secret::Talks(secret_) && !melody) StopTalk();   // a chord key cuts Choowi off; a melody plays along
+        if(velocity && melody) {
             const uint8_t m = harmony::SnapToScale(note, harmony_->state);
             if(melody_[note & 127]) synth_.Note(melody_[note & 127] - 1, 0, source);
             melody_[note & 127] = static_cast<uint8_t>(m + 1);
