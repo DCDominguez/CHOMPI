@@ -896,7 +896,7 @@ FORGE_COLD void DrawLeds() {
     if((view.menu & 1u) && ((view.menu >> 1) & 7u) == 6u) forge::ComposePartsKnobLeds(view.parts, view.parts_clock, knobs, knob_flags);   // parts page
     if((view.menu & 1u) && ((view.menu >> 1) & 7u) == 5u) {
         if((view.fx >> 31) & 1u) forge::ComposeFxKnobLeds(panel_controller.FxKnobs(), knobs, knob_flags,    // FX page (0.20)
-                                                          panel_controller.FxCharacters(), (view.fx >> 26) & 15u);
+                                                          panel_controller.FxCharacters(), (view.fx >> 17) & 1u ? 0u : (view.fx >> 26) & 15u);   // bits 26-28 are the taps while ordering
         else forge::ComposeSynthKnobLeds(view.synth, panel_controller.SynthKnobs(), knobs, knob_flags);    // synth page (0.19)
     }
     if(((view.dream >> 26) & 1u) && !(view.menu & 1u)) {   // 0.19.2 Dream: the rings and CHOMPI breathe in the chord's colours

@@ -290,7 +290,7 @@ public:
         else if(HarmonyPage()) HarmonyControls(keys, turns, engine);
         else if(PartsPage()) PartsControls(keys, turns, engine);
         else if(SynthPage()) SynthControls(keys, turns, engine);
-        else if(FxPage()) FxControls(keys, turns, engine);
+        else if(FxPage()) FxControls(keys, turns, engine, hardware.frames);
         else {
             // SW5 (virtual: 2 = one click, 1 = held).
             const bool tone_down = hardware.tone_down || virtual_tone_ != 0;
@@ -523,9 +523,9 @@ private:
             }
             const int preset = engine.Preset();
             f |= (static_cast<uint32_t>(preset < 0 ? 0 : preset) & 3u) << 8 | (engine.FxBeforeLoop() ? 1u << 10 : 0u) | (FxPage() ? 1u << 31 : 0u)
-               | (preset < 0 ? 1u << 15 : 0u) | (engine.SideBySide() ? 1u << 16 : 0u) | (route_held_ ? 1u << 17 : 0u);
+               | (preset < 0 ? 1u << 15 : 0u) | (engine.SideBySide() ? 1u << 16 : 0u) | (ordering_ ? 1u << 17 : 0u);
             for(unsigned m = 0; m < fx::kModules; ++m) if(engine.Value(FxAmount(m)) > 0.f) f |= 1u << (11 + m);   // module on
-            f |= static_cast<uint32_t>(fx_knob_down_ & 15u) << 26;                                                // knobs held: character
+            f |= ordering_ ? static_cast<uint32_t>(taps_ & 7u) << 26 : static_cast<uint32_t>(fx_knob_down_ & 15u) << 26;   // taps while ordering; else knobs held
             uint32_t chars = 0;
             const Parameter character[4] = {Parameter::Time, Parameter::ColourCharacter, Parameter::TextureCharacter, Parameter::MotionRate};
             for(unsigned k = 0; k < 4; ++k) chars |= static_cast<uint32_t>(Clamp(engine.Value(character[k]), 0.f, 1.f) * 255.f + .5f) << (8 * k);
@@ -786,12 +786,26 @@ private:
     // The order (0.20): tap A#3 = the next preset (Classic, Wear last, Wash first); hold A#3 and tap the
     // modules (any key of a group) in the order you want them, let go = that order (modules not tapped
     // follow in their order); B3 = side by side (the reverb hears the signal before the delay) on / off.
+    // The FX order (the owner, 2026-10-13): tap A#3 and the modules' keys blink; tap one key of each module in
+    // the order wanted (a module counts once); the fourth locks the order and the keys pick effects again.
+    // A#3 again finishes early (the untapped modules follow in their order); held 1 s: back to Classic.
+    FORGE_COLD void FinishOrder(Engine& engine) {
+        if(taps_) { fx::Module order[fx::kModules]; PreviewOrder(engine, order); engine.SetOrder(order); }
+        ordering_ = false; taps_ = 0;
+    }
     FORGE_COLD void FxKey(uint8_t note, Engine& engine) {
-        if(note == fx::kRouteKey) { route_held_ = true; taps_ = 0; return; }
+        if(note == fx::kRouteKey) {
+            route_frames_ = 0; route_was_ordering_ = ordering_;
+            if(ordering_) FinishOrder(engine); else { ordering_ = true; taps_ = 0; }
+            return;
+        }
         for(uint8_t m = 0; m < fx::kModules; ++m) for(uint8_t c = 0; c < fx::kChoices; ++c)
             if(note == fx::kKeys[m][c]) {
-                if(route_held_) { bool seen = false; for(unsigned i = 0; i < taps_; ++i) seen |= tapped_[i] == static_cast<fx::Module>(m);
-                                  if(!seen && taps_ < fx::kModules) tapped_[taps_++] = static_cast<fx::Module>(m); }
+                if(ordering_) {
+                    bool seen = false; for(unsigned i = 0; i < taps_; ++i) seen |= tapped_[i] == static_cast<fx::Module>(m);
+                    if(!seen && taps_ < fx::kModules) tapped_[taps_++] = static_cast<fx::Module>(m);
+                    if(taps_ == fx::kModules) FinishOrder(engine);
+                }
                 else engine.SetChoice(static_cast<fx::Module>(m), c);
                 return;
             }
@@ -810,20 +824,20 @@ private:
     // The order A#3 would set now: the tapped modules first, then the rest in their current order.
     void PreviewOrder(const Engine& engine, fx::Module (&order)[fx::kModules]) const {
         unsigned n = 0;
-        if(route_held_) for(unsigned i = 0; i < taps_; ++i) order[n++] = tapped_[i];
+        if(ordering_) for(unsigned i = 0; i < taps_; ++i) order[n++] = tapped_[i];
         for(fx::Module m : engine.Order()) {
             bool seen = false; for(unsigned i = 0; i < n; ++i) seen |= order[i] == m;
             if(!seen && n < fx::kModules) order[n++] = m;
         }
     }
-    FORGE_COLD void FxControls(uint64_t keys, const int16_t (&turns)[panel::kEncoders], Engine& engine) {
-        if(route_held_ && !((keys >> kRouteButton) & 1u)) {                  // A#3 let go
-            if(taps_) { fx::Module order[fx::kModules]; PreviewOrder(engine, order); engine.SetOrder(order); }
-            else {
-                const int preset = engine.Preset(); const bool side = engine.SideBySide();
-                engine.SetRoute(static_cast<fx::Route>(preset < 0 ? 0 : (preset + 1) % 3)); engine.SetSideBySide(side);
+    FORGE_COLD void FxControls(uint64_t keys, const int16_t (&turns)[panel::kEncoders], Engine& engine, uint32_t frames) {
+        if((keys >> kRouteButton) & 1u) {                                    // A#3 held 1 s (before any tap): Classic
+            const bool was = route_frames_ >= kRouteResetFrames;
+            route_frames_ += frames;
+            if(!was && route_frames_ >= kRouteResetFrames && !route_was_ordering_ && !taps_) {
+                const bool side = engine.SideBySide();
+                engine.SetRoute(fx::Route::Classic); engine.SetSideBySide(side); ordering_ = false;
             }
-            route_held_ = false; taps_ = 0;
         }
         fx_knob_down_ = 0;
         for(unsigned knob = 0; knob < 4; ++knob) {
@@ -846,9 +860,11 @@ private:
 public:
     uint32_t FxCharacters() const { return fx_chars_.load(std::memory_order_relaxed); }
 private:
-    bool route_held_ = false;
+    bool ordering_ = false, route_was_ordering_ = false;         // choosing the FX order (A#3 tapped)
     fx::Module tapped_[fx::kModules] = {};
     unsigned taps_ = 0;
+    uint32_t route_frames_ = 0;
+    static constexpr uint32_t kRouteResetFrames = 48000;          // A#3 held 1 s: Classic
     uint8_t synth_page_[4] = {};
     bool audition_ = false;
     std::atomic<uint32_t> synth_lights_{0}, synth_knobs_{0};
@@ -1273,7 +1289,7 @@ inline void ComposeSynthKnobLeds(uint32_t s, uint32_t values, Rgb (&rings)[4], u
 // A#3 the order's preset (Classic orange, Wear last blue, Wash first purple; white: your own order, and while
 // A#3 is held the groups show the order by brightness, first brightest); B3 red while side by side is on;
 // F#3 / G#3 teal where the effects sit around the looper, the other dark; KEY_21 / KEY_22 dim.
-FORGE_COLD inline void RenderFxLeds(uint32_t f, Rgb (&keys)[25]) {
+FORGE_COLD inline void RenderFxLeds(uint32_t f, Rgb (&keys)[25], bool blink = true) {
     using namespace knobs::colour;
     for(auto& led : keys) led = Rgb{};
     auto lit = [&](uint8_t note, Rgb c) {
@@ -1290,13 +1306,18 @@ FORGE_COLD inline void RenderFxLeds(uint32_t f, Rgb (&keys)[25]) {
         for(unsigned c = 0; c < fx::kChoices; ++c)
             lit(fx::kKeys[m][c], knobs::Scale(colours[m], c != chosen ? .05f : on ? 1.f : .25f));
     }
-    if((f >> 17) & 1u) {                                                   // A#3 held: the order by brightness
+    if((f >> 17) & 1u) {             // choosing the order: tapped modules steady by place (first brightest), the rest blink
         static const float place[fx::kModules] = {1.f, .45f, .18f, .07f};
-        for(unsigned m = 0; m < fx::kModules; ++m) for(unsigned c = 0; c < fx::kChoices; ++c)
-            lit(fx::kKeys[m][c], knobs::Scale(colours[m], place[(f >> (18 + 2 * m)) & 3u]));
+        const unsigned tapped = (f >> 26) & 7u;                            // FxLights bits 26-28 while ordering
+        for(unsigned m = 0; m < fx::kModules; ++m) {
+            const unsigned at = (f >> (18 + 2 * m)) & 3u;
+            const float level = at < tapped ? place[at] : blink ? .7f : .03f;
+            for(unsigned c = 0; c < fx::kChoices; ++c) lit(fx::kKeys[m][c], knobs::Scale(colours[m], level));
+        }
     }
     static const Rgb presets[3] = {orange, blue, purple};
-    lit(fx::kRouteKey, (f >> 15) & 1u || (f >> 17) & 1u ? white : presets[((f >> 8) & 3u) % 3]);   // white: custom (or editing)
+    lit(fx::kRouteKey, (f >> 17) & 1u ? (blink ? white : knobs::Scale(white, .1f))                 // choosing: A#3 blinks
+                                      : (f >> 15) & 1u ? white : presets[((f >> 8) & 3u) % 3]);    // white: your own order
     lit(fx::kSideKey, (f >> 16) & 1u ? red : knobs::Scale(red, .05f));
     const bool before = (f >> 10) & 1u;
     lit(fx::kBeforeLoopKey, before ? teal : Rgb{}); lit(fx::kAfterLoopKey, before ? Rgb{} : teal);
@@ -1328,7 +1349,7 @@ inline void ComposePartsKnobLeds(uint32_t packed, uint32_t clock, Rgb (&rings)[4
 }
 FORGE_COLD inline void ComposeLeds(const LedView& v, Rgb (&keys)[25], Rgb& chompi) {
     if((v.menu & 1u) && ((v.fx >> 31) & 1u))
-        RenderFxLeds(v.fx, keys);
+        RenderFxLeds(v.fx, keys, v.blink);
     else if((v.menu & 1u) && ((v.menu >> 1) & 7u) == 7u)
         RenderHarmonyLeds(v.harmony, keys);
     else if((v.menu & 1u) && ((v.menu >> 1) & 7u) == 6u)

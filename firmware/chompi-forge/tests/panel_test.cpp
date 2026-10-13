@@ -811,16 +811,37 @@ void FxPage020() {
     press(50); assert(rig.engine.Choice(fx::Module::Space) == 1);                // D3: cloud again
     press(65); assert(rig.engine.Choice(fx::Module::Motion) == 0);               // F4: chorus
     assert(rig.engine.ActiveVoices() == voices_before);                          // the keys play no notes here
-    press(58); assert(rig.engine.GetRoute() == fx::Route::WearLast);             // A#3 tapped: next preset
-    press(58); press(58); assert(rig.engine.GetRoute() == fx::Route::Classic);   // three presets, and round
-    // Hold A#3 and tap Texture, Space (any key of the group): Texture, Space, then Colour, Motion.
-    rig.Key(key_of(58), true); press(62); press(48); press(62);                  // a second tap of a module counts once
-    { uint32_t f = rig.panel.FxLights(); assert((f >> 17) & 1u && ((f >> (18 + 2 * 2)) & 3u) == 0 && ((f >> (18 + 2 * 0)) & 3u) == 1); }
+    // The order (the owner, 2026-10-13): tap A#3, then one key of each module in order; the fourth locks it.
+    press(58); { const uint32_t f = rig.panel.FxLights(); assert((f >> 17) & 1u && ((f >> 26) & 7u) == 0); }   // choosing
+    press(62); press(48); press(62);                                              // Texture, Space; a module counts once
+    { uint32_t f = rig.panel.FxLights(); assert((f >> 17) & 1u && ((f >> 26) & 7u) == 2 && ((f >> (18 + 2 * 2)) & 3u) == 0 && ((f >> (18 + 2 * 0)) & 3u) == 1); }
     assert(rig.engine.Choice(fx::Module::Texture) == 0 && rig.engine.Choice(fx::Module::Space) == 1);   // taps choose nothing
-    rig.Key(key_of(58), false); rig.Block();
-    { const auto& o = rig.engine.Order(); assert(o[0] == fx::Module::Texture && o[1] == fx::Module::Space && o[2] == fx::Module::Colour && o[3] == fx::Module::Motion); }
-    assert(rig.engine.Preset() < 0 && ((rig.panel.FxLights() >> 15) & 1u));      // custom: A#3 white
-    press(58); assert(rig.engine.GetRoute() == fx::Route::Classic);               // a tap from custom: Classic
+    press(67); press(55);                                                          // Motion, Colour: the fourth locks it
+    { const auto& o = rig.engine.Order(); assert(o[0] == fx::Module::Texture && o[1] == fx::Module::Space && o[2] == fx::Module::Motion && o[3] == fx::Module::Colour); }
+    assert(!((rig.panel.FxLights() >> 17) & 1u) && rig.engine.Preset() < 0 && ((rig.panel.FxLights() >> 15) & 1u));   // done: A#3 white
+    press(55); assert(rig.engine.Choice(fx::Module::Colour) == 1);               // the keys pick effects again: G3 fold
+    press(53);                                                                     // F3: back to saturation
+    // A#3 again finishes early: Colour first, the rest in their order (Texture, Space, Motion).
+    press(58); press(57); press(58);
+    { const auto& o = rig.engine.Order(); assert(o[0] == fx::Module::Colour && o[1] == fx::Module::Texture && o[2] == fx::Module::Space && o[3] == fx::Module::Motion); }
+    assert(rig.engine.Choice(fx::Module::Colour) == 0 && !((rig.panel.FxLights() >> 17) & 1u));
+    // A#3 held 1 s (no tap): back to Classic, and not choosing.
+    rig.Key(key_of(58), true); for(int i = 0; i < 2010; ++i) rig.Block(); rig.Key(key_of(58), false); rig.Block();
+    assert(rig.engine.GetRoute() == fx::Route::Classic && !((rig.panel.FxLights() >> 17) & 1u));
+    {   // the lights while choosing: A#3 and the untapped modules blink; a tapped module is steady
+        press(58); press(48);
+        LedView lv; lv.menu = rig.panel.MenuPacked(); lv.fx = rig.panel.FxLights();
+        auto led = [&](uint8_t note, bool blink) { Rgb k[25], c; lv.blink = blink; ComposeLeds(lv, k, c);
+            const uint8_t key = key_of(note), slot = panel::KeyToSlot(key); return k[slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key)]; };
+        assert(led(53, true).g > .5f && led(53, false).g < .1f);                 // Colour (untapped) blinks
+        assert(led(48, true).r == led(48, false).r && led(48, true).r == 1.f);    // Space (tapped first) steady, full
+        assert(led(58, true).r == 1.f && led(58, false).r < .2f);                 // A#3 blinks white
+        Rgb rings[4]; ComposeFxKnobLeds(rig.panel.FxKnobs(), rings, 0, 0xffffffffu, (lv.fx >> 17) & 1u ? 0u : (lv.fx >> 26) & 15u);
+        assert(!(rings[0].r == rings[0].g && rings[0].g == rings[0].b && rings[0].r > .9f));   // taps aren't read as held knobs
+        press(58);                                                                // finish (Space first)
+        rig.Key(key_of(58), true); for(int i = 0; i < 2010; ++i) rig.Block(); rig.Key(key_of(58), false); rig.Block();   // Classic again
+        assert(rig.engine.GetRoute() == fx::Route::Classic);
+    }
     press(59); assert(rig.engine.SideBySide()); press(59); assert(!rig.engine.SideBySide());   // B3: side by side
     press(56); assert(!rig.engine.FxBeforeLoop()); press(54); assert(rig.engine.FxBeforeLoop());   // G#3 / F#3
     // Knobs: SW3 (logical 3) = Motion amount; hold SW3 + turn = its rate; SW4 (logical 0) = Space.

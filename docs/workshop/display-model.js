@@ -210,7 +210,7 @@
       Object.assign(keys, FX_KEYS); controls.chompi = "release: close the menu";
       legend.push(["C3 D3 E3", "Space: echo + room, cloud, tape echo (SW4)"], ["F3 G3 A3", "Colour: saturation, fold, crush (SW1)"],
                   ["C4 D4 E4", "Texture: cassette, broken, squash (SW2)"], ["F4 G4 A4", "Motion: chorus, phaser, tremolo (SW3)"],
-                  ["A#3", "tap: next order · hold + tap modules: your own"], ["B3", "side by side"], ["F#3 / G#3", "effects before / after the looper"],
+                  ["A#3", "tap, then one key per module in order (4th locks) · hold 1 s: Classic"], ["B3", "side by side"], ["F#3 / G#3", "effects before / after the looper"],
                   ["knobs", "turn: amount · hold + turn: character"], ["C#4", "next page: harmony"]);
     }
     if (words.menu & 1) Object.assign(controls, {play: "overdub feedback −", loop: "overdub feedback +"});

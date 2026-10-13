@@ -627,12 +627,12 @@ On the FX page the keys play nothing:
 - **The order.** The modules run in series, each working on the one before's sound, so the order changes
   how they affect each other (a chorus before the reverb gives a moving sound in a wash; after it, the
   whole wash moves).
-  - **Tap A#3** for the next preset order: **Classic** (orange: Colour, Motion, Texture, Space: the order
-    before 0.20) → **Wear last** (blue: Texture last, so the echoes and wash get worn too) → **Wash first**
-    (purple: Space before Motion, so the motion moves the whole wash).
-  - **Hold A#3 and tap the modules in the order you want** (any key of a module's group), then let go.
-    Modules you didn't tap follow in their order. A#3 lights **white** for your own order, and while you
-    hold it the groups show the order by brightness, first brightest.
+  - **Set the order: tap A#3.** A#3 and every effect key start to blink. Tap one key from each module
+    in the order you want the sound to go through them (any key of the module's group; tapping a module
+    twice counts once). Each module you've placed stays lit, first brightest. **The fourth tap locks the
+    order** and the keys pick effects again. Tap A#3 again to finish early: the modules you didn't tap
+    follow in their order. A#3 lights **white** for your own order.
+  - **Hold A#3 1 s:** back to **Classic** (orange: Colour, Motion, Texture, Space, the order before 0.20).
   - **B3**: **side by side** on / off (red): the reverb hears your sound before the delay instead of the
     echoes, for cleaner echoes and a separate wash.
 - **F#3 / G#3**: the effects before / after the looper (teal: the one in use).

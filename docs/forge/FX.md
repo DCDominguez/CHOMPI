@@ -29,12 +29,12 @@ synth → **FX**; or hold KEY_21 for 4 s from TAPE's page. The CHOMPI light turn
   other two dim.
 - **The order** (the modules run in series, each on the one before's output, so the order changes how
   they affect each other):
-  - **tap A#3**: the next preset: **Classic** (orange: Colour, Motion, Texture, Space: today's order) ->
-    **Wear last** (blue: Texture after Space, the wash gets worn too) -> **Wash first** (purple: Space before
-    Motion, the motion moves the whole wash);
-  - **hold A#3 and tap the modules in the order you want** (any key of a group = that module), let go: that
-    order (modules you didn't tap follow in their order). A#3 lights **white** for your own order; while it
-    is held the groups show the order by brightness, first brightest;
+  - **tap A#3** (the owner's design, 2026-10-13): A#3 and the effect keys blink; tap one key of each module in
+    the order wanted (a module counts once; placed modules stay lit, first brightest); **the fourth tap locks
+    the order** and the keys pick effects again. A#3 again finishes early (untapped modules follow in their
+    order). A#3 lights **white** for your own order;
+  - **hold A#3 1 s**: back to **Classic** (orange: Colour, Motion, Texture, Space). The presets Wear last and
+    Wash first are no longer stepped through on the panel (they're two of the 24 orders; patches keep them);
   - **B3**: **side by side** on / off (red): the reverb hears the sound before the delay, not the echoes.
 - **F#3 / G#3**: effects before / after the looper (the lit one is in use).
 - The **knob rings** show each module's amount, dim (off) to bright; **while you hold a knob** its ring
