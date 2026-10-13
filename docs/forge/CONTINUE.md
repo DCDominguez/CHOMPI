@@ -34,6 +34,19 @@ Updated 2026-10-13: 0.20.0 release candidate 3 prepared (newest section). 2026-1
 - Also queued: rebuild the rc3 kit right before publishing (the manual changed after it was built: tooltips'
   touch targets, the glossary).
 
+## 2026-10-13 (evening): rc3 kit rebuilt at e272943; waiting to push
+
+- CHOMPI runs the development build of e272943 (installed with the owner's key press; split, its clearer
+  lights and the secret modes on the chord side). Split melody lights were too faint on hardware (the owner),
+  now scale white / tonic brighter / out-of-scale dim red (654e6fb); secret modes stay chord-side (e272943).
+- Stage door on the home page: the pink colour dot (a31266e).
+- Kit rebuilt: `build/release-rc3` (card zip 3,239,001 B; FORGE.bin from e272943; NOTES "a few secrets").
+  Software-tested: make test 163 OK, UBSan secret / harmony / parts / panel, both builds.
+- Not yet: the push of forge/fx and the fast-forward of main (Pages) - the owner asked for it, the agent's
+  permission check refused the push; the owner runs it or allows it. Then the GitHub release with the kit.
+- Hardware checks still open: split lights and chord-side secret modes, order gesture, broken radio, undo
+  timing, fold level, held-knob white light, bank b levels, the stage with its word on the phone.
+
 ## 2026-10-13 (afternoon): 0.20.0 release candidate 3 prepared (branch forge/fx; CHOMPI runs 8a8de38)
 
 - **Version 0.20.0** (f0ddcdb): firmware minor 20 / patch 0, docs, site and checklists name choowi-0.20.0-rc3.
