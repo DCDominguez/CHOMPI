@@ -50,7 +50,8 @@ Updated 2026-10-13: 0.20.0 release candidate 3 prepared (newest section). 2026-1
   SING (ugrossek's voice-led firmware). Needs CPU measurement with all FX before committing to it.
 - **Next firmware line: Chomposer** (the owner, 2026-10-14; FORGE_FAMILY.md): CHOMPI as an orchestra
   conductor, an ensemble of instruments all playing one musical idea in different roles. A new line (own name
-  and mascot), after Choowi; not designed yet.
+  and mascot), after Choowi. Design study 2026-10-14: CHOMPOSER.md (seed -> casting -> prep -> performance;
+  the four knobs are the four instruments; open questions for the owner at the end).
 - Code room for both (RESOURCE_LEDGER, 2026-10-14): release 34 KB, development 22 KB left; the development
   build runs out first (Inspector ~11 KB): plan to trim it if both go in.
 

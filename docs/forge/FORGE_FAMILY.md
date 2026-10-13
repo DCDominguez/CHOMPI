@@ -71,7 +71,8 @@ part playing the same idea in a different **role** (melody, harmony, bass, rhyth
 counter-line and so on), together as one piece of music rather than a stack of layers.
 Its own firmware, name and mascot (not a Choowi release), forged in the same workshop:
 Choowi's harmony, arp / bass, synth voices and Dream are the parts it would start from.
-Nothing is designed or built yet; the mascot and the first tool are still to come.
+Design study (architecture, control map, conducting research): [CHOMPOSER.md](CHOMPOSER.md). Nothing is
+built yet; the mascot and the first tool are still to come.
 
 ## whose it is
 
