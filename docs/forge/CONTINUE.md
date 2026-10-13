@@ -10,10 +10,13 @@ Updated 2026-10-13: 0.20.0 release candidate 3 prepared (newest section). 2026-1
   pulsing on the panel drawing; each step advances by itself when CHOMPI's view shows it done (page, knob,
   harmony, looper state, FX choice / order); 4-7 steps, spoiler-free. Display page only, no firmware change;
   tests: every step detectable from the view.
-- **Split playing for harmony:** chords on the left part of the keyboard, melody on the right, the melody in
-  the harmony's scale. Open questions for the owner: the split point (fixed, e.g. C4, or settable); right side
-  as plain notes snapped to the scale, or white keys = scale degrees; whether the arp and bass follow the left
-  side only; how it's switched on (harmony page setting, saved in the sound).
+- **Split playing for harmony** (decided with the owner, 2026-10-13): **C3-B3 play chords** (harmony as now),
+  **C4-C5 play the melody**, single notes **snapped to the harmony's scale** (a note outside it moves to the
+  nearest scale note). The melody keys are **lit to show the scale** (in-scale keys coloured, the tonic marked;
+  out-of-scale keys dark, since pressing one plays its nearest neighbour). **The arp and the bass follow the
+  chord side only**; the melody stays free. Still to settle: how it's switched on (suggested: a harmony-page
+  setting, saved with the sound), and the static layout's chord set on a one-octave chord side (C3-B3 = I-vii
+  once; the black keys there as today).
 - Also queued: rebuild the rc3 kit right before publishing (the manual changed after it was built: tooltips'
   touch targets, the glossary).
 
