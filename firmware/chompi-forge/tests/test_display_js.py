@@ -131,6 +131,13 @@ class DisplayJsTests(unittest.TestCase):
         for case, js in zip(cases, got):
             self.assertEqual((js["name"], js["numeral"], js["notes"]), tuple(case[3:]), case)
 
+    def test_sw5_cutoff_and_loop_speed(self):
+        # View flags (src/forge_main.cpp ViewNow): bit 5 SW5 turned, 8-15 cutoff, 16-25 (speed + 2) x 255.
+        cases = [1 << 5 | 0 << 8 | 765 << 16, 255 << 8 | 0 << 16, 128 << 8 | 510 << 16, 64 << 8 | 1020 << 16]
+        got = model("console.log(JSON.stringify(input.map(f => d.sw5({flags: f}))));", cases)
+        self.assertEqual([(g["turned"], g["speed"]) for g in got], [(True, 1), (False, -2), (False, 0), (False, 2)])
+        self.assertEqual((got[0]["hz"], got[1]["hz"]), ("≈80 Hz", "≈8.0 kHz"))
+
 
 if __name__ == "__main__":
     unittest.main()

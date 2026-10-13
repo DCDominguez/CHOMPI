@@ -69,7 +69,7 @@ what it already draws for the LEDs (no audio-owner round trip, no SD work). Repl
 | synth_lights, synth_knobs | the synth page's lights and knobs |
 | harmony_lights, parts_lights, parts_clock, sequence_lights | as drawn on those pages |
 | chord | `Engine::ChordView`: root pitch class 0–3, quality 4–6, kind 7–9, degree 10–12, shifted 13, notes 14–16, chord counter 17–23, the 5th note 25–31 |
-| flags | 0 record position, 1 recording, 2 safe mode, 3 sample job busy, 4 install armed |
+| flags | 0 record position, 1 recording, 2 safe mode, 3 sample job busy, 4 install armed, 5 SW5 just turned, 8–15 SW5's cutoff 0–255, 16–25 the loop speed as (speed + 2) × 255 (−2…2) |
 | dream | the Dream lights (bit 26: Dream is playing) |
 
 The page polls page 0 and page 1 in turn as fast as CHOMPI answers, and the status (opcode 02) every 2 s for the

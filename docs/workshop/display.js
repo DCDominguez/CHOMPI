@@ -11,7 +11,7 @@ let running = false, wake = null;
 // 2026-10-13), viewBox 130 296 1432 424. One element per light, coloured from view page 0; every key and knob
 // carries its job on the current page. ---------------------------------------------------------------------
 const lights = [], keyLabels = {}, knobLabels = [];
-let toggleLever = null;
+let toggleLever = null, sw5Label = null, sw6Label = null;
 const WHITE = [48, 50, 52, 53, 55, 57, 59, 60, 62, 64, 65, 67, 69, 71, 72], BLACK = [49, 51, 54, 56, 58, 61, 63, 66, 68, 70];
 const LINE = "#e8939b", DIM = "#5a3d47", FACE = "Fredoka, Nunito, system-ui, sans-serif";
 function el(tag, attrs, parent) {
@@ -52,17 +52,19 @@ function el(tag, attrs, parent) {
   line("rect", {x: 262, y: 390, width: 98, height: 98, rx: 12}); line("rect", {x: 272, y: 400, width: 78, height: 78, rx: 9, "stroke-width": 2});
   text(311, 446, "CHOMPI", 17);
   // The knobs: SW4, SW1 and SW2 in their tape outline, SW3; each with its control written under it.
-  line("rect", {x: 545, y: 390, width: 244, height: 104, rx: 44, "stroke-width": 2});
+  // The tape outline holds SW1 and SW2 (r 42) with about 13 units clear all round.
+  line("rect", {x: 538, y: 385, width: 257, height: 110, rx: 55, "stroke-width": 2});
   ["SW4", "SW1", "SW2", "SW3"].forEach((name, k) => {
     const cx = [446, 593, 740, 887][k], cy = 440;
-    line("circle", {cx, cy, r: 47}); line("circle", {cx, cy, r: 28, "stroke-width": 2});
+    line("circle", {cx, cy, r: 42}); line("circle", {cx, cy, r: 25, "stroke-width": 2});
     text(cx, cy + 6, name, 16);
     knobLabels[k] = text(cx, 514, "", 19, "#f4f2ec");
   });
   // SW5, PLAY and LOOP (their lights glow inside them), SW6.
   // SW5 (r 80, centre 1052): clear of SW3 (right edge 934) and of the PLAY / LOOP frame (left edge 1140).
   line("circle", {cx: 1052, cy: 440, r: 80}); line("circle", {cx: 1052, cy: 440, r: 64, "stroke-width": 2});
-  line("circle", {cx: 1052, cy: 410, r: 22, "stroke-width": 2}); text(1052, 472, "SW5", 18);
+  line("circle", {cx: 1052, cy: 410, r: 22, "stroke-width": 2}); text(1052, 458, "SW5", 16);
+  sw5Label = text(1052, 482, "", 18, "#f4f2ec");
   line("rect", {x: 1140, y: 392, width: 206, height: 106, rx: 12, "stroke-width": 2});
   [[L.play, 1153, "▶❙❙"], [L.loop, 1241, "↻"]].forEach(([index, x, symbol]) => {
     line("rect", {x, y: 403, width: 82, height: 84, rx: 10});
@@ -70,7 +72,8 @@ function el(tag, attrs, parent) {
     text(x + 41, 462, symbol, 24);
   });
   text(1194, 520, "PLAY", 15); text(1282, 520, "LOOP", 15);
-  line("circle", {cx: 1458, cy: 444, r: 47}); line("circle", {cx: 1458, cy: 444, r: 28, "stroke-width": 2}); text(1458, 450, "SW6", 16);
+  line("circle", {cx: 1458, cy: 444, r: 42}); line("circle", {cx: 1458, cy: 444, r: 25, "stroke-width": 2}); text(1458, 450, "SW6", 16);
+  sw6Label = text(1458, 514, "", 19, "#f4f2ec");
   // The keys: the upper row (black keys) in groups of 2-3-2-3, the 15 white keys below, each with its light.
   const key = (note, index, x, y) => {
     line("rect", {x: x - 40, y, width: 80, height: 80, rx: 6, "stroke-width": 2});
@@ -135,14 +138,21 @@ function drawState(v) {
   if (toggleLever) toggleLever.setAttribute("cy", v.page === "record" ? 424 : 462);
   v.knobs.forEach((k, i) => { const s = k.text || k.label || ""; knobLabels[i].textContent = s.length > 12 ? s.slice(0, 11) + "…" : s; });
   drawGuide(v);
-  $("vol-label").textContent = v.volume.label; $("vol").style.width = `${Math.round(v.volume.value * 100)}%`;
+  const s5 = v.sw5, speedText = s5.speed === 1 ? "speed 1×" : s5.speed === 0 ? "stopped" : `speed ${s5.speed.toFixed(2)}×${s5.speed < 0 ? " (reverse)" : ""}`;
+  $("sw5-value").textContent = s5.hz; $("sw5").style.width = `${Math.round(s5.cutoff * 100)}%`;
+  $("sw5-speed").textContent = s5.turned ? "turning" : "";
+  $("sw5-detail").textContent = v.looper.hasLoop ? `loop ${speedText} · push + turn` : "push + turn with a loop: speed";
+  const vol = Math.round(v.volume.value * 100);
+  $("vol-label").textContent = `SW6 · ${v.volume.label.toLowerCase()}`; $("vol-value").textContent = `${vol} %`; $("vol").style.width = `${vol}%`;
+  if (sw5Label) sw5Label.textContent = v.looper.hasLoop && s5.speed !== 1 ? `${s5.speed.toFixed(2)}×` : s5.hz.replace("≈", "");
+  if (sw6Label) sw6Label.textContent = `${v.volume.label.toLowerCase()} ${vol}%`;
   $("chord-name").textContent = v.chord && v.chord.name ? v.chord.name : "—";
   $("chord-detail").textContent = v.chord ? [v.chord.numeral, v.chord.shifted ? "shift" : "", v.chord.notes.join(" ")].filter(Boolean).join(" · ") : "harmony plays chords here";
   const l = v.looper;
   $("loop-state").textContent = l.state + (l.overdub ? " · overdub" : "");
   $("loop-pos").style.width = `${Math.round(l.position * 100)}%`;
   $("loop-detail").textContent = l.hasLoop || l.seconds ? `${(l.position * l.seconds).toFixed(1)} / ${l.seconds.toFixed(1)} s · fx ${l.fxBefore ? "before" : "after"}` : "";
-  $("rec-state").textContent = v.recorder.state + (v.recorder.overdub ? " · overdub" : "");
+  $("rec-state").textContent = `event recorder: ${v.recorder.state}${v.recorder.overdub ? " · overdub" : ""}`;
   const p = v.power;
   $("battery").hidden = false;
   $("battery").textContent = `${p.charging ? "⚡ " : ""}battery ${p.battery}${p.full ? " · charged" : ""}`;
@@ -226,7 +236,7 @@ $("demo").addEventListener("click", () => {
     drawState(D.describe({words: {menu, looper: 3 | 32 | Math.round(pos * 1023) << 6 | 800 * 65536, knob_state: 1 << 3 | 200 * 2 ** 24,
       knob_values: knobBytes, knob_targets: 0 | 1 << 8 | 2 << 16 | 5 * 2 ** 24, fx_lights: fxBit, fx_knobs: knobBytes, synth_lights: 0, synth_knobs: 0,
       harmony_lights: 9 | 1 << 8 | 1 << 16, parts_lights: 1 | 3 << 3 | 1 << 6 | 9 << 8 | 2 << 17, parts_clock: 1 | 120 << 8, sequence_lights: 0,
-      chord: root | 1 << 7 | degree << 10 | notes.length << 14 | (Math.floor(t / 60) & 127) << 17, flags: 0, dream: 0},
+      chord: root | 1 << 7 | degree << 10 | notes.length << 14 | (Math.floor(t / 60) & 127) << 17, flags: 160 << 8 | 765 * 65536, dream: 0},
       chordNotes: [...notes, 0, 0, 0, 0].slice(0, 5), power: {battery: 1, flags: 1, chargeState: 3}}));
     $("status-line").textContent = "demo: made-up lights and state";
     requestAnimationFrame(frame);

@@ -75,6 +75,12 @@
               label: PARAMETERS[target] || `control ${target}`, value: byte(words.knob_values, k) / 255};
     });
   }
+  // SW5 (view flags): its cutoff (MANUAL: about 80 Hz to 8 kHz, so shown as an estimate) and the loop speed.
+  function sw5(words) {
+    const f = words.flags, cutoff = (f >>> 8 & 255) / 255, speed = Math.round(((f >>> 16 & 1023) / 255 - 2) * 100) / 100;
+    const hz = 80 * Math.pow(100, cutoff);
+    return {cutoff, turned: !!(f >>> 5 & 1), speed, hz: hz >= 1000 ? `≈${(hz / 1000).toFixed(1)} kHz` : `≈${Math.round(hz)} Hz`};
+  }
   function volume(words) { return {label: words.knob_state >>> 20 & 1 ? "Input gain" : "Volume", value: (words.knob_state >>> 24) / 255}; }
   // Music spelling (the owner, 2026-10-13: the chord read wrong): letters from the key, flats for borrowed roots,
   // lower-case numerals for minor and diminished chords. core/harmony.h kScale, in Mode order.
@@ -213,7 +219,7 @@
   // The whole picture for one state reply.
   function describe(view) {
     const w = view.words, where = page(w);
-    return {page: where, pageName: PAGES[where][0], pageColour: PAGES[where][1], knobs: knobs(w, where), volume: volume(w),
+    return {page: where, pageName: PAGES[where][0], pageColour: PAGES[where][1], knobs: knobs(w, where), volume: volume(w), sw5: sw5(w),
             chord: chord(w, view.chordNotes), looper: looper(w), recorder: recorder(w), power: power(view.power),
             dream: !!(w.dream >>> 26 & 1), recording: !!(w.flags & 2), safeMode: !!(w.flags & 4), busy: !!(w.flags & 8),
             guide: guide(where, w)};
@@ -222,6 +228,6 @@
   // 25 CHOMPI, 26 PLAY, 27 LOOP, 28-31 the rings SW4 SW1 SW2 SW3, 32 / 33 the transport pair, 34 SW6.
   const LIGHTS = {black: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], white: [24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10],
     chompi: 25, play: 26, loop: 27, rings: [28, 29, 30, 31], reverse: 32, forward: 33, sw6: 34};
-  root.DisplayModel = {describe, page, knobs, chord, chordName, looper, guide, LIGHTS, PARAMETERS, NOTES};
+  root.DisplayModel = {describe, page, knobs, chord, chordName, looper, sw5, guide, LIGHTS, PARAMETERS, NOTES};
 })(typeof window !== "undefined" ? window : globalThis);
 if (typeof module !== "undefined") module.exports = globalThis.DisplayModel;

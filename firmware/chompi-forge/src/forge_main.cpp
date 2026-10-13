@@ -1033,7 +1033,9 @@ FORGE_COLD forge::ViewState ViewNow() {
         panel_controller.HarmonyLights(), panel_controller.PartsLights(), panel_controller.PartsClock(),
         panel_controller.SequenceLights(), chord,
         (panel_controller.RecordPosition() ? 1u : 0u) | (recording_now.load(std::memory_order_relaxed) ? 2u : 0u)
-            | (safe_mode ? 4u : 0u) | (sample_loader.Busy() ? 8u : 0u) | (install_gate.Armed() ? 16u : 0u),
+            | (safe_mode ? 4u : 0u) | (sample_loader.Busy() ? 8u : 0u) | (install_gate.Armed() ? 16u : 0u)
+            | ((panel_controller.KnobFlags() >> 8) & 1u) << 5 | ((panel_controller.KnobFlags() >> 9) & 255u) << 8   // SW5: turned, cutoff
+            | static_cast<uint32_t>(forge::Clamp(loop_speed.load(std::memory_order_relaxed) + 2.f, 0.f, 4.f) * 255.f + .5f) << 16,   // loop speed -2..2 in 1/255
         panel_controller.DreamLights()};
     for(unsigned i = 0; i < forge::kViewWords; ++i) v.words[i] = words[i];
     for(unsigned i = 0; i < 4; ++i) v.chord_notes[i] = (notes >> (8 * i)) & 127u;

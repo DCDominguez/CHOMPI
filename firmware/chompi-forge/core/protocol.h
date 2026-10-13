@@ -399,7 +399,8 @@ struct ViewState {
     // menu (PresetMenu::Packed), looper (PackLooper), knob state / values (PanelController), knob targets
     // (Parameter ids, 8 bits each), FX lights / amounts, synth lights / knobs, harmony, parts, parts clock,
     // event recorder lights, the chord (EngineChord), flags (bit 0 record position, 1 recording,
-    // 2 safe mode, 3 sample job busy, 4 install armed), Dream lights.
+    // 2 safe mode, 3 sample job busy, 4 install armed, 5 SW5 just turned, 8-15 SW5's cutoff 0-255,
+    // 16-25 the loop speed: (speed + 2) x 255, -2..2), Dream lights.
     uint32_t words[kViewWords]{};
     uint8_t chord_notes[5]{};
     uint8_t battery = 4, power_flags = 0, charge_state = 0;
