@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Choowi 0.20 release graphic</title>
+<!-- Source of release-0.20.0-rc3.png (1280 x 640). Render: open at 1280 x 640 and capture. -->
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1b1b22;--paper:#fbfaf7;--spark:#ff5ea0;--muted:#5a5a66;--rule:#e3e1da}
+*{box-sizing:border-box}
+html,body{margin:0;width:1280px;height:640px;overflow:hidden;background:var(--paper)}
+body{font-family:'Fredoka',system-ui,sans-serif;color:var(--ink);position:relative}
+.glow{position:absolute;left:-60px;top:20px;width:640px;height:640px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,94,160,.20),rgba(255,94,160,.06) 55%,transparent 70%)}
+.choowi{position:absolute;left:70px;top:96px;width:400px}
+.tool{position:absolute;left:360px;top:318px;width:230px;transform:rotate(-8deg);filter:drop-shadow(0 6px 0 rgba(27,27,34,.08))}
+.spark{position:absolute;font-size:30px;color:var(--spark)}
+.text{position:absolute;left:600px;top:66px;right:60px}
+.brand{font-size:28px;font-weight:700;letter-spacing:-.5px}
+.brand span{color:var(--muted);font-weight:600}
+h1{font-size:112px;line-height:.92;margin:14px 0 0;letter-spacing:-3px}
+h1 small{font-size:112px;color:var(--spark)}
+.toolname{font-size:44px;font-weight:700;margin:10px 0 0;color:var(--spark);letter-spacing:-1px}
+.toolname em{font-style:normal;color:var(--ink);font-weight:600;font-size:28px;margin-left:10px;letter-spacing:0}
+.dots{display:flex;gap:10px;margin:20px 0 22px}
+.dots i{width:20px;height:20px;border-radius:50%;border:1.5px solid #c9c7bf}
+ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+li{font-size:23px;font-weight:600;background:#fff;border:2.5px solid var(--ink);border-radius:16px;padding:9px 14px;box-shadow:4px 4px 0 var(--ink)}
+li b{color:var(--spark)}
+.foot{position:absolute;left:600px;right:60px;bottom:34px;display:flex;justify-content:space-between;align-items:baseline;
+  font-family:'Space Mono',monospace;font-size:19px;color:var(--muted)}
+.foot strong{color:var(--ink);font-weight:700}
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<img class="choowi" src="choowi.svg" alt="">
+<img class="tool" src="tool-choowivision.svg" alt="">
+<span class="spark" style="left:520px;top:300px">✦</span>
+<span class="spark" style="left:556px;top:560px;font-size:22px;color:#19c9b6">✦</span>
+<span class="spark" style="left:40px;top:540px;font-size:24px;color:#f5c400">✦</span>
+<div class="text">
+  <div class="brand">forge <span>· for CHOMPI</span></div>
+  <h1>Choowi <small>0.20</small></h1>
+  <div class="toolname">Choowivision <em>release candidate 3</em></div>
+  <div class="dots"><i style="background:#fff"></i><i style="background:#2fbf55"></i><i style="background:#f5c400"></i><i style="background:#ff8a2a"></i><i style="background:#ec3b3b"></i><i style="background:#ff5ea0"></i><i style="background:#9150f0"></i><i style="background:#2f7cf6"></i><i style="background:#19c9b6"></i></div>
+  <ul>
+    <li><b>FX page:</b> four modules</li>
+    <li>your own <b>effect order</b></li>
+    <li>a <b>screen</b> on your phone</li>
+    <li><b>undo</b> an overdub</li>
+    <li>surprise me rolls <b>effects</b></li>
+    <li>and a few <b>secrets</b> ✦</li>
+  </ul>
+</div>
+<div class="foot"><span>for <strong>community testing</strong></span><span>myth-world.github.io/Forge</span></div>
+</body>
+</html>

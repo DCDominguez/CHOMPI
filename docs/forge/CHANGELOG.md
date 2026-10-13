@@ -2,7 +2,7 @@
 
 Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)); the heading names it.
 
-## 0.20.0 The FX section, overdub undo, the phone display (tool: Choowivision) — release candidate 3, for community testing (2026-10-13; not yet released)
+## 0.20.0 The FX section, overdub undo, the phone display (tool: Choowivision) — release candidate 3, for community testing (published 2026-10-13: choowi-0.20.0-rc3)
 
 - **The FX section:** four modules (Space, Colour, Texture, Motion), three effects each, in a route; the
   FX menu page; patch v8. See [FX.md](FX.md).
