@@ -1,7 +1,7 @@
 # Choowi: how do I…?
 
 *A hands-on guide to Forge · Choowi (firmware 0.20.0) on CHOMPI. Hold CHOMPI, find what you
-want to do, follow the steps. The full reference is the [manual](MANUAL.md).*
+want to do, follow the steps. The full reference is the [manual](MANUAL.md); unfamiliar words are in the [glossary](GLOSSARY.md).*
 
 Forge is independent community firmware, not affiliated with or endorsed by CHOMPI Club. CHOMPI is a trademark of CHOMPI Club. Keep a backup of your SD card.
 

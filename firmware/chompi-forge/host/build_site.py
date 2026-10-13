@@ -52,7 +52,31 @@ def manual_html():
     head = text[begin:text.index("\n", begin) + 1]
     code = "\n".join((SITE / name).read_text(encoding="utf-8").rstrip() for name in ("panel-art.js", "display-model.js"))
     if "</script" in code: raise ValueError("panel-art / display-model must not contain </script")
-    return text[:begin] + head + "<script>\n" + code + "\n</script>\n" + text[end:]
+    text = text[:begin] + head + "<script>\n" + code + "\n</script>\n" + text[end:]
+    return glossary_into(text)
+
+
+def glossary_into(text):
+    """docs/forge/GLOSSARY.md as the manual's Glossary section: headings and "- **Term**: text" items only."""
+    import html, re
+    source = (MANUAL.parent / "GLOSSARY.md").read_text(encoding="utf-8")
+    def inline(s):
+        s = html.escape(s, quote=False)
+        s = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", s)
+        return re.sub(r"\*([^*]+)\*", r"<i>\1</i>", s)
+    out, items = [], []
+    def flush():
+        if items: out.append('<dl class="glossary">' + "".join(items) + "</dl>"); items.clear()
+    for line in source.splitlines():
+        if line.startswith("## "): flush(); out.append(f"<h3>{html.escape(line[3:])}</h3>")
+        elif line.startswith("- **"):
+            term, _, rest = line[2:].partition(": ")
+            items.append(f"<dt>{inline(term)}</dt><dd>{inline(rest)}</dd>")
+        elif line and not line.startswith("#"): flush(); out.append(f'<p class="col">{inline(line)}</p>')
+    flush()
+    begin, end = text.index("<!-- glossary:begin"), text.index("<!-- glossary:end -->")
+    head = text[begin:text.index("\n", begin) + 1]
+    return text[:begin] + head + "\n".join(out) + "\n" + text[end:]
 
 
 def outputs():
