@@ -144,21 +144,24 @@ function noteOff(note) { held.delete(note); }
 
 // ---- one frame -----------------------------------------------------------------------------------------------
 const rgb = [0, 0, 0];
-let frozenUntil = 0, glitchRow = -1;
+let frozenUntil = 0, glitchRow = -1, fxAmount = .25;
+// How strong the effect look is: a quarter alone, growing with the voices held, full at five (smoothed).
+function expression() { const target = Math.min(1, .25 + .15 * held.size); fxAmount += (target - fxAmount) * (target > fxAmount ? .2 : .03); return fxAmount; }
 function frame(now) {
   requestAnimationFrame(frame);
   if (look === "broken" && now < frozenUntil) return;
-  if (look === "broken" && Math.random() < .01) frozenUntil = now + 80 + Math.random() * 180;
+  const ex = expression();
+  if (look === "broken" && Math.random() < .01 * ex) frozenUntil = now + 40 + Math.random() * 160 * ex;
   const t = now / 1000, k = {speed: knobs[0], scale: knobs[1], twist: knobs[2], colour: knobs[3]};
   const beat = Math.pow(1 - ((now - beatAt) % (60000 / bpm)) / (60000 / bpm), 3);
   const scan = ((now - loopStart) / 1000 % loopSeconds) / loopSeconds;
   tintAmount *= .995;
   for (let i = ripples.length - 1; i >= 0; i--) if (now - ripples[i].born > 2600) ripples.splice(i, 1);
   const P = PATTERNS[pattern]; P.prepare(t, k, now, beat);
-  const d = img.data, persist = look === "cloud" ? .9 : 0, pulse = look === "tremolo" ? .35 + .65 * beat : 1;
-  if (look === "broken" && Math.random() < .02) { dead.fill(0); for (let i = 0; i < 90; i++) dead[Math.floor(Math.random() * dead.length)] = 1; glitchRow = Math.floor(Math.random() * GH); }
+  const d = img.data, persist = look === "cloud" ? .55 + .37 * ex : 0, pulse = look === "tremolo" ? 1 - .65 * ex * (1 - beat) : 1;
+  if (look === "broken" && Math.random() < .02 * ex) { dead.fill(0); for (let i = 0; i < 90 * ex; i++) dead[Math.floor(Math.random() * dead.length)] = 1; glitchRow = Math.floor(Math.random() * GH); }
   for (let y = 0; y < GH; y++) {
-    const v = (y / (GH - 1)) * 2 - 1, shift = look === "broken" && Math.abs(y - glitchRow) < 3 ? 9 : 0;
+    const v = (y / (GH - 1)) * 2 - 1, shift = look === "broken" && Math.abs(y - glitchRow) < 3 ? Math.round(9 * ex) : 0;
     for (let x = 0; x < GW; x++) {
       const u = (((x + shift) % GW) / (GW - 1)) * 2 - 1;
       let val = P.value(x, y, u, v, t, k);
@@ -180,7 +183,7 @@ function frame(now) {
   cx.fillStyle = "#050507"; cx.fillRect(0, 0, W, H); cx.imageSmoothingEnabled = false;
   if (look === "tape") {                                         // tape echo: older frames, lagging and wobbling
     history.push(gx.getImageData(0, 0, GW, GH)); if (history.length > 24) history.shift();
-    [[23, .35], [12, .5]].forEach(([back, alpha]) => {
+    [[23, .35 * ex], [12, .5 * ex]].forEach(([back, alpha]) => {
       const old = history[history.length - 1 - back]; if (!old) return;
       const tmp = document.createElement("canvas"); tmp.width = GW; tmp.height = GH; tmp.getContext("2d").putImageData(old, 0, 0);
       cx.globalAlpha = alpha; cx.drawImage(tmp, ox + Math.sin(t * 3 + back) * cell * 2, oy, cell * GW, cell * GH);
@@ -189,7 +192,7 @@ function frame(now) {
   } else history.length = 0;
   cx.globalCompositeOperation = "lighter";
   cx.drawImage(grid, ox, oy, cell * GW, cell * GH);
-  if (look === "chorus") { cx.globalAlpha = .55; cx.drawImage(grid, ox + Math.sin(t * 1.3) * cell * 3, oy + Math.cos(t) * cell, cell * GW, cell * GH); cx.globalAlpha = 1; }
+  if (look === "chorus") { cx.globalAlpha = .55 * ex; cx.drawImage(grid, ox + Math.sin(t * 1.3) * cell * 3 * ex, oy + Math.cos(t) * cell * ex, cell * GW, cell * GH); cx.globalAlpha = 1; }
   cx.globalCompositeOperation = "source-over";
   cx.save(); cx.translate(ox, oy); cx.fillStyle = mask.pattern; cx.fillRect(0, 0, cell * GW, cell * GH); cx.restore();
   // A soft bloom so the dots glow.
@@ -244,7 +247,26 @@ const pick = (attr, set) => document.querySelectorAll(`[data-${attr}]`).forEach(
 pick("pattern", v => { pattern = v; }); pick("look", v => { look = v; prev.fill(0); dead.fill(0); });
 document.getElementById("full").addEventListener("click", () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}));
 // Opened from Choowivision (?live=1): connect straight away (MIDI was already allowed there; the button stays as a fallback).
-if (new URLSearchParams(location.search).has("live")) connectButton.click();
+// The word (the owner's): only its salted hash is here. A browser that knew it once remembers. This is a
+// secret's door, not security: a static page can always be read.
+const WORD = "6b879139ed6a8875b5504ab5aed7884e5240be6d8f0a0366c6e36158d696a755";
+async function hash(word) {
+  const bytes = new TextEncoder().encode("forge-stage:" + word.trim().toLowerCase());
+  return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+function openStage() {
+  document.getElementById("gate").hidden = true;
+  if (new URLSearchParams(location.search).has("live")) connectButton.click();
+}
+let known = false; try { known = localStorage.getItem("forge.stage") === WORD; } catch { /* storage blocked */ }
+if (known) openStage();
+document.getElementById("gate-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  try {
+    if (await hash(document.getElementById("gate-word").value) === WORD) { try { localStorage.setItem("forge.stage", WORD); } catch { /* fine */ } openStage(); }
+    else document.getElementById("gate-no").textContent = "not quite.";
+  } catch { document.getElementById("gate-no").textContent = "this page needs https to check the word."; }
+});
 let idle = 0;
 function wake() { bar.classList.remove("hidden"); knobBox.classList.remove("hidden"); clearTimeout(idle); idle = setTimeout(() => { bar.classList.add("hidden"); knobBox.classList.add("hidden"); }, 4000); }
 ["pointermove", "pointerdown", "keydown"].forEach(e => addEventListener(e, wake)); wake();
