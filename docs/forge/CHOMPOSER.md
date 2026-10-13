@@ -208,24 +208,27 @@ with their roles, the current bar, tempo and mood: what a conductor reads on the
 
 ## The microphone: conducting with your hand (owner: "something unconventional")
 
-CHOMPI's built-in mic sits in the same case as its speaker (the manual warns the mic hears the speaker:
-that's the howl). Chomposer can turn that into a sensor: **the hand near the mic is the conductor's left
+CHOMPI has a built-in mic and **no speaker** (the owner). Chomposer can still turn the mic into a sensor: **the hand near the mic is the conductor's left
 hand**, with no new hardware. Four things the mic can tell apart, cheapest first:
 
 | Hand | What the mic hears | Conducts | Conductor equivalent |
 |---|---|---|---|
-| **Cupping the mic** | the room's highs drop first (and the pilot tone, below); how closed = how much | the orchestra darkens and softens, like a mute; open the hand and it blooms | a closing hand: softer, hold back |
+| **Cupping the mic** | the room's highs drop first; how closed = how much | the orchestra darkens and softens, like a mute; open the hand and it blooms | a closing hand: softer, hold back |
 | **Breathing on it** | low, rough turbulence | a swell: every part crescendos together (as a breath controller, CC 2) | the breath before a phrase, a big gesture |
 | **Tapping the case** | sharp clicks | **the beat**: tempo follows the taps | the ictus |
-| **Waving over it** (with the pilot tone) | the pilot tone's pitch bends with the hand's speed (Doppler) and its level with distance | **gesture size and direction**: towards = louder / forwards, away = softer / held; a fast flutter = agitato (tremolo, tighter articulation) | beat size, expressive shaping |
+| **Hovering / waving over it** (the seashell theremin, below) | the room noise's comb pattern: notch spacing = distance, its change = speed | **gesture size and direction**: towards = louder / forwards, away = softer / held; a fast flutter = agitato (tremolo, tighter articulation) | beat size, expressive shaping |
 
-**The pilot tone (the unconventional part):** CHOMPI plays a very quiet tone near 18-20 kHz from its own
-speaker, above what most adults hear. The mic hears it straight from the speaker and as an echo off the
-hand; the hand's movement shifts its pitch slightly (Doppler) and its distance changes its level, so a wave
-over CHOMPI becomes a gesture, like a theremin played by sonar. Microsoft Research showed this works with
-ordinary laptop speakers and mics (SoundWave, Gupta et al., CHI 2012). **To verify on CHOMPI first:** that
-its small speaker actually plays 18-20 kHz, and what happens with headphones in (the speaker may be off).
-Without the pilot tone, cupping, breath and taps still work from the room's own sound.
+**The seashell theremin (the unconventional part; owner: "I do like the theremin idea").** Hold a shell to
+your ear and you hear the room's own faint noise, coloured by the shell. A hand over the mic does the same:
+the room noise bouncing off the palm reaches the mic a fraction of a millisecond late, and the direct and
+reflected sound together cut **evenly spaced notches** into the noise (a comb filter). The spacing is the
+speed of sound over twice the distance: about 3.4 kHz with the hand 5 cm away, 860 Hz at 20 cm. Measuring
+that spacing (a cepstrum: the FFT of the spectrum's log, which turns evenly spaced notches into one peak at
+the echo delay) gives **the hand's height over the mic**, and its change over time gives the speed: a
+theremin with no antenna and no speaker. It needs some room noise to work with; in a silent room a soft
+"shhh", rubbing fingers, or the orchestra itself through headphones / monitors gives it something to hear.
+**To prove first:** record 10 s of a hand rising and falling over CHOMPI's mic (CHOMPI's line out into the
+audio interface while recording) and analyse it offline; if the delay peak tracks the hand, build it.
 
 **Emotion from the hand:** the motion's **speed** is arousal (still = calm, fast flutter = stormy) and its
 **openness** is brightness and warmth (cupped = dark, intimate; open = bright, bold). Together they move
@@ -242,8 +245,8 @@ suspense (held like a fermata), an open fast wave is triumphant.
   so it still works in a noisy room; a red flicker if it's too loud to hear the hand.
 - **Choowivision:** a live "hand" meter (distance, openness, speed) beside the score.
 
-**How it's built:** a few band filters on the mic (Goertzel filters on the pilot tone and 3-4 bands, plus
-a transient detector) once per block: small CPU, a few hundred bytes of state. Bounded in the audio
+**How it's built:** a few band filters on the mic (Goertzel filters on 3-4 bands, a transient detector, and
+a 1,024-point FFT cepstrum about every 20 ms for the theremin): modest CPU (to measure), a few KB of state. Bounded in the audio
 callback; the mapping to mood and dynamics in the main loop. The mic only works with nothing plugged into
 line in (as today), and the hand control has an on / off (a long press, so it never surprises).
 
@@ -291,6 +294,4 @@ Each milestone is playable on its own.
   [Motivic manipulations (Ithaca College)](https://musictech.ithaca.edu/MusicTech/ICTheory/OnlineText/Form/Unit%20I/MelManipulation/MelManipulation.html);
   [Texture (Tiverton High School)](https://tiverton.devon.sch.uk/curriculum/knowledge_organisers/year_10/music/Musical%20Elements/Texture-2.pdf).
   The owner's pick: [What do orchestra conductors ACTUALLY do? (Mixed Signals, YouTube)](https://www.youtube.com/watch?v=3Osx3JsCS9s).
-- Acoustic hand sensing: Gupta, Morris, Patel and Tan, *SoundWave: Using the Doppler Effect to Sense
-  Gestures*, CHI 2012 (Microsoft Research).
   Standard texts worth reading in full: Max Rudolf, *The Grammar of Conducting*; Adler, *The Study of Orchestration*.
