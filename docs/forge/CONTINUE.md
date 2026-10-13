@@ -13,6 +13,11 @@ Updated 2026-10-13: 0.20.0 release candidate 3 prepared (newest section). 2026-1
 - **Software-tested:** make test 162 OK; UBSan trap fx / panel / protocol / harmony; release 252,214 B
   (headroom 36,554), development 263,606 B (headroom 25,162). Browser e2e not run (no Playwright).
 - **Proposal waiting for the owner:** REDUNDANT_CONTROLS.md (names only would be the small set).
+- **Later the same afternoon (d04401b):** CHOMPI runs 5ad72df (0.20.0 dev). FX-aware surprise / mutate heard by the
+  owner, kept. Tool named Choowivision. Names-only renames done. Display landscape fixed on the owner's Android
+  (cd446f5, cache tags 3cb7dd1); phone display works over Wi-Fi (site-lan server, port 8801, Chrome
+  insecure-origin flag). Next: release kit (package_candidate.py; see build/release-rc2 for the card-zip layout),
+  then push / merge / GitHub release with the owner's final OK.
 - **Left for rc3:** install + hardware checks (order gesture, SW5 on the display, undo timing, fold level,
   held-knob white, broken radio by ear, bank b level, display on CHOMPI and Android); by-hand test-sheet items;
   battery watch; the tool name; release kit (package_candidate.py), push / merge to main and the GitHub
