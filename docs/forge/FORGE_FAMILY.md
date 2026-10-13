@@ -20,7 +20,7 @@ forge                         the workshop: shared tools, docs, tests, the bridg
 │   ├── 0.19  Tinker Wrench   (red)
 │   └── 0.20  Choowivision    (pink: CHOMPI's screen on your phone, and the FX section)
 ├── Chomposer                 firmware line #2 (planned): CHOMPI conducts an ensemble; mascot to come
-└── (the line after)         a new name, a new mascot, same workshop
+└── (the line after)          a new name, a new mascot, same workshop
 ```
 
 ## the rules
