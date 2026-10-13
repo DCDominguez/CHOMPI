@@ -190,6 +190,9 @@ public:
     }
     const fx::Module (&Order() const)[fx::kModules] { return order_; }
     void SetSideBySide(bool on) { side_by_side_ = on; }
+    // 0.20 secret (FX page: D4 tapped twice): broken radio. Device state, never in a patch; off at power-on.
+    void SetBrokenRadio(bool on) { broken_radio_ = on; broken_.SetRadio(on, Sixteenth()); }
+    bool BrokenRadio() const { return broken_radio_; }
     bool SideBySide() const { return side_by_side_; }
     // The preset this order is (Classic, Wear last, Wash first; Side by side when Classic in parallel), else
     // Classic's route when custom: lights and tests use Preset() for the custom case.
@@ -318,6 +321,7 @@ public:
     bool ArpOn() const { return PartsOn() && parts_->ArpOn(); }
     // Once per audio block, before the samples: the clock, steps and gate ends.
     void Block(unsigned frames) {
+        broken_.SetRadio(broken_radio_, Sixteenth());                  // 0.20 secret: survives RestModule
         if(secret_ != secret::Mode::Off) SecretBlock(frames);
         if(!parts_) return;
         parts_->Advance(frames); SoundParts();
@@ -827,6 +831,7 @@ private:
     float echo_ = 1.f;
     // FX section Phase 2
     fx::Fold fold_; fx::Crush crush_; fx::Squash squash_; fx::Broken broken_; fx::Phaser phaser_; fx::Tremolo tremolo_;
+    bool broken_radio_ = false;
     bool tape_echo_ = false, wear_on_ = false;
     float wow_phase_ = 0.f, tape_k_ = 0.f, tape_l_ = 0.f, tape_r_ = 0.f;
     float wear_k_ = 1.f, wear_l_ = 0.f, wear_r_ = 0.f, hiss_level_ = 0.f;

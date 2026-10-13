@@ -843,6 +843,17 @@ void FxPage020() {
         assert(rig.engine.GetRoute() == fx::Route::Classic);
     }
     press(59); assert(rig.engine.SideBySide()); press(59); assert(!rig.engine.SideBySide());   // B3: side by side
+    {   // 0.20 secret: D4 (broken) tapped twice within 0.4 s toggles broken radio; slow taps don't; its key flickers
+        press(62); for(int i = 0; i < 2000; ++i) rig.Block(); press(62); assert(!rig.engine.BrokenRadio());   // 1 s apart
+        press(62); assert(rig.engine.BrokenRadio() && ((rig.panel.FxLights() >> 30) & 1u));                 // a quick second tap
+        rig.hw.turns[panel::kKnobEncoder[2]] = 10; rig.Block();                                              // Texture up
+        LedView lv; lv.menu = rig.panel.MenuPacked(); lv.fx = rig.panel.FxLights();
+        auto d4 = [&](bool blink) { Rgb k[25], c; lv.blink = blink; ComposeLeds(lv, k, c);
+            const uint8_t key = key_of(62), slot = panel::KeyToSlot(key); return k[slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key)]; };
+        assert(d4(true).r > .9f && d4(false).r < .4f);                     // flickers
+        press(62); press(62); assert(!rig.engine.BrokenRadio());          // twice again: off
+        rig.hw.turns[panel::kKnobEncoder[2]] = -10; rig.Block(); press(60);                                // Texture back down, cassette
+    }
     press(56); assert(!rig.engine.FxBeforeLoop()); press(54); assert(rig.engine.FxBeforeLoop());   // G#3 / F#3
     // Knobs: SW3 (logical 3) = Motion amount; hold SW3 + turn = its rate; SW4 (logical 0) = Space.
     rig.hw.turns[panel::kKnobEncoder[3]] = 10; rig.Block();

@@ -259,30 +259,72 @@ private:
 // deep), with character the dropouts get longer and turn into stutters (the signal chopped on and off).
 class Broken {
 public:
-    void Init(float rate) { rate_ = rate; Set(0.f, 0.f); }
+    void Init(float rate) {
+        rate_ = rate; Set(0.f, 0.f);
+        hp_k_ = 1.f - std::exp(-6.2831853f * 320.f / rate); lp_k_ = 1.f - std::exp(-6.2831853f * 2800.f / rate);
+    }
     void Set(float amount, float character) { amount_ = Clamp(amount, 0.f, 1.f); character_ = Clamp(character, 0.f, 1.f); }
-    bool Neutral() const { return amount_ == 0.f && gain_ > .9999f && !left_; }
+    // A secret (0.20, the owner's pick, "broken radio"): the cut-outs fall on the tempo's 1/16 grid in a pattern
+    // that changes every bar, the sound narrows to a radio band and static crackles in the gaps. `step`: one
+    // 1/16 in frames (Engine::Sixteenth). No buffer: the cut-outs gate, they don't repeat. Off at power-on.
+    void SetRadio(bool on, uint32_t step) { radio_ = on; step_ = step < 64 ? 64 : step; }
+    bool Radio() const { return radio_; }
+    bool Neutral() const { return amount_ == 0.f && gain_ > .9999f && !left_ && band_ < 1e-4f; }
     void Process(float& l, float& r) {
-        if(left_) {                                                      // inside a dropout
-            --left_;
-            const bool chop = character_ > .5f && ((left_ / static_cast<uint32_t>(.016f * rate_)) & 1u);
-            target_ = chop ? 1.f : floor_;
-        } else {
-            target_ = 1.f;
-            if(amount_ > 0.f && wait_ == 0) {
-                rand_ ^= rand_ << 13; rand_ ^= rand_ >> 17; rand_ ^= rand_ << 5;
-                const float u = static_cast<float>(rand_ >> 8) * (1.f / 16777216.f);
-                left_ = static_cast<uint32_t>((.02f + .23f * character_ + .1f * u) * rate_);
-                floor_ = 1.f - (.5f + .5f * amount_) * (.6f + .4f * u);
-                wait_ = static_cast<uint32_t>((.25f + 2.5f * (1.f - amount_) * (.5f + u)) * rate_);
-            } else if(wait_) --wait_;
+        if(radio_ && amount_ > 0.f) Radio(l, r);
+        else {
+            if(left_) {                                                      // inside a dropout
+                --left_;
+                const bool chop = character_ > .5f && ((left_ / static_cast<uint32_t>(.016f * rate_)) & 1u);
+                target_ = chop ? 1.f : floor_;
+            } else {
+                target_ = 1.f;
+                if(amount_ > 0.f && wait_ == 0) {
+                    const float u = Random();
+                    left_ = static_cast<uint32_t>((.02f + .23f * character_ + .1f * u) * rate_);
+                    floor_ = 1.f - (.5f + .5f * amount_) * (.6f + .4f * u);
+                    wait_ = static_cast<uint32_t>((.25f + 2.5f * (1.f - amount_) * (.5f + u)) * rate_);
+                } else if(wait_) --wait_;
+            }
+            band_ += .001f * (0.f - band_);                                  // the radio band fades out
+            if(band_ > 1e-4f) Band(l, r);
         }
         gain_ += .004f * (target_ - gain_);                              // ~5 ms edges: no clicks
         l *= gain_; r *= gain_;
+        if(crackle_ != 0.f) { l += crackle_; r += crackle_; crackle_ *= .5f; if(std::fabs(crackle_) < 1e-6f) crackle_ = 0.f; }
     }
 private:
+    float Random() { rand_ ^= rand_ << 13; rand_ ^= rand_ >> 17; rand_ ^= rand_ << 5; return static_cast<float>(rand_ >> 8) * (1.f / 16777216.f); }
+    // The radio band: about 320 Hz to 2.8 kHz, blended in with the amount.
+    void Band(float& l, float& r) {
+        hp_l_ += hp_k_ * (l - hp_l_); hp_r_ += hp_k_ * (r - hp_r_);
+        lp_l_ += lp_k_ * ((l - hp_l_) - lp_l_); lp_r_ += lp_k_ * ((r - hp_r_) - lp_r_);
+        if(std::fabs(lp_l_) < 1e-20f) lp_l_ = 0.f;
+        if(std::fabs(lp_r_) < 1e-20f) lp_r_ = 0.f;
+        l += band_ * (1.4f * lp_l_ - l); r += band_ * (1.4f * lp_r_ - r);
+    }
+    void Radio(float& l, float& r) {
+        if(++pos_ >= step_) {                                            // the next 1/16
+            pos_ = 0;
+            if(step_index_++ % 16 == 0) {                                // a new bar: a new pattern (more holes with more amount)
+                pattern_ = 0;
+                for(unsigned s = 0; s < 16; ++s) if(Random() < .15f + .55f * amount_) pattern_ |= 1u << s;
+                pattern_ &= ~1u;                                         // the downbeat always plays
+            }
+            off_ = (pattern_ >> (step_index_ % 16)) & 1u;
+        }
+        bool open = !off_;
+        if(open && character_ > .5f) open = ((pos_ * 8u / step_) & 1u) == 0;   // character: fast chops inside a step
+        target_ = open ? 1.f : 1.f - (.6f + .4f * amount_);
+        if(!open && Random() < .0015f * amount_) crackle_ = (Random() - .5f) * .05f * amount_;   // static in the gaps
+        band_ += .001f * (amount_ - band_);
+        Band(l, r);
+    }
     float rate_ = 48000.f, amount_ = 0.f, character_ = 0.f, gain_ = 1.f, target_ = 1.f, floor_ = 1.f;
     uint32_t left_ = 0, wait_ = 0, rand_ = 0x6d2b79f5u;
+    bool radio_ = false, off_ = false;
+    uint32_t step_ = 6000, pos_ = 0, step_index_ = 0, pattern_ = 0;
+    float band_ = 0.f, crackle_ = 0.f, hp_k_ = 0.f, lp_k_ = 0.f, hp_l_ = 0.f, hp_r_ = 0.f, lp_l_ = 0.f, lp_r_ = 0.f;
 };
 
 // Motion: phaser. Four all-pass stages per side swept by a slow LFO (the sides a quarter apart), with

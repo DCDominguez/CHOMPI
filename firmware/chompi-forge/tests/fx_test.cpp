@@ -178,8 +178,36 @@ void FoldLevel() {
         assert(db > -9.0 && db < 6.0);
     }
 }
+// The 0.20 secret, broken radio: cut-outs only on the 1/16 grid (the gain moves just after step edges), the
+// downbeat of every bar open, bounded, a radio band (less low end than the input), off again when the knob is.
+void BrokenRadio() {
+    const uint32_t step = 3000;                                            // a 1/16 at 240 BPM, 48 kHz
+    fx::Broken b; b.Init(48000.f); b.Set(1.f, 0.f); b.SetRadio(true, step); assert(b.Radio());
+    // A 1 kHz tone (inside the radio band): its loudness in eighths of each step only changes at the step's start.
+    const uint32_t w = step / 8; uint32_t moves_late = 0; double lp_in = 0.0, lp_out = 0.0, window = 0.0, first = 0.0;
+    for(uint32_t i = 0; i < 16 * step * 4; ++i) {                         // four bars
+        const float x = .3f * std::sin(6.2831853f * 1000.f * static_cast<float>(i) / 48000.f);
+        float l = x, r = x; b.Process(l, r);
+        assert(std::isfinite(l) && std::fabs(l) < .6f);
+        lp_in += x * x; lp_out += l * l; window += l * l;
+        if((i + 1) % w == 0) {
+            const uint32_t eighth = (i % step) / w;
+            if(eighth == 2) first = window;                                 // after the ~5 ms edge has settled
+            // From the second bar (the band has faded in), in open steps (a closed one sinks towards zero).
+            else if(i >= 16 * step && eighth > 2 && first > .25 * w * .045 && (window > 1.3 * first || window < first / 1.3)) ++moves_late;
+            window = 0.0;
+        }
+    }
+    assert(moves_late == 0);                                               // no cut-outs between grid steps
+    assert(lp_out < .7 * lp_in);                                           // cut-outs and the band: clearly broken
+    b.SetRadio(false, step); b.Set(0.f, 0.f);
+    for(int i = 0; i < 96000; ++i) { float l = .3f, r = .3f; if(!b.Neutral()) b.Process(l, r); }
+    assert(b.Neutral());                                                   // knob down: off, radio or not
+    fx::Broken quiet; quiet.Init(48000.f); quiet.Set(0.f, 0.f); quiet.SetRadio(true, step);
+    assert(quiet.Neutral());                                               // radio on, amount 0: bypassed
+}
 void Phase2Units() {
-    FoldLevel();
+    FoldLevel(); BrokenRadio();
     { fx::Fold f; EffectUnit(f, .7f, .5f); }
     { fx::Crush c; EffectUnit(c, .8f, .6f); }
     { fx::Squash q; q.Init(48000.f); EffectUnit(q, .8f, .3f); }

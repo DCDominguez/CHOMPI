@@ -61,3 +61,15 @@ to be measured on CHOMPI in the listening session.
 4. The four routes with chorus, warble and cloud all up — does each sound distinct and useful?
 5. Save a sound with cloud + chorus, recall another, recall it again — do the FX come back?
 6. The lights: groups, colours, route key, rings, the green CHOMPI light.
+
+## A secret (developer note; keep it out of the player manuals)
+
+**Broken radio** (0.20, the owner's pick, 2026-10-13). On the FX page, tap **D4** (broken) **twice within
+0.4 s** to switch it on or off; D4 then flickers. With Texture up, broken's cut-outs fall on the tempo's 1/16
+grid in a pattern that changes every bar (the downbeat always plays), the sound narrows to a radio band (about
+320 Hz to 2.8 kHz) and static crackles in the gaps; character above half adds fast chops inside a step. No
+buffer: it gates, it doesn't repeat audio (a stutter buffer would need ~48 KB at 120 BPM). Device state, not
+saved in presets, off at power-on; Texture at zero bypasses it as usual. Code: `fx::Broken::SetRadio` /
+`Radio`, `Engine::SetBrokenRadio`, `PanelController::FxKey` (FxLights bit 30). Tests: fx_test BrokenRadio
+(cut-outs only at grid steps, bounded, bypassed at zero; golden unchanged), panel_test (double tap, slow taps
+don't, flicker). Software-tested; not yet heard on CHOMPI.

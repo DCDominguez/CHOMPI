@@ -523,7 +523,8 @@ private:
             }
             const int preset = engine.Preset();
             f |= (static_cast<uint32_t>(preset < 0 ? 0 : preset) & 3u) << 8 | (engine.FxBeforeLoop() ? 1u << 10 : 0u) | (FxPage() ? 1u << 31 : 0u)
-               | (preset < 0 ? 1u << 15 : 0u) | (engine.SideBySide() ? 1u << 16 : 0u) | (ordering_ ? 1u << 17 : 0u);
+               | (preset < 0 ? 1u << 15 : 0u) | (engine.SideBySide() ? 1u << 16 : 0u) | (ordering_ ? 1u << 17 : 0u)
+               | (engine.BrokenRadio() ? 1u << 30 : 0u);                                                      // 0.20 secret
             for(unsigned m = 0; m < fx::kModules; ++m) if(engine.Value(FxAmount(m)) > 0.f) f |= 1u << (11 + m);   // module on
             f |= ordering_ ? static_cast<uint32_t>(taps_ & 7u) << 26 : static_cast<uint32_t>(fx_knob_down_ & 15u) << 26;   // taps while ordering; else knobs held
             uint32_t chars = 0;
@@ -806,7 +807,14 @@ private:
                     if(!seen && taps_ < fx::kModules) tapped_[taps_++] = static_cast<fx::Module>(m);
                     if(taps_ == fx::kModules) FinishOrder(engine);
                 }
-                else engine.SetChoice(static_cast<fx::Module>(m), c);
+                else {
+                    engine.SetChoice(static_cast<fx::Module>(m), c);
+                    // A secret (0.20, broken radio): the broken key tapped twice within kDoubleTapFrames.
+                    if(m == static_cast<uint8_t>(fx::Module::Texture) && c == static_cast<uint8_t>(fx::TextureChoice::Broken)) {
+                        if(broken_tapped_ && broken_tap_age_ < kDoubleTapFrames) { engine.SetBrokenRadio(!engine.BrokenRadio()); broken_tapped_ = false; }
+                        else { broken_tapped_ = true; broken_tap_age_ = 0; }
+                    } else broken_tapped_ = false;
+                }
                 return;
             }
         if(note == fx::kSideKey) engine.SetSideBySide(!engine.SideBySide());
@@ -831,6 +839,7 @@ private:
         }
     }
     FORGE_COLD void FxControls(uint64_t keys, const int16_t (&turns)[panel::kEncoders], Engine& engine, uint32_t frames) {
+        if(broken_tap_age_ < kDoubleTapFrames) broken_tap_age_ += frames;
         if((keys >> kRouteButton) & 1u) {                                    // A#3 held 1 s (before any tap): Classic
             const bool was = route_frames_ >= kRouteResetFrames;
             route_frames_ += frames;
@@ -865,6 +874,9 @@ private:
     unsigned taps_ = 0;
     uint32_t route_frames_ = 0;
     static constexpr uint32_t kRouteResetFrames = 48000;          // A#3 held 1 s: Classic
+    bool broken_tapped_ = false;                                  // 0.20 secret: the first of two taps on D4
+    uint32_t broken_tap_age_ = 0;
+    static constexpr uint32_t kDoubleTapFrames = 48 * 400;        // the second tap within 0.4 s
     uint8_t synth_page_[4] = {};
     bool audition_ = false;
     std::atomic<uint32_t> synth_lights_{0}, synth_knobs_{0};
@@ -1303,8 +1315,12 @@ FORGE_COLD inline void RenderFxLeds(uint32_t f, Rgb (&keys)[25], bool blink = tr
     for(unsigned m = 0; m < fx::kModules; ++m) {
         const unsigned chosen = (f >> (2 * m)) & 3u;
         const bool on = (f >> (11 + m)) & 1u;
-        for(unsigned c = 0; c < fx::kChoices; ++c)
-            lit(fx::kKeys[m][c], knobs::Scale(colours[m], c != chosen ? .05f : on ? 1.f : .25f));
+        for(unsigned c = 0; c < fx::kChoices; ++c) {
+            float level = c != chosen ? .05f : on ? 1.f : .25f;
+            if(m == static_cast<unsigned>(fx::Module::Texture) && c == static_cast<unsigned>(fx::TextureChoice::Broken) && c == chosen
+               && ((f >> 30) & 1u) && !blink) level *= .3f;                // broken radio: the key flickers
+            lit(fx::kKeys[m][c], knobs::Scale(colours[m], level));
+        }
     }
     if((f >> 17) & 1u) {             // choosing the order: tapped modules steady by place (first brightest), the rest blink
         static const float place[fx::kModules] = {1.f, .45f, .18f, .07f};
