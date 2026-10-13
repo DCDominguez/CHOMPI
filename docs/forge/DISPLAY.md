@@ -25,6 +25,9 @@ control is written under it, and an **on this page** list below the readout expl
 and the other controls (CHOMPI, SW5, SW6, PLAY, LOOP). `tests/test_display_js.py` checks the key labels
 against the firmware's key handlers, so they can't drift apart.
 
+**Tooltips:** hover any key, knob, button or light on a computer (tap it on a phone) for a sentence on what it
+does on the current page (`DisplayModel.tip`; every part on every page is checked by `tests/test_display_js.py`).
+
 It only reads: nothing on the page changes CHOMPI.
 
 ## Using it

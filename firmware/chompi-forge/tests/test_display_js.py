@@ -138,6 +138,24 @@ class DisplayJsTests(unittest.TestCase):
         self.assertEqual([(g["turned"], g["speed"]) for g in got], [(True, 1), (False, -2), (False, 0), (False, 2)])
         self.assertEqual((got[0]["hz"], got[1]["hz"]), ("≈80 Hz", "≈8.0 kHz"))
 
+    def test_every_part_has_a_tooltip_on_every_page(self):
+        # 0.20 tooltips: each labelled key and each control explains itself, on every page.
+        pages = {"play": {"menu": 0}, "harmony-play": {"menu": 0, "harmony_lights": 1 << 16}, "presets": {"menu": 1},
+                 "samples": {"menu": 1 | 1 << 21}, "harmony": {"menu": 1 | 7 << 1}, "parts": {"menu": 1 | 6 << 1},
+                 "synth": {"menu": 1 | 5 << 1}, "fx": {"menu": 1 | 5 << 1, "fx_lights": 2 ** 31}}
+        base = {"looper": 0, "knob_state": 0, "knob_values": 0, "knob_targets": 0, "fx_lights": 0, "fx_knobs": 0, "synth_lights": 0,
+                "synth_knobs": 0, "harmony_lights": 0, "parts_lights": 0, "parts_clock": 120 << 8, "sequence_lights": 0, "chord": 0, "flags": 0, "dream": 0}
+        views = [{"words": {**base, **w}, "chordNotes": [0] * 5, "power": {"battery": 1, "flags": 0, "chargeState": 0}} for w in pages.values()]
+        controls = ["knob:0", "knob:1", "knob:2", "knob:3", "sw5", "sw6", "play", "loop", "chompi", "toggle",
+                    "light:chompi", "light:knob", "light:sw6", "light:transport"]
+        got = model("""console.log(JSON.stringify(input.views.map(v => { const g = d.describe(v).guide;
+            return {keys: Object.keys(g.keys).filter(n => g.keys[n]).map(n => [n, d.tip('key:' + n, v)]),
+                    controls: input.controls.map(c => d.tip(c, v))}; })));""", {"views": views, "controls": controls})
+        for page, result in zip(pages, got):
+            for note, text in result["keys"]: self.assertTrue(text and len(text) > 6, (page, note, text))
+            for name, text in zip(controls, result["controls"]): self.assertTrue(text, (page, name))
+        fx = dict(got[-1]["keys"]); self.assertIn("SW4", fx["50"]); self.assertIn("SW3", fx["67"])   # cloud: SW4; phaser: SW3
+
 
 if __name__ == "__main__":
     unittest.main()

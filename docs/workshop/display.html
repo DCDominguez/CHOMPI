@@ -7,9 +7,9 @@
   <title>Choowi display</title>
   <meta name="description" content="CHOMPI's screen on your phone: the panel's lights, what each knob does, the chord, the looper. Over USB, in Chrome.">
   <link rel="icon" href="../forge/assets/choowi.svg">
-  <link rel="stylesheet" href="display.css?v=0.20.0-3">
-  <script src="forge-wire.js?v=0.20.0-3" defer></script><script src="forge-midi.js?v=0.20.0-3" defer></script>
-  <script src="display-model.js?v=0.20.0-3" defer></script><script src="panel-art.js?v=0.20.0-3" defer></script><script src="display.js?v=0.20.0-3" defer></script>
+  <link rel="stylesheet" href="display.css?v=0.20.0-4">
+  <script src="forge-wire.js?v=0.20.0-4" defer></script><script src="forge-midi.js?v=0.20.0-4" defer></script>
+  <script src="display-model.js?v=0.20.0-4" defer></script><script src="panel-art.js?v=0.20.0-4" defer></script><script src="display.js?v=0.20.0-4" defer></script>
 </head>
 <body>
 <header class="bar">
@@ -28,6 +28,7 @@
   </section>
   <section id="panel-card" class="panel-card" hidden aria-label="CHOMPI's panel">
     <svg id="panel" viewBox="0 0 1200 470" role="img" aria-label="CHOMPI's lights as they are now"></svg>
+    <div id="tip" class="tip" role="tooltip" hidden></div>
   </section>
   <section id="readout" class="readout" hidden>
     <div id="knobs" class="knobs"></div>

@@ -89,6 +89,17 @@
     [265, 355, 531, 619, 707, 884, 972, 1149, 1237, 1325].forEach((x, j) => key(BLACK[j], L.black[j], x, 532));
     WHITE.forEach((note, i) => key(note, L.white[i], 224 + 88.07 * i, 622));
 
+    // Touch / hover targets on top (tooltips): invisible shapes tagged data-tip, read by DisplayModel.tip.
+    const hits = el("g", {fill: "transparent", style: "cursor:help"}, svg);
+    const hit = (tag, attrs, id) => el(tag, {...attrs, "data-tip": id, "pointer-events": "all"}, hits);
+    [265, 355, 531, 619, 707, 884, 972, 1149, 1237, 1325].forEach((x, j) => hit("rect", {x: x - 40, y: 532, width: 80, height: 80}, `key:${BLACK[j]}`));
+    WHITE.forEach((note, i) => hit("rect", {x: 224 + 88.07 * i - 40, y: 622, width: 80, height: 80}, `key:${note}`));
+    [446, 593, 740, 887].forEach((cx, k) => { hit("circle", {cx, cy: 440, r: 46}, `knob:${k}`); hit("circle", {cx, cy: 352, r: 20}, "light:knob"); });
+    hit("circle", {cx: 1052, cy: 440, r: 80}, "sw5"); hit("circle", {cx: 1458, cy: 444, r: 46}, "sw6");
+    hit("rect", {x: 1153, y: 403, width: 82, height: 84}, "play"); hit("rect", {x: 1241, y: 403, width: 82, height: 84}, "loop");
+    hit("rect", {x: 262, y: 390, width: 98, height: 98}, "chompi"); hit("rect", {x: 196, y: 384, width: 52, height: 118}, "toggle");
+    hit("circle", {cx: 310, cy: 352, r: 20}, "light:chompi"); hit("circle", {cx: 1458, cy: 352, r: 20}, "light:sw6");
+    hit("rect", {x: 990, y: 326, width: 124, height: 34}, "light:transport");
     const short = (s, n) => s.length > n ? s.slice(0, n - 1) + "…" : s;
     return {
       // 35 lights as 7-bit RGB in the view's order (unlit: [0, 0, 0]).

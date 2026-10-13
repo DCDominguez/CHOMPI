@@ -20,6 +20,7 @@ const knobTiles = ["SW4", "SW1", "SW2", "SW3"].map(name => {
 });
 let lastLeds = null;
 function drawState(v) {
+  lastView = v;
   $("where-name").textContent = v.dream ? "Dream" : v.pageName;
   $("where-dot").style.background = v.pageColour; $("where-dot").style.color = v.pageColour;
   v.knobs.forEach((k, i) => {
@@ -56,7 +57,28 @@ function drawState(v) {
   $("battery").hidden = false;
   $("battery").textContent = `${p.charging ? "⚡ " : ""}battery ${p.battery}${p.full ? " · charged" : ""}`;
 }
-let guideKey = "";
+let guideKey = "", lastView = null;
+// Tooltips (the owner, 2026-10-13): hover a key, knob, button or light on a computer, tap it on a phone. The text
+// is DisplayModel.tip for the page CHOMPI is on now.
+(function tooltips() {
+  const svg = $("panel"), box = $("tip"); let timer = 0;
+  const hide = () => { box.hidden = true; clearTimeout(timer); };
+  const show = (event, sticky) => {
+    const target = event.target.closest && event.target.closest("[data-tip]");
+    if (!target || !lastView) { if (!sticky) hide(); return; }
+    box.textContent = D.tip(target.getAttribute("data-tip"), lastView); if (!box.textContent) { hide(); return; }
+    box.hidden = false;
+    const card = $("panel-card").getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
+    let x = event.clientX - card.left - w / 2, y = event.clientY - card.top - h - 14;
+    if (y < 4) y = event.clientY - card.top + 18;
+    box.style.left = `${Math.max(4, Math.min(card.width - w - 4, x))}px`; box.style.top = `${Math.max(4, y)}px`;
+    clearTimeout(timer); if (sticky) timer = setTimeout(hide, 5000);
+  };
+  svg.addEventListener("pointermove", e => { if (e.pointerType === "mouse") show(e, false); });
+  svg.addEventListener("pointerleave", e => { if (e.pointerType === "mouse") hide(); });
+  svg.addEventListener("pointerdown", e => { if (e.pointerType !== "mouse") show(e, true); });
+  document.addEventListener("pointerdown", e => { if (!svg.contains(e.target)) hide(); });
+})();
 function drawGuide(v) {
   const c = v.guide.controls;
   const rows = v.guide.legend.concat([["CHOMPI", c.chompi], ["SW5", c.sw5], ["SW6", c.sw6], ["SW4", c.sw4], ["PLAY", c.play], ["LOOP", c.loop]]

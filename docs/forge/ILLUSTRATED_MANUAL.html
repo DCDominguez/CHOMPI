@@ -1020,6 +1020,17 @@ document.getElementById('book-print').addEventListener('click',()=>window.print(
     [265, 355, 531, 619, 707, 884, 972, 1149, 1237, 1325].forEach((x, j) => key(BLACK[j], L.black[j], x, 532));
     WHITE.forEach((note, i) => key(note, L.white[i], 224 + 88.07 * i, 622));
 
+    // Touch / hover targets on top (tooltips): invisible shapes tagged data-tip, read by DisplayModel.tip.
+    const hits = el("g", {fill: "transparent", style: "cursor:help"}, svg);
+    const hit = (tag, attrs, id) => el(tag, {...attrs, "data-tip": id, "pointer-events": "all"}, hits);
+    [265, 355, 531, 619, 707, 884, 972, 1149, 1237, 1325].forEach((x, j) => hit("rect", {x: x - 40, y: 532, width: 80, height: 80}, `key:${BLACK[j]}`));
+    WHITE.forEach((note, i) => hit("rect", {x: 224 + 88.07 * i - 40, y: 622, width: 80, height: 80}, `key:${note}`));
+    [446, 593, 740, 887].forEach((cx, k) => { hit("circle", {cx, cy: 440, r: 46}, `knob:${k}`); hit("circle", {cx, cy: 352, r: 20}, "light:knob"); });
+    hit("circle", {cx: 1052, cy: 440, r: 80}, "sw5"); hit("circle", {cx: 1458, cy: 444, r: 46}, "sw6");
+    hit("rect", {x: 1153, y: 403, width: 82, height: 84}, "play"); hit("rect", {x: 1241, y: 403, width: 82, height: 84}, "loop");
+    hit("rect", {x: 262, y: 390, width: 98, height: 98}, "chompi"); hit("rect", {x: 196, y: 384, width: 52, height: 118}, "toggle");
+    hit("circle", {cx: 310, cy: 352, r: 20}, "light:chompi"); hit("circle", {cx: 1458, cy: 352, r: 20}, "light:sw6");
+    hit("rect", {x: 990, y: 326, width: 124, height: 34}, "light:transport");
     const short = (s, n) => s.length > n ? s.slice(0, n - 1) + "…" : s;
     return {
       // 35 lights as 7-bit RGB in the view's order (unlit: [0, 0, 0]).
@@ -1271,7 +1282,88 @@ document.getElementById('book-print').addEventListener('click',()=>window.print(
                   ["knobs", "turn: amount · hold + turn: character"], ["C#4", "next page: harmony"]);
     }
     if (words.menu & 1) Object.assign(controls, {play: "overdub feedback −", loop: "overdub feedback +"});
-    return {keys, legend, controls};
+    return {keys, legend, controls, tips: keyTips(where, words, keys)};
+  }
+
+  // ---- tooltips (the owner, 2026-10-13: "what each item does"): a sentence per key and control, per page ----
+  const NAV_TIPS = {61: "next page (harmony → arp · bass → synth → FX)", 63: "back to TAPE's page"};
+  const FX_TIPS = {48: "Space: echo + room, the delay with its reverb. SW4 sets how much; hold SW4 and turn for time and size.",
+    50: "Space: cloud, a huge smeared wash with no distinct echoes. SW4 sets how much; hold SW4 and turn for size.",
+    52: "Space: tape echo, repeats that wobble, darken and saturate. SW4 sets how much; hold SW4 and turn for time.",
+    53: "Colour: saturation, warm drive. SW1 sets how much.",
+    55: "Colour: fold, a wavefolder, glassy then metallic. SW1 sets how much; hold SW1 and turn for bias.",
+    57: "Colour: crush, fewer bits, grit to lo-fi. SW1 sets how much; hold SW1 and turn for a lower sample rate.",
+    60: "Texture: cassette, tape warble. SW2 sets how much; hold SW2 and turn for hiss and worn highs.",
+    62: "Texture: broken, random dropouts like failing tape. SW2 sets how much; hold SW2 and turn for longer dropouts.",
+    64: "Texture: squash, a heavy pumping compressor. SW2 sets how much; hold SW2 and turn for a slower release.",
+    65: "Motion: chorus, wide and lush. SW3 sets how much; hold SW3 and turn for speed.",
+    67: "Motion: phaser, a slow sweeping swirl. SW3 sets how much; hold SW3 and turn for speed.",
+    69: "Motion: tremolo, the level pulses side to side. SW3 sets how much; hold SW3 and turn for speed.",
+    58: "The order: tap, then one key of each module in the order you want (the fourth locks it). Hold 1 s: Classic.",
+    59: "Side by side: the reverb hears your sound before the delay (cleaner echoes, a separate wash).",
+    54: "Effects before the looper: the loop records them.", 56: "Effects after the looper: they play on the loop live."};
+  const SYNTH_TIPS = {48: "Oscillator 1: sine", 50: "Oscillator 1: triangle", 52: "Oscillator 1: saw", 53: "Oscillator 1: square",
+    55: "Oscillator 2: sine", 57: "Oscillator 2: triangle", 59: "Oscillator 2: saw", 60: "Oscillator 2: square",
+    62: "Oscillator 2 in unison with oscillator 1", 64: "Oscillator 2 a fifth up", 65: "Oscillator 2 an octave up",
+    67: "Oscillator 2 an octave down", 69: "Oscillator 2 a fourth up", 71: "Oscillator 2 an octave and a fifth up",
+    49: "LFO shape: sine", 51: "LFO shape: triangle", 54: "LFO shape: square", 56: "LFO shape: sample and hold (random steps)",
+    58: "Mod wheel controls the LFO depth (on / off)", 66: "4 voices", 68: "7 voices", 70: "Mono, with a little glide",
+    72: "Hold to hear the sound (a C major chord)"};
+  const PARTS_TIPS = {48: "Arp off: keys play as usual", 50: "Arp up", 52: "Arp down", 53: "Arp up and down", 55: "Arp in the order you played",
+    57: "Arp in random order", 59: "Latch: keep arpeggiating after you let go", 60: "Arp rate 1/4", 62: "Arp rate 1/8",
+    64: "Arp rate 1/8 triplets", 65: "Arp rate 1/16", 67: "Arp rate 1/16 triplets", 69: "Arp rate 1/32",
+    71: "Start / stop the clock", 72: "Tap tempo", 49: "Bass off", 51: "Bass: the chord's root", 54: "Bass: root and fifth together",
+    56: "Bass: root, then fifth", 58: "Bass: root, then the octave", 66: "Event recorder: record (arm), then play",
+    68: "Event recorder: overdub", 70: "Event recorder: clear (press twice within 2 s)"};
+  const STATIC_TIPS = {49: "V/ii: a dominant that pulls to ii", 51: "V/iii: a dominant that pulls to iii", 54: "V/V: a dominant that pulls to V",
+    56: "V/vi: a dominant that pulls to vi", 58: "♭VII: borrowed from the parallel key", 61: "iv: the minor iv, borrowed",
+    63: "♭III: borrowed", 66: "♭VI: borrowed", 68: "V/IV: a dominant that pulls to IV", 70: "♭II: the Neapolitan chord"};
+  function keyTips(where, words, keys) {
+    const tips = {}, h = words.harmony_lights, tonic = h & 15, real = !!(h >>> 15 & 1);
+    for (const n of Object.keys(keys).map(Number)) {
+      const name = noteName(n);
+      if (where === "fx") tips[n] = FX_TIPS[n] || NAV_TIPS[n];
+      else if (where === "synth") tips[n] = SYNTH_TIPS[n] || NAV_TIPS[n];
+      else if (where === "parts") tips[n] = PARTS_TIPS[n] || NAV_TIPS[n];
+      else if (where === "harmony") tips[n] = NAV_TIPS[n] || `Set the key's tonic to ${NOTES[n % 12]} (now ${NOTES[tonic]})`;
+      else if (where === "presets" || where === "samples") {
+        const extra = {49: where === "presets" ? "Bank down" : "Chromatic: one sample across the keys (tap again: next bank)",
+          51: where === "presets" ? "Bank up" : "Kit: one sample per white key (tap again: next bank)",
+          54: "Record source: microphone", 56: "Record source: line in", 58: "Record source: resample (what CHOMPI plays)",
+          61: "Effects before the looper (tap) · hold 1 s: the harmony page", 63: where === "presets" ? "Back to TAPE's page" : "Effects after the looper (tap) · hold 1 s: the presets page",
+          66: "Erase: then a slot, release CHOMPI, press CHOMPI", 68: "Copy: then the source and the destination, then CHOMPI",
+          70: "Save: release CHOMPI, press a slot, press CHOMPI"};
+        tips[n] = extra[n] || (where === "samples" && n === 72 ? "The recording (in RAM until you save it)" :
+          `${keys[n]}: tap to pick it${where === "presets" ? " (release CHOMPI to recall)" : ""}; while saving / copying / erasing, the slot to use`);
+      } else if (keys[n] === "shift") tips[n] = "Shift: hold for the shifted chords (sus4, more dominants)";
+      else if (where === "play" && harmonyOn(words) && !real) tips[n] = STATIC_TIPS[n] || `${keys[n]}: the ${keys[n]} chord of ${NOTES[tonic]} ${MODES[(h >>> 4 & 15) % 9]}`;
+      else tips[n] = where === "play" && harmonyOn(words) ? `${name}: plays the chord built on ${NOTES[n % 12]}` : `${name}: plays ${name}`;
+      if (tips[n]) tips[n] = `${name} · ${tips[n]}`.replace(`${name} · ${name}: `, `${name} · `);
+    }
+    return tips;
+  }
+  // A tooltip for a drawn element: "key:60", "knob:0".."knob:3", "sw5", "sw6", "play", "loop", "chompi", "toggle",
+  // "light:chompi", "light:knob", "light:sw6", "light:transport".
+  function tip(id, view) {
+    const v = view.guide ? view : describe(view), g = v.guide, c = g.controls;   // a described view or a raw reply
+    if (id.startsWith("key:")) return g.tips[Number(id.slice(4))] || noteName(Number(id.slice(4)));
+    if (id.startsWith("knob:")) {
+      const k = v.knobs[Number(id.slice(5))], what = k.text ? `${k.label}: ${k.text}` : k.label;
+      const how = v.page === "fx" ? "turn: amount · hold + turn: character · all the way down: off"
+        : v.page === "harmony" || v.page === "parts" ? "turn to change" + (k.hint ? ` · ${k.hint}` : "")
+        : v.page === "synth" ? "turn to change · press: page 1 / page 2"
+        : `page ${k.page || 1}${k.patchPage ? " (the sound's own)" : ""} · press: next page · hold 1.5 s: back to the sound's value`;
+      return `${k.name} · ${what} · ${how}`;
+    }
+    const plain = {sw5: `SW5 · ${c.sw5 || "cutoff"} · click: loop speed back to 1×`, sw6: `SW6 · ${c.sw6 || "volume"} · short press: input gain and back`,
+      play: `PLAY · ${c.play || "looper"}${v.page === "play" ? ": end a take, pause / resume · with LOOP: tap = undo, hold 2 s = clear" : ""}`,
+      loop: `LOOP · ${c.loop || "looper"}${v.page === "play" ? ": start a take, overdub on / off" : ""}`,
+      chompi: `CHOMPI · ${c.chompi || ""}`, toggle: "Toggle · up: record position (hold CHOMPI to record) · down: play and the menu",
+      "light:chompi": "CHOMPI's light · the menu page's colour (TAPE teal, presets blue, harmony purple, arp · bass orange, synth pink, FX green); the input meter when recording",
+      "light:knob": "Knob light · the knob's page and value; on the FX page the module's amount, dim (off) to bright",
+      "light:sw6": "SW6's light · volume or input gain; hold SW6 2 s: battery (green fine, yellow low, red nearly empty, white full)",
+      "light:transport": "Transport lights · the loop's speed and direction (push + turn SW5 with a loop)"};
+    return plain[id] || "";
   }
   // The whole picture for one state reply.
   function describe(view) {
@@ -1285,7 +1377,7 @@ document.getElementById('book-print').addEventListener('click',()=>window.print(
   // 25 CHOMPI, 26 PLAY, 27 LOOP, 28-31 the rings SW4 SW1 SW2 SW3, 32 / 33 the transport pair, 34 SW6.
   const LIGHTS = {black: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], white: [24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10],
     chompi: 25, play: 26, loop: 27, rings: [28, 29, 30, 31], reverse: 32, forward: 33, sw6: 34};
-  root.DisplayModel = {describe, page, knobs, chord, chordName, looper, sw5, guide, LIGHTS, PARAMETERS, NOTES};
+  root.DisplayModel = {describe, page, knobs, chord, chordName, looper, sw5, guide, tip, LIGHTS, PARAMETERS, NOTES};
 })(typeof window !== "undefined" ? window : globalThis);
 if (typeof module !== "undefined") module.exports = globalThis.DisplayModel;
 </script>

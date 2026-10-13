@@ -24,7 +24,7 @@ main{flex:1;display:flex;flex-direction:column;gap:12px;padding:12px var(--pad);
 .start h1{font-size:32px;margin:0}
 .start p{color:var(--muted);line-height:1.45;margin:0}
 .notice{min-height:1.4em;color:#ffb4a8}
-.panel-card{background:#07070a;border:1px solid var(--rule);border-radius:18px;padding:6px}
+.panel-card{position:relative;background:#07070a;border:1px solid var(--rule);border-radius:18px;padding:6px}
 #panel{display:block;width:100%;height:auto}
 .readout{display:flex;flex-direction:column;gap:10px;min-height:0}
 .knobs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -38,6 +38,8 @@ main{flex:1;display:flex;flex-direction:column;gap:12px;padding:12px var(--pad);
 .meter i{display:block;height:100%;width:0;background:var(--ring,var(--spark));border-radius:4px}
 .knob .meter i{background:var(--ring)}
 .status-line{text-align:center;margin:0}
+.tip{position:absolute;z-index:5;max-width:min(340px,92%);background:#22222c;color:var(--ink);border:1px solid #3a3a48;border-radius:10px;
+  padding:8px 11px;font-size:14px;line-height:1.35;box-shadow:0 6px 24px #0008;pointer-events:none}
 .guide{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px;line-height:1.35}
 .guide-row{display:contents}
 .guide-row b{font-family:var(--mono);font-size:12px;color:var(--spark);white-space:nowrap;padding-top:2px}
