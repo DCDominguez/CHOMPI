@@ -48,6 +48,12 @@ Updated 2026-10-13: 0.20.0 release candidate 3 prepared (newest section). 2026-1
   FX section). Open: input level / noise gate, latency vs stability (hold a chord a beat before switching),
   how it's switched on (a secret first, like split?), key detection or the harmony page's key, overlap with
   SING (ugrossek's voice-led firmware). Needs CPU measurement with all FX before committing to it.
+- **Choowi on the setup page** (the owner, 2026-10-14: "go ahead with 1 and 2"; no USB sample writer, a zip
+  download does): (1) launcher cards keep Choowi's files in `/FORGE` (src/fatfs_storage.h `CardPath`,
+  MountCard's `/FIRMWARE` check and `f_chdir`; +528 B release); (2) the home page's "on a launcher card"
+  section links `releases/latest/download/choowi-samples.zip`. Software-tested (make test, both builds);
+  not yet tried on a launcher card. Then a release (0.20.1 or rc4) and the pull request to
+  ugrossek/CHOMPI-firmwares with the drafted entry (owner's OK first).
 - **Next firmware line: Chomposer** (the owner, 2026-10-14; FORGE_FAMILY.md): CHOMPI as an orchestra
   conductor, an ensemble of instruments all playing one musical idea in different roles. A new line (own name
   and mascot), after Choowi. Design study 2026-10-14: CHOMPOSER.md (seed -> casting -> prep -> performance;

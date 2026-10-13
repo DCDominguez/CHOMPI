@@ -1,17 +1,17 @@
-# Graph Report - CHOMPI  (2026-10-13)
+# Graph Report - CHOMPI  (2026-10-14)
 
 ## Corpus Check
-- 164 files · ~362,353 words
+- 166 files · ~385,644 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 9 file(s) not represented in the graph (top: (none) 4, .css 2, .ld 1)
 
 ## Summary
-- 5081 nodes · 9791 edges · 260 communities (214 shown, 46 thin omitted)
-- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 1097 edges (avg confidence: 0.87)
+- 5125 nodes · 9856 edges · 258 communities (208 shown, 50 thin omitted)
+- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 1103 edges (avg confidence: 0.87)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `654e6fb7`
+- Built from commit: `24f22b27`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -49,7 +49,7 @@
 - synth_test.cpp
 - cstdint
 - forge_inspector.py
-- Sink
+- Rig
 - DjFilter
 - Show
 - tempo_bench.cpp
@@ -79,12 +79,12 @@
 - power.h
 - RequestKind
 - wav.h
-- TranslateChannel
+- runtime.h
 - file_transfer_test.cpp
 - Forge test results
 - Choowi: how do I…?
 - probe
-- inspector.h
+- cassert
 - InspectorSystem
 - Reverb
 - preset_test.cpp
@@ -104,8 +104,8 @@
 - Battery
 - RecordGesture
 - Mailbox
-- FatFsUploadFiles
-- cassert
+- Chomposer: architecture (design, 2026-10-14)
+- core_test.cpp
 - BridgeTests
 - FakeMido
 - WebTests
@@ -116,7 +116,7 @@
 - FaultRecord
 - Bloom
 - FatFsSampleFiles
-- ResponseKind
+- Chomposer: design study (Forge line #2, planned)
 - Device
 - Forge · Choowi: the user manual
 - FakeChompi
@@ -124,14 +124,14 @@
 - secret.h
 - LossyTransport
 - Conversation
-- RecoveryAfterLostNotes
+- ChannelTranslation
 - SlotPolicy
 - fx.h
 - FileTransfer
 - Performance
 - MemoryCard
 - Phaser
-- SampleWebAndAiTests
+- Forge Resource Ledger
 - Mmf
 - MidiFrame
 - MenuAction
@@ -143,7 +143,7 @@
 - send.js
 - Kind
 - synth.h
-- .ProcessSampler
+- Storage virtualization / SDRAM reclamation — feasibility and design
 - DisplayJsTests
 - Handler
 - Rig
@@ -151,16 +151,16 @@
 - .run_walk
 - Diffuser
 - knob_layout.h
-- runtime.h
+- Tremolo
 - Options
-- Clocked
+- sequencer_test.cpp
 - Transport
 - State
 - Broken
 - Forge — developer resume checkpoint
 - ProviderTests
 - InspectorVoice
-- MenuMode
+- preset_menu.h
 - Forge 0.20.0 — the one consolidated hardware test
 - Error
 - Fold
@@ -173,11 +173,10 @@
 - Bell
 - BridgeAutomaticTests
 - SampleSlot
-- PanelFeedback016
+- State
 - MenuPage
 - panel_controller.h
 - FakeCharger
-- forge_probe.cpp
 - InspectorEventKind
 - KnobHold
 - LoaderRig
@@ -187,10 +186,10 @@
 - BridgeWebTests
 - V4PatchTests
 - ForgeServer
-- iostream
+- EngineAndPanel
 - AiCheckTests
 - fx_test.cpp
-- .PublishKnobs
+- build
 - Squash
 - AnalysisTests
 - Forge hardware test bridge
@@ -237,34 +236,30 @@
 - Forge developer guide
 - MidiFramer
 - knob_control
+- .Process
 - Action
 - FakeChompi
 - Queue
 - FirmwarePanelSink
 - SlotValues
+- .GetState
+- EncodePatchData
 - Sink
-- EngineAndPanel
-- V3Fields
-- AGENTS.md
 - Choowi display: CHOMPI's screen on a phone (0.20, development)
 - ConsistencyTests
-- State
+- BootGesture
 - forge_bench.cpp
-- FakePorts
+- PresetProtocolTests
 - firmware_chompi_forge_core_protocol
-- PanelInput
+- BatteryLogTests
 - The FX section (Choowi 0.20, development)
-- .RecordParam
-- MonitorMode
-- InspectorEvent
+- DrawLeds
+- 0.16.0 Panel feedback and shortcuts (the owner's UX review; tool: Colour Lantern) — 2026-10-11 (on CHOMPI since 0.19.2 build 8b51764; checks in TEST_RESULTS)
 - .test_low_power_refuses_the_install
 - Event
 - Outgoing
 - Forge UX review (2026-10-11)
-- skipIf
 - BootCount
-- Sink
-- InspectorSnapshot
 - .Init
 - Redundant controls: review for 0.20
 - Branch and publishing
@@ -273,7 +268,7 @@
 
 ## God Nodes (most connected - your core abstractions)
 1. `Engine` - 242 edges
-2. `PanelController` - 185 edges
+2. `PanelController` - 186 edges
 3. `Synth` - 139 edges
 4. `Looper` - 108 edges
 5. `Parts` - 85 edges
@@ -281,9 +276,11 @@
 7. `InspectorAudio` - 69 edges
 8. `Parameter` - 59 edges
 9. `SampleLoader` - 58 edges
-10. `Forge — developer resume checkpoint` - 57 edges
+10. `Forge — developer resume checkpoint` - 58 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `9. Panel and phases` --references--> `PanelController`  [INFERRED]
+  docs/forge/CHOMPOSER_ARCHITECTURE.md → firmware/chompi-forge/core/panel_controller.h
 - `Ratings` --references--> `ComposeTransportLeds()`  [INFERRED]
   docs/forge/UX_REVIEW.md → firmware/chompi-forge/core/panel_controller.h
 - `Development probe and Inspector schema 1` --references--> `EncodePatchData()`  [INFERRED]
@@ -292,29 +289,23 @@
   docs/forge/CONTINUE.md → firmware/chompi-forge/host/forge_audio.py
 - `0.17.0 Magic: wakes up singing, surprise me, mutate (tool: Wake-up Bell) — 2026-10-11 (on CHOMPI since 0.19.2 build 8b51764; checks in TEST_RESULTS)` --references--> `Magic017()`  [INFERRED]
   docs/forge/CHANGELOG.md → firmware/chompi-forge/tests/panel_test.cpp
-- `2026-10-11 (latest): 0.17.0 magic items 1-3 built` --references--> `Magic017()`  [INFERRED]
-  docs/forge/CONTINUE.md → firmware/chompi-forge/tests/panel_test.cpp
 
 ## Import Cycles
 - None detected.
 
-## Communities (260 total, 46 thin omitted)
+## Communities (258 total, 50 thin omitted)
 
 ### Community 0 - "Synth"
 Cohesion: 0.02
 Nodes (78): Synth, age_, amp_, bend_slew_, bend_target_, cap_, chord_loop_, coefficient_ (+70 more)
 
-### Community 1 - "Walk"
-Cohesion: 0.10
-Nodes (9): Previous checkpoint: first hardware session and bridge test tooling, 2026-10-04, 2026-10-04 — first hardware session (the owner), firmware 0.6 development (`131776b`), Third run (`20261004-163535`, bridge update `fbd98c1`), panel_gesture(), tap(), show_presets_page(), Stop, Walk (+1 more)
-
 ### Community 2 - "PanelController"
 Cohesion: 0.02
-Nodes (96): PanelController, activity_, audition_, battery_view_, bending_, block_count_, broken_tap_age_, broken_tapped_ (+88 more)
+Nodes (101): Inspect(), MonitorMode, Both, Headphones, SendReturn, PanelController, activity_, audition_ (+93 more)
 
 ### Community 3 - "Bridge"
 Cohesion: 0.06
-Nodes (21): Checkpoint: firmware 0.11 install safety (2026-10-05), add(), Bridge, send_panel(), fetch(), body_(), say(), Card() (+13 more)
+Nodes (20): Checkpoint: firmware 0.11 install safety (2026-10-05), add(), Bridge, send_panel(), fetch(), body_(), say(), Card() (+12 more)
 
 ### Community 4 - "InspectorAudio"
 Cohesion: 0.03
@@ -338,19 +329,19 @@ Nodes (57): Parameters, attack, bypass, cutoff, decay, feedback, filter_amount, 
 
 ### Community 9 - "forge_host.py"
 Cohesion: 0.05
-Nodes (63): 1. What Forge is, 2. How to talk to CHOMPI, 3. Patches, 5. Where things live (`firmware/chompi-forge/`), 6. How to make an effect, 7. How to edit the firmware, 8. Read next, Forge for other agents (Muse / Cosmo on the Tab5) (+55 more)
+Nodes (64): 1. What Forge is, 2. How to talk to CHOMPI, 3. Patches, 5. Where things live (`firmware/chompi-forge/`), 6. How to make an effect, 7. How to edit the firmware, 8. Read next, Forge for other agents (Muse / Cosmo on the Tab5) (+56 more)
 
 ### Community 10 - "forge_audio.py"
 Cohesion: 0.05
-Nodes (30): analyze(), audible_change(), cli(), clicks(), compare(), db(), detect(), dominant_hz() (+22 more)
+Nodes (31): Previous checkpoint: first hardware session and bridge test tooling, 2026-10-04, analyze(), audible_change(), cli(), clicks(), compare(), db(), detect() (+23 more)
 
 ### Community 11 - "PresetMenu"
 Cohesion: 0.07
-Nodes (19): KeyToSlot(), PresetMenu, actions_, chompi_, chromatic_slot_, head_, kActions, kLoopSource (+11 more)
+Nodes (20): KeyToSlot(), PresetMenu, actions_, chompi_, chromatic_slot_, head_, kActions, kLoopSource (+12 more)
 
 ### Community 12 - "json"
-Cohesion: 0.09
-Nodes (3): midi_ports(), verify(), ManualPageTests
+Cohesion: 0.08
+Nodes (4): midi_ports(), verify(), WindowsRuntimeTests, ManualPageTests
 
 ### Community 13 - "Parameter"
 Cohesion: 0.04
@@ -361,7 +352,7 @@ Cohesion: 0.04
 Nodes (46): Voice, age, amp, band, band_r, complete, end_frac, filter (+38 more)
 
 ### Community 15 - "Parts"
-Cohesion: 0.05
+Cohesion: 0.04
 Nodes (36): Parts, arp_hold_, arp_left_, arp_note_, bass_, bass_change_, bass_count_, bass_hold_ (+28 more)
 
 ### Community 16 - "main"
@@ -385,28 +376,28 @@ Cohesion: 0.18
 Nodes (28): CcButton, down, AutoCloseAndShortTakes(), CcButtons(), CombinationsDoNotTriggerSingleKeys(), FirstTakeSeamAndPlayback(), LimiterKeepsOverdubsBounded(), LoopClosesIntoOverdubAndFeedback() (+20 more)
 
 ### Community 21 - "sampler_test.cpp"
-Cohesion: 0.26
-Nodes (16): w, ChromaticPitch(), CubicTableRead(), FactoryTapeFiles(), Fill(), GateAndTrigger(), KitMapping(), LoadingAndHandoff() (+8 more)
+Cohesion: 0.24
+Nodes (19): ChromaticPitch(), CubicTableRead(), FactoryTapeFiles(), Fill(), GateAndTrigger(), HeaderRoundTrip(), KitMapping(), LoadingAndHandoff() (+11 more)
 
 ### Community 22 - "app.js"
-Cohesion: 0.10
-Nodes (30): 0.15.2 Build identity, held keys per source — 2026-10-10 (development build on CHOMPI since 2026-10-10, 34/34 automatic steps; the Shift and arp phrase-start fixes are software-tested only, not installed yet), adopt(), api(), build(), CONTROLS, fromSlider(), FX_CLASSIC, FX_ORDER_LABELS (+22 more)
+Cohesion: 0.11
+Nodes (21): adopt(), api(), CONTROLS, FX_CLASSIC, FX_ORDER_LABELS, FX_ORDER_NAMES, FX_ORDERS, GROUPS (+13 more)
 
 ### Community 23 - "SampleLoader"
-Cohesion: 0.06
-Nodes (27): Inspect(), SampleLoader, count_, current_, cursor_, handoff_, head_, index_ (+19 more)
+Cohesion: 0.05
+Nodes (33): Inspect(), SampleLoader, count_, current_, cursor_, handoff_, head_, index_ (+25 more)
 
 ### Community 24 - "BatteryDiag"
 Cohesion: 0.07
 Nodes (28): BatteryDiag, after_30, after_33, battery_low, check_state, checks, expect_33, input_limit (+20 more)
 
 ### Community 25 - ".Init"
-Cohesion: 0.15
-Nodes (24): 0.4 device presets on the SD card — 2026-10-03, FxWordValid(), PartsWordsValid(), DecodePatchData(), DecodeRequest(), EncodePatchData(), EncodeResponse(), PatchDataSize() (+16 more)
+Cohesion: 0.16
+Nodes (19): FxWordValid(), PartsWordsValid(), DecodeRequest(), Read14(), ExecuteRequest(), PackUsbSysEx(), Framing(), main() (+11 more)
 
 ### Community 26 - "v3_test.cpp"
 Cohesion: 0.16
-Nodes (24): Crossings(), Energy(), Hz(), LfoAndModWheel(), main(), NeutralV3IsAPlainVoice(), Peak(), Power() (+16 more)
+Nodes (25): GlideSnap(), Crossings(), Energy(), Hz(), LfoAndModWheel(), main(), NeutralV3IsAPlainVoice(), Peak() (+17 more)
 
 ### Community 27 - "Harmony / Intent Engine — brief"
 Cohesion: 0.07
@@ -422,19 +413,19 @@ Nodes (16): Phase 0 decisions (the owner, 2026-10-05), Clock, interval_, last_ta
 
 ### Community 30 - "synth_test.cpp"
 Cohesion: 0.18
-Nodes (14): Roadmap item 1: sustain pedal and pitch bend (implemented; software-tested), AliasDb(), ChannelTranslation(), ClickFreeStealAndRetrigger(), Crossings(), EnvelopeVelocityAndFilter(), Instrument(), main() (+6 more)
+Nodes (13): Roadmap item 1: sustain pedal and pitch bend (implemented; software-tested), AliasDb(), ClickFreeStealAndRetrigger(), Crossings(), EnvelopeVelocityAndFilter(), Instrument(), main(), PitchBend() (+5 more)
 
 ### Community 31 - "cstdint"
-Cohesion: 0.13
-Nodes (7): Find(), Parse(), Clamp(), TapeSpeedKnob(), AudioBlock(), SoftClip(), SoftLimit()
+Cohesion: 0.16
+Nodes (5): Find(), Parse(), Clamp(), TapeSpeedKnob(), AudioBlock()
 
 ### Community 32 - "forge_inspector.py"
-Cohesion: 0.11
+Cohesion: 0.10
 Nodes (20): control_value(), chord_label(), cli(), fetch(), collect(), decode(), byte(), raw() (+12 more)
 
-### Community 33 - "Sink"
-Cohesion: 0.18
-Nodes (6): Sink, accept, failures, flashes, jobs, presets
+### Community 33 - "Rig"
+Cohesion: 0.07
+Nodes (24): PanelInput, frames, jack, keys, toggle_up, tone_down, turns, Rig (+16 more)
 
 ### Community 34 - "DjFilter"
 Cohesion: 0.12
@@ -446,7 +437,7 @@ Nodes (24): Held, left, Show, chord_, chord_left_, cluster_, count_, degree_ (+1
 
 ### Community 37 - "Player"
 Cohesion: 0.07
-Nodes (22): 2026-10-11 — automatic run on the SD-fix build (the owner away, webcam + UMC), Held, count, key, note, source, used, Player (+14 more)
+Nodes (21): Held, count, key, note, source, used, Player, bent_index_ (+13 more)
 
 ### Community 38 - "Sequencer"
 Cohesion: 0.12
@@ -461,19 +452,19 @@ Cohesion: 0.07
 Nodes (28): Request, action, bank, command, epoch, kind, mode, note (+20 more)
 
 ### Community 41 - "Response"
-Cohesion: 0.08
-Nodes (30): Response, action, bank, battery, capacity_ms, charge_state, cpu_average, cpu_max (+22 more)
+Cohesion: 0.06
+Nodes (38): Response, action, bank, battery, capacity_ms, charge_state, cpu_average, cpu_max (+30 more)
 
 ### Community 42 - "SampleFiles"
-Cohesion: 0.19
-Nodes (6): ParseSampleName(), SampleEvent, job, ok, SampleFiles, SamplePath()
+Cohesion: 0.18
+Nodes (7): 2. What the code does now, ParseSampleName(), SampleEvent, job, ok, SampleFiles, SamplePath()
 
 ### Community 43 - "Dream"
 Cohesion: 0.07
 Nodes (42): 0.18.0 Magic: chomp to instrument, dream mode, lights with character (tool: Dream Bellows) — 2026-10-11 (on CHOMPI since 0.19.2 build 8b51764; checks in TEST_RESULTS), Chime, kDelay, kLength, kNotes, kStep, kTotal, kVelocity (+34 more)
 
 ### Community 44 - "Pad"
-Cohesion: 0.11
+Cohesion: 0.10
 Nodes (17): Pad, amp, attack, end, gate, loop, pan_l, pan_r (+9 more)
 
 ### Community 45 - "Warble"
@@ -489,32 +480,32 @@ Cohesion: 0.06
 Nodes (34): LedView, blink, count_in, dream, dream_colour, dream_glow, dream_level, flash (+26 more)
 
 ### Community 49 - "panel_test.cpp"
-Cohesion: 0.26
-Nodes (19): 0.19.1 The DJ filter never goes silent (small tool: Thingamabob) — 2026-10-11 (on CHOMPI since 0.19.2 build 8b51764; checks in TEST_RESULTS), TapeSpeedRatio(), rms, BatteryHold(), DjFilterNeverSilent(), Dream018(), FxPage020(), KeysKnobsAndOverrides() (+11 more)
+Cohesion: 0.17
+Nodes (20): TapeSpeedRatio(), BatteryHold(), DjFilterNeverSilent(), Dream018(), FxPage020(), KeysKnobsAndOverrides(), KnobPages(), LedComposition() (+12 more)
 
 ### Community 50 - "SampleCard"
 Cohesion: 0.10
 Nodes (12): SampleCard, append_budget, fail_reads, fail_writes, files, kTempName, opens, read_name_ (+4 more)
 
 ### Community 51 - "parts_test.cpp"
-Cohesion: 0.12
-Nodes (16): Arp(), ArpPatterns(), BassModesAndMidi(), ChordGathering(), GateLatchAndOwnership(), main(), Note, note (+8 more)
+Cohesion: 0.10
+Nodes (22): MidiOut, data1, data2, status, ValidWords(), Arp(), ArpPatterns(), BassModesAndMidi() (+14 more)
 
 ### Community 52 - ".ApplyPatch"
-Cohesion: 0.13
-Nodes (5): Chromatic(), Kit(), main(), Near(), Sampler()
+Cohesion: 0.12
+Nodes (6): SelectSample(), Chromatic(), Kit(), main(), Near(), Sampler()
 
 ### Community 53 - ".Block"
-Cohesion: 0.11
+Cohesion: 0.08
 Nodes (4): EditSynth(), MagicCombo(), PanelSink, QuantisedSpeedStep()
 
 ### Community 54 - "Settings"
-Cohesion: 0.05
-Nodes (44): Inspect(), Pack(), Bass, Alternate, Fifth, Octave, Off, Root (+36 more)
+Cohesion: 0.06
+Nodes (38): Bass, Alternate, Fifth, Octave, Off, Root, BassRate, Chord (+30 more)
 
 ### Community 55 - "PresetStore"
-Cohesion: 0.19
-Nodes (6): Crc16(), DecodePresetRecord(), EncodePresetRecord(), PresetPath(), PresetStore, Storage
+Cohesion: 0.13
+Nodes (12): 5.1 Sample streaming: shared page cache + pinned heads (one pool), 5.2 Underrun and failure semantics, 5.3 Streaming recorder, 5.4 Looper, 5.5 QSPI (Tier 2), 5. Proposed design, Crc16(), DecodePresetRecord() (+4 more)
 
 ### Community 56 - "Effects"
 Cohesion: 0.12
@@ -529,44 +520,40 @@ Cohesion: 0.11
 Nodes (11): Bench, check(), demangle(), forge_runs(), setup(), main(), run(), upstream_runs() (+3 more)
 
 ### Community 59 - "InspectorStorage"
-Cohesion: 0.12
-Nodes (16): InspectorStorage, busy, errors, file_frames, file_loaded_frames, job, last_error, loaded_selection (+8 more)
+Cohesion: 0.09
+Nodes (22): InspectorSnapshot, audio, battery, generation, storage, system, InspectorStorage, busy (+14 more)
 
 ### Community 60 - "power.h"
-Cohesion: 0.14
-Nodes (22): 2026-10-11 (night, later): shut-off caught, fix built, BatteryWarning(), InstallPowerOk(), Lockout, None, Unplugged, WeakSupply, LockoutText() (+14 more)
+Cohesion: 0.09
+Nodes (28): 2026-10-11 (night) — shut-off caught by a power log; 0.19.2 installed and retested, BatteryColour(), Colour, b, g, r, InstallPowerOk(), Lockout (+20 more)
 
 ### Community 61 - "RequestKind"
 Cohesion: 0.09
-Nodes (22): RequestKind, Bend, Clock, Erase, List, Looper, ModWheel, Note (+14 more)
+Nodes (23): RequestKind, Bend, Clock, Erase, List, Looper, ModWheel, Note (+15 more)
 
 ### Community 62 - "wav.h"
 Cohesion: 0.14
-Nodes (23): ConvertFrames(), ParseWav(), ReadLe16(), ReadLe32(), WavError, HeaderTooLarge, None, NotWav (+15 more)
+Nodes (19): ConvertFrames(), ParseWav(), ReadLe16(), ReadLe32(), WavError, HeaderTooLarge, None, NotWav (+11 more)
 
-### Community 63 - "TranslateChannel"
-Cohesion: 0.13
-Nodes (15): Audio path, Boundaries, Device presets (SD card), Forge architecture, Samples (SD card) and the memory handoff, Source map, Transport details, 0.3 playability: sustain pedal and pitch bend — 2026-10-02 (+7 more)
+### Community 63 - "runtime.h"
+Cohesion: 0.18
+Nodes (15): Source map, 0.3 playability: sustain pedal and pitch bend — 2026-10-02, Roadmap item 3: device presets on the SD card (implemented; software-tested), EraseReply(), Ingress, Control, Critical, Emergency (+7 more)
 
 ### Community 64 - "file_transfer_test.cpp"
 Cohesion: 0.42
 Nodes (13): Crc32(), Begin(), CodecAndNames(), Data(), Decode(), Firmware(), FirmwareGuards(), Fuzz() (+5 more)
 
 ### Community 65 - "Forge test results"
-Cohesion: 0.10
-Nodes (20): 2026-10-04 evening — first 0.7 session (the owner), development firmware (`b36ba99`), 2026-10-05 — 0.9 on CHOMPI (the owner, verbal): open issue, random shut-off, 2026-10-05 — firmware 0.8 installed over USB: all automatic checks pass, 2026-10-05 — line in wired, 0.7 on CHOMPI, 0.8 bridge, 2026-10-05 — power on 0.8 (the owner, verbal): TEST_SESSION 8, 2026-10-05 — the owner's panel-map walk-through on 0.9 (verbal), 2026-10-10 (late) — start-up stall found and fixed on CHOMPI, 2026-10-11 (evening) — 0.17.0 magic on CHOMPI (+12 more)
+Cohesion: 0.11
+Nodes (18): 2026-10-04 evening — first 0.7 session (the owner), development firmware (`b36ba99`), 2026-10-04 — first hardware session (the owner), firmware 0.6 development (`131776b`), 2026-10-05 — 0.9 on CHOMPI (the owner, verbal): open issue, random shut-off, 2026-10-05 — firmware 0.8 installed over USB: all automatic checks pass, 2026-10-05 — line in wired, 0.7 on CHOMPI, 0.8 bridge, 2026-10-05 — power on 0.8 (the owner, verbal): TEST_SESSION 8, 2026-10-05 — the owner's panel-map walk-through on 0.9 (verbal), 2026-10-10 (late) — start-up stall found and fixed on CHOMPI (+10 more)
 
 ### Community 66 - "Choowi: how do I…?"
 Cohesion: 0.08
 Nodes (24): before you start: names used here, cheat sheet, check it worked, Choowi: how do I…?, good to know, how do I find my way around the menu?, how do I get surprise sounds and keep one?, how do I install Choowi? (+16 more)
 
-### Community 67 - "probe"
-Cohesion: 0.11
-Nodes (4): BatteryLogTests, PatchTests, probe(), PresetProtocolTests
-
-### Community 68 - "inspector.h"
-Cohesion: 0.14
-Nodes (17): EncodeInspector(), InspectorEvent, id, kind, serial, time_ms, value, InspectorLog (+9 more)
+### Community 68 - "cassert"
+Cohesion: 0.13
+Nodes (14): InspectorEvent, id, kind, serial, time_ms, value, InspectorLog, count_ (+6 more)
 
 ### Community 69 - "InspectorSystem"
 Cohesion: 0.11
@@ -577,16 +564,16 @@ Cohesion: 0.15
 Nodes (12): Reverb, damp_, gain_, index_, kLines, length_, line_, longest_ (+4 more)
 
 ### Community 71 - "preset_test.cpp"
-Cohesion: 0.20
-Nodes (15): KnobOrder(), LedModel(), main(), MenuGestures(), Panel, menu, toggle, Protocol() (+7 more)
+Cohesion: 0.21
+Nodes (13): KnobOrder(), main(), MenuGestures(), Panel, menu, toggle, Protocol(), RecordsAndPaths() (+5 more)
 
 ### Community 72 - "FakeMidi"
 Cohesion: 0.13
 Nodes (4): FakeMidi, Message, FakePort, TransportTests
 
 ### Community 73 - "knob_audio_test.cpp"
-Cohesion: 0.19
-Nodes (10): Change(), Dependency(), Features, envelope, spectrum, Fft(), main(), Measure() (+2 more)
+Cohesion: 0.16
+Nodes (12): Change(), Dependency(), Features, balance, envelope, rms, spectrum, Fft() (+4 more)
 
 ### Community 74 - "MemoryCard"
 Cohesion: 0.14
@@ -606,35 +593,31 @@ Nodes (17): Kind, Copy, Erase, Save, SampleJob, bank, frames, from_loop (+9 more
 
 ### Community 78 - "Forge · Choowi changelog"
 Cohesion: 0.06
-Nodes (33): 0.10 TAPE parity — 2026-10-05 (ready to install; per-slot settings moved to 0.12), 0.11 Install safety — 2026-10-05 (software-tested; not installed yet), 0.12 Per-slot sample settings — 2026-10-05 (software-tested; not installed yet), 0.13 Harmony — 2026-10-05 (software-tested; not installed yet), 0.14 Arp, bass and tempo — 2026-10-05 (software-tested; not installed yet), 0.15.1 Review fixes — 2026-10-06 (software-tested; not installed yet), 0.15 Event recorder and projects — 2026-10-05 (software-tested; not installed yet), 0.16.0 Panel feedback and shortcuts (the owner's UX review; tool: Colour Lantern) — 2026-10-11 (on CHOMPI since 0.19.2 build 8b51764; checks in TEST_RESULTS) (+25 more)
+Nodes (34): 0.10 TAPE parity — 2026-10-05 (ready to install; per-slot settings moved to 0.12), 0.11 Install safety — 2026-10-05 (software-tested; not installed yet), 0.12 Per-slot sample settings — 2026-10-05 (software-tested; not installed yet), 0.13 Harmony — 2026-10-05 (software-tested; not installed yet), 0.14 Arp, bass and tempo — 2026-10-05 (software-tested; not installed yet), 0.15.1 Review fixes — 2026-10-06 (software-tested; not installed yet), 0.15 Event recorder and projects — 2026-10-05 (software-tested; not installed yet), 0.17.0 Magic: wakes up singing, surprise me, mutate (tool: Wake-up Bell) — 2026-10-11 (on CHOMPI since 0.19.2 build 8b51764; checks in TEST_RESULTS) (+26 more)
 
 ### Community 79 - "argparse"
 Cohesion: 0.11
 Nodes (11): files(), main(), verify(), main(), run(), data_url(), main(), render() (+3 more)
 
 ### Community 80 - "SampleHandoff"
-Cohesion: 0.10
-Nodes (17): 10. Answers to the brief's questions, 2. What the code does now, 3. Precedent: stock TAPE already streams from SD on this hardware, 5.1 Sample streaming: shared page cache + pinned heads (one pool), 5.2 Underrun and failure semantics, 5.3 Streaming recorder, 5.4 Looper, 5.5 QSPI (Tier 2) (+9 more)
+Cohesion: 0.16
+Nodes (7): Samples (SD card) and the memory handoff, PackSelection(), SampleHandoff, ack_, published_, request_, FailedLoadIsVisible()
 
 ### Community 82 - "SimulatedMido"
-Cohesion: 0.12
-Nodes (5): _Input, Message, _Output, _Port, SimulatedMido
+Cohesion: 0.07
+Nodes (10): _Input, Message, _Output, _Port, SimulatedMido, PresetCliAndWebTests, SampleMessageTests, SampleWebAndAiTests (+2 more)
 
 ### Community 83 - "file_transfer.h"
 Cohesion: 0.12
 Nodes (22): AllowedUploadName(), DecodeFileRequest(), EncodeFileReply(), FileOp, Abort, Begin, Data, End (+14 more)
 
 ### Community 84 - "harmony_test.cpp"
-Cohesion: 0.30
-Nodes (10): StaticFunction(), Tones(), Degree(), Identity(), InScale(), Layouts(), main(), Notes() (+2 more)
-
-### Community 85 - "EngineAndPanel"
-Cohesion: 0.14
-Nodes (6): MidiOut, data1, data2, status, EngineAndPanel(), EngineAndPanel()
+Cohesion: 0.27
+Nodes (8): StaticFunction(), Degree(), Identity(), InScale(), Layouts(), main(), Notes(), PitchClasses()
 
 ### Community 86 - "Battery"
-Cohesion: 0.09
-Nodes (20): Abort(), Battery, Full, High, Low, Medium, Unknown, BatteryColour() (+12 more)
+Cohesion: 0.12
+Nodes (15): Abort(), Battery, Full, High, Low, Medium, Unknown, DecodeStatus() (+7 more)
 
 ### Community 87 - "RecordGesture"
 Cohesion: 0.13
@@ -644,13 +627,13 @@ Nodes (10): Event, None, Start, Stop, RecordGesture, chompi_, count_, counting_ 
 Cohesion: 0.16
 Nodes (10): Mailbox, bank, owner, sequence, slot, state, Owner, Host (+2 more)
 
-### Community 89 - "FatFsUploadFiles"
-Cohesion: 0.15
-Nodes (7): FatFsUploadFiles, aside_, check_, file_, kAsideBatch, target_, verify_buffer_
+### Community 89 - "Chomposer: architecture (design, 2026-10-14)"
+Cohesion: 0.11
+Nodes (19): 10. Hand-mic module, 11. Files on the card, 12. Choowivision and the AI page, 13. Code layout, 14. Testing, 15. Resource estimates, 16. Milestone 1 (first playable), acceptance, 17. Risks (+11 more)
 
-### Community 90 - "cassert"
-Cohesion: 0.14
-Nodes (14): DelayImpulseAndBypass(), Fixture, engine, left, right, InitializationAndDryStereo(), main(), Near() (+6 more)
+### Community 90 - "core_test.cpp"
+Cohesion: 0.21
+Nodes (11): DelayImpulseAndBypass(), Fixture, engine, left, right, InitializationAndDryStereo(), main(), Near() (+3 more)
 
 ### Community 92 - "FakeMido"
 Cohesion: 0.16
@@ -669,8 +652,8 @@ Cohesion: 0.08
 Nodes (22): LevelCheck, at_, began_, given_up_, k30, k31, k33, kGiveUpMs (+14 more)
 
 ### Community 97 - "ChargerUsb"
-Cohesion: 0.12
-Nodes (17): 2026-10-10 — 0.15.2 on CHOMPI: first install since 0.9, unattended automatic run, 2026-10-11 (night) — power bank: no charging after a re-plug while on, Actions, force_detection, read, usb_to_daisy, ChargerUsb, asked_ (+9 more)
+Cohesion: 0.11
+Nodes (17): 2026-10-11 (night, later): shut-off caught, fix built, 2026-10-10 — 0.15.2 on CHOMPI: first install since 0.9, unattended automatic run, 2026-10-11 (night) — power bank: no charging after a re-plug while on, Actions, force_detection, read, usb_to_daisy, ChargerUsb (+9 more)
 
 ### Community 98 - "FaultRecord"
 Cohesion: 0.20
@@ -681,16 +664,12 @@ Cohesion: 0.13
 Nodes (11): Bend(), Bloom, kQueue, Family, Call, Echo, Groove, Sparkle (+3 more)
 
 ### Community 100 - "FatFsSampleFiles"
-Cohesion: 0.10
-Nodes (8): FatFsSampleFiles, read_, reading_, write_, writing_, FatFsStorage, file_, mounted_
+Cohesion: 0.07
+Nodes (17): CardPath, text, FatFsSampleFiles, read_, reading_, write_, writing_, FatFsStorage (+9 more)
 
-### Community 101 - "ResponseKind"
-Cohesion: 0.22
-Nodes (9): ResponseKind, Erased, Occupancy, SampleDone, SampleOccupancy, SampleSnapshot, Snapshot, Status (+1 more)
-
-### Community 102 - "Device"
-Cohesion: 0.18
-Nodes (4): 4. Patch v4 (wire and JSON), SetupCheckTests, Device, source()
+### Community 101 - "Chomposer: design study (Forge line #2, planned)"
+Cohesion: 0.12
+Nodes (16): 1. Seed (toggle up), 2. Casting (menu, first page), 3. Preparation (menu pages, KEY_21 steps through them, as in Choowi), 4. Performance (toggle down, menu closed), Building it (milestones), Chomposer: design study (Forge line #2, planned), Control map (proposal), Control schemes and expression on CHOMPI (research) (+8 more)
 
 ### Community 103 - "Forge · Choowi: the user manual"
 Cohesion: 0.06
@@ -701,8 +680,8 @@ Cohesion: 0.14
 Nodes (3): DetectionTests, louder_single(), FakeChompi
 
 ### Community 105 - "Chord"
-Cohesion: 0.15
-Nodes (13): Chord, degree, kind, quality, root, shifted, tone, Quality (+5 more)
+Cohesion: 0.12
+Nodes (17): Inspect(), Chord, degree, kind, quality, root, shifted, tone (+9 more)
 
 ### Community 106 - "secret.h"
 Cohesion: 0.10
@@ -712,9 +691,9 @@ Nodes (23): Advance(), Blooms(), FamilyOf(), Interrupt(), Mode, BloomDown, Bloom
 Cohesion: 0.11
 Nodes (21): 0.19.2 Secret modes, the forge site, bank purple (small tool: Whatzit) — 2026-10-12 (release candidate; on CHOMPI as build b462bea; checks in TEST_RESULTS), InKey(), Conversation, armed_, at_, count_, kMaxPhrase, last_family_ (+13 more)
 
-### Community 109 - "RecoveryAfterLostNotes"
-Cohesion: 0.17
-Nodes (11): Execution and ownership, 0.3 integration review and browser testing — 2026-10-03, Done in the integration checkpoint (`15681b8`), Sound fixes (implemented 2026-10-02 UTC; software-tested only), Atomicity and real-time boundary, RecoveryGate, Callback, gate (+3 more)
+### Community 109 - "ChannelTranslation"
+Cohesion: 0.18
+Nodes (11): 0.3 integration review and browser testing — 2026-10-03, Done in the integration checkpoint (`15681b8`), Sound fixes (implemented 2026-10-02 UTC; software-tested only), Atomicity and real-time boundary, RecoveryGate, Callback, gate, replies (+3 more)
 
 ### Community 110 - "SlotPolicy"
 Cohesion: 0.40
@@ -725,11 +704,11 @@ Cohesion: 0.09
 Nodes (26): Built(), ClassicRank(), ColourChoice, Crush, Fold, Saturation, Module, Colour (+18 more)
 
 ### Community 112 - "FileTransfer"
-Cohesion: 0.11
-Nodes (13): FileTransfer, crc_, done_, head_, kTemp, name_, sample_written_, size_ (+5 more)
+Cohesion: 0.13
+Nodes (12): FileTransfer, crc_, done_, head_, kTemp, name_, sample_written_, size_ (+4 more)
 
 ### Community 113 - "Performance"
-Cohesion: 0.14
+Cohesion: 0.12
 Nodes (14): Performance, colour_character, compressor, dj_filter, dj_resonance, input_gain, motion, motion_rate (+6 more)
 
 ### Community 114 - "MemoryCard"
@@ -740,9 +719,9 @@ Nodes (3): MemoryCard, files, SineWav()
 Cohesion: 0.11
 Nodes (14): Phaser, a_, depth_, feedback_, increment_, last_, mix_, on_ (+6 more)
 
-### Community 116 - "SampleWebAndAiTests"
-Cohesion: 0.16
-Nodes (5): PresetCliAndWebTests, SampleMessageTests, SampleWebAndAiTests, capture(), reply()
+### Community 116 - "Forge Resource Ledger"
+Cohesion: 0.17
+Nodes (12): First optimization decisions to investigate, Forge Resource Ledger, Memory map and working set, QA and CPU baseline, Reproduced baseline, Snapshot 2026-10-05: CPU fix A (0.13, not installed), Snapshot 2026-10-05: firmware 0.13 harmony (Phase 1 complete), Snapshot 2026-10-05: firmware 0.14 clock, arp and bass (not installed) (+4 more)
 
 ### Community 118 - "Mmf"
 Cohesion: 0.24
@@ -753,16 +732,16 @@ Cohesion: 0.17
 Nodes (12): Kind, CC, Clock, NoteOff, NoteOn, PitchBend, ProgramChange, SysEx (+4 more)
 
 ### Community 120 - "MenuAction"
-Cohesion: 0.11
-Nodes (12): MenuAction, bank, kind, mode, slot, to_bank, to_mode, to_slot (+4 more)
+Cohesion: 0.13
+Nodes (11): MenuAction, bank, kind, mode, slot, to_bank, to_mode, to_slot (+3 more)
 
 ### Community 121 - "Chorus"
 Cohesion: 0.13
 Nodes (13): Chorus, depth_, dirty_, increment_, kLength, left_, mix_, mix_target_ (+5 more)
 
 ### Community 122 - "firmware_chompi_forge_core_sequencer"
-Cohesion: 0.13
-Nodes (19): , DecodeFile(), EncodeFile(), Event, a, b, kind, tick (+11 more)
+Cohesion: 0.10
+Nodes (20): , DecodeFile(), EncodeFile(), Event, a, b, kind, tick (+12 more)
 
 ### Community 123 - "Glossary"
 Cohesion: 0.15
@@ -782,23 +761,23 @@ Nodes (11): Kind, Jack, Key, Press, Release, Toggle, Turn, PanelEvent (+3 more)
 
 ### Community 128 - "synth.h"
 Cohesion: 0.19
-Nodes (9): CubicQ14(), CubicTable, Dual16(), GlideSnap(), Inspect(), MakeCubicTable(), ObserveVoiceEdges(), PackHigh() (+1 more)
+Nodes (9): CubicQ14(), CubicTable, w, Dual16(), Inspect(), MakeCubicTable(), ObserveVoiceEdges(), PackHigh() (+1 more)
 
-### Community 129 - ".ProcessSampler"
-Cohesion: 0.12
-Nodes (4): 1. Baseline (verified from source and the ELF), 4. Architectural blockers and couplings, 7. Code, CPU and main-loop cost (estimates), GlideStep()
-
-### Community 130 - "DisplayJsTests"
-Cohesion: 0.21
-Nodes (3): DisplayJsTests, model(), view_reply()
+### Community 129 - "Storage virtualization / SDRAM reclamation — feasibility and design"
+Cohesion: 0.11
+Nodes (10): 10. Answers to the brief's questions, 1. Baseline (verified from source and the ELF), 3. Precedent: stock TAPE already streams from SD on this hardware, 4. Architectural blockers and couplings, 6. SDRAM scenarios (estimates — not production values), 7. Code, CPU and main-loop cost (estimates), 8. Hardware benchmark (Phase 0) — required before any buffer size is fixed, 9. Staged plan (each phase separately testable and revertible) (+2 more)
 
 ### Community 132 - "Rig"
-Cohesion: 0.22
-Nodes (7): Rig, engine, l, memory, r, rv, table
+Cohesion: 0.15
+Nodes (9): SampleTable, slots, Rig, engine, l, memory, r, rv (+1 more)
 
 ### Community 133 - "power_test.cpp"
-Cohesion: 0.27
-Nodes (10): BootGesture, held_, BootGestureOff(), Colours(), LevelCheckBands(), LevelCheckFailures(), main(), OptionsFile() (+2 more)
+Cohesion: 0.33
+Nodes (11): BatteryWarning(), ChargerHandover(), Colours(), InstallPower(), LevelCheckBands(), LevelCheckFailures(), LockoutDip(), main() (+3 more)
+
+### Community 134 - ".run_walk"
+Cohesion: 0.22
+Nodes (3): BridgeWalkTests, WalkTests, hand()
 
 ### Community 135 - "Diffuser"
 Cohesion: 0.13
@@ -808,17 +787,17 @@ Nodes (14): Diffuser, dirty_, increment_, kGain, kPad, kStages, kSwing, line_ (+
 Cohesion: 0.14
 Nodes (25): Code, Forge knobs: TAPE's layout plus Forge's pages (firmware 0.10), Patch knobs (patch version 5), Tests, What the player sees, Fade(), Fade3(), Fade4() (+17 more)
 
-### Community 137 - "runtime.h"
-Cohesion: 0.21
-Nodes (11): Current checkpoint: firmware 0.15.1 review fixes (2026-10-06), Roadmap item 3: device presets on the SD card (implemented; software-tested), 2026-10-12: RC tutorial and manual refresh, Forge handoff, Handoff: cloud session → the owner's local PC (2026-10-09), EraseReply(), IsPerformance(), ListReply() (+3 more)
+### Community 137 - "Tremolo"
+Cohesion: 0.20
+Nodes (6): Tremolo, depth_, depth_target_, increment_, phase_, rate_
 
 ### Community 138 - "Options"
 Cohesion: 0.22
 Nodes (8): Options, midi_in, midi_out, monitor, quantise_menu, record_latch, split_delay, tape_slew
 
-### Community 139 - "Clocked"
+### Community 139 - "sequencer_test.cpp"
 Cohesion: 0.13
-Nodes (6): Clocked, clock, out, s, MemoryCard, files
+Nodes (8): Clocked, clock, out, s, main(), MemoryCard, files, RecordAndLoop()
 
 ### Community 141 - "State"
 Cohesion: 0.13
@@ -830,15 +809,15 @@ Nodes (23): Broken, amount_, character_, crackle_, floor_, gain_, hp_k_, hp_l_ (
 
 ### Community 143 - "Forge — developer resume checkpoint"
 Cohesion: 0.05
-Nodes (43): 2026-10-11: agent hardware checks, soak, UX review, 2026-10-11 (end of day): 0.19 staged on the card, stress test done, 2026-10-11 (late night): 0.19.0 synth page built, 2026-10-11 (late night): guided test nearly done, repo refreshed, 2026-10-11 (later): 0.16.0 Batch 1 + 2 built, 2026-10-11 (latest): 0.17.0 magic items 1-3 built, 2026-10-11 (night): 0.17.1 + 0.18.0 built, Spark chosen, 2026-10-12: battery readings under investigation (+35 more)
+Nodes (44): 2026-10-11: agent hardware checks, soak, UX review, 2026-10-11 (end of day): 0.19 staged on the card, stress test done, 2026-10-11 (late night): 0.19.0 synth page built, 2026-10-11 (late night): guided test nearly done, repo refreshed, 2026-10-11 (later): 0.16.0 Batch 1 + 2 built, 2026-10-11 (latest): 0.17.0 magic items 1-3 built, 2026-10-11 (night): 0.17.1 + 0.18.0 built, Spark chosen, 2026-10-12: battery readings under investigation (+36 more)
 
 ### Community 145 - "InspectorVoice"
 Cohesion: 0.25
 Nodes (8): InspectorVoice, age, envelope, flags, note, slot, source, stage
 
-### Community 146 - "MenuMode"
-Cohesion: 0.29
-Nodes (6): MenuMode, CopyDest, CopySource, Erase, None, Save
+### Community 146 - "preset_menu.h"
+Cohesion: 0.20
+Nodes (11): BlackLed(), MenuMode, CopyDest, CopySource, Erase, None, Save, RenderMenuLeds() (+3 more)
 
 ### Community 147 - "Forge 0.20.0 — the one consolidated hardware test"
 Cohesion: 0.08
@@ -850,19 +829,19 @@ Nodes (12): Error, Busy, Checksum, Empty, Length, None, Opcode, Patch (+4 more)
 
 ### Community 149 - "Fold"
 Cohesion: 0.20
-Nodes (8): Fold, bias_, bias_target_, drive_, drive_target_, mix_, on_, FoldLevel()
+Nodes (7): Fold, bias_, bias_target_, drive_, drive_target_, mix_, on_
 
 ### Community 151 - "Kind"
 Cohesion: 0.20
 Nodes (10): Kind, Copy, Erase, Recall, RecordSource, SampleCopy, SampleErase, SampleSave (+2 more)
 
 ### Community 152 - "forge_ai.py"
-Cohesion: 0.14
+Cohesion: 0.15
 Nodes (13): chat_prompt(), check_prompt(), check_samples(), checked_patch(), describe(), generate_patch(), instructions(), NoRedirect (+5 more)
 
 ### Community 153 - "Rig"
-Cohesion: 0.15
-Nodes (13): Rig, engine, hw, l, panel, r, rec, recorder (+5 more)
+Cohesion: 0.11
+Nodes (14): Rig, engine, hw, l, panel, r, rec, recorder (+6 more)
 
 ### Community 154 - "CardTests"
 Cohesion: 0.24
@@ -877,20 +856,20 @@ Cohesion: 0.12
 Nodes (11): Bell, decay_, kVoices, rate_, voices_, Voice, level, phase (+3 more)
 
 ### Community 158 - "SampleSlot"
-Cohesion: 0.13
-Nodes (10): SampleSlot, channels, data, frames, gain, loaded, partial, rate_ratio (+2 more)
+Cohesion: 0.18
+Nodes (8): SampleSlot, channels, data, frames, gain, loaded, partial, rate_ratio
 
-### Community 159 - "PanelFeedback016"
-Cohesion: 0.11
-Nodes (11): Wire format (opcode 0D, every build), State, Armed, Empty, FirstTake, Paused, Playing, PackLooper() (+3 more)
+### Community 159 - "State"
+Cohesion: 0.33
+Nodes (6): State, Armed, Empty, FirstTake, Paused, Playing
 
 ### Community 160 - "MenuPage"
-Cohesion: 0.22
+Cohesion: 0.25
 Nodes (7): MenuPage, Fx, Harmony, Parts, Presets, Samples, Synth
 
 ### Community 161 - "panel_controller.h"
 Cohesion: 0.15
-Nodes (27): 4. The panel, for visualizations, ChordColour(), ComposeFxKnobLeds(), ComposeHarmonyKnobLeds(), ComposeKnobLeds(), ComposeLeds(), ComposeLooperLeds(), ComposeMenuKnobLeds() (+19 more)
+Nodes (24): 4. The panel, for visualizations, Wire format (opcode 0D, every build), ChordColour(), ComposeFxKnobLeds(), ComposeHarmonyKnobLeds(), ComposeKnobLeds(), ComposeLeds(), ComposeLooperLeds() (+16 more)
 
 ### Community 162 - "FakeCharger"
 Cohesion: 0.25
@@ -905,31 +884,35 @@ Cohesion: 0.40
 Nodes (5): KnobHold, down, frames, turned, used
 
 ### Community 166 - "LoaderRig"
-Cohesion: 0.14
-Nodes (17): PackSelection(), ChromaticAndKitLoading(), LoaderRig, card, events, handoff, loader, loop (+9 more)
+Cohesion: 0.16
+Nodes (16): ChromaticAndKitLoading(), LoaderRig, card, events, handoff, loader, loop, pool (+8 more)
 
 ### Community 167 - "Compressor"
-Cohesion: 0.50
-Nodes (3): Compressor, gain_, peak_
+Cohesion: 0.33
+Nodes (5): Compressor, gain_, peak_, SoftClip(), SoftLimit()
 
 ### Community 168 - "InstrumentTests"
 Cohesion: 0.13
 Nodes (3): envelope(), InstrumentTests, opener()
 
 ### Community 169 - "the forge family"
-Cohesion: 0.29
-Nodes (7): Choowi, the first of the family, how it talks, the forge family, the look, the rules, the tree, whose it is
+Cohesion: 0.13
+Nodes (12): Forge development guidance, Chomposer, the next of the family (planned), Choowi, the first of the family, how it talks, the forge family, the look, the rules, the tree (+4 more)
 
-### Community 173 - "iostream"
-Cohesion: 0.29
-Nodes (9): CopyFile(), EraseFile(), LoadFile(), SaveFile(), FilePath(), balance, main(), ProjectsOnTheCard() (+1 more)
+### Community 173 - "EngineAndPanel"
+Cohesion: 0.19
+Nodes (13): Current checkpoint: firmware 0.15.1 review fixes (2026-10-06), 2026-10-12: RC tutorial and manual refresh, Forge handoff, Handoff: cloud session → the owner's local PC (2026-10-09), StoreQueued(), CopyFile(), EraseFile(), LoadFile() (+5 more)
 
 ### Community 175 - "fx_test.cpp"
-Cohesion: 0.08
-Nodes (22): Tremolo, depth_, depth_target_, increment_, phase_, rate_, noise, DiffuserUnit() (+14 more)
+Cohesion: 0.30
+Nodes (10): noise, DiffuserUnit(), EffectUnit(), EngineAllTwelve(), EngineFx(), Fingerprint(), FoldLevel(), main() (+2 more)
+
+### Community 176 - "build"
+Cohesion: 0.31
+Nodes (9): 0.15.2 Build identity, held keys per source — 2026-10-10 (development build on CHOMPI since 2026-10-10, 34/34 automatic steps; the Shift and arp phrase-start fixes are software-tested only, not installed yet), build(), fromSlider(), loadPatch(), path(), read(), showJSON(), toSlider() (+1 more)
 
 ### Community 177 - "Squash"
-Cohesion: 0.15
+Cohesion: 0.14
 Nodes (10): Clip(), Squash, attack_, env_, makeup_, mix_, on_, rate_ (+2 more)
 
 ### Community 178 - "AnalysisTests"
@@ -945,16 +928,16 @@ Cohesion: 0.11
 Nodes (30): Card files, installs, battery log, sample pack, Command-line controller, Development Forge Inspector, Device presets on the SD card, Forge host controller, Instrument patches and playing, Live provider check (developer, CLI only), Making sounds: the forge page and the local workshop (+22 more)
 
 ### Community 181 - "Forge sampling (roadmap item 4): design"
-Cohesion: 0.22
-Nodes (9): 1. What TAPE does (the behaviour to keep), 2. What Forge changes, and why, 3. Memory, 5. Ownership and data flow, 6. Panel, 7. Host, AI and webapp, 8. Verification plan, 9. Not in this item (+1 more)
+Cohesion: 0.18
+Nodes (11): 1. What TAPE does (the behaviour to keep), 2. What Forge changes, and why, 3. Memory, 4. Patch v4 (wire and JSON), 5. Ownership and data flow, 6. Panel, 7. Host, AI and webapp, 8. Verification plan (+3 more)
 
 ### Community 182 - "main"
-Cohesion: 0.19
-Nodes (21): Balance(), CopyFile(), DrawLeds(), FlashSafeMode(), LoadOptions(), LoadSlotSettings(), LogLockout(), LogRestart() (+13 more)
+Cohesion: 0.24
+Nodes (16): BootStep(), FlashSafeMode(), InspectorEvent(), InspectorStorageError(), LoadOptions(), LoadSlotSettings(), LogLockout(), LogRestart() (+8 more)
 
 ### Community 183 - "harmony.h"
-Cohesion: 0.32
-Nodes (10): Lead(), Movement(), Parallel(), Place(), QualityStack(), RealFunction(), Resolve(), Voiced (+2 more)
+Cohesion: 0.31
+Nodes (12): Lead(), Movement(), Parallel(), Place(), QualityStack(), RealFunction(), Resolve(), Tones() (+4 more)
 
 ### Community 184 - "Forge vs stock TAPE / TEMPO / WAVE: compatibility and CPU benchmark"
 Cohesion: 0.20
@@ -997,8 +980,8 @@ Cohesion: 0.29
 Nodes (7): Architecture and acceptance, Current milestone: Choowi 0.19.2 → final release (2026-10-12), First milestone: instrument candidate 0.4, Forge project brief, Goal and user decisions, Instrument candidate 0.15.1 (history), Roadmap (priority order agreed 2026-10-02)
 
 ### Community 200 - "SpscQueue"
-Cohesion: 0.08
-Nodes (18): First optimization decisions to investigate, Forge Resource Ledger, Memory map and working set, QA and CPU baseline, Reproduced baseline, Snapshot 2026-10-05: CPU fix A (0.13, not installed), Snapshot 2026-10-05: firmware 0.13 harmony (Phase 1 complete), Snapshot 2026-10-05: firmware 0.14 clock, arp and bass (not installed) (+10 more)
+Cohesion: 0.11
+Nodes (13): Audio path, Boundaries, Device presets (SD card), Execution and ownership, Forge architecture, Transport details, 2. Overview, SpscQueue (+5 more)
 
 ### Community 201 - "node"
 Cohesion: 0.23
@@ -1033,16 +1016,16 @@ Cohesion: 0.25
 Nodes (5): Route, Classic, SideBySide, WashFirst, WearLast
 
 ### Community 212 - "Function"
-Cohesion: 0.15
-Nodes (13): Function, degree, kind, octave, quality, root, Kind, Borrowed (+5 more)
+Cohesion: 0.17
+Nodes (12): Function, degree, kind, octave, quality, root, Quality, Dominant (+4 more)
 
 ### Community 213 - "Earlier checkpoint: boot fix and cleanup, 2026-10-03"
 Cohesion: 0.67
 Nodes (3): Browser hardware test bridge (supersedes terminal-only delivery below), Earlier checkpoint: boot fix and cleanup, 2026-10-03, Prior telemetry implementation and validation
 
 ### Community 214 - "AudioCallback"
-Cohesion: 0.29
-Nodes (3): AudioCallback(), ChargerIo, ServiceChargerUsb()
+Cohesion: 0.20
+Nodes (6): AudioCallback(), ChargerIo, CopyFile(), SaveSlotSettings(), ServiceChargerUsb(), WritePresetsFile()
 
 ### Community 215 - "CHOMPI battery readings: how they work and why they may mislead (investigation, 2026-10-12)"
 Cohesion: 0.14
@@ -1053,16 +1036,20 @@ Cohesion: 0.29
 Nodes (7): Extension, Eleventh, Fifth, Ninth, Seventh, Thirteenth, Triad
 
 ### Community 217 - "Rig"
-Cohesion: 0.17
-Nodes (11): Rig, engine, hw, l, panel, r, rec, recorder (+3 more)
+Cohesion: 0.22
+Nodes (7): Rig, engine, fxm, l, r, rv, warble
 
 ### Community 218 - "Envelope"
 Cohesion: 0.18
 Nodes (10): Envelope, release_step, stage, value, Stage, Attack, Decay, Off (+2 more)
 
+### Community 219 - "SoundDeviceAudio"
+Cohesion: 0.13
+Nodes (3): FakeAudio, Skipped, SoundDeviceAudio
+
 ### Community 220 - "Forge developer guide"
-Cohesion: 0.20
-Nodes (9): Build firmware, CPU benchmark against stock firmware, Create a test bundle, Forge developer guide, Get the development branch, Requirements, Troubleshooting, Validate software (+1 more)
+Cohesion: 0.12
+Nodes (11): Build firmware, CPU benchmark against stock firmware, Create a test bundle, Forge developer guide, Get the development branch, Requirements, Troubleshooting, Validate software (+3 more)
 
 ### Community 223 - "MidiFramer"
 Cohesion: 0.22
@@ -1073,64 +1060,52 @@ Cohesion: 0.29
 Nodes (5): 0.6 knob pages and patch knobs — 2026-10-04, _is_sampler(), knob_control(), knob_pages(), _layout()
 
 ### Community 226 - "Action"
-Cohesion: 0.24
+Cohesion: 0.29
 Nodes (7): Action, a, b, kind, Kind, Note, Param
 
 ### Community 228 - "Queue"
-Cohesion: 0.60
-Nodes (5): Flash(), forge::Error RecallPreset(), LoadSequence(), Queue(), RunSampler()
+Cohesion: 0.36
+Nodes (8): Flash(), forge::Error RecallPreset(), LoadSequence(), Queue(), Restart(), RunSampler(), SendResponses(), TransmitPending()
+
+### Community 229 - "FirmwarePanelSink"
+Cohesion: 0.22
+Nodes (4): FirmwarePanelSink, PanelAction, action, patch
 
 ### Community 231 - "SlotValues"
 Cohesion: 0.18
 Nodes (10): SlotValues, attack, end, gain, loop, pan, pitch, release (+2 more)
 
-### Community 232 - "Sink"
-Cohesion: 0.25
-Nodes (3): Sink, actions, full
+### Community 233 - ".GetState"
+Cohesion: 0.29
+Nodes (6): State, Armed, Empty, Playing, Recording, Stopped
 
-### Community 233 - "EngineAndPanel"
-Cohesion: 0.17
-Nodes (7): State, Armed, Empty, Playing, Recording, Stopped, EngineAndPanel()
-
-### Community 234 - "V3Fields"
-Cohesion: 0.20
-Nodes (10): Patch lifecycle, Development plan (the owner, 2026-10-02): features first, QA per feature later, Roadmap item 2: v3 instrument palette (implemented; software-tested), Change discipline, V3Field, index, kind, max (+2 more)
-
-### Community 235 - "AGENTS.md"
-Cohesion: 0.33
-Nodes (4): Forge development guidance, Before you write, Ponytail, lazy senior dev mode, The smallest complete change
+### Community 234 - "EncodePatchData"
+Cohesion: 0.15
+Nodes (15): Patch lifecycle, 0.4 device presets on the SD card — 2026-10-03, Development plan (the owner, 2026-10-02): features first, QA per feature later, Roadmap item 2: v3 instrument palette (implemented; software-tested), Change discipline, DecodePatchData(), EncodePatchData(), PatchDataSize() (+7 more)
 
 ### Community 236 - "Choowi display: CHOMPI's screen on a phone (0.20, development)"
 Cohesion: 0.40
 Nodes (4): A secret (developer note; keep it out of the player manuals), Choowi display: CHOMPI's screen on a phone (0.20, development), Not yet, Using it
 
-### Community 238 - "State"
-Cohesion: 0.33
-Nodes (6): State, Detaching, Headers, Idle, Job, Streaming
+### Community 238 - "BootGesture"
+Cohesion: 0.50
+Nodes (3): BootGesture, held_, BootGestureOff()
 
 ### Community 239 - "forge_bench.cpp"
-Cohesion: 0.60
+Cohesion: 0.83
 Nodes (3): bench_block(), bench_init(), Noise()
 
 ### Community 241 - "firmware_chompi_forge_core_protocol"
-Cohesion: 0.15
-Nodes (21): Code, , Checksum(), EncodeError(), EncodePanelAck(), EncodeProbeLeds(), EncodeViewLeds(), EncodeViewState() (+13 more)
-
-### Community 242 - "PanelInput"
-Cohesion: 0.29
-Nodes (7): PanelInput, frames, jack, keys, toggle_up, tone_down, turns
+Cohesion: 0.13
+Nodes (27): Code, EncodeInspector(), , Checksum(), EncodeError(), EncodeIdentity(), EncodePanelAck(), EncodeProbeLeds() (+19 more)
 
 ### Community 243 - "The FX section (Choowi 0.20, development)"
 Cohesion: 0.33
 Nodes (6): Costs, For the listening session, Getting there, Saved with the sound, Secrets (developer note; keep them out of the player manuals), The FX section (Choowi 0.20, development)
 
-### Community 245 - "MonitorMode"
-Cohesion: 0.33
-Nodes (4): MonitorMode, Both, Headphones, SendReturn
-
-### Community 246 - "InspectorEvent"
-Cohesion: 0.67
-Nodes (4): BootStep(), InspectorEvent(), InspectorStorageError(), MountCard()
+### Community 244 - "DrawLeds"
+Cohesion: 1.00
+Nodes (3): Balance(), DrawLeds(), Pth()
 
 ### Community 248 - "Event"
 Cohesion: 0.50
@@ -1148,33 +1123,29 @@ Nodes (3): Cross-cutting fixes (they lift most rows), Forge UX review (2026-10-1
 Cohesion: 0.67
 Nodes (3): BootCount, boots, magic
 
-### Community 254 - "InspectorSnapshot"
-Cohesion: 0.33
-Nodes (6): InspectorSnapshot, audio, battery, generation, storage, system
-
 ### Community 256 - "Redundant controls: review for 0.20"
 Cohesion: 0.40
 Nodes (4): Redundant controls: review for 0.20, Same control, two places, Same name, different controls (confusing), Smallest useful change set (if the owner agrees)
 
 ## Knowledge Gaps
-- **1709 isolated node(s):** `reverb_`, `del_`, `filter_`, `warble_`, `dcblock_fx_l_` (+1704 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 2686 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **46 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **1710 isolated node(s):** `reverb_`, `del_`, `filter_`, `warble_`, `dcblock_fx_l_` (+1705 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 2714 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **50 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Engine` connect `Engine` to `Rig`, `Diffuser`, `SlotSettings`, `runtime.h`, `main`, `looper_test.cpp`, `.Init`, `Rig`, `v3_test.cpp`, `.Value`, `Bell`, `SampleSlot`, `synth_test.cpp`, `cstdint`, `forge_probe.cpp`, `Player`, `Sequencer`, `Rig`, `fx_test.cpp`, `.PublishKnobs`, `.ApplyPatch`, `.Block`, `forge_main.cpp`, `Reverb`, `preset_test.cpp`, `Route`, `EngineAndPanel`, `Mailbox`, `Rig`, `cassert`, `.Process`, `Bloom`, `FORGE_COLD`, `SlotValues`, `Conversation`, `RecoveryAfterLostNotes`, `fx.h`, `firmware_chompi_forge_core_protocol`, `Performance`?**
-  _High betweenness centrality (0.155) - this node is a cross-community bridge._
+- **Why does `Engine` connect `Engine` to `Rig`, `Diffuser`, `SlotSettings`, `main`, `looper_test.cpp`, `.Init`, `Rig`, `v3_test.cpp`, `Bell`, `.Value`, `cstdint`, `Rig`, `Player`, `Sequencer`, `EngineAndPanel`, `Rig`, `.ApplyPatch`, `.Block`, `runtime.h`, `forge_main.cpp`, `cassert`, `Reverb`, `SampleHandoff`, `Route`, `EngineAndPanel`, `Mailbox`, `Rig`, `core_test.cpp`, `.Process`, `Bloom`, `FORGE_COLD`, `SlotValues`, `Conversation`, `ChannelTranslation`, `fx.h`, `firmware_chompi_forge_core_protocol`, `Performance`?**
+  _High betweenness centrality (0.157) - this node is a cross-community bridge._
 - **Are the 9 inferred relationships involving `Engine` (e.g. with `main()` and `PhysicalVersusInjectedAndVoiceEdges()`) actually correct?**
   _`Engine` has 9 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `reverb_`, `del_`, `filter_` to the rest of the system?**
-  _1709 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1710 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Synth` be split into smaller, more focused modules?**
   _Cohesion score 0.022216913521261348 - nodes in this community are weakly interconnected._
-- **Why does `PanelController` connect `PanelController` to `Redundant controls: review for 0.20`, `Previous checkpoint: firmware 0.9, key lights while playing, 2026-10-05`, `runtime.h`, `Options`, `PresetMenu`, `main`, `Rig`, `panel_controller.h`, `Show`, `KnobHold`, `Dream`, `Rig`, `.PublishKnobs`, `.Block`, `SpscQueue`, `TransferAndInstall`, `EngineAndPanel`, `RecordGesture`, `Rig`, `cassert`, `EngineAndPanel`, `fx.h`, `firmware_chompi_forge_core_protocol`, `The FX section (Choowi 0.20, development)`, `MonitorMode`, `Kind`?**
-  _High betweenness centrality (0.098) - this node is a cross-community bridge._
-- **Are the 7 inferred relationships involving `PanelController` (e.g. with `Current checkpoint: firmware 0.15.1 review fixes (2026-10-06)` and `Secrets (developer note; keep them out of the player manuals)`) actually correct?**
-  _`PanelController` has 7 INFERRED edges - model-reasoned connections that need verification._
-- **Should `Walk` be split into smaller, more focused modules?**
-  _Cohesion score 0.10409745293466224 - nodes in this community are weakly interconnected._
+- **Why does `PanelController` connect `PanelController` to `Redundant controls: review for 0.20`, `Previous checkpoint: firmware 0.9, key lights while playing, 2026-10-05`, `Options`, `PresetMenu`, `main`, `Rig`, `panel_controller.h`, `Rig`, `Show`, `KnobHold`, `Dream`, `EngineAndPanel`, `Rig`, `parts_test.cpp`, `.Block`, `cassert`, `SpscQueue`, `TransferAndInstall`, `EngineAndPanel`, `RecordGesture`, `Chomposer: architecture (design, 2026-10-14)`, `fx.h`, `firmware_chompi_forge_core_protocol`, `The FX section (Choowi 0.20, development)`, `Kind`?**
+  _High betweenness centrality (0.107) - this node is a cross-community bridge._
+- **Are the 8 inferred relationships involving `PanelController` (e.g. with `9. Panel and phases` and `Current checkpoint: firmware 0.15.1 review fixes (2026-10-06)`) actually correct?**
+  _`PanelController` has 8 INFERRED edges - model-reasoned connections that need verification._
+- **Should `PanelController` be split into smaller, more focused modules?**
+  _Cohesion score 0.016247969003874516 - nodes in this community are weakly interconnected._
