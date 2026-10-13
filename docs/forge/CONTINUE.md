@@ -17,6 +17,18 @@ Updated 2026-10-13: 0.20.0 release candidate 3 prepared (newest section). 2026-1
   chord side only**; the melody stays free. Still to settle: how it's switched on (suggested: a harmony-page
   setting, saved with the sound), and the static layout's chord set on a one-octave chord side (C3-B3 = I-vii
   once; the black keys there as today).
+- **Stage mode in Choowivision** (the owner, 2026-10-13: "this is really good"): a dot-matrix screen (128 x 64
+  glowing dots) computed live, playing **original patterns**: **forge** (anvil, beat strikes, sparks from notes),
+  **reels** (tape reels turning with the loop and its speed), **keyfall** (key columns rise with held notes, fall
+  as rain), **tide** (slow drifting bands, for Dream). Notes drop ripples from their key, chords tint the panel,
+  the loop sweeps as a scanline; the knobs only nudge (SW4 speed, SW1 density, SW2 spread, SW3 colour); the FX
+  looks follow the FX page (cloud trails, tape echo ghosts, chorus double, tremolo pulse, broken dead pixels /
+  row glitches). **Dream switches Choowivision to tide by itself**, in Dream's chord colours. Patterns are small
+  self-contained modules (room for community patterns later). Canvas 2D, code-drawn, no assets; the cartoon
+  version was dropped (the owner). Prototype: `docs/workshop/stage.html` / `stage.js` (not committed yet: it
+  would publish with rc3; set aside before packaging, back after). Next: wire it to the view (FX choices and
+  amounts drive the looks, the real loop drives reels and the scanline, Dream's flag picks tide), colours from
+  the music rather than the colour knob, finer sparks, then fold it into Choowivision as a second screen.
 - Also queued: rebuild the rc3 kit right before publishing (the manual changed after it was built: tooltips'
   touch targets, the glossary).
 
