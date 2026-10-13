@@ -102,8 +102,9 @@ firmware version. Firmware before 0.20 answers "unknown operation"; the page the
 **The stage** (0.20, the owner's pick). Tap the drawn panel's **microphone three times within 1.2 s**: Choowivision
 opens `stage.html?live=1`, behind a word (the owner's; only a salted SHA-256 of it is in the page, and a
 browser that knew it remembers: a secret's door, not security), a dot-matrix screen (128 x 64 dots, computed live) that connects to CHOMPI and plays
-original patterns: **forge** (anvil, beat strikes, sparks from notes), **reels** (tape reels turning with the
-loop), **keyfall** (key columns rise and rain), **tide** (slow bands). Notes ripple from their key, chords tint
+original patterns: **keyfall** (key columns rise and rain) and **tide** (slow bands); **forge** and **reels**
+are in the code but hidden until they're worked on (the owner). **Dream:** while Dream plays (view dream bit 26)
+the stage switches to tide and plays Dream's keys (bits 0-24, C3 + bit) as notes; it goes back when Dream stops. Notes ripple from their key, chords tint
 it, the loop sweeps as a scanline; the knobs nudge it (CC 20-23: SW4 speed, SW1 density, SW2 spread, SW3
 colour); effect looks on its own buttons (cloud, tape echo, chorus, tremolo, broken), subtle with one note and
 growing with the voices held (full at five; the owner). Not linked anywhere,

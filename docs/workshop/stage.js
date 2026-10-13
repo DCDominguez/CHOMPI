@@ -15,7 +15,7 @@ const dead = new Uint8Array(GW * GH);                          // broken: dead p
 const C = {white: [244, 242, 236], green: [47, 191, 85], yellow: [245, 196, 0], orange: [255, 138, 42], red: [236, 59, 59],
   pink: [255, 94, 160], purple: [145, 80, 240], blue: [47, 124, 246], teal: [25, 201, 182]};
 const WHEEL = [C.purple, C.blue, C.teal, C.green, C.yellow, C.orange, C.red, C.pink];
-let pattern = "forge", look = "clean", bpm = 90, beatAt = performance.now(), loopStart = performance.now(), loopSeconds = 60 / 90 * 16;
+let pattern = "keyfall", look = "clean", bpm = 90, beatAt = performance.now(), loopStart = performance.now(), loopSeconds = 60 / 90 * 16;
 const knobs = [50, 60, 30, 40].map(v => v / 127);
 let tint = C.purple, tintAmount = 0;
 const ripples = [];
@@ -224,16 +224,20 @@ const connectButton = document.getElementById("connect");
 connectButton.addEventListener("click", async () => {
   try {
     if (!navigator.requestMIDIAccess) throw new Error("no Web MIDI here (Chrome or Edge)");
-    const access = await navigator.requestMIDIAccess();
+    const access = await navigator.requestMIDIAccess({sysex: true});   // sysex: the view, for Dream
     const inputs = [...access.inputs.values()], chompi = inputs.find(i => /chompi/i.test(i.name)) || inputs[0];
     if (!chompi) throw new Error("no MIDI input found: plug CHOMPI in");
     demoOn = false; clearTimeout(demoTimer); [...held.keys()].forEach(noteOff);
     document.getElementById("demo").setAttribute("aria-pressed", "false");
+    const output = [...access.outputs.values()].find(o => /chompi/i.test(o.name));
     chompi.onmidimessage = e => {
-      const [s, a, b] = e.data, kind = s & 0xf0;
+      const data = Array.from(e.data);
+      if (data[0] === 0xF0) { viewReply(data); return; }
+      const [s, a, b] = data, kind = s & 0xf0;
       if (kind === 0x90 && b > 0) noteOn(a, b); else if (kind === 0x80 || (kind === 0x90 && b === 0)) noteOff(a);
       else if (kind === 0xb0 && a >= 20 && a <= 23) setKnob(a - 20, b);
     };
+    if (output && window.ForgeWire) watchDream(output);
     statusEl.textContent = `listening to ${chompi.name}: play, and turn SW4 SW1 SW2 SW3`;
   } catch (error) { statusEl.textContent = error.message; }
 });
@@ -246,6 +250,36 @@ const pick = (attr, set) => document.querySelectorAll(`[data-${attr}]`).forEach(
 }));
 pick("pattern", v => { pattern = v; }); pick("look", v => { look = v; prev.fill(0); dead.fill(0); });
 document.getElementById("full").addEventListener("click", () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}));
+// ---- Dream (the owner: "make it reactive to keys being played on dream mode"). Dream plays inside CHOMPI and sends
+// no notes, but the view (opcode 0D page 1) says when it plays (dream bit 26) and which keys it plays (bits 0-24:
+// C3 + bit, PanelController::DreamLights / dream::Show::KeyMask). While Dream plays: tide, and each key it plays is
+// a note here.
+const ledNote = bit => 48 + bit;
+let lastSent = null, dreamKeys = 0, dreaming = false, patternBeforeDream = null;
+function watchDream(output) {
+  setInterval(() => {
+    lastSent = ForgeWire.viewMessage(Math.floor(Math.random() * 16384), 1);
+    output.send(ForgeWire.frame(lastSent));
+  }, 120);
+}
+function choosePattern(name) {
+  pattern = name; document.querySelectorAll("[data-pattern]").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.pattern === name)));
+}
+function viewReply(data) {
+  let view; try { view = ForgeWire.decodeReply(data.slice(1, -1), lastSent); } catch { return; }
+  if (!view || !view.words) return;
+  const dream = view.words.dream, on = !!(dream >>> 26 & 1);
+  if (on && !dreaming) { patternBeforeDream = pattern; choosePattern("tide"); statusEl.textContent = "Dream is playing"; }
+  if (!on && dreaming) { choosePattern(patternBeforeDream || "keyfall"); statusEl.textContent = "listening to CHOMPI"; }
+  dreaming = on;
+  const keys = on ? dream & 0x1ffffff : 0;
+  for (let led = 0; led < 25; led++) {
+    const was = dreamKeys >>> led & 1, now = keys >>> led & 1;
+    if (now && !was) noteOn(ledNote(led), 70); else if (was && !now) noteOff(ledNote(led));
+  }
+  dreamKeys = keys;
+}
+
 // Opened from Choowivision (?live=1): connect straight away (MIDI was already allowed there; the button stays as a fallback).
 // The word (the owner's): only its salted hash is here. A browser that knew it once remembers. This is a
 // secret's door, not security: a static page can always be read.
