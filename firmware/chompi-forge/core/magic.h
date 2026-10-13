@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "fx.h"
 #include "harmony.h"
 #include "parameters.h"
 #include "parts.h"
@@ -23,12 +24,55 @@ struct Rng {
     void Stir(uint32_t v) { s ^= v * 2654435761u; if(!s) s = 1; Next(); }
 };
 
+// The FX section in a roll (0.20, the owner: "does our random patch generator take advantage of the new fx").
+// Half the rolls turn one or two modules up, each with a random effect at a moderate amount (Colour and
+// Texture lower, so fold, crush and broken stay musical; Space follows the roll's delay and reverb; Motion
+// slow); about one in six of those runs Wear last or Wash first. Never side by side, never a secret.
+FORGE_COLD inline void RollFx(Parameters& p, Rng& r) {
+    unsigned choice[fx::kModules] = {0, 0, 0, 0};
+    p.fx_colour = p.fx_texture = p.fx_motion = 0.f; p.fx_motion_rate = .3f; p.fx_colour_character = p.fx_texture_character = 0.f;
+    choice[0] = r.Chance(.5f) ? 0u : r.Chance(.6f) ? 1u : 2u;                 // Space: echo + room, cloud, tape echo
+    uint8_t order = 0;
+    if(r.Chance(.5f)) {
+        const unsigned count = r.Chance(.35f) ? 2u : 1u;
+        bool used[fx::kModules] = {true, false, false, false};               // Space's amount is the roll's mix
+        for(unsigned n = 0; n < count; ++n) {
+            unsigned m = 1u + r.Pick(3u); if(used[m]) m = m % 3u + 1u;
+            used[m] = true; choice[m] = r.Pick(3u);
+            if(m == 2 && choice[2] == 1 && p.voices == 1) choice[2] = 0;      // no dropouts on a mono lead (too quiet)
+            if(m == 1) {                                                       // Colour: saturation, fold, crush
+                static const float top[3] = {.45f, .35f, .3f};
+                p.fx_colour = r.Range(.12f, top[choice[1]]); p.fx_colour_character = r.Range(0.f, .5f);
+            } else if(m == 2) {                                                // Texture: cassette, broken, squash
+                static const float top[3] = {.5f, .35f, .5f};
+                p.fx_texture = r.Range(.15f, top[choice[2]]); p.fx_texture_character = r.Range(0.f, choice[2] == 2 ? .6f : .4f);
+            } else {                                                           // Motion: chorus, phaser, tremolo
+                static const float top[3] = {.5f, .45f, .35f};
+                p.fx_motion = r.Range(.18f, top[choice[3]]); p.fx_motion_rate = r.Range(.12f, .5f);
+            }
+        }
+        if(r.Chance(1.f / 6.f)) order = fx::OrderIndex(fx::kOrder[1u + r.Pick(2u)]);
+    }
+    p.fx = static_cast<uint16_t>(choice[0] | choice[1] << 2 | choice[2] << 4 | choice[3] << 6 | static_cast<unsigned>(order) << 8);
+}
+// Mutate's FX drift: the amounts move like everything else (an effect that's off stays off); now and then
+// one module's effect changes within its category. The order and side by side stay.
+FORGE_COLD inline void MutateFx(Parameters& p, Rng& r) {
+    float* amounts[3] = {&p.fx_colour, &p.fx_texture, &p.fx_motion};
+    for(float* a : amounts) if(*a > 0.f) *a = Clamp(*a + r.Range(-.06f, .06f), .02f, *a > .55f ? *a : .55f);
+    if(p.fx_motion > 0.f) p.fx_motion_rate = Clamp(p.fx_motion_rate + r.Range(-.06f, .06f), .05f, .8f);
+    if(r.Chance(.1f)) {
+        const unsigned m = 1u + r.Pick(3u), shift = 2u * m;
+        p.fx = static_cast<uint16_t>((p.fx & ~(3u << shift)) | (r.Pick(3u) << shift));
+    }
+}
+
 // Normalised 0..1 fields (core/parameters.h; physical ranges in host/forge_host.py).
 // Bounds keep every roll playable: no near-silent attack, no screaming resonance at a high
 // cutoff, delay feedback well below runaway, the output level the player already chose.
 FORGE_COLD inline Parameters Roll(const Parameters& base, Rng& r) {
     Parameters p;
-    p.version = 7; p.synth = true; p.source = 0;
+    p.version = 8; p.synth = true; p.source = 0;
     p.waveform = static_cast<uint8_t>(r.Pick(4));
     p.osc2_waveform = r.Chance(.6f) ? p.waveform : static_cast<uint8_t>(r.Pick(4));
     static const int8_t intervals[7] = {0, 0, 7, 12, -12, 5, 19};
@@ -90,6 +134,7 @@ FORGE_COLD inline Parameters Roll(const Parameters& base, Rng& r) {
         s.octaves = static_cast<uint8_t>(1 + r.Pick(2)); s.gate = static_cast<uint8_t>(8 + r.Pick(7));
     }
     p.parts_arp = parts::PackArp(s); p.parts_clock = parts::PackClock(s);
+    RollFx(p, r);
     return p.Valid() ? p : base;
 }
 
@@ -118,6 +163,7 @@ FORGE_COLD inline Parameters Mutate(const Parameters& base, Rng& r) {
         p.osc2_semitones = static_cast<uint8_t>(24 + intervals[r.Pick(6)]);
     }
     if(p.resonance > .35f && p.cutoff > .8f) p.resonance = .35f;
+    if(p.version >= 8) MutateFx(p, r);
     return p.Valid() ? p : base;
 }
 

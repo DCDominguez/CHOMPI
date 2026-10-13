@@ -26,7 +26,7 @@ void RollsAreValidAndBounded() {
         unsigned harmony_on = 0, arp_on = 0, mono = 0;
         for(int i = 0; i < 300; ++i) {
             const Parameters p = magic::Roll(base, r);
-            assert(p.Valid() && p.version == 7 && p.synth && p.source == 0 && p.level == base.level);
+            assert(p.Valid() && p.version == 8 && p.synth && p.source == 0 && p.level == base.level);
             assert(p.cutoff >= .45f && p.cutoff <= .9f && p.feedback <= .53f && p.attack <= .151f);
             assert(!(p.cutoff > .75f && p.resonance > .35f));
             assert(p.voices == 1 || p.voices >= 4);
@@ -38,6 +38,26 @@ void RollsAreValidAndBounded() {
             harmony_on += h.enabled; arp_on += s.pattern != parts::Pattern::Off; mono += p.voices == 1;
         }
         assert(harmony_on > 30 && harmony_on < 130 && arp_on > 20 && arp_on < 110 && mono > 20 && mono < 110);
+    }
+    {   // 0.20: the FX section in a roll: about half with effects, moderate amounts, sometimes another order,
+        // never side by side
+        magic::Rng fr; unsigned with_fx = 0, reordered = 0;
+        for(int i = 0; i < 600; ++i) {
+            const Parameters p = magic::Roll(Base(7), fr);
+            assert(!(p.fx >> 13 & 1u) && (p.fx >> 8 & 31u) < 24);
+            for(unsigned m = 0; m < 4; ++m) assert((p.fx >> (2 * m) & 3u) < 3);
+            assert(p.fx_colour <= .45f && p.fx_texture <= .5f && p.fx_motion <= .5f && p.fx_texture_character <= .6f);
+            if((p.fx >> 2 & 3u) && p.fx_colour > 0.f) assert(p.fx_colour <= .35f);         // fold / crush lower
+            with_fx += p.fx_colour > 0.f || p.fx_texture > 0.f || p.fx_motion > 0.f;
+            reordered += (p.fx >> 8 & 31u) != 0;
+        }
+        assert(with_fx > 230 && with_fx < 370 && reordered > 15 && reordered < 90);
+        // Mutate drifts the amounts and sometimes an effect; the order and side by side stay.
+        Parameters q = magic::Roll(Base(7), fr); q.fx = static_cast<uint16_t>(q.fx | 5u << 8); q.fx_motion = .3f;
+        for(int i = 0; i < 300; ++i) {
+            q = magic::Mutate(q, fr);
+            assert(q.Valid() && (q.fx >> 8 & 31u) == 5 && !(q.fx >> 13 & 1u) && q.fx_motion >= .02f && q.fx_motion <= .55f);
+        }
     }
     magic::Rng a, b; a.Stir(42); b.Stir(42);
     const Parameters x = magic::Roll(Base(7), a), y = magic::Roll(Base(7), b);
@@ -64,7 +84,9 @@ void RollsArePlayable() {
         for(uint8_t n : {uint8_t(60), uint8_t(64), uint8_t(67)}) engine.Note(n, 0, 2);
         const float rms = static_cast<float>(std::sqrt(sum / (2 * 28800)));
         quietest = std::min(quietest, rms); loudest = std::max(loudest, rms);
-        assert(rms > .0079f && rms < .708f && peak <= 1.f);                        // -42 dB .. -3 dB
+        // -42 dB .. -3 dB; a mono roll with effects may sit 3 dB lower (a phaser or tremolo over its one note, 0.20).
+        const bool mono_fx = p.voices == 1 && (p.fx_texture > 0.f || p.fx_motion > 0.f || p.fx_colour > 0.f);
+        assert(rms > (mono_fx ? .0056f : .0079f) && rms < .708f && peak <= 1.f);
         engine.Panic(); for(int k = 0; k < 4800; ++k) { float L, R; engine.Process(0.f, 0.f, L, R); }
     }
     std::cout << "rolls: RMS " << 20 * std::log10(quietest) << " .. " << 20 * std::log10(loudest) << " dB\n";
