@@ -40,8 +40,8 @@ function el(tag, attrs, parent) {
   lamp(L.chompi, "circle", {cx: 310, cy: 352, r: 14});
   [446, 593, 740, 887].forEach((x, k) => lamp(L.rings[k], "circle", {cx: x, cy: 352, r: 14}));
   lamp(L.sw6, "circle", {cx: 1458, cy: 352, r: 14});
-  lamp(L.reverse, "circle", {cx: 1017, cy: 342, r: 9}); lamp(L.forward, "circle", {cx: 1105, cy: 342, r: 9});
-  text(1061, 349, "«|»", 22);
+  lamp(L.reverse, "circle", {cx: 1010, cy: 342, r: 9}); lamp(L.forward, "circle", {cx: 1094, cy: 342, r: 9});
+  text(1052, 349, "«|»", 22);
   line("circle", {cx: 1381, cy: 352, r: 24});                         // the microphone
   [-10, 0, 10].forEach(dx => line("line", {x1: 1381 + dx, y1: 336, x2: 1381 + dx, y2: 368, "stroke-width": 4}));
   // The toggle (up: record position, down: menu position) and the CHOMPI key.
@@ -60,8 +60,9 @@ function el(tag, attrs, parent) {
     knobLabels[k] = text(cx, 514, "", 19, "#f4f2ec");
   });
   // SW5, PLAY and LOOP (their lights glow inside them), SW6.
-  line("circle", {cx: 1060, cy: 440, r: 92}); line("circle", {cx: 1060, cy: 440, r: 74, "stroke-width": 2});
-  line("circle", {cx: 1060, cy: 404, r: 26, "stroke-width": 2}); text(1060, 470, "SW5", 18);
+  // SW5 (r 80, centre 1052): clear of SW3 (right edge 934) and of the PLAY / LOOP frame (left edge 1140).
+  line("circle", {cx: 1052, cy: 440, r: 80}); line("circle", {cx: 1052, cy: 440, r: 64, "stroke-width": 2});
+  line("circle", {cx: 1052, cy: 410, r: 22, "stroke-width": 2}); text(1052, 472, "SW5", 18);
   line("rect", {x: 1140, y: 392, width: 206, height: 106, rx: 12, "stroke-width": 2});
   [[L.play, 1153, "▶❙❙"], [L.loop, 1241, "↻"]].forEach(([index, x, symbol]) => {
     line("rect", {x, y: 403, width: 82, height: 84, rx: 10});
