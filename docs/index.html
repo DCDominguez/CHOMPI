@@ -18,7 +18,11 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:'Fredoka',sys
 header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center;padding:48px 0 28px}
 @media (max-width:720px){header{grid-template-columns:1fr}header img{width:180px}}
 h1{font-size:clamp(3.4rem,10vw,6rem);margin:0;line-height:.95;letter-spacing:-.02em}
-.dots{display:flex;gap:8px;margin:10px 0 18px}.dots i{width:16px;height:16px;border-radius:50%;display:inline-block;border:1px solid #c9c7bf}
+.dots{display:flex;gap:8px;margin:10px 0 18px}.dots i,.dots a{width:16px;height:16px;border-radius:50%;display:inline-block;border:1px solid #c9c7bf}
+/* the stage's door (a secret): one dot breathes */
+.dots a{animation:breathe 7s ease-in-out infinite;transition:transform .2s}.dots a:hover,.dots a:focus-visible{transform:scale(1.25);box-shadow:0 0 12px 3px #ff5ea0;outline:none}
+@keyframes breathe{0%,70%,100%{box-shadow:0 0 0 0 transparent}85%{box-shadow:0 0 9px 2px rgba(255,94,160,.55)}}
+@media (prefers-reduced-motion:reduce){.dots a{animation:none}}
 .lede{font-size:1.35rem;line-height:1.35;margin:0 0 20px;max-width:34ch}
 .btns{display:flex;gap:10px;flex-wrap:wrap}
 a.btn{font-weight:700;font-size:1.05rem;text-decoration:none;border-radius:99px;padding:12px 22px;min-height:48px;display:inline-flex;align-items:center}
@@ -42,7 +46,7 @@ a{color:var(--accent)}
 <header>
 <div>
 <h1>forge</h1>
-<div class="dots" aria-hidden="true"><i style="background:#fff"></i><i style="background:#2fbf55"></i><i style="background:#f5c400"></i><i style="background:#ff8a2a"></i><i style="background:#ec3b3b"></i><i style="background:#ff5ea0"></i><i style="background:#9150f0"></i><i style="background:#2f7cf6"></i><i style="background:#19c9b6"></i></div>
+<div class="dots"><i aria-hidden="true" style="background:#fff"></i><i aria-hidden="true" style="background:#2fbf55"></i><i aria-hidden="true" style="background:#f5c400"></i><i aria-hidden="true" style="background:#ff8a2a"></i><i aria-hidden="true" style="background:#ec3b3b"></i><a href="workshop/stage.html" aria-label="?" style="background:#ff5ea0"></a><i aria-hidden="true" style="background:#9150f0"></i><i aria-hidden="true" style="background:#2f7cf6"></i><i aria-hidden="true" style="background:#19c9b6"></i></div>
 <p class="lede">a little workshop of custom firmware for CHOMPI. the first thing out of it is <b>Choowi</b>.</p>
 <div class="btns"><a class="btn go" href="https://github.com/myth-world/Forge/releases">Get Choowi</a><a class="btn go" href="workshop/">Make a sound</a><a class="btn ghost" href="forge/ILLUSTRATED_MANUAL.html">Read the manual</a></div>
 </div>

@@ -107,7 +107,8 @@ are in the code but hidden until they're worked on (the owner). **Dream:** while
 the stage switches to tide and plays Dream's keys (bits 0-24, C3 + bit) as notes; it goes back when Dream stops. Notes ripple from their key, chords tint
 it, the loop sweeps as a scanline; the knobs nudge it (CC 20-23: SW4 speed, SW1 density, SW2 spread, SW3
 colour); effect looks on its own buttons (cloud, tape echo, chorus, tremolo, broken), subtle with one note and
-growing with the voices held (full at five; the owner). Not linked anywhere,
-`noindex`; has a demo without CHOMPI. Prototype quality in 0.20; the next update wires it to the view (FX
+growing with the voices held (full at five; the owner). A second door on the site's home page: the
+pink dot of the nine colour dots under "forge" breathes a faint glow and links to `workshop/stage.html` (the owner:
+"non descript but kinda obvious when you see it"; `docs/index.html`). `noindex`; has a demo without CHOMPI. Prototype quality in 0.20; the next update wires it to the view (FX
 choices, the real loop, Dream switching to tide). Code: `docs/workshop/stage.html` / `stage.js`, the trigger in
 `display.js` (`data-secret="mic"` in panel-art.js, deliberately without a tooltip).
