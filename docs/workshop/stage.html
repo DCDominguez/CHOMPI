@@ -30,6 +30,14 @@
     .gate h1{margin:0;font-size:26px}.gate p{margin:0;color:var(--muted)}
     .gate input{font:inherit;font-size:18px;color:var(--ink);background:#14141b;border:1px solid var(--rule);border-radius:12px;padding:10px 14px;width:100%;text-align:center}
     .gate .no{color:#ffb4a8;min-height:1.3em}
+    .editor{position:fixed;top:56px;right:12px;bottom:12px;width:min(520px,calc(100vw - 24px));z-index:4;display:flex;flex-direction:column;gap:8px;
+      background:#101016f2;border:1px solid var(--rule);border-radius:16px;padding:10px}
+    .editor header,.editor .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+    .editor header b{margin-right:auto}
+    .editor select{font:inherit;font-size:14px;color:var(--ink);background:#14141b;border:1px solid var(--rule);border-radius:999px;padding:6px 10px}
+    .editor textarea{flex:1;min-height:120px;resize:none;font:13px/1.45 "Space Mono",Consolas,monospace;color:var(--ink);background:#08080c;
+      border:1px solid var(--rule);border-radius:10px;padding:10px;tab-size:2}
+    .editor pre{margin:0;min-height:2.6em;max-height:7em;overflow:auto;white-space:pre-wrap;font:12px/1.4 "Space Mono",Consolas,monospace;color:var(--muted)}
   </style>
 </head>
 <body>
@@ -43,18 +51,27 @@
   <b>stage</b>
   <button id="demo" aria-pressed="true">demo</button><button id="connect">connect CHOMPI</button>
   <span class="gap"></span>
-  <button data-pattern="keyfall" aria-pressed="true">keyfall</button><button data-pattern="tide">tide</button>
+  <button data-pattern="keyfall" aria-pressed="true">keyfall</button><button data-pattern="tide">tide</button><button data-pattern="script">script</button><button id="edit" aria-label="edit the script" title="edit the script">✎</button>
   <span class="gap"></span>
   <button data-look="clean" aria-pressed="true">clean</button><button data-look="cloud">cloud</button><button data-look="tape">tape echo</button>
   <button data-look="chorus">chorus</button><button data-look="tremolo">tremolo</button><button data-look="broken">broken</button>
   <button id="full">⤢</button><span id="status">demo playing</span>
 </div>
+<aside class="editor" id="editor" hidden aria-label="stage script">
+  <header><b>script</b><select id="example" aria-label="examples"><option value="">examples…</option></select>
+    <button id="run">run</button><button id="stop">stop</button><button id="close" aria-label="close">×</button></header>
+  <textarea id="code" spellcheck="false" aria-label="the script (Lua)"></textarea>
+  <div class="row"><button id="copy-prompt">copy the AI prompt</button><button id="copy-error" hidden>copy the error for the chatbot</button></div>
+  <pre id="log" role="status"></pre>
+</aside>
 <div class="knobs" id="knobs">
   <label>SW4 · speed<input type="range" min="0" max="127" value="50" data-knob="0"></label>
   <label>SW1 · density<input type="range" min="0" max="127" value="60" data-knob="1"></label>
   <label>SW2 · spread<input type="range" min="0" max="127" value="30" data-knob="2"></label>
   <label>SW3 · colour<input type="range" min="0" max="127" value="40" data-knob="3"></label>
 </div>
-<script src="forge-wire.js?v=0.20.0-5"></script><script src="full-screen.js?v=0.20.0-8"></script><script src="stage.js?v=14"></script>
+<script src="forge-wire.js?v=0.20.0-5"></script><script src="full-screen.js?v=0.20.0-8"></script>
+<script src="vendor/fengari-web.js?v=0.1.4"></script><script src="stage-lua.js?v=2"></script><script src="stage-scripts.js?v=1"></script>
+<script src="stage.js?v=16"></script>
 </body>
 </html>

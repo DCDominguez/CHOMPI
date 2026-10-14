@@ -22,6 +22,7 @@ const ripples = [];
 let W = 0, H = 0, dpr = 1, mask = null;
 function resize() {
   dpr = Math.min(2, window.devicePixelRatio || 1); W = cv.width = innerWidth * dpr; H = cv.height = innerHeight * dpr;
+  if (!W || !H) { mask = null; return; }                       // a hidden window (0 x 0): wait for a real size
   // The LED look: a mask of round holes over the scaled-up panel. It covers the whole screen (the owner: "it doesn't
   // take up the whole screen"); a screen of another shape loses a little at the edges.
   const cell = Math.max(W / GW, H / GH); mask = {cell, ox: (W - cell * GW) / 2, oy: (H - cell * GH) / 2};
@@ -99,6 +100,11 @@ const PATTERNS = {
     },
     note() {},
   },
+  script: {                                                    // a stage script (stage-lua.js): its screen, as dots
+    prepare(t, k, now) { if (window.StageScript) StageScript.frame(now); scriptWatch(); },
+    value(x, y) { return window.StageScript ? StageScript.value(x, y) : 0; },
+    note() {},
+  },
   tide: {                                                      // slow drifting bands of light, for Dream
     prepare() {},
     value(x, y, u, v, t, k) {
@@ -135,13 +141,14 @@ const CHORD_COLOUR = notes => {
 };
 function noteOn(note, velocity) {
   held.set(note, velocity);
+  if (pattern === "script") { if (window.StageScript) StageScript.call("note_on", note, velocity); return; }
   const low = [...held.keys()].filter(n => n < 60), c = CHORD_COLOUR(low);
   if (c && note < 60 && low.length >= 3) { tint = c; tintAmount = .55; }
   const x = -1 + 2 * Math.max(0, Math.min(1, (note - 48) / 24));            // C3 at the left edge, C5 at the right
   ripples.push({x: x * 2, y: note < 60 ? .55 : -.35, born: performance.now(), amp: .12 + velocity / 500});
   PATTERNS[pattern].note(note, velocity);
 }
-function noteOff(note) { held.delete(note); }
+function noteOff(note) { held.delete(note); if (pattern === "script" && window.StageScript) StageScript.call("note_off", note); }
 
 // ---- one frame -----------------------------------------------------------------------------------------------
 const rgb = [0, 0, 0];
@@ -166,13 +173,14 @@ function frame(now) {
     for (let x = 0; x < GW; x++) {
       const u = (((x + shift) % GW) / (GW - 1)) * 2 - 1;
       let val = P.value(x, y, u, v, t, k);
-      for (const r of ripples) {                                 // each note: a ring spreading from its key
+      if (pattern !== "script") for (const r of ripples) {                                 // each note: a ring spreading from its key
         const age = (now - r.born) / 1000, dist = Math.hypot(u * 2 - r.x, v - r.y), front = age * 1.6;
         val += r.amp * Math.exp(-Math.pow((dist - front) * 6, 2)) * (1 - age / 2.6);
       }
-      if (Math.abs(u - (scan * 2 - 1)) < .012) val = Math.max(val, .95);   // the loop's scanline
+      if (pattern !== "script" && Math.abs(u - (scan * 2 - 1)) < .012) val = Math.max(val, .95);   // the loop's scanline
       val = Math.max(0, Math.min(1, val)) * pulse;
-      palette(val, k.colour, rgb);
+      if (pattern === "script") { const c = C[StageScript.colour()] || C.white; for (let n = 0; n < 3; n++) rgb[n] = c[n] * val; }
+      else palette(val, k.colour, rgb);
       const i = y * GW + x, j = i * 3;
       for (let c = 0; c < 3; c++) { const out = Math.max(rgb[c], prev[j + c] * persist); prev[j + c] = out; d[i * 4 + c] = dead[i] && look === "broken" ? 0 : out; }
       d[i * 4 + 3] = 255;
@@ -180,6 +188,7 @@ function frame(now) {
   }
   gx.putImageData(img, 0, 0);
   // Draw the panel scaled up (crisp), then the LED holes over it.
+  if (!mask) return;
   const {cell, ox, oy} = mask;
   cx.fillStyle = "#050507"; cx.fillRect(0, 0, W, H); cx.imageSmoothingEnabled = false;
   if (look === "tape") {                                         // tape echo: older frames, lagging and wobbling
@@ -204,7 +213,13 @@ requestAnimationFrame(frame);
 
 // ---- knobs: sliders in the demo, CHOMPI's knobs when connected ----------------------------------------------------
 const sliders = [...document.querySelectorAll("[data-knob]")];
-sliders.forEach(s => s.addEventListener("input", () => { knobs[Number(s.dataset.knob)] = s.value / 127; }));
+const ENC = [4, 1, 2, 3];                                     // slider / CC 20-23 = SW4 SW1 SW2 SW3 -> enc 4 1 2 3
+const lastKnob = [null, null, null, null];
+function turnKnob(i, value) {                                  // a script hears steps: the difference from the last value
+  const d = lastKnob[i] === null ? 0 : value - lastKnob[i]; lastKnob[i] = value;
+  if (d && pattern === "script" && window.StageScript) StageScript.call("enc", ENC[i], d);
+}
+sliders.forEach(s => s.addEventListener("input", () => { knobs[Number(s.dataset.knob)] = s.value / 127; turnKnob(Number(s.dataset.knob), Number(s.value)); }));
 function setKnob(i, value) { knobs[i] = value / 127; sliders[i].value = value; }
 
 // ---- demo: I - vi - IV - V in C at 90 BPM, a melody on top, the knobs drifting -----------------------------------
@@ -231,12 +246,14 @@ connectButton.addEventListener("click", async () => {
     demoOn = false; clearTimeout(demoTimer); [...held.keys()].forEach(noteOff);
     document.getElementById("demo").setAttribute("aria-pressed", "false");
     const output = [...access.outputs.values()].find(o => /chompi/i.test(o.name));
+    midiOut = output || null;
     chompi.onmidimessage = e => {
       const data = Array.from(e.data);
       if (data[0] === 0xF0) { viewReply(data); return; }
       const [s, a, b] = data, kind = s & 0xf0;
       if (kind === 0x90 && b > 0) noteOn(a, b); else if (kind === 0x80 || (kind === 0x90 && b === 0)) noteOff(a);
-      else if (kind === 0xb0 && a >= 20 && a <= 23) setKnob(a - 20, b);
+      else if (kind === 0xb0 && a >= 20 && a <= 23) { setKnob(a - 20, b); turnKnob(a - 20, b); }
+      else if (kind === 0xb0 && (a === 26 || a === 27) && pattern === "script" && window.StageScript) StageScript.call("key", a === 26 ? 1 : 2, b > 0 ? 1 : 0);
     };
     if (output && window.ForgeWire) watchDream(output);
     statusEl.textContent = `listening to ${chompi.name}: play, and turn SW4 SW1 SW2 SW3`;
@@ -269,7 +286,9 @@ function choosePattern(name) {
 function viewReply(data) {
   let view; try { view = ForgeWire.decodeReply(data.slice(1, -1), lastSent); } catch { return; }
   if (!view || !view.words) return;
+  const tempoNow = view.words.parts_clock >>> 8 & 511; if (tempoNow >= 30 && tempoNow <= 300) bpm = tempoNow;   // scripts follow CHOMPI's tempo
   const dream = view.words.dream, on = !!(dream >>> 26 & 1);
+  if (pattern === "script") { dreaming = on; return; }
   if (on && !dreaming) { patternBeforeDream = pattern; choosePattern("tide"); statusEl.textContent = "Dream is playing"; }
   if (!on && dreaming) { choosePattern(patternBeforeDream || "keyfall"); statusEl.textContent = "listening to CHOMPI"; }
   dreaming = on;
@@ -280,6 +299,43 @@ function viewReply(data) {
   }
   dreamKeys = keys;
 }
+
+// ---- stage scripts (stage-lua.js, stage-scripts.js): the editor -------------------------------------------------
+let midiOut = null, shownError = "";
+const $ = id => document.getElementById(id);
+const editor = $("editor"), code = $("code"), log = $("log"), copyError = $("copy-error");
+function scriptLog(line) { log.textContent = (log.textContent + "\n" + line).split("\n").slice(-6).join("\n").trim(); }
+if (window.StageScript) StageScript.connect({send: data => { if (midiOut) midiOut.send(data); }, held: () => [...held.keys()], tempo: () => bpm, log: scriptLog});
+for (const name of Object.keys(window.STAGE_EXAMPLES || {})) $("example").add(new Option(name, name));
+let saved = ""; try { saved = localStorage.getItem("forge.stage.script") || ""; } catch { /* storage blocked */ }
+code.value = saved || (window.STAGE_EXAMPLES || {})["rain garden"] || "";
+function runScript() {
+  if (!window.StageScript) { scriptLog("the script runtime didn't load"); return; }
+  code.value = StageScript.extract(code.value);
+  try { localStorage.setItem("forge.stage.script", code.value); } catch { /* fine */ }
+  log.textContent = ""; shownError = ""; copyError.hidden = true;
+  choosePattern("script"); [...held.keys()].forEach(n => held.delete(n));
+  const result = StageScript.load(code.value);
+  scriptLog(result.ok ? (midiOut ? "running: it can play CHOMPI" : "running (connect CHOMPI to play it and hear it play)") : "stopped: " + result.error);
+}
+function scriptWatch() {                                       // a script that fails while running: say so once
+  const e = window.StageScript ? StageScript.error() : "";
+  if (e && e !== shownError) { shownError = e; copyError.hidden = false; editor.hidden = false; }
+}
+$("edit").addEventListener("click", () => { editor.hidden = !editor.hidden; });
+$("close").addEventListener("click", () => { editor.hidden = true; });
+$("run").addEventListener("click", runScript);
+$("stop").addEventListener("click", () => { if (window.StageScript) StageScript.stop(); scriptLog("stopped"); });
+$("example").addEventListener("change", e => { if (e.target.value) { code.value = STAGE_EXAMPLES[e.target.value]; e.target.value = ""; } });
+$("copy-prompt").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(window.STAGE_PROMPT); scriptLog("the AI prompt is copied: paste it into a chatbot, describe your idea where it says so, then paste the reply here and run"); }
+  catch { scriptLog("couldn't copy (the browser said no)"); }
+});
+copyError.addEventListener("click", async () => {
+  const text = `My Choowi stage script stopped with this error:\n${shownError}\nPlease fix it and send the whole script again in one lua code block.\n\n\`\`\`lua\n${code.value}\n\`\`\``;
+  try { await navigator.clipboard.writeText(text); scriptLog("copied: paste it to the chatbot"); } catch { scriptLog("couldn't copy (the browser said no)"); }
+});
+document.querySelector('[data-pattern="script"]').addEventListener("click", () => { if (!window.StageScript || !StageScript.running()) runScript(); });
 
 // Opened from Choowivision (?live=1): connect straight away (MIDI was already allowed there; the button stays as a fallback).
 // The word (the owner's): only its salted hash is here. A browser that knew it once remembers. This is a

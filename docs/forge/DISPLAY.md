@@ -112,3 +112,7 @@ pink dot of the nine colour dots under "forge" breathes a faint glow and links t
 "non descript but kinda obvious when you see it"; `docs/index.html`). `noindex`; has a demo without CHOMPI. Prototype quality in 0.20; the next update wires it to the view (FX
 choices, the real loop, Dream switching to tide). Code: `docs/workshop/stage.html` / `stage.js`, the trigger in
 `display.js` (`data-secret="mic"` in panel-art.js, deliberately without a tooltip).
+
+**Stage scripts** (2026-10-14): the stage runs norns-style Lua scripts that anyone can get from a chatbot (the
+editor's "copy the AI prompt"); they draw on the dots, hear CHOMPI and can play it. Developer note:
+[STAGE_SCRIPTS.md](STAGE_SCRIPTS.md).
