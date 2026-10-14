@@ -2,17 +2,14 @@
 
 Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)); the heading names it.
 
-## Next (unreleased): Choowi on a launcher card
-
-- **Launcher cards** (the community multi-firmware launcher / the CHOMPI setup page; a card with a `FIRMWARE`
-  folder): Choowi keeps its samples, `presets.json` and `options.json` in the card's `FORGE` folder and leaves
-  the top folder to the launcher. A Choowi card is unchanged (top folder, as always). Presets and saved loops
-  were already in `FORGE`. The firmware it installs and its workshop files always stay at the top.
-- **The forge page:** an "on a launcher card" section with a download of Choowi's sounds (the newest
-  release's `choowi-samples.zip`); Choowi plays without them too.
-
 ## 0.20.0 The FX section, overdub undo, the phone display (tool: Choowivision) — release candidate 3, for community testing (published 2026-10-13: choowi-0.20.0-rc3)
 
+- **Launcher cards (after rc3, for rc4)** (the community multi-firmware launcher / the CHOMPI setup page; a card with a `FIRMWARE`
+  folder and no `FORGE.bin` in the top folder, so a leftover `FIRMWARE` folder never moves a Choowi card's files): Choowi keeps its samples, `presets.json` and `options.json` in the card's `FORGE` folder and leaves
+  the top folder to the launcher. A Choowi card is unchanged (top folder, as always). Presets and saved loops
+  were already in `FORGE`. The firmware it installs and its workshop files always stay at the top.
+- **The forge page (after rc3):** an "on a launcher card" section with a download of Choowi's sounds (the newest
+  release's `choowi-samples.zip`); Choowi plays without them too.
 - **The FX section:** four modules (Space, Colour, Texture, Motion), three effects each, in a route; the
   FX menu page; patch v8. See [FX.md](FX.md).
 - **Overdub undo:** tap PLAY + LOOP together to take the last overdub back (one level, loops up to ~41 s).

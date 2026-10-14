@@ -795,7 +795,7 @@ Warm Pad, Acid Bass, Bell Keys, Knob Pad (synths); Recorded Keys, TAPE Kit A
 | `FORGE/presets_backup.json` | The card's `presets.json` as it was before Forge first wrote it |
 
 **On a launcher card** (the community multi-firmware launcher, or the CHOMPI setup page; the card has a
-`FIRMWARE` folder): Choowi keeps the samples, `presets.json` and `options.json` in the card's **`FORGE`**
+`FIRMWARE` folder and no `FORGE.bin` in the top folder): Choowi keeps the samples, `presets.json` and `options.json` in the card's **`FORGE`**
 folder instead of the top folder, so the top folder stays the launcher's. Your presets and saved loops are
 in `FORGE` either way, so they come along. For Choowi's sounds there, download `choowi-samples.zip` from the
 forge page and copy its `.wav` files into `FORGE`; Choowi plays without them too. Don't use the card zip on a

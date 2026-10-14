@@ -954,10 +954,14 @@ FORGE_COLD void MountCard() {
     InspectorEvent(forge::InspectorEventKind::Card, 1, System::GetNow() - started);   // mount time, ms
     InspectorEvent(forge::InspectorEventKind::Card, 2, static_cast<uint32_t>(result)); // FatFs result (0 = ok)
 #endif
-    // 0.20.1: a card set up for the community multi-firmware launcher (it has a /FIRMWARE folder) keeps Choowi's
-    // files in /FORGE, so the top folder stays the launcher's; a Choowi card keeps them at the top, as always.
+    // 0.20.1: a card set up for the community multi-firmware launcher keeps Choowi's files in /FORGE, so the top
+    // folder stays the launcher's. A launcher card has a /FIRMWARE folder and no FORGE.bin at the top; Choowi
+    // installed on its own always has its FORGE.bin there (the bootloader installs it from it), so a leftover
+    // /FIRMWARE folder never moves a Choowi card's files.
     FILINFO launcher;
-    if(mounted && f_stat("/FIRMWARE", &launcher) == FR_OK && (launcher.fattrib & AM_DIR)) { f_mkdir("/FORGE"); f_chdir("/FORGE"); }
+    if(mounted && f_stat("/FIRMWARE", &launcher) == FR_OK && (launcher.fattrib & AM_DIR) && f_stat("/FORGE.bin", &launcher) != FR_OK) {
+        f_mkdir("/FORGE"); f_chdir("/FORGE");
+    }
     install_card.SetMounted(mounted);
     card.SetMounted(mounted && !safe_mode);
 #ifdef FORGE_TEST_HOOKS
