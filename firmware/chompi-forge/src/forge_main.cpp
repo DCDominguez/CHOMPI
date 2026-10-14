@@ -152,11 +152,11 @@ FORGE_COLD void LogRestart() {
     if(safe_mode && n < sizeof(line))
         n += forge::restart::DescribeEvent(boot_count.boots, "SAFE MODE after repeated start-up crashes: card settings, presets and samples skipped",
                                            line + n, sizeof(line) - n);
-    f_mkdir("/FORGE");
+    f_mkdir("FORGE");
     static FIL file;   // static: a FIL holds a DMA sector buffer and the stack is DTCM (out of the SD DMA's reach)
     FILINFO info;
-    const bool big = f_stat("/FORGE/RESTARTS.TXT", &info) == FR_OK && info.fsize > 16384;
-    if(f_open(&file, "/FORGE/RESTARTS.TXT", big ? (FA_WRITE | FA_CREATE_ALWAYS) : (FA_WRITE | FA_OPEN_APPEND)) != FR_OK) return;
+    const bool big = f_stat("FORGE/RESTARTS.TXT", &info) == FR_OK && info.fsize > 16384;
+    if(f_open(&file, "FORGE/RESTARTS.TXT", big ? (FA_WRITE | FA_CREATE_ALWAYS) : (FA_WRITE | FA_OPEN_APPEND)) != FR_OK) return;
     UINT written = 0;
     f_write(&file, line, n, &written);
     f_close(&file);
@@ -182,7 +182,7 @@ FORGE_COLD void LogLockout(forge::power::Lockout lockout) {
     char line[160];
     const unsigned n = forge::restart::DescribeEvent(boot_count.boots, forge::power::LockoutText(lockout), line, sizeof(line));
     static FIL file;   // static: a FIL holds a DMA sector buffer and the stack is DTCM (out of the SD DMA's reach)
-    if(f_open(&file, "/FORGE/RESTARTS.TXT", FA_WRITE | FA_OPEN_APPEND) != FR_OK) return;
+    if(f_open(&file, "FORGE/RESTARTS.TXT", FA_WRITE | FA_OPEN_APPEND) != FR_OK) return;
     UINT written = 0;
     f_write(&file, line, n, &written);
     f_close(&file);
@@ -198,7 +198,7 @@ uint32_t last_changed_at = 0;
 FORGE_COLD void ReadLastPreset() {
     if(!card.Ready()) return;
     static FIL file;   // static: DMA-reachable (see LogRestart)
-    if(f_open(&file, "/FORGE/LAST.TXT", FA_READ) != FR_OK) return;
+    if(f_open(&file, "FORGE/LAST.TXT", FA_READ) != FR_OK) return;
     char text[8] = {}; UINT got = 0;
     f_read(&file, text, sizeof(text) - 1, &got);
     f_close(&file);
@@ -213,9 +213,9 @@ FORGE_COLD void WatchLastPreset() {
     if(last_slot == forge::panel::kNoSlot) return;
     if(last_bank != seen_bank || last_slot != seen_slot) { seen_bank = last_bank; seen_slot = last_slot; last_changed_at = System::GetNow(); }
     if((last_bank == remembered_bank && last_slot == remembered_slot) || System::GetNow() - last_changed_at < 2000 || !card.Ready()) return;
-    f_mkdir("/FORGE");
+    f_mkdir("FORGE");
     static FIL file;
-    if(f_open(&file, "/FORGE/LAST.TXT", FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) { remembered_bank = last_bank; remembered_slot = last_slot; return; }
+    if(f_open(&file, "FORGE/LAST.TXT", FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) { remembered_bank = last_bank; remembered_slot = last_slot; return; }
     char text[6] = {static_cast<char>('0' + last_bank), ' ', 0, 0, '\n', 0}; unsigned n = 2;
     if(last_slot >= 10) text[n++] = static_cast<char>('0' + last_slot / 10);
     text[n++] = static_cast<char>('0' + last_slot % 10); text[n++] = '\n';
@@ -494,9 +494,9 @@ FORGE_COLD bool CopyFile(const char* from, const char* to) {
 }
 FORGE_COLD bool WritePresetsFile() {
     FILINFO info;
-    if(f_stat("/FORGE/presets_backup.json", &info) != FR_OK && f_stat("presets.json", &info) == FR_OK) {
-        f_mkdir("/FORGE");
-        if(!CopyFile("presets.json", "/FORGE/presets_backup.json")) return false;   // never write without the backup
+    if(f_stat("FORGE/presets_backup.json", &info) != FR_OK && f_stat("presets.json", &info) == FR_OK) {
+        f_mkdir("FORGE");
+        if(!CopyFile("presets.json", "FORGE/presets_backup.json")) return false;   // never write without the backup
     }
     const size_t n = slot_settings.Write(presets_text, sizeof(presets_text));
     if(!n) return false;
@@ -954,14 +954,6 @@ FORGE_COLD void MountCard() {
     InspectorEvent(forge::InspectorEventKind::Card, 1, System::GetNow() - started);   // mount time, ms
     InspectorEvent(forge::InspectorEventKind::Card, 2, static_cast<uint32_t>(result)); // FatFs result (0 = ok)
 #endif
-    // 0.20.1: a card set up for the community multi-firmware launcher keeps Choowi's files in /FORGE, so the top
-    // folder stays the launcher's. A launcher card has a /FIRMWARE folder and no FORGE.bin at the top; Choowi
-    // installed on its own always has its FORGE.bin there (the bootloader installs it from it), so a leftover
-    // /FIRMWARE folder never moves a Choowi card's files.
-    FILINFO launcher;
-    if(mounted && f_stat("/FIRMWARE", &launcher) == FR_OK && (launcher.fattrib & AM_DIR) && f_stat("/FORGE.bin", &launcher) != FR_OK) {
-        f_mkdir("/FORGE"); f_chdir("/FORGE");
-    }
     install_card.SetMounted(mounted);
     card.SetMounted(mounted && !safe_mode);
 #ifdef FORGE_TEST_HOOKS
