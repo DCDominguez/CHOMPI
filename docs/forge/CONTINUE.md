@@ -48,6 +48,9 @@ Updated 2026-10-13: 0.20.0 release candidate 3 prepared (newest section). 2026-1
   FX section). Open: input level / noise gate, latency vs stability (hold a chord a beat before switching),
   how it's switched on (a secret first, like split?), key detection or the harmony page's key, overlap with
   SING (ugrossek's voice-led firmware). Needs CPU measurement with all FX before committing to it.
+- **rc4: the step sequencer** (the owner, 2026-10-14: a 4-track sequencer, the drum track inside CHOMPI, core
+  first; inspired by BaudGirl's FM-1+VA firmware). Design in [SEQUENCER.md](SEQUENCER.md); not built yet.
+  Layout and open questions there for the owner. Setup-page PR: ugrossek/CHOMPI-firmwares#8 (rc3).
 - **Choowi on the setup page** (the owner, 2026-10-14): no USB sample writer; the home page's "on a launcher
   card" section links `releases/latest/download/choowi-samples.zip` (copy to the top folder). **Parked (the
   owner: "a problem for another time"): keeping Choowi's files in `/FORGE` on a launcher card.** Built and
