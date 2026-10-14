@@ -6,13 +6,17 @@
 // so a runaway loop stops with an error instead of freezing the page. The stage (stage.js) owns the input and the
 // MIDI port and draws the screen as glowing dots.
 (function () {
-  const {lua, lauxlib, lualib, to_luastring} = window.fengari;
+  let lua, lauxlib, lualib, to_luastring;                     // Fengari, picked up when the first script runs
+  function engine() { if (!lua && window.fengari) ({lua, lauxlib, lualib, to_luastring} = window.fengari); return !!lua; }
   const SW = 128, SH = 64, BUDGET = 400;                      // budget: x 1,000 Lua instructions per call
   const screenCanvas = document.createElement("canvas"); screenCanvas.width = SW; screenCanvas.height = SH;
   const sx = screenCanvas.getContext("2d", {willReadFrequently: true});
   const shown = new Float32Array(SW * SH);                    // the last screen.update(), 0..1 per pixel
   let L = null, running = false, error = "", steps = 0, lastRedraw = 0, cur = [0, 0], fontSize = 8;
-  let send = () => {}, held = () => [], tempo = () => 120, colour = "white", logLine = () => {};
+  let send = () => {}, held = () => [], tempo = () => 120, logLine = () => {};
+  // The look (the owner: "too bland, dim in parts"): a colour ramp, phosphor afterglow, ripples on notes, a shimmer.
+  const LOOK = {palette: "neon", afterglow: .82, ripples: true, ambient: .5};
+  let look = {...LOOK};
   let beat = 0, lastTick = 0, tickTimer = 0, sentAt = [], sounding = new Map();
 
   const PRELUDE = `
@@ -67,6 +71,10 @@ chompi = {}
 function chompi.key_x(note) return 2 + (util.clamp(note, 48, 72) - 48) / 24 * 123 end
 function chompi.held() return _host.held() end
 function chompi.colour(name) _host.colour(name) end
+function chompi.palette(name) _host.palette(name) end
+function chompi.afterglow(a) _host.afterglow(a) end
+function chompi.ripples(on) _host.ripples(on ~= false) end
+function chompi.ambient(a) _host.ambient(a) end
 screen = _host.screen
 print = _host.print
 dofile, loadfile, load, require, collectgarbage = nil, nil, nil, nil, nil
@@ -128,7 +136,11 @@ dofile, loadfile, load, require, collectgarbage = nil, nil, nil, nil, nil
     cc: fn(Ls => { const c = Math.round(arg(Ls, 1, 0)), v = Math.round(arg(Ls, 2, 0)); if (c >= 0 && c < 120 && allowed()) send([0xB0, c, Math.max(0, Math.min(127, v))]); }),
     tempo: Ls => { lua.lua_pushnumber(Ls, tempo()); return 1; },
     held: Ls => { const h = held(); lua.lua_createtable(Ls, h.length, 0); h.forEach((n, i) => { lua.lua_pushinteger(Ls, n); lua.lua_rawseti(Ls, -2, i + 1); }); return 1; },
-    colour: fn(Ls => { colour = lua.lua_tojsstring(Ls, 1) || "white"; }),
+    colour: fn(Ls => { look.palette = "mono:" + (lua.lua_tojsstring(Ls, 1) || "white"); }),
+    palette: fn(Ls => { look.palette = lua.lua_tojsstring(Ls, 1) || "neon"; }),
+    afterglow: fn(Ls => { look.afterglow = Math.max(0, Math.min(.97, arg(Ls, 1, .82))); }),
+    ripples: fn(Ls => { look.ripples = lua.lua_toboolean(Ls, 1); }),
+    ambient: fn(Ls => { look.ambient = Math.max(0, Math.min(1, arg(Ls, 1, .5))); }),
     print: Ls => {
       const parts = []; for (let i = 1; i <= lua.lua_gettop(Ls); i++) { parts.push(new TextDecoder().decode(lauxlib.luaL_tolstring(Ls, i))); lua.lua_pop(Ls, 1); }
       logLine(parts.join(" ")); return 0;
@@ -157,7 +169,8 @@ dofile, loadfile, load, require, collectgarbage = nil, nil, nil, nil, nil
     sounding.clear();
   }
   function load(source) {
-    stop(); error = ""; colour = "white"; beat = 0; lastTick = 0; fontSize = 8;
+    if (!engine()) return {ok: false, error: (error = "the Lua engine is still loading: try run again in a moment")};
+    stop(); error = ""; look = {...LOOK}; beat = 0; lastTick = 0; fontSize = 8;
     L = lauxlib.luaL_newstate();
     for (const [name, open] of [["_G", lualib.luaopen_base], ["coroutine", lualib.luaopen_coroutine], ["table", lualib.luaopen_table],
                                 ["string", lualib.luaopen_string], ["math", lualib.luaopen_math], ["utf8", lualib.luaopen_utf8]]) {
@@ -188,7 +201,7 @@ dofile, loadfile, load, require, collectgarbage = nil, nil, nil, nil, nil
     load, stop, frame, call, extract,
     running: () => running, error: () => error,
     value: (x, y) => shown[y * SW + x],
-    colour: () => colour,
+    look: () => look, beat: () => beat,
     connect(options) { ({send, held, tempo, log: logLine} = {...{send, held, tempo, log: logLine}, ...options}); },
   };
 })();

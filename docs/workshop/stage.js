@@ -37,6 +37,16 @@ addEventListener("resize", resize); resize();
 // The knobs nudge, the music leads (the owner: "we can use the knobs somewhat"): SW4 a little speed, SW1 density,
 // SW2 spread, SW3 colour.
 const field = new Float32Array(GW * GH);                       // particle patterns draw into this
+const afterglow = new Float32Array(GW * GH);                   // stage scripts: the phosphor trail
+// Script palettes: brightness walks dark colour -> colour -> white-hot (CHOMPI's nine colours).
+const RAMPS = {neon: ["purple", "pink", "white"], ember: ["purple", "red", "orange", "yellow", "white"], ocean: ["blue", "teal", "white"],
+  forest: ["teal", "green", "yellow", "white"], sun: ["red", "orange", "yellow", "white"], aurora: ["blue", "purple", "teal", "green", "white"]};
+function ramp(value, name, out) {
+  const stops = name.startsWith("mono:") ? [name.slice(5), name.slice(5), "white"] : RAMPS[name] || RAMPS.neon;
+  const v = Math.max(0, Math.min(1, value)), pos = v * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(pos)), f = pos - i;
+  const a = C[stops[i]] || C.white, b = C[stops[i + 1]] || C.white, light = Math.pow(v, 1.25);   // faint stays faint, bright pops
+  for (let c = 0; c < 3; c++) out[c] = (a[c] + (b[c] - a[c]) * f) * light;
+}
 const embers = [];
 function splat(x, y, r, amount) {                              // a soft dot into the field (grid coordinates)
   const x0 = Math.max(0, Math.floor(x - r * 2)), x1 = Math.min(GW - 1, Math.ceil(x + r * 2));
@@ -102,7 +112,14 @@ const PATTERNS = {
   },
   script: {                                                    // a stage script (stage-lua.js): its screen, as dots
     prepare(t, k, now) { if (window.StageScript) StageScript.frame(now); scriptWatch(); },
-    value(x, y) { return window.StageScript ? StageScript.value(x, y) : 0; },
+    value(x, y, u, v, t) {                                     // lifted mids, phosphor afterglow, a faint shimmer
+      if (!window.StageScript) return 0;
+      const L = StageScript.look(), i = y * GW + x;
+      const raw = Math.pow(StageScript.value(x, y), .55);
+      afterglow[i] = Math.max(raw, afterglow[i] * L.afterglow);
+      const shimmer = L.ambient * .16 * (.5 + .5 * Math.sin(u * 3.1 + t * .7 + Math.sin(v * 4 + t * .5) * 2));
+      return afterglow[i] + shimmer;
+    },
     note() {},
   },
   tide: {                                                      // slow drifting bands of light, for Dream
@@ -141,18 +158,25 @@ const CHORD_COLOUR = notes => {
 };
 function noteOn(note, velocity) {
   held.set(note, velocity);
-  if (pattern === "script") { if (window.StageScript) StageScript.call("note_on", note, velocity); return; }
+  if (pattern === "script") {
+    if (window.StageScript) StageScript.call("note_on", note, velocity);
+    noteFlash = performance.now();
+    if (!window.StageScript || StageScript.look().ripples) ripples.push({x: (-1 + 2 * Math.max(0, Math.min(1, (note - 48) / 24))) * 2, y: .6, born: performance.now(), amp: .035 + velocity / 3000});
+    if (ripples.length > 16) ripples.splice(0, ripples.length - 16);
+    return;
+  }
   const low = [...held.keys()].filter(n => n < 60), c = CHORD_COLOUR(low);
   if (c && note < 60 && low.length >= 3) { tint = c; tintAmount = .55; }
   const x = -1 + 2 * Math.max(0, Math.min(1, (note - 48) / 24));            // C3 at the left edge, C5 at the right
   ripples.push({x: x * 2, y: note < 60 ? .55 : -.35, born: performance.now(), amp: .12 + velocity / 500});
+  if (ripples.length > 16) ripples.splice(0, ripples.length - 16);
   PATTERNS[pattern].note(note, velocity);
 }
 function noteOff(note) { held.delete(note); if (pattern === "script" && window.StageScript) StageScript.call("note_off", note); }
 
 // ---- one frame -----------------------------------------------------------------------------------------------
 const rgb = [0, 0, 0];
-let frozenUntil = 0, glitchRow = -1, fxAmount = .25;
+let frozenUntil = 0, glitchRow = -1, fxAmount = .25, scriptPulse = 1, noteFlash = 0;
 // How strong the effect look is: a quarter alone, growing with the voices held, full at five (smoothed).
 function expression() { const target = Math.min(1, .25 + .15 * held.size); fxAmount += (target - fxAmount) * (target > fxAmount ? .2 : .03); return fxAmount; }
 function frame(now) {
@@ -166,6 +190,10 @@ function frame(now) {
   tintAmount *= .995;
   for (let i = ripples.length - 1; i >= 0; i--) if (now - ripples[i].born > 2600) ripples.splice(i, 1);
   const P = PATTERNS[pattern]; P.prepare(t, k, now, beat);
+  if (pattern === "script" && window.StageScript) {             // scripts breathe: a pulse on CHOMPI's beat, a flash on notes
+    const b = StageScript.beat(), onBeat = Math.pow(1 - (b - Math.floor(b)), 4);
+    scriptPulse = 1 + .18 * onBeat + .25 * Math.max(0, 1 - (now - noteFlash) / 180);
+  }
   const d = img.data, persist = look === "cloud" ? .55 + .37 * ex : 0, pulse = look === "tremolo" ? 1 - .65 * ex * (1 - beat) : 1;
   if (look === "broken" && Math.random() < .02 * ex) { dead.fill(0); for (let i = 0; i < 90 * ex; i++) dead[Math.floor(Math.random() * dead.length)] = 1; glitchRow = Math.floor(Math.random() * GH); }
   for (let y = 0; y < GH; y++) {
@@ -173,13 +201,13 @@ function frame(now) {
     for (let x = 0; x < GW; x++) {
       const u = (((x + shift) % GW) / (GW - 1)) * 2 - 1;
       let val = P.value(x, y, u, v, t, k);
-      if (pattern !== "script") for (const r of ripples) {                                 // each note: a ring spreading from its key
+      for (const r of ripples) {                                 // each note: a ring spreading from its key
         const age = (now - r.born) / 1000, dist = Math.hypot(u * 2 - r.x, v - r.y), front = age * 1.6;
         val += r.amp * Math.exp(-Math.pow((dist - front) * 6, 2)) * (1 - age / 2.6);
       }
       if (pattern !== "script" && Math.abs(u - (scan * 2 - 1)) < .012) val = Math.max(val, .95);   // the loop's scanline
       val = Math.max(0, Math.min(1, val)) * pulse;
-      if (pattern === "script") { const c = C[StageScript.colour()] || C.white; for (let n = 0; n < 3; n++) rgb[n] = c[n] * val; }
+      if (pattern === "script") ramp(val * scriptPulse, StageScript.look().palette, rgb);
       else palette(val, k.colour, rgb);
       const i = y * GW + x, j = i * 3;
       for (let c = 0; c < 3; c++) { const out = Math.max(rgb[c], prev[j + c] * persist); prev[j + c] = out; d[i * 4 + c] = dead[i] && look === "broken" ? 0 : out; }
@@ -206,7 +234,7 @@ function frame(now) {
   cx.globalCompositeOperation = "source-over";
   cx.save(); cx.translate(ox, oy); cx.fillStyle = mask.pattern; cx.fillRect(0, 0, cell * GW, cell * GH); cx.restore();
   // A soft bloom so the dots glow.
-  cx.globalCompositeOperation = "lighter"; cx.globalAlpha = .35; cx.filter = `blur(${cell * .9}px)`;
+  cx.globalCompositeOperation = "lighter"; cx.globalAlpha = pattern === "script" ? Math.min(.85, .5 * scriptPulse) : .35; cx.filter = `blur(${cell * .9}px)`;
   cx.drawImage(grid, ox, oy, cell * GW, cell * GH); cx.filter = "none"; cx.globalAlpha = 1; cx.globalCompositeOperation = "source-over";
 }
 requestAnimationFrame(frame);
@@ -309,12 +337,20 @@ if (window.StageScript) StageScript.connect({send: data => { if (midiOut) midiOu
 for (const name of Object.keys(window.STAGE_EXAMPLES || {})) $("example").add(new Option(name, name));
 let saved = ""; try { saved = localStorage.getItem("forge.stage.script") || ""; } catch { /* storage blocked */ }
 code.value = saved || (window.STAGE_EXAMPLES || {})["rain garden"] || "";
+let engineWaits = 0;
 function runScript() {
   if (!window.StageScript) { scriptLog("the script runtime didn't load"); return; }
+  if (!window.fengari) {                                       // the Lua engine (220 KB) still loading: wait, up to 15 s
+    if (engineWaits++ < 60) { if (engineWaits === 1) scriptLog("loading the Lua engine..."); setTimeout(runScript, 250); }
+    else scriptLog("the Lua engine didn't load: reload the page");
+    return;
+  }
+  engineWaits = 0;
   code.value = StageScript.extract(code.value);
   try { localStorage.setItem("forge.stage.script", code.value); } catch { /* fine */ }
   log.textContent = ""; shownError = ""; copyError.hidden = true;
   choosePattern("script"); [...held.keys()].forEach(n => held.delete(n));
+  afterglow.fill(0);
   const result = StageScript.load(code.value);
   scriptLog(result.ok ? (midiOut ? "running: it can play CHOMPI" : "running (connect CHOMPI to play it and hear it play)") : "stopped: " + result.error);
 }
@@ -347,6 +383,8 @@ async function hash(word) {
 }
 function openStage() {
   document.getElementById("gate").hidden = true;
+  const example = new URLSearchParams(location.search).get("script");   // ?script=fireworks opens an example, running
+  if (example && window.STAGE_EXAMPLES && STAGE_EXAMPLES[example]) { code.value = STAGE_EXAMPLES[example]; runScript(); }
   if (new URLSearchParams(location.search).has("live")) connectButton.click();
 }
 let known = false; try { known = localStorage.getItem("forge.stage") === WORD; } catch { /* storage blocked */ }

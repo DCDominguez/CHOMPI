@@ -39,6 +39,18 @@ in the browser.
 Not there: `os`, `io`, `load`, `require`, `debug`, `package`, Fengari's JavaScript bridge, softcut, engines (CHOMPI is
 the engine), grid / arc.
 
+## The look (2026-10-14; the owner: "too bland visually, dim in parts, not dynamic or striking")
+
+A script's levels are lifted (mid levels no longer sink into black), then drawn through a **colour ramp** (dark colour
+-> colour -> white-hot: `chompi.palette("neon" | "ember" | "ocean" | "forest" | "sun" | "aurora")`, or
+`chompi.colour(name)` for one colour to white) with a **phosphor afterglow** (`chompi.afterglow(0-0.97)`, 0.82 by
+default) so everything that moves leaves a trail; the glow **pulses on CHOMPI's beat** and **flashes on notes**, subtle
+**ripples** spread from played keys (`chompi.ripples(false)` turns them off, at most 16), and a faint **shimmer** keeps
+black alive (`chompi.ambient(0-1)`). Examples rewritten to always move: rain garden (rain, swaying stems, petals),
+**fireworks** (new: rockets from your keys burst and sing), orbits (comet trails, a sun pulsing on the beat).
+`stage.html?script=fireworks` opens the stage straight into an example. The Lua engine is picked up lazily and the
+first run waits for it (a slow load no longer breaks scripts).
+
 ## How it's built
 
 - `docs/workshop/vendor/fengari-web.js`: Fengari 0.1.4 (Lua 5.3 in JavaScript, MIT; licence beside it). Kept on the
