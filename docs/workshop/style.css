@@ -1,15 +1,6 @@
-/* Copy of firmware/chompi-forge/host/web/style.css (the workshop) for the static send page. */
-/* Choowi's sound workshop: the Spark look (docs/forge/FORGE_FAMILY.md). Ink on warm paper, spark pink,
-   CHOMPI's nine panel colours. Fonts stay local (the page only loads its own files): a rounded system
-   face for words, a monospace for numbers. */
-:root{--ink:#1b1b22;--paper:#fbfaf7;--card:#ffffff;--rule:#e3e1da;--muted:#5a5a66;--field:#f4f2ec;--spark:#ff5ea0;--accent:#c2185b;--error:#b3261e;
-  --c1:#ffffff;--c2:#2fbf55;--c3:#f5c400;--c4:#ff8a2a;--c5:#ec3b3b;--c6:#ff5ea0;--c7:#9150f0;--c8:#2f7cf6;--c9:#19c9b6;
-  --words:"Fredoka","Nunito","Varela Round","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;--mono:"Space Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
-  color-scheme:light;font-family:var(--words)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#f4f2ec;--paper:#16161c;--card:#1d1d25;--rule:#2c2c36;--muted:#a9a9b4;--field:#24242e;--accent:#ff7db3;--error:#ffb4a8;color-scheme:dark}}
-:root[data-theme="dark"]{--ink:#f4f2ec;--paper:#16161c;--card:#1d1d25;--rule:#2c2c36;--muted:#a9a9b4;--field:#24242e;--accent:#ff7db3;--error:#ffb4a8;color-scheme:dark}
-*{box-sizing:border-box}
-body{margin:0;background:var(--paper);color:var(--ink)}
+/* Choowi's forge page: its own layout on the site's look (../forge.css: colours, faces, corners, buttons, the menu).
+   Started as a copy of firmware/chompi-forge/host/web/style.css (the bridge's workshop). */
+:root{--c1:var(--c-white);--c2:var(--c-green);--c3:var(--c-yellow);--c4:var(--c-orange);--c5:var(--c-red);--c6:var(--c-pink);--c7:var(--c-purple);--c8:var(--c-blue);--c9:var(--c-teal)}
 header{max-width:1180px;margin:auto;padding:28px 32px 18px;display:flex;justify-content:space-between;align-items:center}
 .brand{font-size:34px;font-weight:700;letter-spacing:-.5px;color:var(--ink);text-decoration:none;line-height:1}
 .dots{display:flex;gap:6px;margin-top:8px}.dots i{width:12px;height:12px;border-radius:50%;border:1px solid #c9c7bf}
@@ -25,15 +16,15 @@ h2{font-size:26px;letter-spacing:-.3px;margin:0 0 6px;font-weight:600}
 .eyebrow.later{margin-top:28px}
 .step{width:28px;height:28px;border-radius:50%;display:inline-grid;place-items:center;font-family:var(--mono);font-style:normal;font-size:13px;font-weight:700;color:#1b1b22}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
-.card{padding:26px;background:var(--card);border:2px solid var(--rule);border-radius:22px}
+.card{padding:26px;background:var(--card);border:2px solid var(--rule);border-radius:var(--r-l)}
 label{display:block;font-size:14px;font-weight:600;margin:18px 0 7px}
-input,select,textarea,button,.file-button{font:inherit;font-size:15px;border:2px solid var(--rule);border-radius:12px;color:var(--ink);background:var(--field);min-height:44px}
+input,select,textarea,button,.file-button{font:inherit;font-size:15px;border:2px solid var(--rule);border-radius:var(--r-s);color:var(--ink);background:var(--field);min-height:44px}
 input,select,textarea{width:100%;padding:10px 12px}
 textarea{resize:vertical;min-height:100px;line-height:1.5}
 #reply,#chat-prompt-text,pre,input[type=number]{font-family:var(--mono);font-size:13px}
 #chat-prompt-text{margin-top:12px}
-input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,summary:focus-visible,.file-button:focus-within{outline:3px solid var(--spark);outline-offset:2px}
-button,.file-button{padding:10px 20px;cursor:pointer;font-weight:600;text-align:center;border-radius:99px;background:transparent;border-color:var(--ink)}
+.file-button:focus-within{outline:3px solid var(--page);outline-offset:2px}
+button,.file-button{padding:10px 20px;cursor:pointer;font-weight:600;text-align:center;border-radius:var(--r-pill);background:transparent;border-color:var(--ink)}
 button:hover,.file-button:hover{border-color:var(--spark)}
 button:disabled{opacity:.4;cursor:default}
 .primary{color:#1b1b22;background:var(--spark);border-color:var(--spark)}

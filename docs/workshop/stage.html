@@ -7,9 +7,10 @@
   <meta name="description" content="A dot-matrix screen that CHOMPI plays.">
   <meta name="robots" content="noindex">
   <link rel="icon" href="../forge/assets/choowi.svg">
+  <link rel="stylesheet" href="../forge.css?v=2">
   <style>
     /* Choowi stage, pattern channel (prototype): a big LED panel CHOMPI plays. */
-    :root{--ink:#f4f2ec;--muted:#a9a9b4;--bg:#050507;--rule:#2c2c36;--spark:#ff5ea0;color-scheme:dark;
+    :root{--bg:#050507;color-scheme:dark;   /* darker than var(--night): the LEDs glow on it; the rest from ../forge.css (.night) */
       font-family:"Fredoka","Nunito","Segoe UI",system-ui,sans-serif}
     *{box-sizing:border-box}
     [hidden]{display:none!important}
@@ -40,7 +41,7 @@
     .editor pre{margin:0;min-height:2.6em;max-height:7em;overflow:auto;white-space:pre-wrap;font:12px/1.4 "Space Mono",Consolas,monospace;color:var(--muted)}
   </style>
 </head>
-<body>
+<body class="night">
 <div class="gate" id="gate"><form id="gate-form" autocomplete="off">
   <h1>✦ the stage ✦</h1><p>a secret. what's the word?</p>
   <input id="gate-word" type="password" aria-label="the word" autofocus>

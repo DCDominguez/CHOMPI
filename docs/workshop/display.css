@@ -1,11 +1,7 @@
 /* Choowi display: CHOMPI's screen on a phone. Dark like a stage screen (the panel's lights glow on it), the
    forge site's faces and colours (style.css). Portrait: the panel on top, the readout below. Landscape: side
    by side, sized to the screen's height so nothing scrolls. */
-:root{--ink:#f4f2ec;--paper:#101015;--card:#1b1b23;--rule:#2c2c36;--muted:#a9a9b4;--field:#24242e;--spark:#ff5ea0;
-  --words:"Fredoka","Nunito","Varela Round","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;--mono:"Space Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
-  --pad:16px;color-scheme:dark;font-family:var(--words)}
-*{box-sizing:border-box}
-[hidden]{display:none!important}
+:root{--pad:16px}                 /* colours, faces and corners: ../forge.css (the body is .night, its colour teal) */
 html,body{height:100%}
 body{margin:0;background:var(--paper);color:var(--ink);display:flex;flex-direction:column;
   padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
@@ -14,15 +10,15 @@ body{margin:0;background:var(--paper);color:var(--ink);display:flex;flex-directi
 .where{display:flex;align-items:center;gap:8px;font-weight:600;font-size:17px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .where i{width:14px;height:14px;border-radius:50%;background:#444;flex:none;box-shadow:0 0 10px currentColor}
 .battery{font-family:var(--mono);font-size:13px;color:var(--muted);white-space:nowrap}
-button{font:inherit;color:var(--ink);background:var(--field);border:2px solid var(--rule);border-radius:12px;min-height:44px;padding:0 16px;cursor:pointer}
+button{font:inherit;color:var(--ink);background:var(--field);border:2px solid var(--rule);border-radius:var(--r-s);min-height:44px;padding:0 16px;cursor:pointer}
 button.icon{min-width:44px;padding:0;font-size:20px}
-button.primary{background:var(--spark);border-color:var(--spark);color:#1b1b22;font-weight:700;width:100%;font-size:18px}
+button.primary{background:var(--page);border-color:var(--page);color:#1b1b22;font-weight:700;width:100%;font-size:18px;border-radius:var(--r-pill)}
 button.quiet{background:none;border:0;color:var(--muted);text-decoration:underline;width:100%}
-button:focus-visible{outline:3px solid var(--spark);outline-offset:2px}
 main{flex:1;display:flex;flex-direction:column;gap:12px;padding:12px var(--pad);min-height:0}
 .start{max-width:520px;margin:auto;display:flex;flex-direction:column;gap:14px;text-align:center}
 .start h1{font-size:32px;margin:0}
 .start p{color:var(--muted);line-height:1.45;margin:0}
+.start .sitenav{justify-content:center;margin-top:6px}
 .notice{min-height:1.4em;color:#ffb4a8}
 .panel-card{position:relative;background:#07070a;border:1px solid var(--rule);border-radius:18px;padding:6px}
 #panel{display:block;width:100%;height:auto}

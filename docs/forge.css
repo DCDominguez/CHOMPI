@@ -1,0 +1,52 @@
+/* forge.css: the forge site's one look (2026-10-18; the owner: keep the colours and the pages, add uniformity).
+   Ink on warm paper, spark pink, CHOMPI's nine panel colours; one night background for the screen pages
+   (Choowivision, the stage). Each page has its own colour, as CHOMPI's menu pages do: set --page on <body>.
+   Pages: home (the nine colours), the forge page pink, Choowivision teal, the manual purple. */
+/* The faces, bundled (docs/fonts, SIL Open Font License, licences beside them): every page looks the same and
+   loads nothing from elsewhere. Fredoka is one variable file (500-700). */
+@font-face{font-family:"Fredoka";font-style:normal;font-weight:500 700;font-display:swap;src:url(fonts/Fredoka-500-600-700.woff2) format("woff2")}
+@font-face{font-family:"Space Mono";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/SpaceMono-400.woff2) format("woff2")}
+@font-face{font-family:"Space Mono";font-style:normal;font-weight:700;font-display:swap;src:url(fonts/SpaceMono-700.woff2) format("woff2")}
+:root{
+  --ink:#1b1b22;--paper:#fbfaf7;--card:#ffffff;--field:#f4f2ec;--rule:#e3e1da;--muted:#5a5a66;--accent:#c2185b;--error:#b3261e;
+  --night:#0d0d12;--night-card:#18181f;--night-rule:#2c2c36;--night-ink:#f4f2ec;--night-muted:#a9a9b4;
+  --c-white:#ffffff;--c-green:#2fbf55;--c-yellow:#f5c400;--c-orange:#ff8a2a;--c-red:#ec3b3b;
+  --c-pink:#ff5ea0;--c-purple:#9150f0;--c-blue:#2f7cf6;--c-teal:#19c9b6;
+  --spark:var(--c-pink);--page:var(--spark);
+  --words:"Fredoka","Nunito","Varela Round","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  --mono:"Space Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --r-s:10px;--r-m:16px;--r-l:22px;--r-pill:999px;
+  color-scheme:light;font-family:var(--words)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ink:#f4f2ec;--paper:#16161c;--card:#1d1d25;--field:#24242e;--rule:#2c2c36;--muted:#a9a9b4;--accent:#ff7db3;--error:#ffb4a8;color-scheme:dark}}
+:root[data-theme="dark"]{--ink:#f4f2ec;--paper:#16161c;--card:#1d1d25;--field:#24242e;--rule:#2c2c36;--muted:#a9a9b4;--accent:#ff7db3;--error:#ffb4a8;color-scheme:dark}
+/* Screen pages are always dark. */
+.night{--ink:var(--night-ink);--paper:var(--night);--card:var(--night-card);--field:#22222b;--rule:var(--night-rule);--muted:var(--night-muted);
+  --accent:#ff7db3;color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--words)}
+a{color:var(--accent)}
+code,kbd,samp{font-family:var(--mono);font-size:.9em}
+:focus-visible{outline:3px solid var(--page);outline-offset:2px}
+
+/* Buttons: pills. .btn.primary takes the page's colour; .btn.ghost is an outline. */
+.btn{font:inherit;font-weight:700;font-size:1rem;display:inline-flex;align-items:center;justify-content:center;gap:.4em;min-height:44px;
+  padding:10px 20px;border-radius:var(--r-pill);border:2px solid var(--ink);background:transparent;color:var(--ink);text-decoration:none;cursor:pointer}
+.btn:hover{border-color:var(--page)}
+.btn.primary{background:var(--page);border-color:var(--page);color:#1b1b22}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn:disabled{opacity:.4;cursor:default}
+
+/* The site menu: the same four places on every public page, each with its colour; the current one lit. */
+.sitenav{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:14px;font-weight:600}
+.sitenav a{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:var(--r-pill);border:1.5px solid var(--rule);
+  color:var(--ink);text-decoration:none;white-space:nowrap}
+.sitenav a::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--dot);border:1px solid rgba(0,0,0,.18)}
+.sitenav a:hover{border-color:var(--dot)}
+.sitenav a[aria-current="page"]{border-color:var(--dot);box-shadow:inset 0 0 0 1px var(--dot)}
+.sitenav .home{--dot:var(--c-white)}.sitenav .forge{--dot:var(--c-pink)}.sitenav .vision{--dot:var(--c-teal)}.sitenav .manual{--dot:var(--c-purple)}
+@media (max-width:520px){.sitenav{font-size:13px}.sitenav a{padding:4px 10px}}
+
+/* The nine dots (the panel's colours, white first). */
+.nine{display:flex;gap:8px}.nine i,.nine a{width:16px;height:16px;border-radius:50%;display:inline-block;border:1px solid #c9c7bf}
