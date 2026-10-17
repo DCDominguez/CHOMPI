@@ -336,7 +336,8 @@ void EngineAndPanel() {
     };
     assert(led(53).b == 1.f && led(65).g == 1.f && led(56).r == 1.f && led(59).r < .1f && led(71).g == 1.f);
     assert(led(66).r < .1f && led(68).r < .1f && led(70).r == 0.f);                  // recorder empty: F#4 / G#4 dim, A#4 dark
-    assert(led(48).b == 0.f && led(60).g == 0.f);
+    assert(led(48).b > 0.f && led(48).b < .1f && led(60).g > 0.f && led(60).g < .1f);   // unchosen options: hints (0.20.1)
+    assert(led(61).r > 0.f && led(61).r < .1f && led(63).r > 0.f && led(63).r < .1f);   // KEY_21 / KEY_22: navigation hints
     forge::Rgb rings[4]; forge::ComposePartsKnobLeds(v.parts, v.parts_clock, rings);
     assert(rings[1].g == 1.f && rings[1].r == 0.f && rings[3].r == 1.f && rings[3].g > .5f && rings[3].g < .7f);   // 2 octaves green, 1/8 orange (0.16)
     // KEY_21 on to the synth page (0.19), the FX page (0.20), then back to the harmony page (the tonic unchanged), KEY_22 back to TAPE's page.

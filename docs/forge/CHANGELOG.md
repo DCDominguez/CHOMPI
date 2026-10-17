@@ -4,6 +4,13 @@ Every Choowi release is a tool Choowi forges ([FORGE_FAMILY.md](FORGE_FAMILY.md)
 
 ## 0.20.0 The FX section, overdub undo, the phone display (tool: Choowivision) — release candidate 3, for community testing (published 2026-10-13: choowi-0.20.0-rc3)
 
+- **One light language on every menu page (after rc3; the owner: uniformity):** full = chosen and on, soft = chosen
+  but off, hint = an option you could pick or a navigation key, off = nothing there, blinking = waiting for you. The
+  parts page now shows its unchosen patterns, rates and bass modes as hints in their colours (they were dark) and
+  KEY_21 / KEY_22 as navigation hints; synth and FX options use the same hint level (8 %); FX's unused looper key is a
+  hint. One shared key-lighting helper (`LightNote`) for every page. Software-tested; not yet seen on CHOMPI.
+- **The site's one look (after rc3):** a shared `forge.css` (colours, faces, corners, buttons, a site menu), the
+  fonts bundled on the site; each page keeps its colour (forge page pink, Choowivision teal, manual purple).
 - **The FX section:** four modules (Space, Colour, Texture, Motion), three effects each, in a route; the
   FX menu page; patch v8. See [FX.md](FX.md).
 - **Overdub undo:** tap PLAY + LOOP together to take the last overdub back (one level, loops up to ~41 s).

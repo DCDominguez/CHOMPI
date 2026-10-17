@@ -1063,6 +1063,22 @@ struct LedView {
 // 0.16: with harmony on, each key glows dim in the colour of the chord it plays now: major
 // orange, minor blue, diminished red, augmented pink, sus4 teal (Shift held: the shifted
 // chords). Static layout: C5 (Shift) dim white, bright while Shift is on.
+// 0.20.1, one light language on every menu page (the owner: uniformity): full = chosen and on; soft = chosen but
+// off; hint = an option you could pick, or a navigation key; off = nothing there; blinking = waiting for you.
+namespace light { constexpr float kFull = 1.f, kSoft = .25f, kHint = .08f; }
+// Light the key that plays `note` (one copy for every page; they each had their own).
+FORGE_COLD inline void LightNote(Rgb (&keys)[25], uint8_t note, Rgb c) {
+    for(uint8_t key = 0; key < panel::kButtons; ++key) if(panel::kKeyNotes[key] == note) {
+        const uint8_t slot = panel::KeyToSlot(key);
+        const uint8_t led = slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key);
+        if(led < 25) keys[led] = c;
+    }
+}
+// KEY_21 / KEY_22 (C#4 / D#4): the menu's navigation keys, a hint on the pages that don't use them.
+FORGE_COLD inline void LightNavigation(Rgb (&keys)[25]) {
+    const Rgb hint{light::kHint, light::kHint, light::kHint};
+    LightNote(keys, 61, hint); LightNote(keys, 63, hint);
+}
 FORGE_COLD inline Rgb ChordColour(uint8_t note, const harmony::State& s, bool shift) {
     using namespace knobs::colour;
     const harmony::Function f = s.layout == harmony::Layout::Static ? harmony::StaticFunction(note) : harmony::RealFunction(note, s.tonic, s.mode);
@@ -1199,7 +1215,7 @@ inline void ComposeMenuKnobLeds(uint8_t lights, Rgb (&rings)[4], Rgb& volume) {
 // SW2 voice leading on (white) / off (purple), SW3 open spread (white) / close (dim).
 FORGE_COLD inline void RenderHarmonyLeds(uint32_t packed, Rgb (&keys)[25]) {
     const harmony::State s = harmony::Unpack(packed);
-    const float level = s.enabled ? 1.f : .3f;
+    const float level = s.enabled ? light::kFull : light::kSoft;
     for(auto& led : keys) led = Rgb{};
     for(uint8_t key = 0; key < panel::kButtons; ++key) {
         const uint8_t note = panel::kKeyNotes[key];
@@ -1244,13 +1260,11 @@ FORGE_COLD inline void RenderPartsLeds(uint32_t packed, uint32_t clock, uint32_t
     for(auto& led : keys) led = Rgb{};
     static const uint8_t pattern[parts::kPatterns] = {48, 50, 52, 53, 55, 57}, rate[parts::kRates] = {60, 62, 64, 65, 67, 69};
     static const uint8_t bass[parts::kBassModes] = {49, 51, 54, 56, 58};
-    auto lit = [&](uint8_t note, Rgb c) {
-        for(uint8_t key = 0; key < panel::kButtons; ++key) if(panel::kKeyNotes[key] == note) {
-            const uint8_t slot = panel::KeyToSlot(key);
-            const uint8_t led = slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key);
-            if(led < 25) keys[led] = c;
-        }
-    };
+    auto lit = [&](uint8_t note, Rgb c) { LightNote(keys, note, c); };
+    for(uint8_t n : pattern) lit(n, knobs::Scale(knobs::colour::blue, light::kHint));     // options: hints in the group's colour
+    for(uint8_t n : rate) lit(n, knobs::Scale(knobs::colour::green, light::kHint));
+    for(uint8_t n : bass) lit(n, knobs::Scale(knobs::colour::orange, light::kHint));
+    LightNavigation(keys);
     lit(pattern[static_cast<unsigned>(s.pattern) % parts::kPatterns], knobs::colour::blue);
     lit(rate[static_cast<unsigned>(s.rate) % parts::kRates], knobs::colour::green);
     static const float octave[3] = {.35f, .65f, 1.f};          // bass octave C1 / C2 / C3: brighter = higher
@@ -1258,14 +1272,14 @@ FORGE_COLD inline void RenderPartsLeds(uint32_t packed, uint32_t clock, uint32_t
     // Event recorder (0.15): F#4 dim white empty, red blinking on the beat armed, red recording,
     // green playing (dim stopped); G#4 yellow while overdubbing; A#4 white once clear is armed.
     const unsigned state = sequence & 7u; const bool beat = (clock & 5u) == 5u;
-    const Rgb dim{.08f, .08f, .08f};
+    const Rgb dim{light::kHint, light::kHint, light::kHint};
     lit(66, state == 1 ? (beat ? knobs::colour::red : Rgb{}) : state == 2 ? knobs::colour::red : state == 3 ? knobs::colour::green
-            : state == 4 ? knobs::Scale(knobs::colour::green, .25f) : dim);
+            : state == 4 ? knobs::Scale(knobs::colour::green, light::kSoft) : dim);
     lit(68, (sequence & 8u) ? knobs::colour::yellow : dim);
     lit(70, (sequence & 16u) ? Rgb{1.f, 1.f, 1.f} : state >= 3 ? dim : Rgb{});
-    lit(59, s.latch ? Rgb{1.f, 1.f, 1.f} : Rgb{.08f, .08f, .08f});
+    lit(59, s.latch ? Rgb{1.f, 1.f, 1.f} : dim);
     lit(71, clock & 1u ? knobs::colour::green : knobs::colour::red);
-    lit(72, (clock & 5u) == 5u ? Rgb{1.f, 1.f, 1.f} : Rgb{.08f, .08f, .08f});
+    lit(72, (clock & 5u) == 5u ? Rgb{1.f, 1.f, 1.f} : dim);
 }
 // 0.16: SW1 and SW3 follow the step colours (octaves 1-4 white, green, yellow, orange; bass
 // rate chord change white, 1/2 green, 1/4 yellow, 1/8 orange); while SW4 is turned (and 1.5 s
@@ -1281,24 +1295,18 @@ inline Rgb TempoColour(unsigned bpm) {
 FORGE_COLD inline void RenderSynthLeds(uint32_t s, Rgb (&keys)[25]) {
     using namespace knobs::colour;
     for(auto& led : keys) led = Rgb{};
-    auto lit = [&](uint8_t note, Rgb c) {
-        for(uint8_t key = 0; key < panel::kButtons; ++key) if(panel::kKeyNotes[key] == note) {
-            const uint8_t slot = panel::KeyToSlot(key);
-            const uint8_t led = slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key);
-            if(led < 25) keys[led] = c;
-        }
-    };
-    if(!((s >> 13) & 1u)) { for(auto& led : keys) led = Rgb{.15f, 0.f, 0.f}; return; }
+    auto lit = [&](uint8_t note, Rgb c) { LightNote(keys, note, c); };
+    if(!((s >> 13) & 1u)) { for(auto& led : keys) led = Rgb{light::kSoft, 0.f, 0.f}; return; }   // no synth here: soft red
     auto group = [&](const uint8_t* notes, unsigned n, unsigned chosen, Rgb c) {
-        for(unsigned i = 0; i < n; ++i) lit(notes[i], i == chosen ? c : knobs::Scale(c, .12f));
+        for(unsigned i = 0; i < n; ++i) lit(notes[i], i == chosen ? c : knobs::Scale(c, light::kHint));
     };
     static const uint8_t osc1[4] = {48, 50, 52, 53}, osc2[4] = {55, 57, 59, 60}, interval[6] = {62, 64, 65, 67, 69, 71};
     static const uint8_t lfo[4] = {49, 51, 54, 56}, voices[3] = {66, 68, 70};
     group(osc1, 4, s & 3u, pink); group(osc2, 4, (s >> 2) & 3u, teal); group(interval, 6, (s >> 4) & 7u, yellow);
     group(lfo, 4, (s >> 7) & 3u, purple); group(voices, 3, (s >> 10) & 3u, green);
-    lit(58, (s >> 9) & 1u ? white : Rgb{.08f, .08f, .08f});
-    lit(72, (s >> 12) & 1u ? white : Rgb{.3f, .3f, .3f});
-    lit(61, Rgb{.08f, .08f, .08f}); lit(63, Rgb{.08f, .08f, .08f});
+    lit(58, (s >> 9) & 1u ? white : knobs::Scale(white, light::kHint));
+    lit(72, (s >> 12) & 1u ? white : knobs::Scale(white, light::kSoft));   // audition: soft, bright while held
+    LightNavigation(keys);
 }
 // Synth page rings: page 1 pink, page 2 teal, brighter with the value; turning shows the full colour.
 inline void ComposeSynthKnobLeds(uint32_t s, uint32_t values, Rgb (&rings)[4], uint32_t flags = 0) {
@@ -1318,19 +1326,13 @@ inline void ComposeSynthKnobLeds(uint32_t s, uint32_t values, Rgb (&rings)[4], u
 FORGE_COLD inline void RenderFxLeds(uint32_t f, Rgb (&keys)[25], bool blink = true) {
     using namespace knobs::colour;
     for(auto& led : keys) led = Rgb{};
-    auto lit = [&](uint8_t note, Rgb c) {
-        for(uint8_t key = 0; key < panel::kButtons; ++key) if(panel::kKeyNotes[key] == note) {
-            const uint8_t slot = panel::KeyToSlot(key);
-            const uint8_t led = slot != panel::kNoSlot ? panel::SlotLed(slot) : panel::BlackLed(key);
-            if(led < 25) keys[led] = c;
-        }
-    };
+    auto lit = [&](uint8_t note, Rgb c) { LightNote(keys, note, c); };
     const Rgb colours[fx::kModules] = {white, green, yellow, pink};
     for(unsigned m = 0; m < fx::kModules; ++m) {
         const unsigned chosen = (f >> (2 * m)) & 3u;
         const bool on = (f >> (11 + m)) & 1u;
         for(unsigned c = 0; c < fx::kChoices; ++c) {
-            float level = c != chosen ? .05f : on ? 1.f : .25f;
+            float level = c != chosen ? light::kHint : on ? light::kFull : light::kSoft;
             if(m == static_cast<unsigned>(fx::Module::Texture) && c == static_cast<unsigned>(fx::TextureChoice::Broken) && c == chosen
                && ((f >> 30) & 1u) && !blink) level *= .3f;                // broken radio: the key flickers
             lit(fx::kKeys[m][c], knobs::Scale(colours[m], level));
@@ -1348,10 +1350,10 @@ FORGE_COLD inline void RenderFxLeds(uint32_t f, Rgb (&keys)[25], bool blink = tr
     static const Rgb presets[3] = {orange, blue, purple};
     lit(fx::kRouteKey, (f >> 17) & 1u ? (blink ? white : knobs::Scale(white, .1f))                 // choosing: A#3 blinks
                                       : (f >> 15) & 1u ? white : presets[((f >> 8) & 3u) % 3]);    // white: your own order
-    lit(fx::kSideKey, (f >> 16) & 1u ? red : knobs::Scale(red, .05f));
+    lit(fx::kSideKey, (f >> 16) & 1u ? red : knobs::Scale(red, light::kHint));
     const bool before = (f >> 10) & 1u;
-    lit(fx::kBeforeLoopKey, before ? teal : Rgb{}); lit(fx::kAfterLoopKey, before ? Rgb{} : teal);
-    lit(61, Rgb{.08f, .08f, .08f}); lit(63, Rgb{.08f, .08f, .08f});
+    lit(fx::kBeforeLoopKey, before ? teal : knobs::Scale(teal, light::kHint)); lit(fx::kAfterLoopKey, before ? knobs::Scale(teal, light::kHint) : teal);
+    LightNavigation(keys);
 }
 // FX page rings: each knob in its module's colour (as the keys) and always its amount, also while it turns
 // (the owner, 2026-10-13: a full flash on turning hid whether the effect grew or faded). Off: a dim glow;
